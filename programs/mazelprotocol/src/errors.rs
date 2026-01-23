@@ -8,7 +8,7 @@ pub enum ErrorCode {
     DuplicateNumbers,
     #[msg("No tickets provided")]
     NoTickets,
-    #[msg("Maximum 10 tickets per transaction")]
+    #[msg("Maximum 100 tickets per batch")]
     TooManyTickets,
     #[msg("Draw is not ready yet")]
     DrawNotReady,
@@ -32,4 +32,12 @@ pub enum ErrorCode {
     JackpotBelowCap,
     #[msg("Jackpot has already been won in this draw")]
     JackpotAlreadyWon,
+    #[msg("Invalid ticket index in batch")]
+    InvalidTicketIndex,
+    #[msg("Ticket batch is full (max 100 tickets)")]
+    BatchFull,
+    #[msg("VRF result not yet resolved")]
+    VrfNotResolved,
+    #[msg("Invalid VRF proof")]
+    InvalidVrfProof,
 }

@@ -114,3 +114,13 @@ pub struct LotteryInitialized {
     pub seed_amount: u64,
     pub start_time: i64,
 }
+
+#[event]
+pub struct BatchPrizeClaimed {
+    pub batch_id: Pubkey,
+    pub ticket_index: u32,
+    pub player: Pubkey,
+    pub match_count: u8,
+    pub prize_amount: u64,
+    pub draw_id: u64,
+}
