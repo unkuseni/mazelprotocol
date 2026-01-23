@@ -46,6 +46,7 @@ impl LotteryState {
 pub struct Ticket {
     pub owner: Pubkey,
     pub draw_id: u64,
+    pub ticket_id: u64,
     pub numbers: [u8; NUMBERS_COUNT],
     pub purchase_timestamp: i64,
     pub is_claimed: bool,
@@ -54,9 +55,50 @@ pub struct Ticket {
     pub syndicate: Option<Pubkey>,
 }
 
+/// Compressed ticket entry for batch storage
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct TicketEntry {
+    pub numbers: [u8; NUMBERS_COUNT],
+    pub purchase_timestamp: i64,
+    pub is_claimed: bool,
+    pub prize_amount: u64,
+    pub match_count: u8,
+}
+
+impl TicketEntry {
+    pub const LEN: usize = 6 +   // numbers (6 * u8)
+        8 +   // purchase_timestamp
+        1 +   // is_claimed
+        8 +   // prize_amount
+        1; // match_count
+}
+
+/// Batch of tickets stored together to reduce rent costs
+/// Can store up to 100 tickets in a single account
+#[account]
+pub struct TicketBatch {
+    pub owner: Pubkey,
+    pub draw_id: u64,
+    pub start_ticket_id: u64,      // First ticket ID in this batch
+    pub tickets: Vec<TicketEntry>, // Up to 100 tickets
+    pub bump: u8,
+}
+
+impl TicketBatch {
+    pub const MAX_TICKETS: usize = 100;
+
+    pub const LEN: usize = 32 +  // owner
+        8 +   // draw_id
+        8 +   // start_ticket_id
+        4 +   // Vec length prefix (u32)
+        (Self::MAX_TICKETS * TicketEntry::LEN) + // Space for max tickets
+        1; // bump
+}
+
 impl Ticket {
     pub const LEN: usize = 32 +  // owner
         8 +   // draw_id
+        8 +   // ticket_id
         6 +   // numbers (6 * u8)
         8 +   // purchase_timestamp
         1 +   // is_claimed
