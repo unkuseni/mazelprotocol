@@ -1,6 +1,6 @@
 # SolanaLotto Technical Specification
 
-## Version 1.0.0
+## Version 2.1.0
 
 ---
 
@@ -437,91 +437,96 @@ pub const SYNDICATE_MEMBER_SIZE: usize = 48;
 ```rust
 #[account]
 pub struct LotteryState {
-    /// Admin authority (multi-sig)
+    /// Admin authority (multi-sig wallet)
     pub authority: Pubkey,
-    
-    /// Current draw identifier
+
+    /// Switchboard queue for randomness requests
+    pub switchboard_queue: Pubkey,
+
+    /// Current active randomness account
+    pub current_randomness_account: Pubkey,
+
+    /// Current draw identifier (increments each draw)
     pub current_draw_id: u64,
-    
-    /// Jackpot balance in USDC lamports
+
+    /// Current jackpot balance in USDC lamports
     pub jackpot_balance: u64,
-    
-    /// Reserve fund balance
+
+    /// Reserve fund balance for future draws
     pub reserve_balance: u64,
-    
-    /// Insurance pool balance
+
+    /// Insurance fund for guaranteed payouts
     pub insurance_balance: u64,
-    
+
     /// Ticket price in USDC lamports
     pub ticket_price: u64,
-    
-    // ═══════════════════════════════════════════════════════════
-    // DYNAMIC FEE SYSTEM (replaces fixed house_fee_bps)
-    // ═══════════════════════════════════════════════════════════
-    
-    /// Fee tier 1: Jackpot < $500k (2800 = 28%)
-    pub fee_tier_1_bps: u16,
-    
-    /// Fee tier 2: Jackpot $500k-$1M (3200 = 32%)
-    pub fee_tier_2_bps: u16,
-    
-    /// Fee tier 3: Jackpot $1M-$1.5M (3600 = 36%)
-    pub fee_tier_3_bps: u16,
-    
-    /// Fee tier 4: Jackpot $1.5M+ (4000 = 40%)
-    pub fee_tier_4_bps: u16,
-    
-    /// Fee during rolldown events (2800 = 28%)
-    pub fee_rolldown_bps: u16,
-    
-    /// Current applied fee (calculated dynamically)
-    pub current_fee_bps: u16,
-    
-    // ═══════════════════════════════════════════════════════════
-    // SOFT/HARD CAP SYSTEM
-    // ═══════════════════════════════════════════════════════════
-    
-    /// Soft cap threshold (probabilistic rolldown possible)
-    pub soft_cap: u64,
-    
-    /// Hard cap threshold (full rolldown trigger)
-    pub hard_cap: u64,
-    
-    /// Soft cap rolldown rate (3000 = 30% of excess) - DEPRECATED: Replaced with probabilistic rolldown
-    pub soft_cap_rolldown_rate_bps: u16,
-    
-    /// Total distributed via probabilistic rolldowns (soft cap triggers)
-    pub total_soft_rolldowns: u64,
-    
-    /// Is rolldown pending for next draw
-    pub is_rolldown_pending: bool,
-    
-    /// Seed amount after rolldown
+
+    /// Current house fee in basis points (10000 = 100%)
+    pub house_fee_bps: u16,
+
+    /// Maximum jackpot before forced rolldown
+    pub jackpot_cap: u64,
+
+    /// Initial seed amount for new jackpot cycles
     pub seed_amount: u64,
-    
-    /// Seconds between draws
-    pub draw_interval: i64,
-    
-    /// Total tickets sold (lifetime)
-    pub total_tickets_sold: u64,
-    
-    /// Total prizes paid (lifetime)
-    pub total_prizes_paid: u64,
-    
-    /// Timestamp of last draw
-    pub last_draw_timestamp: i64,
-    
-    /// Timestamp of next scheduled draw
+
+    /// Soft cap threshold for probabilistic rolldown
+    pub soft_cap: u64,
+
+    /// Hard cap threshold for forced rolldown
+    pub hard_cap: u64,
+
+    /// Unix timestamp of next scheduled draw
     pub next_draw_timestamp: i64,
-    
-    /// Total tickets for current draw
-    pub current_draw_tickets: u64,
-    
-    /// Emergency pause flag
+
+    /// Slot when current randomness was committed
+    pub commit_slot: u64,
+
+    /// Whether a draw is currently in progress
+    pub is_draw_in_progress: bool,
+
+    /// Whether rolldown is active for the next draw
+    pub is_rolldown_active: bool,
+
+    /// Whether the lottery is paused
     pub is_paused: bool,
-    
+
     /// PDA bump seed
     pub bump: u8,
+}
+
+/// Lottery numbers wrapper with validation
+pub struct LotteryNumbers([u8; 6]);
+
+impl LotteryNumbers {
+    /// Create new validated lottery numbers
+    pub fn new(numbers: [u8; 6]) -> Result<Self> {
+        require!(
+            validate_lottery_numbers(&numbers),
+            crate::errors::ErrorCode::InvalidNumbers
+        );
+
+        // Sort numbers for consistency
+        let mut sorted_numbers = numbers;
+        sorted_numbers.sort();
+
+        Ok(Self(sorted_numbers))
+    }
+
+    /// Get the underlying numbers array
+    pub fn numbers(&self) -> [u8; 6] {
+        self.0
+    }
+
+    /// Calculate match count with winning numbers
+    pub fn calculate_match_count(&self, winning_numbers: &[u8; 6]) -> u8 {
+        calculate_match_count(&self.0, winning_numbers)
+    }
+
+    /// Check if numbers are valid
+    pub fn is_valid(&self) -> bool {
+        validate_lottery_numbers(&self.0)
+    }
 }
 
 #[account]
@@ -538,43 +543,30 @@ pub struct DrawResult {
     /// Draw execution timestamp
     pub timestamp: i64,
     
+    /// Total tickets sold for this draw
+    pub total_tickets: u64,
+    
     /// Whether this was a rolldown draw
     pub was_rolldown: bool,
-    
-    /// Type of rolldown (None, Soft, Hard)
-    pub rolldown_type: RolldownType,
-    
-    /// Amount distributed in this rolldown
-    pub rolldown_amount: u64,
     
     /// Winner counts by tier
     pub match_6_winners: u32,
     pub match_5_winners: u32,
     pub match_4_winners: u32,
     pub match_3_winners: u32,
-    pub match_2_winners: u32,
     
-    /// Prize amounts by tier (calculated after draw)
-    pub match_6_prize: u64,
-    pub match_5_prize: u64,
-    
-    /// Prize amounts during probabilistic rolldown
-    pub match_5_bonus: u64,
-    pub match_4_bonus: u64,
-    pub match_3_bonus: u64,
-    pub match_4_prize: u64,
-    pub match_3_prize: u64,
-    pub match_2_prize: u64,
-    
-    /// Total distributed in this draw
-    pub total_distributed: u64,
+    /// Prize amounts per winner by tier
+    pub match_6_prize_per_winner: u64,
+    pub match_5_prize_per_winner: u64,
+    pub match_4_prize_per_winner: u64,
+    pub match_3_prize_per_winner: u64,
     
     /// PDA bump seed
     pub bump: u8,
 }
 
 #[account]
-pub struct Ticket {
+pub struct TicketData {
     /// Ticket owner
     pub owner: Pubkey,
     
@@ -620,14 +612,14 @@ pub struct UserStats {
     /// Current consecutive draw streak
     pub current_streak: u32,
     
-    /// Longest streak achieved
-    pub longest_streak: u32,
+    /// Best streak achieved
+    pub best_streak: u32,
+    
+    /// Number of jackpot wins
+    pub jackpot_wins: u32,
     
     /// Last draw user participated in
     pub last_draw_participated: u64,
-    
-    /// Streak bonus multiplier (basis points, e.g., 1100 = 10% bonus)
-    pub streak_bonus_bps: u16,
     
     /// PDA bump seed
     pub bump: u8,
@@ -744,6 +736,17 @@ pub enum RolldownType {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+/// Winner counts structure for draw results
+#[derive(Default)]
+pub struct WinnerCounts {
+    pub match_6: u32,
+    pub match_5: u32,
+    pub match_4: u32,
+    pub match_3: u32,
+    pub match_2: u32,
+}
+
+/// Syndicate member information
 pub struct SyndicateMember {
     /// Member wallet
     pub wallet: Pubkey,
@@ -752,10 +755,7 @@ pub struct SyndicateMember {
     pub contribution: u64,
     
     /// Share of prizes (basis points)
-    pub share_bps: u16,
-    
-    /// Join timestamp
-    pub joined_at: i64,
+    pub share_percentage_bps: u16,
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -818,6 +818,112 @@ pub struct SecondChanceEntry {
     pub bump: u8,
 }
 
+/// Unified ticket account for bulk purchases
+#[account]
+pub struct UnifiedTicket {
+    /// Wallet that owns all tickets in this account
+    pub owner: Pubkey,
+
+    /// Draw ID that all tickets are for
+    pub draw_id: u64,
+
+    /// Starting ticket ID for this batch
+    pub start_ticket_id: u64,
+
+    /// Number of tickets in this account
+    pub ticket_count: u32,
+
+    /// Array of lottery numbers (one per ticket)
+    pub numbers: Vec<LotteryNumbers>,
+
+    /// Unix timestamp when tickets were purchased
+    pub purchase_timestamp: i64,
+
+    /// Optional syndicate wallet
+    pub syndicate: Option<Pubkey>,
+}
+
+impl UnifiedTicket {
+    /// Calculate account size for initialization
+    pub fn size_for_count(ticket_count: usize) -> usize {
+        8 + // discriminator
+        32 + // owner
+        8 + // draw_id
+        8 + // start_ticket_id
+        4 + // ticket_count
+        4 + // numbers vector length
+        (ticket_count * 6) + // numbers data (6 bytes each)
+        8 + // purchase_timestamp
+        33 // syndicate (Option<Pubkey>)
+    }
+}
+
+/// Quick Pick Express game state
+#[account]
+pub struct QuickPickState {
+    /// Current draw number
+    pub current_draw: u64,
+    
+    /// Ticket price (500,000 = $0.50)
+    pub ticket_price: u64,
+    
+    /// Next draw timestamp
+    pub next_draw_timestamp: i64,
+    
+    /// Prize pool balance
+    pub prize_pool_balance: u64,
+    
+    /// Is paused
+    pub is_paused: bool,
+    
+    /// PDA bump
+    pub bump: u8,
+}
+
+/// Syndicate Wars competition entry
+#[account]
+pub struct SyndicateWarsEntry {
+    /// Syndicate reference
+    pub syndicate: Pubkey,
+    
+    /// Competition month
+    pub month: u64,
+    
+    /// Total tickets purchased
+    pub tickets_purchased: u64,
+    
+    /// Total prizes won
+    pub prizes_won: u64,
+    
+    /// Win rate (fixed-point)
+    pub win_rate: u64,
+    
+    /// Final rank
+    pub final_rank: Option<u32>,
+    
+    /// PDA bump
+    pub bump: u8,
+}
+
+/// Second Chance Draw entry
+#[account]
+pub struct SecondChanceEntry {
+    /// Original ticket reference
+    pub ticket: Pubkey,
+    
+    /// Player wallet
+    pub player: Pubkey,
+    
+    /// Week number for this entry
+    pub week_id: u64,
+    
+    /// Number of entries
+    pub entry_count: u32,
+    
+    /// PDA bump
+    pub bump: u8,
+}
+
 /// Second Chance Draw result
 #[account]
 pub struct SecondChanceResult {
@@ -850,6 +956,53 @@ pub struct SecondChanceResult {
     
     /// PDA bump
     pub bump: u8,
+}
+
+/// Match tier enumeration
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+pub enum MatchTier {
+    NoMatch,
+    Match2,
+    Match3,
+    Match4,
+    Match5,
+    Match6,
+}
+
+/// Stake tier enumeration
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+pub enum StakeTier {
+    None,
+    Bronze,
+    Silver,
+    Gold,
+    Diamond,
+}
+
+impl StakeTier {
+    pub fn from_amount(amount: u64) -> Self {
+        if amount >= DIAMOND_THRESHOLD {
+            StakeTier::Diamond
+        } else if amount >= GOLD_THRESHOLD {
+            StakeTier::Gold
+        } else if amount >= SILVER_THRESHOLD {
+            StakeTier::Silver
+        } else if amount >= BRONZE_THRESHOLD {
+            StakeTier::Bronze
+        } else {
+            StakeTier::None
+        }
+    }
+    
+    pub fn discount_bps(&self) -> u16 {
+        match self {
+            StakeTier::None => 0,
+            StakeTier::Bronze => 500,   // 5%
+            StakeTier::Silver => 1000,  // 10%
+            StakeTier::Gold => 1500,    // 15%
+            StakeTier::Diamond => 2000, // 20%
+        }
+    }
 }
 
 /// Quick Pick Express game state
@@ -1969,112 +2122,714 @@ pub struct EmergencyUnpause {
 
 ```rust
 #[error_code]
-pub enum LottoError {
-    // Validation Errors (6000-6099)
-    #[msg("Number must be between 1 and 46")]
-    NumberOutOfRange = 6000,
-    
-    #[msg("Ticket contains duplicate numbers")]
-    DuplicateNumber = 6001,
-    
-    #[msg("Too many tickets in bulk purchase (max 10)")]
-    TooManyTickets = 6002,
-    
-    #[msg("No tickets provided")]
-    NoTickets = 6003,
-    
-    #[msg("Invalid syndicate name")]
-    InvalidSyndicateName = 6004,
-    
-    #[msg("Manager fee too high (max 5%)")]
-    ManagerFeeTooHigh = 6005,
-    
-    // Authorization Errors (6100-6199)
-    #[msg("Not authorized to perform this action")]
-    Unauthorized = 6100,
-    
-    #[msg("Not the ticket owner")]
-    NotTicketOwner = 6101,
-    
-    #[msg("Not the syndicate creator")]
-    NotSyndicateCreator = 6102,
-    
-    #[msg("Not a syndicate member")]
-    NotSyndicateMember = 6103,
-    
-    // State Errors (6200-6299)
-    #[msg("Lottery is paused")]
-    Paused = 6200,
-    
-    #[msg("Draw is not open for purchases")]
-    DrawNotOpen = 6201,
-    
-    #[msg("Draw has not been executed yet")]
-    DrawNotExecuted = 6202,
-    
-    #[msg("Prize already claimed")]
-    AlreadyClaimed = 6203,
-    
-    #[msg("Syndicate is full")]
-    SyndicateFull = 6204,
-    
-    #[msg("Syndicate is not public")]
-    SyndicateNotPublic = 6205,
-    
-    #[msg("Already a syndicate member")]
-    AlreadyMember = 6206,
-    
-    // Timing Errors (6300-6399)
-    #[msg("Too early to execute draw")]
-    TooEarly = 6300,
-    
-    #[msg("Draw deadline passed")]
-    DeadlinePassed = 6301,
-    
-    #[msg("Cooldown period not elapsed")]
-    CooldownNotElapsed = 6302,
-    
-    #[msg("Timelock not expired")]
-    TimelockNotExpired = 6303,
-    
-    // Financial Errors (6400-6499)
-    #[msg("Insufficient USDC balance")]
-    InsufficientBalance = 6400,
-    
-    #[msg("Insufficient staked amount")]
-    InsufficientStake = 6401,
-    
-    #[msg("No rewards to claim")]
-    NoRewards = 6402,
-    
-    #[msg("Contribution below minimum")]
-    ContributionTooLow = 6403,
-    
-    // VRF Errors (6500-6599)
-    #[msg("Invalid VRF proof")]
-    InvalidVrfProof = 6500,
-    
-    #[msg("VRF request not found")]
-    VrfRequestNotFound = 6501,
-    
-    #[msg("VRF callback unauthorized")]
-    VrfCallbackUnauthorized = 6502,
-    
-    // Math Errors (6600-6699)
-    #[msg("Arithmetic overflow")]
-    Overflow = 6600,
-    
-    #[msg("Arithmetic underflow")]
-    Underflow = 6601,
-    
-    #[msg("Division by zero")]
-    DivisionByZero = 6602,
+pub enum ErrorCode {
+    // ============================================================================
+    // Authorization & Permissions (4 errors)
+    // ============================================================================
+    /// Attempted to perform an operation without proper authorization
+    #[msg("Unauthorized access attempt.")]
+    Unauthorized,
+
+    /// Operation requires admin-level authority but caller doesn't have it
+    #[msg("Admin authority required.")]
+    AdminAuthorityRequired,
+
+    /// Caller is not the owner of the account they're trying to modify
+    #[msg("Caller is not the owner of this account.")]
+    NotOwner,
+
+    /// Provided authority signature is invalid or doesn't match expected authority
+    #[msg("Invalid authority signature.")]
+    InvalidAuthority,
+
+    // ============================================================================
+    // Lottery State & Configuration (8 errors)
+    // ============================================================================
+    /// Lottery operations are temporarily suspended
+    #[msg("Lottery is currently paused.")]
+    Paused,
+
+    /// Attempted to start a new draw while one is already running
+    #[msg("Draw is already in progress.")]
+    DrawInProgress,
+
+    /// Attempted to perform draw-specific operation when no draw is active
+    #[msg("Draw is not in progress.")]
+    DrawNotInProgress,
+
+    /// Draw cannot be started yet (e.g., insufficient time has passed)
+    #[msg("Draw not ready yet.")]
+    DrawNotReady,
+
+    /// Attempted to complete a draw that has already been finalized
+    #[msg("Draw has already been completed.")]
+    DrawAlreadyCompleted,
+
+    /// Invalid state transition in the draw lifecycle
+    #[msg("Invalid draw state transition.")]
+    InvalidDrawState,
+
+    /// Lottery state account has not been properly initialized
+    #[msg("Lottery state is not initialized.")]
+    LotteryNotInitialized,
+
+    /// Lottery configuration parameters are invalid or inconsistent
+    #[msg("Invalid lottery configuration.")]
+    InvalidConfig,
+
+    // ============================================================================
+    // Ticket Purchase & Validation (13 errors)
+    // ============================================================================
+    /// Ticket numbers fail basic validation (wrong count, format, etc.)
+    #[msg("Invalid ticket numbers.")]
+    InvalidNumbers,
+
+    /// Ticket contains duplicate numbers (must be unique)
+    #[msg("Duplicate numbers detected.")]
+    DuplicateNumbers,
+
+    /// Ticket numbers are outside the valid range (1-45)
+    #[msg("Numbers out of valid range.")]
+    NumbersOutOfRange,
+
+    /// User doesn't have enough funds to purchase the requested tickets
+    #[msg("Not enough funds to purchase ticket.")]
+    InsufficientFunds,
+
+    /// User exceeded their personal ticket purchase limit
+    #[msg("Exceeded maximum ticket purchase limit.")]
+    MaxTicketsExceeded,
+
+    /// User exceeded per-draw ticket purchase limit
+    #[msg("Exceeded maximum tickets per draw.")]
+    MaxTicketsPerDrawExceeded,
+
+    /// Ticket price doesn't match the current lottery configuration
+    #[msg("Invalid ticket price.")]
+    InvalidTicketPrice,
+
+    /// Bulk ticket purchase exceeds the allowed batch size
+    #[msg("Bulk purchase size exceeds limit.")]
+    BulkPurchaseLimitExceeded,
+
+    /// Attempted to purchase tickets after the sale period has ended
+    #[msg("Ticket sale has ended for this draw.")]
+    TicketSaleEnded,
+
+    /// Ticket has already been claimed for its prize
+    #[msg("Ticket has already been claimed.")]
+    AlreadyClaimed,
+
+    /// Ticket is no longer valid for claiming (claim period expired)
+    #[msg("Ticket has expired.")]
+    TicketExpired,
+
+    /// Ticket reference is invalid or doesn't exist
+    #[msg("Ticket not found or invalid.")]
+    InvalidTicket,
+
+    // ============================================================================
+    // Draw Execution & Randomness (13 errors)
+    // ============================================================================
+    /// Attempted to reveal randomness that has already been revealed
+    #[msg("Randomness already revealed.")]
+    RandomnessAlreadyRevealed,
+
+    /// Randomness result is not yet available from the oracle
+    #[msg("Randomness not yet resolved.")]
+    RandomnessNotResolved,
+
+    /// Randomness value is too old and cannot be used
+    #[msg("Randomness has expired.")]
+    RandomnessExpired,
+
+    /// Randomness account is malformed or invalid
+    #[msg("Invalid randomness account.")]
+    InvalidRandomnessAccount,
+
+    /// Randomness value doesn't meet freshness requirements
+    #[msg("Randomness freshness check failed.")]
+    RandomnessNotFresh,
+
+    /// VRF proof verification failed
+    #[msg("Invalid VRF proof.")]
+    InvalidVrfProof,
+
+    /// Switchboard queue is not configured for randomness generation
+    #[msg("Switchboard queue not configured.")]
+    SwitchboardQueueNotSet,
+
+    /// Failed to request randomness from the oracle
+    #[msg("Randomness request failed.")]
+    RandomnessRequestFailed,
+
+    /// Randomness commitment is missing or invalid
+    #[msg("Randomness commitment missing.")]
+    RandomnessNotCommitted,
+
+    // ============================================================================
+    // Prize Distribution & Claims (8 errors)
+    // ============================================================================
+    /// No prize is available for the user to claim
+    #[msg("No prize to claim.")]
+    NoPrizeToClaim,
+
+    /// Prize has already been claimed by the user
+    #[msg("Prize already claimed.")]
+    PrizeAlreadyClaimed,
+
+    /// Prize calculation produced invalid or inconsistent results
+    #[msg("Invalid prize calculation.")]
+    InvalidPrizeCalculation,
+
+    /// Failed to distribute prize to winner(s)
+    #[msg("Prize distribution failed.")]
+    PrizeDistributionFailed,
+
+    /// Jackpot has already been won in the current draw
+    #[msg("Jackpot already won this draw.")]
+    JackpotAlreadyWon,
+
+    /// Match count doesn't correspond to a valid prize tier
+    #[msg("Invalid match count for prize.")]
+    InvalidMatchCount,
+
+    /// Prize pool doesn't have enough funds to pay out prizes
+    #[msg("Prize pool insufficient for distribution.")]
+    InsufficientPrizePool,
+
+    /// Error calculating rolldown prize distribution
+    #[msg("Rolldown calculation error.")]
+    RolldownCalculationError,
+
+    // ============================================================================
+    // Staking System (7 errors)
+    // ============================================================================
+    /// User doesn't have enough staked tokens for the requested operation
+    #[msg("Insufficient staked tokens.")]
+    InsufficientStake,
+
+    /// Stake account has not been properly initialized
+    #[msg("Stake account not initialized.")]
+    StakeNotInitialized,
+
+    /// Stake is still within the lock period and cannot be withdrawn
+    #[msg("Stake lock period not elapsed.")]
+    StakeLocked,
+
+    /// No rewards are available for claiming at this time
+    #[msg("No rewards available to claim.")]
+    NoRewardsAvailable,
+
+    /// Stake tier calculation produced invalid results
+    #[msg("Invalid stake tier calculation.")]
+    InvalidStakeTier,
+
+    /// Stake amount is below the minimum required threshold
+    #[msg("Stake amount below minimum threshold.")]
+    StakeBelowMinimum,
+
+    // ============================================================================
+    // Syndicate System (9 errors)
+    // ============================================================================
+    /// Syndicate has reached its maximum member capacity
+    #[msg("Syndicate is full.")]
+    SyndicateFull,
+
+    /// User is not a member of the specified syndicate
+    #[msg("Not a member of this syndicate.")]
+    NotSyndicateMember,
+
+    /// Syndicate with the given ID does not exist
+    #[msg("Syndicate not found.")]
+    SyndicateNotFound,
+
+    /// Syndicate configuration parameters are invalid
+    #[msg("Invalid syndicate configuration.")]
+    InvalidSyndicateConfig,
+
+    /// Syndicate manager fee exceeds the maximum allowed percentage
+    #[msg("Syndicate manager fee too high.")]
+    ManagerFeeTooHigh,
+
+    /// Attempted to join a private syndicate without invitation
+    #[msg("Syndicate is private.")]
+    SyndicatePrivate,
+
+    /// Member share calculation produced invalid results
+    #[msg("Invalid member share calculation.")]
+    InvalidMemberShare,
+
+    /// User's contribution to the syndicate is below the minimum required
+    #[msg("Syndicate contribution insufficient.")]
+    InsufficientContribution,
+
+    // ============================================================================
+    // Financial & Token Operations (8 errors)
+    // ============================================================================
+    /// Operation requires a USDC token account but none was provided
+    #[msg("USDC token account required.")]
+    UsdcAccountRequired,
+
+    /// Provided USDC mint doesn't match the expected USDC mint
+    #[msg("Invalid USDC mint.")]
+    InvalidUsdcMint,
+
+    /// Token transfer operation failed (insufficient balance, approval, etc.)
+    #[msg("Token transfer failed.")]
+    TokenTransferFailed,
+
+    /// Account doesn't have sufficient token balance for the operation
+    #[msg("Insufficient token balance.")]
+    InsufficientTokenBalance,
+
+    /// Token account is malformed or invalid
+    #[msg("Invalid token account.")]
+    InvalidTokenAccount,
+
+    /// Associated Token Account (ATA) is required but not provided
+    #[msg("ATA (Associated Token Account) required.")]
+    AtaRequired,
+
+    // ============================================================================
+    // Mathematical & Parameter Validation (7 errors)
+    // ============================================================================
+    /// House fee percentage is outside valid bounds (0-100%)
+    #[msg("Invalid house fee percentage.")]
+    InvalidHouseFee,
+
+    /// Jackpot cap is invalid (e.g., less than seed amount)
+    #[msg("Invalid jackpot cap.")]
+    InvalidJackpotCap,
+
+    /// Seed amount is invalid (e.g., negative or too large)
+    #[msg("Invalid seed amount.")]
+    InvalidSeedAmount,
+
+    /// Soft/hard cap configuration is inconsistent
+    #[msg("Invalid soft/hard cap configuration.")]
+    InvalidCapConfig,
+
+    /// Arithmetic operation overflowed or underflowed
+    #[msg("Arithmetic overflow/underflow.")]
+    ArithmeticError,
+
+    /// Attempted division by zero
+    #[msg("Division by zero.")]
+    DivisionByZero,
+
+    /// Basis points calculation is invalid (e.g., >10,000 bps)
+    #[msg("Invalid basis points calculation.")]
+    InvalidBasisPoints,
+
+    // ============================================================================
+    // Account & PDA Validation (7 errors)
+    // ============================================================================
+    /// Program Derived Address derivation failed or produced invalid result
+    #[msg("Invalid PDA derivation.")]
+    InvalidPdaDerivation,
+
+    /// Account doesn't have enough lamports to be rent-exempt
+    #[msg("Account not rent exempt.")]
+    NotRentExempt,
+
+    /// Account owner doesn't match the expected program ID
+    #[msg("Invalid account owner.")]
+    InvalidAccountOwner,
+
+    /// Account data size is insufficient for the required operation
+    #[msg("Account data too small.")]
+    AccountDataTooSmall,
+
+    /// Account discriminator doesn't match expected value
+    #[msg("Invalid account discriminator.")]
+    InvalidDiscriminator,
+
+    /// Account has already been initialized
+    #[msg("Account already initialized.")]
+    AlreadyInitialized,
+
+    /// Account has not been initialized
+    #[msg("Account not initialized.")]
+    NotInitialized,
+
+    // ============================================================================
+    // System & Operational Errors (6 errors)
+    // ============================================================================
+    /// System program is required but not provided
+    #[msg("System program required.")]
+    SystemProgramRequired,
+
+    /// System clock is unavailable for timestamp operations
+    #[msg("Clock unavailable.")]
+    ClockUnavailable,
+
+    /// Timestamp is invalid or outside acceptable range
+    #[msg("Invalid timestamp.")]
+    InvalidTimestamp,
+
+    /// Operation exceeded its time limit
+    #[msg("Operation timed out.")]
+    Timeout,
+
+    /// Operation retry limit has been exceeded
+    #[msg("Retry limit exceeded.")]
+    RetryLimitExceeded,
+
+    /// Operation is not supported in the current context
+    #[msg("Operation not supported.")]
+    NotSupported,
+
+    // ============================================================================
+    // Game-Specific Errors (9 errors)
+    // ============================================================================
+    /// Rolldown feature is not currently active
+    #[msg("Rolldown not active.")]
+    RolldownNotActive,
+
+    /// Rolldown has already been triggered for this draw
+    #[msg("Rolldown already triggered.")]
+    RolldownAlreadyTriggered,
+
+    /// Second chance draw is not available
+    #[msg("Second chance draw not available.")]
+    SecondChanceNotAvailable,
+
+    /// No eligible tickets found for second chance draw
+    #[msg("No eligible tickets for second chance.")]
+    NoSecondChanceEntries,
+
+    /// Quick pick game feature is not active
+    #[msg("Quick pick game not active.")]
+    QuickPickNotActive,
+
+    /// Maximum Lucky Numbers NFT limit has been reached
+    #[msg("Lucky Numbers NFT limit reached.")]
+    LuckyNumbersLimitReached,
+
+    /// Match count is insufficient for Lucky Numbers NFT eligibility
+    #[msg("Insufficient match for Lucky Numbers NFT.")]
+    InsufficientMatchForNft,
+
+    /// Syndicate Wars feature is not currently active
+    #[msg("Syndicate Wars not active.")]
+    SyndicateWarsNotActive,
+
+    /// Error calculating streak bonus rewards
+    #[msg("Streak bonus calculation error.")]
+    StreakBonusError,
+
+    // ============================================================================
+    // Compatibility & Version Errors (3 errors)
+    // ============================================================================
+    /// Program version doesn't match expected version
+    #[msg("Program version mismatch.")]
+    VersionMismatch,
+
+    /// Attempted to use a deprecated feature
+    #[msg("Deprecated feature.")]
+    DeprecatedFeature,
+
+    /// Operation is not supported in the current program version
+    #[msg("Unsupported operation in current version.")]
+    UnsupportedInVersion,
+
+    // ============================================================================
+    // Generic & Catch-All Errors (3 errors)
+    // ============================================================================
+    /// Unknown or unclassified error occurred
+    #[msg("Unknown error occurred.")]
+    UnknownError,
+
+    /// General validation check failed
+    #[msg("Validation failed.")]
+    ValidationFailed,
+
+    /// Program constraint was violated
+    #[msg("Constraint violation.")]
+    ConstraintViolation,
+
+    /// Internal program error (should not occur in normal operation)
+    #[msg("Internal program error.")]
+    InternalError,
+}
+```
+
+### 8.1 Error Categories Summary
+
+| Category | Error Count | Description |
+|----------|-------------|-------------|
+| **Authorization & Permissions** | 4 | Access control and permission errors |
+| **Lottery State & Configuration** | 8 | Lottery lifecycle and configuration errors |
+| **Ticket Purchase & Validation** | 13 | Ticket buying and validation errors |
+| **Draw Execution & Randomness** | 13 | Draw process and randomness generation errors |
+| **Prize Distribution & Claims** | 8 | Prize calculation and claiming errors |
+| **Staking System** | 7 | Staking operation and reward errors |
+| **Syndicate System** | 9 | Syndicate management and sharing errors |
+| **Financial & Token Operations** | 8 | Token transfer and financial operation errors |
+| **Mathematical & Parameter Validation** | 7 | Calculation and parameter validation errors |
+| **Account & PDA Validation** | 7 | Account derivation and validation errors |
+| **System & Operational Errors** | 6 | System-level and operational errors |
+| **Game-Specific Errors** | 9 | Special game feature errors |
+| **Compatibility & Version Errors** | 3 | Version compatibility errors |
+| **Generic & Catch-All Errors** | 3 | General purpose errors |
+| **TOTAL** | **98** | All error codes in the protocol |
+
+### 8.2 Error Code Ranges
+
+Each error category occupies a specific range for easier debugging and monitoring:
+
+| Category | Error Code Range | Example Use Cases |
+|----------|-----------------|-------------------|
+| Authorization & Permissions | 0-99 | Unauthorized access, admin requirements |
+| Lottery State & Configuration | 100-199 | Paused state, draw lifecycle issues |
+| Ticket Purchase & Validation | 200-299 | Number validation, purchase limits |
+| Draw Execution & Randomness | 300-399 | VRF proof validation, randomness timing |
+| Prize Distribution & Claims | 400-499 | Claim validation, prize calculations |
+| Staking System | 500-599 | Stake validation, reward calculations |
+| Syndicate System | 600-699 | Member management, share calculations |
+| Financial & Token Operations | 700-799 | Token transfers, USDC validation |
+| Mathematical & Parameter Validation | 800-899 | Arithmetic errors, basis points |
+| Account & PDA Validation | 900-999 | Account derivation, initialization |
+| System & Operational Errors | 1000-1099 | Clock access, timeouts, retries |
+| Game-Specific Errors | 1100-1199 | Rolldown, second chance, quick pick |
+| Compatibility & Version Errors | 1200-1299 | Version mismatches, deprecated features |
+| Generic & Catch-All Errors | 1300-1399 | Unknown errors, validation failures |
+
+### 8.3 Common Error Scenarios
+
+#### Ticket Purchase Failures
+```rust
+// User tries to buy ticket with invalid numbers
+ErrorCode::InvalidNumbers
+ErrorCode::DuplicateNumbers
+ErrorCode::NumbersOutOfRange
+
+// User doesn't have enough funds
+ErrorCode::InsufficientFunds
+
+// Purchase limits exceeded
+ErrorCode::MaxTicketsExceeded
+ErrorCode::MaxTicketsPerDrawExceeded
+ErrorCode::BulkPurchaseLimitExceeded
+```
+
+#### Draw Execution Failures
+```rust
+// Randomness issues
+ErrorCode::RandomnessNotResolved
+ErrorCode::RandomnessExpired
+ErrorCode::InvalidVrfProof
+
+// Draw state issues
+ErrorCode::DrawInProgress
+ErrorCode::DrawNotReady
+ErrorCode::DrawAlreadyCompleted
+```
+
+#### Prize Claiming Failures
+```rust
+// Already claimed
+ErrorCode::AlreadyClaimed
+ErrorCode::PrizeAlreadyClaimed
+
+// No prize available
+ErrorCode::NoPrizeToClaim
+ErrorCode::TicketExpired
+ErrorCode::InvalidTicket
+```
+
+#### Advanced Feature Errors
+```rust
+// Rolldown features
+ErrorCode::RolldownNotActive
+ErrorCode::RolldownAlreadyTriggered
+ErrorCode::RolldownCalculationError
+
+// Second chance draws
+ErrorCode::SecondChanceNotAvailable
+ErrorCode::NoSecondChanceEntries
+
+// Quick pick game
+ErrorCode::QuickPickNotActive
+
+// Lucky Numbers NFT
+ErrorCode::LuckyNumbersLimitReached
+ErrorCode::InsufficientMatchForNft
+
+// Syndicate Wars
+ErrorCode::SyndicateWarsNotActive
+```
+
+### 8.4 Error Handling Best Practices
+
+#### Client-Side Error Handling
+```typescript
+// Example error handling in TypeScript
+try {
+    await buyTicket(wallet, numbers);
+} catch (error) {
+    if (error.message.includes("Unauthorized access attempt")) {
+        console.error("Please connect your wallet");
+    } else if (error.message.includes("Not enough funds")) {
+        console.error("Insufficient USDC balance");
+    } else if (error.message.includes("Duplicate numbers")) {
+        console.error("Numbers must be unique");
+    } else if (error.message.includes("Numbers out of valid range")) {
+        console.error("Numbers must be between 1 and 45");
+    } else if (error.message.includes("Ticket sale has ended")) {
+        console.error("Draw is closed for purchases");
+    } else if (error.message.includes("Lottery is currently paused")) {
+        console.error("Lottery is temporarily paused");
+    } else {
+        console.error("Unknown error:", error.message);
+    }
+}
+```
+
+#### Server-Side Error Handling
+```rust
+// Example error handling in Rust
+match result {
+    Ok(_) => { /* Success */ }
+    Err(error) => {
+        match error {
+            ErrorCode::Unauthorized => {
+                msg!("Unauthorized access attempt");
+                return Err(error.into());
+            }
+            ErrorCode::InsufficientFunds => {
+                msg!("User has insufficient funds");
+                return Err(error.into());
+            }
+            ErrorCode::InvalidNumbers => {
+                msg!("Invalid ticket numbers provided");
+                return Err(error.into());
+            }
+            // Handle other errors...
+            _ => {
+                msg!("Unexpected error: {:?}", error);
+                return Err(error.into());
+            }
+        }
+    }
+}
+```
+
+#### Error Recovery Strategies
+1. **Validation Errors** (InvalidNumbers, DuplicateNumbers, NumbersOutOfRange):
+   - Prompt user to correct input
+   - Provide clear validation messages
+   - Suggest valid number ranges
+
+2. **Authorization Errors** (Unauthorized, AdminAuthorityRequired):
+   - Check wallet connection
+   - Verify signature permissions
+   - Request re-authentication
+
+3. **Financial Errors** (InsufficientFunds, InsufficientTokenBalance):
+   - Check token balances
+   - Suggest minimum required amounts
+   - Provide deposit instructions
+
+4. **State Errors** (Paused, DrawInProgress, DrawNotReady):
+   - Display current lottery state
+   - Show next available draw time
+   - Provide status updates
+
+5. **Randomness Errors** (RandomnessNotResolved, RandomnessExpired):
+   - Retry with exponential backoff
+   - Monitor VRF oracle status
+   - Provide fallback mechanisms
+
+### 8.5 Testing Error Conditions
+
+```rust
+#[test]
+fn test_ticket_validation_errors() {
+    // Test invalid numbers
+    let invalid_numbers = [0, 1, 2, 3, 4, 5]; // 0 is out of range
+    assert_eq!(
+        validate_numbers(&invalid_numbers),
+        Err(ErrorCode::NumbersOutOfRange.into())
+    );
+
+    // Test duplicate numbers
+    let duplicate_numbers = [1, 1, 2, 3, 4, 5];
+    assert_eq!(
+        validate_numbers(&duplicate_numbers),
+        Err(ErrorCode::DuplicateNumbers.into())
+    );
+
+    // Test valid numbers
+    let valid_numbers = [1, 2, 3, 4, 5, 45];
+    assert!(validate_numbers(&valid_numbers).is_ok());
+}
+
+#[test]
+fn test_financial_errors() {
+    // Test insufficient funds
+    let user_balance = 1_000_000; // $1.00
+    let ticket_price = 2_500_000; // $2.50
+    assert!(
+        user_balance < ticket_price,
+        "Should trigger InsufficientFunds error"
+    );
+}
+
+#[test]
+fn test_draw_state_errors() {
+    // Test draw in progress
+    let lottery_state = LotteryState {
+        is_draw_in_progress: true,
+        ..Default::default()
+    };
+    assert!(
+        lottery_state.is_draw_in_progress,
+        "Should trigger DrawInProgress error"
+    );
+
+    // Test paused lottery
+    let lottery_state = LotteryState {
+        is_paused: true,
+        ..Default::default()
+    };
+    assert!(lottery_state.is_paused, "Should trigger Paused error");
+}
+```
+
+### 8.6 Monitoring and Alerting
+
+#### Key Error Metrics to Monitor
+1. **Error Rate by Category**: Track error frequency across categories
+2. **Top Errors**: Identify most common errors for optimization
+3. **Error Trends**: Monitor error patterns over time
+4. **Recovery Success Rate**: Track successful error recovery attempts
+
+#### Alert Thresholds
+- **Critical**: Authorization failures, financial errors
+- **High**: Validation errors, state errors
+- **Medium**: Randomness errors, system errors
+- **Low**: Game-specific errors, compatibility errors
+
+#### Error Logging Format
+```json
+{
+  "timestamp": "2024-01-01T00:00:00Z",
+  "error_code": "InvalidNumbers",
+  "error_message": "Invalid ticket numbers.",
+  "category": "Ticket Purchase & Validation",
+  "user_id": "user_123",
+  "transaction_id": "tx_456",
+  "context": {
+    "numbers": [0, 1, 2, 3, 4, 5],
+    "expected_range": [1, 45]
+  },
+  "stack_trace": "..."
 }
 ```
 
 ---
-
-## 9. Integration Guide
 
 ### 9.1 SDK Installation
 

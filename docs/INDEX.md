@@ -181,6 +181,9 @@ From [ADVANCED_FEATURES.md §9](./ADVANCED_FEATURES.md#9-implementation-priority
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v2.1 | 2025 | Updated TECHNICAL_SPEC.md error codes (98 variants) to match implementation |
+| v2.1 | 2025 | Updated TECHNICAL_SPEC.md data structures to match actual implementation |
+| v2.1 | 2025 | Added comprehensive error handling documentation |
 | v2.0 | 2025 | Added ADVANCED_FEATURES.md with 8 new feature specifications |
 | v2.0 | 2025 | Updated SOLANA_LOTTO.md with dynamic fees, soft/hard caps |
 | v2.0 | 2025 | Updated TECHNICAL_SPEC.md with all v2.0 data structures |
