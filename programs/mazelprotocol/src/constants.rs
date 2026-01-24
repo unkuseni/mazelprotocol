@@ -1,65 +1,209 @@
 //! Constants module for SolanaLotto Protocol
 //!
-//! This module contains all configuration constants and parameters for the lottery system.
-//! All values are based on the technical specification and documentation.
+//! This module contains all configuration constants, parameters, and helper functions
+//! for the lottery system. Constants are organized into logical categories and
+//! follow the technical specification documented in `docs/TECHNICAL_SPEC.md`.
+//!
+//! # Categories
+//!
+//! 1. **Program Constants** - PDA seeds and program identifiers
+//! 2. **Core Game Parameters** - Main lottery configuration (6/46 matrix)
+//! 3. **Dynamic House Fee System** - Jackpot-linked fee scaling (28-40%)
+//! 4. **Soft/Hard Cap System** - Rolldown trigger thresholds
+//! 5. **Prize Allocation System** - Prize pool distribution percentages
+//! 6. **Fixed Prize Amounts** - Guaranteed prize values per match tier
+//! 7. **Rolldown Allocation** - Jackpot distribution during rolldown events
+//! 8. **Staking System** - $LOTTO token staking tiers and rewards
+//! 9. **Quick Pick Express** - 4/20 mini-game configuration
+//! 10. **Lucky Numbers NFT** - NFT bonus system for Match 4+ winners
+//! 11. **Second Chance Draws** - Weekly draws for non-winning tickets
+//! 12. **Syndicate Wars** - Monthly syndicate competition
+//! 13. **Limits & Validation** - Purchase limits and validation parameters
+//! 14. **Randomness & Timing** - VRF and draw timing parameters
+//! 15. **Mathematical Constants** - Basis points and decimal definitions
+//! 16. **Account Sizes** - On-chain account storage requirements
+//! 17. **Helper Functions** - Mathematical calculations and validations
+//! 18. **Enumerations** - Type-safe enums for game states and tiers
+//!
+//! # Basis Points Convention
+//!
+//! All percentages in this module use basis points (BPS) where:
+//! - `100 BPS = 1%`
+//! - `10,000 BPS = 100%`
+//! - Example: `2,800 BPS = 28%`
+//!
+//! # Amount Conventions
+//!
+//! - **USDC amounts**: In lamports (6 decimals) - `$1.00 = 1,000,000`
+//! - **$LOTTO amounts**: In lamports (9 decimals) - `1 LOTTO = 1,000,000,000`
+//! - **SOL amounts**: In lamports (9 decimals) - `1 SOL = 1,000,000,000`
+//!
+//! # Usage Examples
+//!
+//! ```rust
+//! use mazelprotocol::constants::*;
+//!
+//! // Calculate house fee for current jackpot
+//! let jackpot = 800_000_000_000; // $800k
+//! let house_fee_bps = calculate_house_fee_bps(jackpot, false);
+//! let house_fee_amount = calculate_house_fee_amount(TICKET_PRICE, house_fee_bps);
+//!
+//! // Validate lottery numbers
+//! let numbers = [1, 2, 3, 4, 5, 6];
+//! assert!(validate_lottery_numbers(&numbers));
+//!
+//! // Determine staking tier
+//! let staked_amount = 15_000_000_000_000; // 15,000 LOTTO
+//! let tier = get_stake_tier(staked_amount);
+//! let discount = calculate_stake_discount_bps(tier);
+//! ```
+//!
+//! # Testing
+//!
+//! Comprehensive tests for all constants and functions are available in
+//! `tests/constants.rs`. These tests validate:
+//! - Mathematical correctness of calculations
+//! - Boundary conditions and edge cases
+//! - Constant values against specification
+//! - Function behavior across all input ranges
+//!
+//! # Specification Alignment
+//!
+//! All constants align with the technical specification version 2.1.0.
+//! See `docs/TECHNICAL_SPEC.md` for detailed explanations of each parameter.
 
 use anchor_lang::prelude::*;
 
 // ============================================================================
-// Program Constants
+// 1. Program Constants - PDA Seeds and Program Identifiers
 // ============================================================================
+//
+// Program seeds for Program Derived Address (PDA) derivation.
+// These seeds are used to generate deterministic addresses for program accounts.
+//
+// # Usage
+// ```rust
+// // Derive lottery state PDA
+// let (lottery_state_pda, bump) = Pubkey::find_program_address(
+//     &[LOTTERY_SEED],
+//     &program_id
+// );
+// ```
+//
+// # Seed Categories
+// - **State Accounts**: LOTTERY_SEED, TICKET_SEED, DRAW_SEED, USER_SEED
+// - **Token Accounts**: PRIZE_POOL_USDC_SEED, HOUSE_FEE_USDC_SEED
+// - **Advanced Features**: LUCKY_NUMBERS_SEED, SECOND_CHANCE_SEED, etc.
+// - **External Integrations**: SWITCHBOARD_QUEUE_SEED, RANDOMNESS_ACCOUNT_SEED
 
-/// Program seeds for PDA derivation
+/// Global lottery state account (singleton)
 pub const LOTTERY_SEED: &[u8] = b"lottery";
+/// Individual ticket accounts
 pub const TICKET_SEED: &[u8] = b"ticket";
+/// Historical draw results
 pub const DRAW_SEED: &[u8] = b"draw";
+/// User statistics and tracking
 pub const USER_SEED: &[u8] = b"user";
+/// $LOTTO token staking accounts
 pub const STAKE_SEED: &[u8] = b"stake";
+/// Syndicate (group play) accounts
 pub const SYNDICATE_SEED: &[u8] = b"syndicate";
+/// Lucky Numbers NFT accounts (Match 4+ winners)
 pub const LUCKY_NUMBERS_SEED: &[u8] = b"lucky_numbers";
+/// Second chance draw entries
 pub const SECOND_CHANCE_SEED: &[u8] = b"second_chance";
+/// Quick Pick Express game state
 pub const QUICK_PICK_SEED: &[u8] = b"quick_pick";
+/// Syndicate Wars competition entries
 pub const SYNDICATE_WARS_SEED: &[u8] = b"syndicate_wars";
+/// Prize pool USDC token account (holds all prize funds)
 pub const PRIZE_POOL_USDC_SEED: &[u8] = b"prize_pool_usdc";
+/// House fee USDC token account (collects operator revenue)
 pub const HOUSE_FEE_USDC_SEED: &[u8] = b"house_fee_usdc";
+/// Escrow account for temporary fund holding
 pub const ESCROW_SEED: &[u8] = b"stateEscrow";
+/// Player state tracking account
 pub const PLAYER_STATE_SEED: &[u8] = b"playerState";
 
-/// Switchboard integration constants
+/// Switchboard VRF queue for randomness generation
 pub const SWITCHBOARD_QUEUE_SEED: &[u8] = b"switchboard_queue";
+/// Switchboard randomness result account
 pub const RANDOMNESS_ACCOUNT_SEED: &[u8] = b"randomness_account";
 
 // ============================================================================
-// Core Game Parameters (Main Lottery 6/46)
+// 2. Core Game Parameters - Main Lottery (6/46 Matrix)
 // ============================================================================
+//
+// Core configuration for the main 6/46 lottery game.
+// These parameters define the fundamental game mechanics and economics.
 
-/// Ticket price in USDC lamports (6 decimals)
+/// Ticket price in USDC lamports (6 decimals).
+/// - Value: `2,500,000` lamports
+/// - Equivalent: `$2.50` USD
+/// - Rationale: Accessible price point for mass adoption
 pub const TICKET_PRICE: u64 = 2_500_000; // $2.50
 
-/// Lottery matrix configuration
+/// Lottery matrix configuration (6/46).
+/// Players select 6 numbers from 1-46.
+/// - `NUMBERS_PER_TICKET`: 6 numbers per ticket
+/// - `MIN_NUMBER`: Minimum selectable number (inclusive)
+/// - `MAX_NUMBER`: Maximum selectable number (inclusive)
+/// - Total combinations: 9,366,819 (1 in 9.37M jackpot odds)
 pub const NUMBERS_PER_TICKET: usize = 6;
 pub const MIN_NUMBER: u8 = 1;
 pub const MAX_NUMBER: u8 = 46;
 
-/// Draw frequency in seconds (24 hours)
+/// Draw frequency in seconds.
+/// - Value: `86,400` seconds
+/// - Equivalent: `24 hours` (daily draws)
+/// - Rationale: Maintains engagement and allows jackpot growth
 pub const DRAW_INTERVAL: i64 = 86_400;
 
-/// Jackpot seed amount in USDC lamports
+/// Initial jackpot seed amount in USDC lamports.
+/// - Value: `500,000,000,000` lamports
+/// - Equivalent: `$500,000` USD
+/// - Purpose: Attractive starting point for each jackpot cycle
+/// - Reset: Applied after rolldown events
 pub const SEED_AMOUNT: u64 = 500_000_000_000; // $500,000
 
-/// Maximum jackpot before forced rolldown
+/// Maximum jackpot before forced rolldown in USDC lamports.
+/// - Value: `1,750,000,000,000` lamports
+/// - Equivalent: `$1,750,000` USD
+/// - Trigger: When jackpot reaches this amount, rolldown is guaranteed
+/// - Purpose: Creates predictable +EV windows for sophisticated players
 pub const JACKPOT_CAP: u64 = 1_750_000_000_000; // $1,750,000
 
 // ============================================================================
-// Dynamic House Fee System (Basis Points: 10000 = 100%)
+// 3. Dynamic House Fee System - Jackpot-Linked Fee Scaling
 // ============================================================================
+//
+// Dynamic fee system that scales house edge based on jackpot level.
+// Higher fees during large jackpots optimize revenue extraction while
+// lower fees during early stages bootstrap jackpot growth.
+//
+// # Fee Schedule
+// | Jackpot Level | House Fee | Prize Pool | Player EV Impact |
+// |---------------|-----------|------------|------------------|
+// | < $500k       | 28%       | 72%        | Higher EV attracts early players |
+// | $500k - $1M   | 32%       | 68%        | Standard operations |
+// | $1M - $1.5M   | 36%       | 64%        | Building anticipation |
+// | > $1.5M       | 40%       | 60%        | Maximum extraction during rolldown zone |
+// | Rolldown      | 28%       | 72%        | Encourages volume during rolldown |
+//
+// # Psychological Pricing
+// - Players are more willing to pay higher fees when jackpots are large
+// - The excitement of a $1.5M jackpot masks the increased house edge
+// - Lower fees during early stages bootstrap the jackpot faster
+// - Lower fees during rolldown maximize volume (more important than margin)
 
-/// Dynamic fee tier thresholds in USDC lamports
+/// Dynamic fee tier thresholds in USDC lamports.
+/// These values determine which fee tier applies based on current jackpot.
 pub const FEE_TIER_1_THRESHOLD: u64 = 500_000_000_000; // $500k
 pub const FEE_TIER_2_THRESHOLD: u64 = 1_000_000_000_000; // $1M
 pub const FEE_TIER_3_THRESHOLD: u64 = 1_500_000_000_000; // $1.5M
 
-/// House fee percentages (basis points)
+/// House fee percentages in basis points (10000 = 100%).
+/// Applied to ticket price to determine operator revenue.
 pub const FEE_TIER_1_BPS: u16 = 2_800; // 28% (< $500k)
 pub const FEE_TIER_2_BPS: u16 = 3_200; // 32% ($500k - $1M)
 pub const FEE_TIER_3_BPS: u16 = 3_600; // 36% ($1M - $1.5M)
@@ -67,77 +211,275 @@ pub const FEE_TIER_4_BPS: u16 = 4_000; // 40% (> $1.5M)
 pub const FEE_ROLLDOWN_BPS: u16 = 2_800; // 28% (during rolldown)
 
 // ============================================================================
-// Soft/Hard Cap System (Advanced Rolldown Mechanics)
+// 4. Soft/Hard Cap System - Rolldown Trigger Thresholds
 // ============================================================================
+//
+// Two-tier rolldown system that prevents calendar gaming and creates
+// probabilistic +EV opportunities between soft and hard caps.
+//
+// # System Mechanics
+// 1. **Below Soft Cap**: No rolldown possible
+// 2. **Soft Cap to Hard Cap**: Probabilistic rolldown (0-100% chance)
+// 3. **At/Above Hard Cap**: Guaranteed rolldown (100% chance)
+//
+// # Probability Calculation
+// ```rust
+// // Linear probability between soft and hard caps
+// let probability_bps = ((jackpot - SOFT_CAP) as u128 * BPS_PER_100_PERCENT as u128
+//     / (HARD_CAP - SOFT_CAP) as u128) as u64;
+// ```
+//
+// # Economic Impact
+// - Creates uncertainty about
 
-/// Soft cap: probabilistic rolldown begins
+/// Soft cap threshold in USDC lamports.
+/// - Value: `1,750,000,000,000` lamports
+/// - Equivalent: `$1,750,000` USD
+/// - Effect: Probabilistic rolldown becomes possible
+/// - Probability at soft cap: 0% (increases linearly to hard cap)
 pub const SOFT_CAP: u64 = 1_750_000_000_000; // $1.75M
 
-/// Hard cap: forced rolldown triggers
+/// Hard cap threshold in USDC lamports.
+/// - Value: `2,250,000,000,000` lamports
+/// - Equivalent: `$2,250,000` USD
+/// - Effect: Guaranteed rolldown triggers
+/// - Probability at hard cap: 100% (always rolldown)
 pub const HARD_CAP: u64 = 2_250_000_000_000; // $2.25M
 
 // ============================================================================
-// Prize Allocation (Basis Points of Prize Pool)
+// 5. Prize Allocation System - Prize Pool Distribution
 // ============================================================================
+//
+// Distribution of prize pool funds between jackpot, fixed prizes, and reserve.
+// These percentages determine how ticket revenue is allocated after house fee.
+//
+// # Allocation Formula
+// ```rust
+// let ticket_price = TICKET_PRICE;
+// let house_fee_bps = calculate_house_fee_bps(jackpot_balance, false);
+// let house_fee = ticket_price * house_fee_bps as u64 / 10000;
+// let prize_pool = ticket_price - house_fee;
+//
+// let jackpot_contribution = prize_pool * JACKPOT_ALLOCATION_BPS as u64 / 10000;
+// let fixed_prize_contribution = prize_pool * FIXED_PRIZE_ALLOCATION_BPS as u64 / 10000;
+// let reserve_contribution = prize_pool * RESERVE_ALLOCATION_BPS as u64 / 10000;
+// ```
 
-/// Normal operation prize allocations
+/// Jackpot allocation percentage in basis points.
+/// - Value: `5,760` BPS
+/// - Equivalent: `57.6%` of prize pool
+/// - Purpose: Funds the progressive jackpot for Match 6 winners
 pub const JACKPOT_ALLOCATION_BPS: u16 = 5_760; // 57.6% to jackpot
+
+/// Fixed prize allocation percentage in basis points.
+/// - Value: `3,940` BPS
+/// - Equivalent: `39.4%` of prize pool
+/// - Purpose: Funds guaranteed prizes for Match 2-5 winners
 pub const FIXED_PRIZE_ALLOCATION_BPS: u16 = 3_940; // 39.4% to fixed prizes
+
+/// Reserve fund allocation percentage in basis points.
+/// - Value: `300` BPS
+/// - Equivalent: `3%` of prize pool
+/// - Purpose: Insurance fund for guaranteed payouts and future draws
 pub const RESERVE_ALLOCATION_BPS: u16 = 300; // 3% to reserve fund
 
 // ============================================================================
-// Fixed Prize Amounts (Normal Mode)
+// 6. Fixed Prize Amounts - Guaranteed Prize Values
 // ============================================================================
+//
+// Guaranteed prize amounts for each match tier during normal operation.
+// These prizes are paid from the fixed prize allocation pool.
+//
+// # Prize Tiers (Normal Mode)
+// - **Match 6**: Jackpot (variable amount from jackpot pool)
+// - **Match 5**: Fixed $4,000 prize
+// - **Match 4**: Fixed $150 prize
+// - **Match 3**: Fixed $5 prize
+// - **Match 2**: Free ticket (value equal to ticket price)
+// - **Match 0-1**: No prize
 
-/// Fixed prize amounts in USDC lamports
+/// Match 5 prize amount in USDC lamports.
+/// - Value: `4,000,000,000` lamports
+/// - Equivalent: `$4,000` USD
+/// - Condition: Match exactly 5 of 6 numbers
 pub const MATCH_5_PRIZE: u64 = 4_000_000_000; // $4,000
+
+/// Match 4 prize amount in USDC lamports.
+/// - Value: `150,000,000` lamports
+/// - Equivalent: `$150` USD
+/// - Condition: Match exactly 4 of 6 numbers
 pub const MATCH_4_PRIZE: u64 = 150_000_000; // $150
+
+/// Match 3 prize amount in USDC lamports.
+/// - Value: `5,000,000` lamports
+/// - Equivalent: `$5` USD
+/// - Condition: Match exactly 3 of 6 numbers
 pub const MATCH_3_PRIZE: u64 = 5_000_000; // $5
+
+/// Match 2 prize value in USDC lamports.
+/// - Value: `2,500,000` lamports
+/// - Equivalent: `$2.50` USD (free ticket)
+/// - Condition: Match exactly 2 of 6 numbers
+/// - Note: Awarded as a free ticket NFT, not direct USDC transfer
 pub const MATCH_2_VALUE: u64 = 2_500_000; // $2.50 (free ticket)
 
 // ============================================================================
-// Rolldown Allocation (Basis Points of Jackpot)
+// 7. Rolldown Allocation - Jackpot Distribution During Rolldown
 // ============================================================================
+//
+// Distribution of jackpot funds to lower tiers during rolldown events.
+// When no Match 6 winner and rolldown triggers, the jackpot is distributed
+// to Match 3-5 winners according to these percentages.
+//
+// # Rolldown Distribution
+// | Match Tier | Allocation | Description |
+// |------------|------------|-------------|
+// | Match 5 | 25% of jackpot | Divided among Match 5 winners |
+// | Match 4 | 35% of jackpot | Divided among Match 4 winners |
+// | Match 3 | 40% of jackpot | Divided among Match 3 winners |
+// | Match 2 | 0% | No rolldown allocation |
+// | Match 6 | 0% | No winner during rolldown |
+//
+// # Prize Calculation Example
+// ```rust
+// let jackpot = 1_750_000_000_000; // $1.75M
+// let match_5_winners = 20;
+// let match_4_winners = 1200;
+// let match_3_winners = 20000;
+//
+// let match_5_prize = jackpot * ROLLDOWN_MATCH_5_BPS as u64 / 10000 / match_5_winners as u64;
+// let match_4_prize = jackpot * ROLLDOWN_MATCH_4_BPS as u64 / 10000 / match_4_winners as u64;
+// let match_3_prize = jackpot * ROLLDOWN_MATCH_3_BPS as u64 / 10000 / match_3_winners as u64;
+// ```
 
-/// Rolldown distribution percentages
+/// Match 5 rolldown allocation percentage in basis points.
+/// - Value: `2,500` BPS
+/// - Equivalent: `25%` of jackpot during rolldown
+/// - Distribution: Divided equally among all Match 5 winners
 pub const ROLLDOWN_MATCH_5_BPS: u16 = 2_500; // 25% to Match 5 winners
+
+/// Match 4 rolldown allocation percentage in basis points.
+/// - Value: `3,500` BPS
+/// - Equivalent: `35%` of jackpot during rolldown
+/// - Distribution: Divided equally among all Match 4 winners
 pub const ROLLDOWN_MATCH_4_BPS: u16 = 3_500; // 35% to Match 4 winners
+
+/// Match 3 rolldown allocation percentage in basis points.
+/// - Value: `4,000` BPS
+/// - Equivalent: `40%` of jackpot during rolldown
+/// - Distribution: Divided equally among all Match 3 winners
 pub const ROLLDOWN_MATCH_3_BPS: u16 = 4_000; // 40% to Match 3 winners
 
 // ============================================================================
-// Staking Tiers ($LOTTO Token in lamports)
+// 8. Staking System - $LOTTO Token Staking Tiers and Rewards
 // ============================================================================
+//
+// $LOTTO token staking system with tier-based benefits.
+// Stakers receive ticket discounts, fee sharing, and reward distributions.
+//
+// # Benefits by Tier
+// | Tier | Ticket Discount | Fee Share | Reward Rate | Minimum Stake |
+// |------|----------------|-----------|-------------|---------------|
+// | None | 0% | 0% | 0% | 0 LOTTO |
+// | Bronze | 5% | 0.5% | 1% | 1,000 LOTTO |
+// | Silver | 10% | 1.5% | 1.5% | 10,000 LOTTO |
+// | Gold | 15% | 3% | 2% | 50,000 LOTTO |
+// | Diamond | 20% | 5% | 2.5% | 250,000 LOTTO |
+//
+// # Tier Determination
+// ```rust
+// pub fn get_stake_tier(staked_amount: u64) -> StakeTier {
+//     if staked_amount >= DIAMOND_THRESHOLD {
+//         StakeTier::Diamond
+//     } else if staked_amount >= GOLD_THRESHOLD {
+//         StakeTier::Gold
+//     } else if staked_amount >= SILVER_THRESHOLD {
+//         StakeTier::Silver
+//     } else if staked_amount >= BRONZE_THRESHOLD {
+//         StakeTier::Bronze
+//     } else {
+//         StakeTier::None
+//     }
+// }
+// ```
 
-/// Staking tier thresholds (1 LOTTO = 1,000,000,000 lamports)
+/// Bronze tier staking threshold in $LOTTO lamports.
+/// - Value: `1,000,000,000,000` lamports
+/// - Equivalent: `1,000` LOTTO tokens
+/// - Benefits: 5% ticket discount, 0.5% fee share, 1% reward rate
 pub const BRONZE_THRESHOLD: u64 = 1_000_000_000_000; // 1,000 LOTTO
+
+/// Silver tier staking threshold in $LOTTO lamports.
+/// - Value: `10,000,000,000,000` lamports
+/// - Equivalent: `10,000` LOTTO tokens
+/// - Benefits: 10% ticket discount, 1.5% fee share, 1.5% reward rate
 pub const SILVER_THRESHOLD: u64 = 10_000_000_000_000; // 10,000 LOTTO
+
+/// Gold tier staking threshold in $LOTTO lamports.
+/// - Value: `50,000,000,000,000` lamports
+/// - Equivalent: `50,000` LOTTO tokens
+/// - Benefits: 15% ticket discount, 3% fee share, 2% reward rate
 pub const GOLD_THRESHOLD: u64 = 50_000_000_000_000; // 50,000 LOTTO
+
+/// Diamond tier staking threshold in $LOTTO lamports.
+/// - Value: `250,000,000,000,000` lamports
+/// - Equivalent: `250,000` LOTTO tokens
+/// - Benefits: 20% ticket discount, 5% fee share, 2.5% reward rate
 pub const DIAMOND_THRESHOLD: u64 = 250_000_000_000_000; // 250,000 LOTTO
 
-/// Staking reward rates (basis points per epoch)
+/// Bronze tier reward rate in basis points per epoch.
+/// - Value: `100` BPS
+/// - Equivalent: `1%` per epoch
+/// - Annualized: ~12% (assuming 12 epochs per year)
 pub const BRONZE_REWARD_BPS: u16 = 100; // 1% per epoch
+
+/// Silver tier reward rate in basis points per epoch.
+/// - Value: `150` BPS
+/// - Equivalent: `1.5%` per epoch
+/// - Annualized: ~18% (assuming 12 epochs per year)
 pub const SILVER_REWARD_BPS: u16 = 150; // 1.5% per epoch
+
+/// Gold tier reward rate in basis points per epoch.
+/// - Value: `200` BPS
+/// - Equivalent: `2%` per epoch
+/// - Annualized: ~24% (assuming 12 epochs per year)
 pub const GOLD_REWARD_BPS: u16 = 200; // 2% per epoch
+
+/// Diamond tier reward rate in basis points per epoch.
+/// - Value: `250` BPS
+/// - Equivalent: `2.5%` per epoch
+/// - Annualized: ~30% (assuming 12 epochs per year)
 pub const DIAMOND_REWARD_BPS: u16 = 250; // 2.5% per epoch
 
 // ============================================================================
-// Quick Pick Express (4/20 Game)
+// 9. Quick Pick Express - 4/20 Mini-Game Configuration
 // ============================================================================
+//
+// Quick Pick Express is a separate 4/20 lottery game with faster draws
+// and smaller prizes. Designed for more frequent play and lower stakes.
+//
+// # Game Parameters
+// - **Matrix**: 4/20 (pick 4 numbers from 1-20)
+// - **Ticket Price**: $0.50
+// - **Draw Frequency**: Every 4 hours
+// - **House Fee**: 30%
+// - **Odds**: 1 in 4,845 for Match 4
+//
+// # Prize Structure
+// - **Match 4**: $500 fixed prize
+// - **Match 3**: $10 fixed prize
+// - **Match 2**: Free ticket ($0.50 value)
 
-/// Quick Pick game parameters
+/// Quick Pick Express ticket price in USDC lamports.
+/// - Value: `500,000` lamports
+/// - Equivalent: `$0.50` USD
+/// - Rationale: Lower stakes for more frequent play
 pub const QUICK_PICK_TICKET_PRICE: u64 = 500_000; // $0.50
-pub const QUICK_PICK_NUMBERS: u8 = 4;
-pub const QUICK_PICK_RANGE: u8 = 20;
-pub const QUICK_PICK_HOUSE_FEE_BPS: u16 = 3_000; // 30%
-pub const QUICK_PICK_INTERVAL: i64 = 14_400; // 4 hours
 
-/// Quick Pick fixed prizes
-pub const QUICK_PICK_MATCH_4_PRIZE: u64 = 500_000_000; // $500
-pub const QUICK_PICK_MATCH_3_PRIZE: u64 = 10_000_000; // $10
-
-// ============================================================================
-// Lucky Numbers NFT System
-// ============================================================================
+/// Quick Pick Express numbers per ticket.
+/// - Value: `4` numbers
+/// - Matrix: 4/20 game
+/// - Total combinations:
 
 /// Lucky Numbers NFT parameters
 pub const LUCKY_NUMBERS_BONUS_BPS: u16 = 100; // 1% of jackpot
