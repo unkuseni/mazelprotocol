@@ -1,0 +1,33 @@
+{
+  "name": "mazelprotocol",
+  "version": "0.1.0",
+  "description": "SolanaLotto Protocol - The first intentionally exploitable lottery on Solana",
+  "main": "index.js",
+  "scripts": {
+    "test": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
+  },
+  "keywords": [
+    "solana",
+    "lottery",
+    "gambling",
+    "defi",
+    "anchor"
+  ],
+  "author": "SolanaLotto Team",
+  "license": "MIT",
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/web3.js": "^1.91.0",
+    "@solana/spl-token": "^0.4.0"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.14",
+    "@types/mocha": "^10.0.7",
+    "@types/node": "^20.17.10",
+    "chai": "^4.4.1",
+    "mocha": "^10.7.3",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2"
+  }
+}
