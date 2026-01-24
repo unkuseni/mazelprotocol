@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
+use switchboard_on_demand::VrfAccountData;
 
 // Import modules
 pub mod constants;
@@ -26,7 +27,7 @@ pub mod mazelprotocol {
     // ==================== TICKET MANAGER ====================
 
     /// Purchase a single lottery ticket
-    pub fn buy_ticket(ctx: Context<BuyTicket>, numbers: [u8; NUMBERS_COUNT]) -> Result<()> {
+    pub fn buy_ticket(ctx: Context<BuyTicket>, numbers: [u8; NUMBERS_PER_TICKET]) -> Result<()> {
         // Validate lottery is not paused
         require!(
             !ctx.accounts.lottery_state.is_paused,
@@ -56,14 +57,16 @@ pub mod mazelprotocol {
 
         // Calculate fund allocation with dynamic fee
         let house_fee = TICKET_PRICE * house_fee_bps as u64 / 10_000;
-        let jackpot_contribution = TICKET_PRICE * 38 / 100; // 38% to jackpot
-        let fixed_prize_pool = TICKET_PRICE * 26 / 100; // 26% to fixed prizes
-        let reserve_buffer = TICKET_PRICE * 2 / 100; // 2% to reserve
+        let prize_pool = TICKET_PRICE - house_fee;
+        let jackpot_contribution = prize_pool * JACKPOT_ALLOCATION_BPS as u64 / 10_000;
+        let fixed_prize_pool_contribution = prize_pool * FIXED_PRIZE_ALLOCATION_BPS as u64 / 10_000;
+        let reserve_contribution = prize_pool * RESERVE_ALLOCATION_BPS as u64 / 10_000;
 
-        // Verify allocation sums to ticket price (with rounding)
-        let total_allocated = house_fee + jackpot_contribution + fixed_prize_pool + reserve_buffer;
+        // Verify allocation sums to prize pool (with rounding)
+        let total_allocated =
+            jackpot_contribution + fixed_prize_pool_contribution + reserve_contribution;
         require!(
-            total_allocated <= TICKET_PRICE,
+            total_allocated <= prize_pool,
             crate::errors::ErrorCode::AllocationError
         );
 
@@ -72,7 +75,13 @@ pub mod mazelprotocol {
         let ticket_id = lottery_state.total_tickets_sold;
 
         lottery_state.jackpot_balance += jackpot_contribution;
-        lottery_state.reserve_balance += reserve_buffer;
+        lottery_state.reserve_balance += reserve_contribution;
+
+        // Add any rounding remainder to jackpot
+        let remainder = prize_pool - total_allocated;
+        if remainder > 0 {
+            lottery_state.jackpot_balance += remainder;
+        }
         lottery_state.total_tickets_sold += 1;
 
         let mut sorted_numbers = numbers;
@@ -104,7 +113,10 @@ pub mod mazelprotocol {
     /// Purchase multiple tickets in one transaction using TicketBatch for efficient storage
     /// This creates a NEW batch account and stores ALL tickets, solving the "lost tickets" bug
     /// For adding more tickets to an existing batch, use `add_to_batch`
-    pub fn buy_bulk(ctx: Context<BuyTicketBatch>, tickets: Vec<[u8; NUMBERS_COUNT]>) -> Result<()> {
+    pub fn buy_bulk(
+        ctx: Context<BuyTicketBatch>,
+        tickets: Vec<[u8; NUMBERS_PER_TICKET]>,
+    ) -> Result<()> {
         // Validate lottery is not paused
         require!(
             !ctx.accounts.lottery_state.is_paused,
@@ -146,14 +158,16 @@ pub mod mazelprotocol {
 
         // Calculate fund allocation with dynamic fee
         let house_fee = total_price * house_fee_bps as u64 / 10_000;
-        let jackpot_contribution = total_price * 38 / 100;
-        let fixed_prize_pool = total_price * 26 / 100;
-        let reserve_buffer = total_price * 2 / 100;
+        let prize_pool = total_price - house_fee;
+        let jackpot_contribution = prize_pool * JACKPOT_ALLOCATION_BPS as u64 / 10_000;
+        let fixed_prize_pool_contribution = prize_pool * FIXED_PRIZE_ALLOCATION_BPS as u64 / 10_000;
+        let reserve_contribution = prize_pool * RESERVE_ALLOCATION_BPS as u64 / 10_000;
 
-        // Verify allocation sums to ticket price (with rounding)
-        let total_allocated = house_fee + jackpot_contribution + fixed_prize_pool + reserve_buffer;
+        // Verify allocation sums to prize pool (with rounding)
+        let total_allocated =
+            jackpot_contribution + fixed_prize_pool_contribution + reserve_contribution;
         require!(
-            total_allocated <= total_price,
+            total_allocated <= prize_pool,
             crate::errors::ErrorCode::AllocationError
         );
 
@@ -162,7 +176,13 @@ pub mod mazelprotocol {
         let start_ticket_id = lottery_state.total_tickets_sold;
 
         lottery_state.jackpot_balance += jackpot_contribution;
-        lottery_state.reserve_balance += reserve_buffer;
+        lottery_state.reserve_balance += reserve_contribution;
+
+        // Add any rounding remainder to jackpot
+        let remainder = prize_pool - total_allocated;
+        if remainder > 0 {
+            lottery_state.jackpot_balance += remainder;
+        }
 
         // Initialize the new ticket batch
         let ticket_batch = &mut ctx.accounts.ticket_batch;
@@ -215,7 +235,7 @@ pub mod mazelprotocol {
     /// Add more tickets to an existing batch (for players who want to buy more tickets in same draw)
     pub fn add_to_batch(
         ctx: Context<AddToTicketBatch>,
-        tickets: Vec<[u8; NUMBERS_COUNT]>,
+        tickets: Vec<[u8; NUMBERS_PER_TICKET]>,
     ) -> Result<()> {
         // Validate lottery is not paused
         require!(
@@ -262,21 +282,29 @@ pub mod mazelprotocol {
 
         // Calculate fund allocation with dynamic fee
         let house_fee = total_price * house_fee_bps as u64 / 10_000;
-        let jackpot_contribution = total_price * 38 / 100;
-        let fixed_prize_pool = total_price * 26 / 100;
-        let reserve_buffer = total_price * 2 / 100;
+        let prize_pool = total_price - house_fee;
+        let jackpot_contribution = prize_pool * JACKPOT_ALLOCATION_BPS as u64 / 10_000;
+        let fixed_prize_pool_contribution = prize_pool * FIXED_PRIZE_ALLOCATION_BPS as u64 / 10_000;
+        let reserve_contribution = prize_pool * RESERVE_ALLOCATION_BPS as u64 / 10_000;
 
-        // Verify allocation sums to ticket price (with rounding)
-        let total_allocated = house_fee + jackpot_contribution + fixed_prize_pool + reserve_buffer;
+        // Verify allocation sums to prize pool (with rounding)
+        let total_allocated =
+            jackpot_contribution + fixed_prize_pool_contribution + reserve_contribution;
         require!(
-            total_allocated <= total_price,
+            total_allocated <= prize_pool,
             crate::errors::ErrorCode::AllocationError
         );
 
         // Update lottery state
         let lottery_state = &mut ctx.accounts.lottery_state;
         lottery_state.jackpot_balance += jackpot_contribution;
-        lottery_state.reserve_balance += reserve_buffer;
+        lottery_state.reserve_balance += reserve_contribution;
+
+        // Add any rounding remainder to jackpot
+        let remainder = prize_pool - total_allocated;
+        if remainder > 0 {
+            lottery_state.jackpot_balance += remainder;
+        }
 
         // Add tickets to existing batch
         let ticket_batch = &mut ctx.accounts.ticket_batch;
@@ -322,7 +350,7 @@ pub mod mazelprotocol {
     /// Redeem a free ticket using an NFT (simplified version)
     pub fn redeem_free_ticket(
         ctx: Context<RedeemFreeTicket>,
-        numbers: [u8; NUMBERS_COUNT],
+        numbers: [u8; NUMBERS_PER_TICKET],
         nft_mint: Pubkey,
     ) -> Result<()> {
         // Validate lottery is not paused
@@ -455,7 +483,7 @@ pub mod mazelprotocol {
 
         // Increment draw ID and schedule next draw
         lottery_state.current_draw_id += 1;
-        lottery_state.next_draw_timestamp = current_time + DRAW_INTERVAL_SECONDS;
+        lottery_state.next_draw_timestamp = current_time + DRAW_INTERVAL;
         lottery_state.is_rolldown_active = false;
         lottery_state.is_soft_cap_zone = false;
 
@@ -481,20 +509,82 @@ pub mod mazelprotocol {
         Ok(())
     }
 
-    /// Execute a draw with provided random numbers
+    /// Request randomness from Switchboard VRF for the current draw
     ///
-    /// SECURITY NOTE: This function currently accepts manual random number input.
-    /// For production use, this MUST be replaced with verifiable randomness.
+    /// This instruction creates a VRF request that will be fulfilled by Switchboard oracles.
+    /// Once the VRF result is available, the `execute_draw` function can be called.
+    pub fn request_randomness(ctx: Context<RequestRandomness>) -> Result<()> {
+        use switchboard_on_demand::{VrfAccountData, VrfRequestRandomness};
+
+        // Verify draw is ready for randomness request
+        let lottery_state = &mut ctx.accounts.lottery_state;
+        let current_time = Clock::get()?.unix_timestamp;
+        require!(
+            current_time >= lottery_state.next_draw_timestamp,
+            crate::errors::ErrorCode::DrawNotReady
+        );
+
+        // Load VRF account
+        let vrf = ctx.accounts.vrf.load()?;
+
+        // Request randomness from Switchboard VRF
+        let switchboard_program = ctx.accounts.switchboard_program.to_account_info();
+        let vrf_key = ctx.accounts.vrf.to_account_info();
+        let authority = ctx.accounts.vrf_authority.to_account_info();
+        let oracle_queue = ctx.accounts.oracle_queue.to_account_info();
+        let queue_authority = ctx.accounts.queue_authority.to_account_info();
+        let data_buffer = ctx.accounts.data_buffer.to_account_info();
+        let escrow = ctx.accounts.escrow.to_account_info();
+        let payer_wallet = ctx.accounts.payer_wallet.to_account_info();
+        let payer_authority = ctx.accounts.payer_authority.to_account_info();
+        let recent_blockhashes = ctx.accounts.recent_blockhashes.to_account_info();
+        let token_program = ctx.accounts.token_program.to_account_info();
+
+        let switchboard_ctx = VrfRequestRandomness {
+            authority: authority.clone(),
+            vrf: vrf_key.clone(),
+            oracle_queue: oracle_queue.clone(),
+            queue_authority: queue_authority.clone(),
+            data_buffer: data_buffer.clone(),
+            program_state: switchboard_program.clone(),
+            escrow: escrow.clone(),
+            payer_wallet: payer_wallet.clone(),
+            payer_authority: payer_authority.clone(),
+            recent_blockhashes: recent_blockhashes.clone(),
+            token_program: token_program.clone(),
+            system_program: ctx.accounts.system_program.to_account_info(),
+        };
+
+        // Generate a unique request ID based on draw_id and timestamp
+        let mut request_id = [0u8; 32];
+        let draw_id_bytes = lottery_state.current_draw_id.to_le_bytes();
+        let timestamp_bytes = current_time.to_le_bytes();
+        request_id[0..8].copy_from_slice(&draw_id_bytes);
+        request_id[8..16].copy_from_slice(&timestamp_bytes);
+
+        // Request randomness
+        switchboard_on_demand::cpi::request_randomness(
+            CpiContext::new(switchboard_program, switchboard_ctx),
+            request_id,
+        )?;
+
+        // Emit event
+        emit!(RandomnessRequested {
+            draw_id: lottery_state.current_draw_id,
+            vrf_request_id: request_id,
+            timestamp: current_time,
+        });
+
+        Ok(())
+    }
+
+    /// Execute a draw using VRF randomness
     ///
-    /// TODO: Integrate with Switchboard VRF or Chainlink VRF:
-    /// 1. Request randomness from VRF oracle in a separate instruction
-    /// 2. VRF callback delivers verified random bytes
-    /// 3. Convert random bytes to lottery numbers
-    /// 4. Store VRF proof on-chain for auditability
-    ///
-    /// Example Switchboard integration:
+    /// This function reads the VRF result from the Switchboard VRF account
+    /// and converts it to lottery numbers. The VRF proof is stored on-chain
+    /// for auditability.
     /// ```ignore
-    /// use switchboard_v2::VrfAccountData;
+    /// use switchboard_on_demand::VrfAccountData;
     ///
     /// // In execute_draw, verify the VRF result:
     /// let vrf = ctx.accounts.vrf.load()?;
@@ -504,16 +594,30 @@ pub mod mazelprotocol {
     /// // Convert VRF result to lottery numbers
     /// let random_numbers = vrf_result_to_lottery_numbers(&result_buffer);
     /// ```
-    pub fn execute_draw(
-        ctx: Context<ExecuteDraw>,
-        random_numbers: [u8; NUMBERS_COUNT],
-    ) -> Result<()> {
+    pub fn execute_draw(ctx: Context<ExecuteDraw>) -> Result<()> {
         // Verify draw time has passed
         let current_time = Clock::get()?.unix_timestamp;
         require!(
             current_time >= ctx.accounts.lottery_state.next_draw_timestamp,
             crate::errors::ErrorCode::TooEarly
         );
+
+        // Validate VRF account matches stored VRF account
+        require!(
+            ctx.accounts.vrf.key() == ctx.accounts.lottery_state.vrf_account,
+            crate::errors::ErrorCode::InvalidVrfProof
+        );
+
+        // Verify VRF result is ready
+        let vrf = ctx.accounts.vrf.load()?;
+        let result_buffer = vrf.get_result()?;
+        require!(
+            !result_buffer.iter().all(|&x| x == 0),
+            crate::errors::ErrorCode::VrfNotResolved
+        );
+
+        // Convert VRF result to lottery numbers
+        let random_numbers = vrf_result_to_lottery_numbers(&result_buffer);
 
         // Validate random numbers
         validate_numbers(&random_numbers)?;
@@ -535,9 +639,10 @@ pub mod mazelprotocol {
             ctx.accounts.lottery_state.is_soft_cap_zone = true;
         }
 
-        // Update draw result
+        // Update draw result with VRF proof and winning numbers
         let draw_result = &mut ctx.accounts.draw_result;
         draw_result.winning_numbers = winning_numbers;
+        draw_result.vrf_proof = vrf.get_proof()?;
         draw_result.was_rolldown = is_rolldown;
         draw_result.timestamp = current_time;
 
@@ -612,10 +717,10 @@ pub mod mazelprotocol {
             lottery_state.jackpot_balance = lottery_state.seed_amount;
         } else {
             // Normal mode with fixed prizes
-            draw_result.match_5_prize = 4_000_000_000; // $4,000
-            draw_result.match_4_prize = 150_000_000; // $150
-            draw_result.match_3_prize = 5_000_000; // $5
-            draw_result.match_2_prize = 2_500_000; // $2.50 (free ticket value)
+            draw_result.match_5_prize = MATCH_5_PRIZE;
+            draw_result.match_4_prize = MATCH_4_PRIZE;
+            draw_result.match_3_prize = MATCH_3_PRIZE;
+            draw_result.match_2_prize = MATCH_2_VALUE;
 
             // Calculate total distributed for fixed prizes
             draw_result.total_prizes_distributed = (draw_result.match_5_prize
@@ -648,7 +753,7 @@ pub mod mazelprotocol {
     /// Claim prize for a winning ticket (individual ticket)
     pub fn claim_prize(ctx: Context<ClaimPrize>) -> Result<()> {
         let ticket = &mut ctx.accounts.ticket;
-        let draw_result = &ctx.accounts.draw_result;
+        let draw_result = &mut ctx.accounts.draw_result;
 
         // Verify ticket is for this draw
         require!(
@@ -672,6 +777,41 @@ pub mod mazelprotocol {
             2 => draw_result.match_2_prize,
             _ => 0,
         };
+
+        // Verify claim doesn't exceed reported winner count
+        match matches {
+            6 => require!(
+                draw_result.match_6_claimed < draw_result.match_6_winners,
+                crate::errors::ErrorCode::ClaimExceedsWinners
+            ),
+            5 => require!(
+                draw_result.match_5_claimed < draw_result.match_5_winners,
+                crate::errors::ErrorCode::ClaimExceedsWinners
+            ),
+            4 => require!(
+                draw_result.match_4_claimed < draw_result.match_4_winners,
+                crate::errors::ErrorCode::ClaimExceedsWinners
+            ),
+            3 => require!(
+                draw_result.match_3_claimed < draw_result.match_3_winners,
+                crate::errors::ErrorCode::ClaimExceedsWinners
+            ),
+            2 => require!(
+                draw_result.match_2_claimed < draw_result.match_2_winners,
+                crate::errors::ErrorCode::ClaimExceedsWinners
+            ),
+            _ => (),
+        }
+
+        // Increment claimed counter
+        match matches {
+            6 => draw_result.match_6_claimed += 1,
+            5 => draw_result.match_5_claimed += 1,
+            4 => draw_result.match_4_claimed += 1,
+            3 => draw_result.match_3_claimed += 1,
+            2 => draw_result.match_2_claimed += 1,
+            _ => (),
+        }
 
         ticket.prize_amount = prize;
         ticket.is_claimed = true;
@@ -713,7 +853,7 @@ pub mod mazelprotocol {
     /// ticket_index is the position of the ticket within the batch (0-indexed)
     pub fn claim_batch_prize(ctx: Context<ClaimBatchPrize>, ticket_index: u32) -> Result<()> {
         let ticket_batch = &mut ctx.accounts.ticket_batch;
-        let draw_result = &ctx.accounts.draw_result;
+        let draw_result = &mut ctx.accounts.draw_result;
 
         // Verify batch is for this draw
         require!(
@@ -748,6 +888,41 @@ pub mod mazelprotocol {
             2 => draw_result.match_2_prize,
             _ => 0,
         };
+
+        // Verify claim doesn't exceed reported winner count
+        match matches {
+            6 => require!(
+                draw_result.match_6_claimed < draw_result.match_6_winners,
+                crate::errors::ErrorCode::ClaimExceedsWinners
+            ),
+            5 => require!(
+                draw_result.match_5_claimed < draw_result.match_5_winners,
+                crate::errors::ErrorCode::ClaimExceedsWinners
+            ),
+            4 => require!(
+                draw_result.match_4_claimed < draw_result.match_4_winners,
+                crate::errors::ErrorCode::ClaimExceedsWinners
+            ),
+            3 => require!(
+                draw_result.match_3_claimed < draw_result.match_3_winners,
+                crate::errors::ErrorCode::ClaimExceedsWinners
+            ),
+            2 => require!(
+                draw_result.match_2_claimed < draw_result.match_2_winners,
+                crate::errors::ErrorCode::ClaimExceedsWinners
+            ),
+            _ => (),
+        }
+
+        // Increment claimed counter
+        match matches {
+            6 => draw_result.match_6_claimed += 1,
+            5 => draw_result.match_5_claimed += 1,
+            4 => draw_result.match_4_claimed += 1,
+            3 => draw_result.match_3_claimed += 1,
+            2 => draw_result.match_2_claimed += 1,
+            _ => (),
+        }
 
         ticket_entry.prize_amount = prize;
         ticket_entry.is_claimed = true;
@@ -808,7 +983,7 @@ pub mod mazelprotocol {
         lottery_state.total_tickets_sold = 0;
         lottery_state.total_prizes_paid = 0;
         lottery_state.last_draw_timestamp = Clock::get()?.unix_timestamp;
-        lottery_state.next_draw_timestamp = Clock::get()?.unix_timestamp + DRAW_INTERVAL_SECONDS;
+        lottery_state.next_draw_timestamp = Clock::get()?.unix_timestamp + DRAW_INTERVAL;
         lottery_state.is_rolldown_active = false;
         lottery_state.is_soft_cap_zone = false;
         lottery_state.is_paused = false;
@@ -837,6 +1012,12 @@ pub mod mazelprotocol {
     /// Unpause the lottery
     pub fn unpause_lottery(ctx: Context<AdminAction>) -> Result<()> {
         ctx.accounts.lottery_state.is_paused = false;
+        Ok(())
+    }
+
+    /// Set the VRF account for randomness generation
+    pub fn set_vrf_account(ctx: Context<SetVrfAccount>) -> Result<()> {
+        ctx.accounts.lottery_state.vrf_account = ctx.accounts.vrf_account.key();
         Ok(())
     }
 }

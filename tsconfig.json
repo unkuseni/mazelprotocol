@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "lib": ["es2020"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "types": ["node", "mocha"],
+    "typeRoots": ["./node_modules/@types", "./target/types"]
+  },
+  "include": [
+    "tests/**/*",
+    "scripts/**/*",
+    "migrations/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "target",
+    ".anchor"
+  ]
+}
