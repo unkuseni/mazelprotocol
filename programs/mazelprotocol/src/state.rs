@@ -1,4 +1,13 @@
-use crate::constants::NUMBERS_COUNT;
+//! State structures for MazelProtocol lottery system
+//!
+//! This module defines the core data structures used by the lottery protocol:
+//! - `LotteryState`: Global lottery configuration and statistics
+//! - `TicketData`: Individual ticket information
+//! - `UnifiedTicket`: Flexible storage for 1-250 tickets
+//! - `DrawResult`: Complete draw outcome storage
+//! - `WinnerCounts`: Winner tracking by match tier
+
+use crate::constants::{MAX_NUMBER, MIN_NUMBER, NUMBERS_COUNT};
 use anchor_lang::prelude::*;
 
 #[account]
@@ -46,23 +55,23 @@ impl LotteryState {
     pub fn validate_state(&self) -> Result<()> {
         require!(
             self.ticket_price > 0,
-            crate::errors::ErrorCode::InvalidAmount
+            crate::errors::ErrorCode::InvalidTicketPrice
         );
         require!(
             self.house_fee_bps <= 10_000,
-            crate::errors::ErrorCode::InvalidAmount
+            crate::errors::ErrorCode::InvalidHouseFee
         ); // Max 100%
         require!(
             self.jackpot_cap > 0,
-            crate::errors::ErrorCode::InvalidAmount
+            crate::errors::ErrorCode::InvalidJackpotCap
         );
         require!(
             self.seed_amount <= self.jackpot_cap,
-            crate::errors::ErrorCode::InvalidAmount
+            crate::errors::ErrorCode::InvalidSeedAmount
         );
         require!(
             self.next_draw_timestamp > self.last_draw_timestamp,
-            crate::errors::ErrorCode::InvalidAmount
+            crate::errors::ErrorCode::InvalidDrawTimestamps
         );
         Ok(())
     }
@@ -234,7 +243,7 @@ impl UnifiedTicket {
 
         // Check capacity
         if current_count >= Self::MAX_TICKETS {
-            return Err(ErrorCode::BatchFull.into());
+            return Err(crate::errors::ErrorCode::BatchFullUnified.into());
         }
 
         match &mut self.tickets {
@@ -280,11 +289,11 @@ impl UnifiedTicket {
     ) -> Result<Self> {
         // Validate ticket count
         if tickets_data.is_empty() {
-            return Err(ErrorCode::NoTickets.into());
+            return Err(crate::errors::ErrorCode::NoTickets.into());
         }
 
         if tickets_data.len() > Self::MAX_TICKETS {
-            return Err(ErrorCode::TooManyTickets.into());
+            return Err(crate::errors::ErrorCode::TooManyTicketsUnified.into());
         }
 
         let tickets = if tickets_data.len() == 1 {
@@ -309,6 +318,53 @@ impl UnifiedTicket {
         } else {
             None
         }
+    }
+
+    /// Validate ticket count before creating
+    pub fn validate_ticket_count(ticket_count: usize) -> Result<()> {
+        require!(ticket_count > 0, crate::errors::ErrorCode::NoTickets);
+        require!(
+            ticket_count <= Self::MAX_TICKETS,
+            crate::errors::ErrorCode::TooManyTicketsUnified
+        );
+        Ok(())
+    }
+
+    /// Get ticket by actual ticket ID (not index)
+    pub fn get_ticket_by_id(&self, ticket_id: u64) -> Option<&TicketData> {
+        if ticket_id < self.start_ticket_id {
+            return None;
+        }
+
+        let index = (ticket_id - self.start_ticket_id) as usize;
+        self.get_ticket(index)
+    }
+
+    /// Find ticket index by ticket ID
+    pub fn find_ticket_index(&self, ticket_id: u64) -> Option<usize> {
+        if ticket_id < self.start_ticket_id {
+            return None;
+        }
+
+        let index = (ticket_id - self.start_ticket_id) as usize;
+        if index < self.ticket_count() {
+            Some(index)
+        } else {
+            None
+        }
+    }
+
+    /// Mark a ticket as claimed
+    pub fn mark_as_claimed(&mut self, ticket_index: usize, prize_amount: u64) -> Result<()> {
+        let ticket = self
+            .get_ticket_mut(ticket_index)
+            .ok_or(crate::errors::ErrorCode::InvalidTicketIndex)?;
+
+        require!(!ticket.is_claimed, crate::errors::ErrorCode::AlreadyClaimed);
+
+        ticket.is_claimed = true;
+        ticket.prize_amount = prize_amount;
+        Ok(())
     }
 }
 
@@ -361,6 +417,49 @@ impl DrawResult {
         8 +   // match_4_prize
         8 +   // match_3_prize
         8; // match_2_prize
+
+    // Helper methods
+    pub fn total_winners(&self) -> u32 {
+        self.match_6_winners
+            + self.match_5_winners
+            + self.match_4_winners
+            + self.match_3_winners
+            + self.match_2_winners
+    }
+
+    pub fn total_claimed(&self) -> u32 {
+        self.match_6_claimed
+            + self.match_5_claimed
+            + self.match_4_claimed
+            + self.match_3_claimed
+            + self.match_2_claimed
+    }
+
+    pub fn unclaimed_winners(&self) -> u32 {
+        self.total_winners() - self.total_claimed()
+    }
+
+    pub fn get_prize_for_match(&self, match_count: u8) -> Option<u64> {
+        match match_count {
+            6 => Some(self.match_6_prize),
+            5 => Some(self.match_5_prize),
+            4 => Some(self.match_4_prize),
+            3 => Some(self.match_3_prize),
+            2 => Some(self.match_2_prize),
+            _ => None,
+        }
+    }
+
+    pub fn get_winners_for_match(&self, match_count: u8) -> Option<u32> {
+        match match_count {
+            6 => Some(self.match_6_winners),
+            5 => Some(self.match_5_winners),
+            4 => Some(self.match_4_winners),
+            3 => Some(self.match_3_winners),
+            2 => Some(self.match_2_winners),
+            _ => None,
+        }
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -370,4 +469,16 @@ pub struct WinnerCounts {
     pub match_4: u32,
     pub match_3: u32,
     pub match_2: u32,
+}
+
+impl Default for WinnerCounts {
+    fn default() -> Self {
+        Self {
+            match_6: 0,
+            match_5: 0,
+            match_4: 0,
+            match_3: 0,
+            match_2: 0,
+        }
+    }
 }
