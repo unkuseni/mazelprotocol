@@ -99,8 +99,8 @@
 | Parameter | Value | Location |
 |-----------|-------|----------|
 | Ticket Price | $2.50 USDC | TECHNICAL_SPEC.md |
-| Soft Cap | $1,500,000 | ADVANCED_FEATURES.md |
-| Hard Cap | $2,000,000 | ADVANCED_FEATURES.md |
+| Soft Cap | $1,750,000 | ADVANCED_FEATURES.md |
+| Hard Cap | $2,250,000 | ADVANCED_FEATURES.md |
 | Jackpot Seed | $500,000 | TECHNICAL_SPEC.md |
 | Dynamic Fee Range | 28% - 40% | ADVANCED_FEATURES.md |
 

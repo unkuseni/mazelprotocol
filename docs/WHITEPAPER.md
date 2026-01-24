@@ -163,23 +163,23 @@ $$HouseEdge_{normal} = 1 - \frac{0.868}{2.50} = 65.3\%$$
 
 #### Rolldown Mode
 
-During rolldown, the $1,750,000 jackpot distributes to lower tiers:
+During rolldown, a jackpot $J$ (where $1,750,000 \le J \le 2,250,000$) distributes to lower tiers. The rolldown triggers probabilistically once jackpot exceeds $1,750,000, with probability $P = (J - 1,750,000) / (2,250,000 - 1,750,000)$.
 
 | Tier | Pool Share | Total Pool | Winners per 1M tickets | Prize Each |
 |------|------------|------------|------------------------|------------|
-| Match 5 | 25% | $437,500 | 25.6 | ~$17,090 |
-| Match 4 | 35% | $612,500 | 1,249 | ~$490 |
-| Match 3 | 40% | $700,000 | 21,090 | ~$33 |
+| Match 5 | 25% | $0.25J$ | 25.6 | ~$0.25J / (N \cdot 0.00002562)$ |
+| Match 4 | 35% | $0.35J$ | 1,249 | ~$0.35J / (N \cdot 0.001249)$ |
+| Match 3 | 40% | $0.40J$ | 21,090 | ~$0.40J / (N \cdot 0.02109)$ |
 
 **Note:** Actual per-winner prizes depend on total tickets sold during rolldown.
 
-For a rolldown with $N$ tickets sold:
+For a rolldown with $N$ tickets sold and jackpot $J$:
 
-$$Prize_{5} = \frac{0.25 \cdot 1,750,000}{N \cdot P(5)} = \frac{437,500}{N \cdot 0.00002562}$$
+$$Prize_{5} = \frac{0.25 \cdot J}{N \cdot P(5)} = \frac{0.25J}{N \cdot 0.00002562}$$
 
-$$Prize_{4} = \frac{0.35 \cdot 1,750,000}{N \cdot P(4)} = \frac{612,500}{N \cdot 0.001249}$$
+$$Prize_{4} = \frac{0.35 \cdot J}{N \cdot P(4)} = \frac{0.35J}{N \cdot 0.001249}$$
 
-$$Prize_{3} = \frac{0.40 \cdot 1,750,000}{N \cdot P(3)} = \frac{700,000}{N \cdot 0.02109}$$
+$$Prize_{3} = \frac{0.40 \cdot J}{N \cdot P(3)} = \frac{0.40J}{N \cdot 0.02109}$$
 
 **Expected Value during Rolldown:**
 
@@ -187,31 +187,31 @@ $$EV_{rolldown} = P(5) \cdot Prize_{5} + P(4) \cdot Prize_{4} + P(3) \cdot Prize
 
 Substituting:
 
-$$EV_{rolldown} = \frac{437,500}{N} + \frac{612,500}{N} + \frac{700,000}{N} + 0.3659$$
+$$EV_{rolldown} = \frac{0.25J}{N} + \frac{0.35J}{N} + \frac{0.40J}{N} + 0.3659$$
 
-$$EV_{rolldown} = \frac{1,750,000}{N} + 0.3659$$
+$$EV_{rolldown} = \frac{J}{N} + 0.3659$$
 
 ### 3.4 Break-Even Analysis
 
 For positive expected value ($EV > TicketPrice$):
 
-$$\frac{1,750,000}{N} + 0.3659 > 2.50$$
+$$\frac{J}{N} + 0.3659 > 2.50$$
 
-$$\frac{1,750,000}{N} > 2.134$$
+$$\frac{J}{N} > 2.134$$
 
-$$N < 820,056$$
+$$N < \frac{J}{2.134}$$
 
-**Critical Insight:** If fewer than 820,056 tickets are sold during a rolldown draw, players have positive expected value.
+**Critical Insight:** If fewer than $J/2.134$ tickets are sold during a rolldown draw, players have positive expected value. For maximum jackpot $J = 2,250,000$, threshold is $N < 1,054,000$. For minimum rolldown jackpot $J = 1,750,000$, threshold is $N < 820,056$.
 
 For 15% profit margin:
 
 $$EV_{rolldown} > 2.50 \cdot 1.15 = 2.875$$
 
-$$\frac{1,750,000}{N} > 2.509$$
+$$\frac{J}{N} > 2.509$$
 
-$$N < 697,489$$
+$$N < \frac{J}{2.509}$$
 
-**Theorem 3.1:** *For rolldown events with fewer than 697,489 tickets sold, players achieve ≥15% expected profit per ticket.*
+**Theorem 3.1:** *For rolldown events with jackpot $J$ and fewer than $J/2.509$ tickets sold, players achieve ≥15% expected profit per ticket. For $J = 2,250,000$, threshold is $N < 897,000$.*
 
 ---
 

@@ -152,48 +152,57 @@ The Match 3 tier receives 40% of the rolldown pool because:
 
 ## 🔄 The Rolldown Mechanism
 
-### Two-Tier Cap System
+### Single Random Rolldown System
 
-SolanaLotto uses a **soft cap + hard cap** system to prevent calendar gaming:
+SolanaLotto uses a **probabilistic rolldown** system that prevents calendar gaming:
 
-| Cap Type | Threshold | Behavior |
-|----------|-----------|----------|
-| **Soft Cap** | $1,500,000 | 30% of excess rolls down each draw |
-| **Hard Cap** | $2,000,000 | 100% of jackpot distributes |
+| Parameter | Threshold | Behavior |
+|-----------|-----------|----------|
+| **Soft Cap** | $1,750,000 | Rolldown can trigger randomly each draw |
+| **Hard Cap** | $2,250,000 | Rolldown forced (100% of jackpot distributes) |
 
-### Soft Cap (Mini-Rolldown)
+### Probabilistic Trigger Mechanism
 
-When jackpot exceeds $1.5M but is below $2M:
+When jackpot exceeds $1.75M but is below $2.25M:
+
+- Each draw, if no jackpot winner, rolldown triggers with probability:
+  ```
+  P(rolldown) = (jackpot - soft_cap) / (hard_cap - soft_cap)
+  ```
+- Probability increases linearly as jackpot grows
+- At hard cap ($2.25M), probability = 100% (forced rolldown)
 
 ```
-Example: Jackpot at $1,650,000
+Example: Jackpot at $2,000,000
 
-Excess over soft cap: $150,000
-Mini-rolldown amount: $150,000 × 30% = $45,000
+Probability calculation:
+├── Excess over soft cap: $250,000
+├── Total range: $500,000 ($2.25M - $1.75M)
+├── Rolldown probability: $250,000 / $500,000 = 50%
 
-Distribution:
-├── Match 5 (25%): $11,250 bonus
-├── Match 4 (35%): $15,750 bonus  
-├── Match 3 (40%): $18,000 bonus
-
-Remaining jackpot: $1,605,000 (continues growing)
+If rolldown triggers:
+├── 100% of jackpot distributes
+├── Distribution follows standard rolldown percentages
+├── Jackpot resets to $500,000 seed
 ```
 
-**Why this works**: Players get small +EV bumps without the full exploit, and can't perfectly time the "big one."
+**Why this works**: Rolldown occurs at a random time between the caps, making timing unpredictable while maintaining +EV opportunities.
 
-### Hard Cap (Full Rolldown)
+### Hard Cap (Forced Rolldown)
 
 Triggered when **BOTH** conditions are met:
 
-1. ✅ Jackpot balance ≥ $2,000,000
+1. ✅ Jackpot balance ≥ $2,250,000
 2. ✅ No tickets match all 6 numbers in the draw
+
+If jackpot reaches hard cap, rolldown is guaranteed in that draw (assuming no jackpot winner).
 
 ### Full Rolldown Distribution Flow
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                HARD CAP ROLLDOWN TRIGGERED               │
-│                  Jackpot: $2,000,000                     │
+│                  Jackpot: $2,250,000                     │
 └─────────────────────────────────────────────────────────┘
                            │
            ┌───────────────┼───────────────┐
@@ -201,13 +210,13 @@ Triggered when **BOTH** conditions are met:
     ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
     │   MATCH 5   │ │   MATCH 4   │ │   MATCH 3   │
     │     25%     │ │     35%     │ │     40%     │
-    │  $437,500   │ │  $612,500   │ │  $700,000   │
+    │  $562,500   │ │  $787,500   │ │  $900,000   │
     └─────────────┘ └─────────────┘ └─────────────┘
            │               │               │
            ▼               ▼               ▼
     ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
     │  ~11 winners│ │ ~766 winners│ │~17,697 win- │
-    │  $22,000 ea │ │   $800 ea   │ │ ners $40 ea │
+    │  $51,136 ea │ │  $1,028 ea  │ │ ners $51 ea │
     └─────────────┘ └─────────────┘ └─────────────┘
     
     (Based on 697,800 tickets sold during rolldown draw)
@@ -218,7 +227,7 @@ Triggered when **BOTH** conditions are met:
 After a rolldown:
 1. Jackpot resets to $500,000 seed
 2. Normal mode resumes
-3. Cycle begins again (~13-14 days to next cap)
+3. Cycle begins again (~15-16 days to next cap)
 
 ---
 
@@ -233,7 +242,7 @@ Instead of a fixed fee, the house fee **scales with jackpot level**:
 | < $500,000 | **28%** | 72% | Attracts early players |
 | $500,000 - $1,000,000 | **32%** | 68% | Standard operations |
 | $1,000,000 - $1,500,000 | **36%** | 64% | Building anticipation |
-| $1,500,000 - $2,000,000 | **40%** | 60% | Maximum extraction |
+| $1,500,000 - $2,250,000 | **40%** | 60% | Maximum extraction |
 | During Rolldown | **28%** | 72% | Encourages volume |
 
 **Why this works**: Players accept higher fees during jackpot excitement, while lower fees during rolldown maximize volume (more important than margin).
@@ -268,7 +277,7 @@ Instead of a fixed fee, the house fee **scales with jackpot level**:
 - Provides emergency reserve
 - Target: 3-month operating expenses (~$2.7M)
 
-### Two-Week Cycle Profitability (With Dynamic Fees)
+### 15-16 Day Cycle Profitability (With Dynamic Fees)
 
 ```
 Dynamic Fee Model Revenue:
@@ -287,8 +296,8 @@ Total Cycle House Fees: $1,278,000 (+7.4% vs fixed 34%)
 | **Rolldown Deficit** | Prizes exceed pool contribution | -$200,000 |
 | **Seed Reset** | Replenish $500k jackpot | -$500,000 |
 | **Insurance Accumulation** | 2% allocation | +$70,000 |
-| **CYCLE NET PROFIT** | | **+$648,000** |
-| **Daily Average** | | **~$46,300/day** |
+| **CYCLE NET PROFIT (15-16 days)** | | **+$648,000** |
+| **Daily Average** | | **~$41,800/day** |
 
 ### Break-Even Analysis
 

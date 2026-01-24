@@ -349,9 +349,9 @@ pub const FEE_TIER_4_BPS: u16 = 4000;  // 40% (> $1.5M)
 pub const FEE_ROLLDOWN_BPS: u16 = 2800; // 28% (during rolldown)
 
 // Soft/Hard Cap System
-pub const SOFT_CAP: u64 = 1_500_000_000_000;    // $1.5M
-pub const HARD_CAP: u64 = 2_000_000_000_000;    // $2M
-pub const SOFT_CAP_ROLLDOWN_RATE_BPS: u16 = 3000; // 30% of excess
+pub const SOFT_CAP: u64 = 1_750_000_000_000;    // $1.75M (probabilistic rolldown begins)
+pub const HARD_CAP: u64 = 2_250_000_000_000;    // $2.25M (forced rolldown)
+pub const SOFT_CAP_ROLLDOWN_RATE_BPS: u16 = 3000; // DEPRECATED: Was 30% of excess (replaced with probabilistic rolldown)
 pub const JACKPOT_CAP: u64 = 1_750_000_000_000;    // $1,750,000
 pub const SEED_AMOUNT: u64 = 500_000_000_000;      // $500,000
 pub const DRAW_INTERVAL: i64 = 86400;              // 24 hours in seconds
@@ -481,16 +481,16 @@ pub struct LotteryState {
     // SOFT/HARD CAP SYSTEM
     // ═══════════════════════════════════════════════════════════
     
-    /// Soft cap threshold (mini-rolldowns begin)
+    /// Soft cap threshold (probabilistic rolldown possible)
     pub soft_cap: u64,
     
     /// Hard cap threshold (full rolldown trigger)
     pub hard_cap: u64,
     
-    /// Soft cap rolldown rate (3000 = 30% of excess)
+    /// Soft cap rolldown rate (3000 = 30% of excess) - DEPRECATED: Replaced with probabilistic rolldown
     pub soft_cap_rolldown_rate_bps: u16,
     
-    /// Total distributed via soft cap mini-rolldowns
+    /// Total distributed via probabilistic rolldowns (soft cap triggers)
     pub total_soft_rolldowns: u64,
     
     /// Is rolldown pending for next draw
@@ -558,7 +558,7 @@ pub struct DrawResult {
     pub match_6_prize: u64,
     pub match_5_prize: u64,
     
-    /// Bonus amounts from soft cap mini-rolldown
+    /// Prize amounts during probabilistic rolldown
     pub match_5_bonus: u64,
     pub match_4_bonus: u64,
     pub match_3_bonus: u64,

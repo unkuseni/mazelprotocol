@@ -31,7 +31,7 @@ Replace the fixed 34% house fee with a jackpot-linked sliding scale that optimiz
 | < $500,000 | 28% | 72% | Higher EV attracts early players |
 | $500,000 - $1,000,000 | 32% | 68% | Standard operations |
 | $1,000,000 - $1,500,000 | 36% | 64% | Building anticipation |
-| $1,500,000 - $1,750,000 | 40% | 60% | Maximum extraction pre-rolldown |
+| $1,500,000 - $2,250,000 | 40% | 60% | Maximum extraction during rolldown zone |
 | Rolldown Event | 28% | 72% | Encourages volume during rolldown |
 
 ### 1.3 Rationale
@@ -155,36 +155,33 @@ Implement a two-tier cap system that creates "mini rolldowns" before the main ev
 
 | Cap Type | Threshold | Behavior |
 |----------|-----------|----------|
-| **Soft Cap** | $1,500,000 | 30% of excess rolls down each draw |
-| **Hard Cap** | $2,000,000 | 100% of jackpot distributes |
+| **Soft Cap** | $1,750,000 | Probabilistic rolldown trigger possible each draw |
+| **Hard Cap** | $2,250,000 | 100% of jackpot distributes (forced rolldown) |
 
-### 2.3 Soft Cap Mechanics
+### 2.3 Probabilistic Trigger Mechanism
 
-When jackpot exceeds $1.5M but is below $2M:
+When jackpot exceeds $1.75M but is below $2.25M:
 
-```
-Example: Jackpot reaches $1,650,000
+- Each draw, if no jackpot winner, rolldown triggers with probability:
+  ```
+  P(rolldown) = (jackpot - soft_cap) / (hard_cap - soft_cap)
+  ```
+- Probability increases linearly as jackpot grows
+- At hard cap ($2.25M), probability = 100% (forced rolldown)
 
-Calculation:
-├── Excess over soft cap: $1,650,000 - $1,500,000 = $150,000
-├── Rolldown amount: $150,000 × 30% = $45,000
-├── Remaining jackpot: $1,650,000 - $45,000 = $1,605,000
+Example: Jackpot at $2,000,000
+├── Excess over soft cap: $250,000
+├── Total range: $500,000 ($2.25M - $1.75M)
+├── Rolldown probability: $250,000 / $500,000 = 50%
 
-Mini-Rolldown Distribution ($45,000):
-├── Match 5 (25%): $11,250
-├── Match 4 (35%): $15,750
-├── Match 3 (40%): $18,000
-
-Effect:
-├── Players get small +EV bump
-├── Jackpot growth slows but doesn't stop
-├── Unpredictable timing for full rolldown
-├── Maintains player engagement
-```
+If rolldown triggers:
+├── 100% of jackpot distributes
+├── Distribution follows standard rolldown percentages
+├── Jackpot resets to $500,000 seed
 
 ### 2.4 Hard Cap Mechanics
 
-When jackpot reaches or exceeds $2M:
+When jackpot reaches or exceeds $2.25M:
 
 ```
 Full Rolldown Triggered:
@@ -200,38 +197,31 @@ Full Rolldown Triggered:
 - They skip normal draws and wait
 - Volume concentrates in predictable windows
 
-**Solution with Dual Caps:**
-- Mini-rolldowns create ongoing +EV opportunities
+**Solution with Probabilistic Cap:**
+- Rolldown occurs at random time between soft and hard caps
 - Players can't perfectly time the "big one"
 - Engagement spreads across more draws
-- Jackpot can theoretically grow indefinitely (if always won before hard cap)
+- Probability increases as jackpot grows, creating anticipation
 
 ### 2.6 Smart Contract Implementation
 
 ```rust
 /// Cap thresholds
-pub const SOFT_CAP: u64 = 1_500_000_000_000;    // $1.5M
-pub const HARD_CAP: u64 = 2_000_000_000_000;    // $2M
-pub const SOFT_CAP_ROLLDOWN_RATE: u16 = 3000;   // 30%
+pub const SOFT_CAP: u64 = 1_750_000_000_000;    // $1.75M
+pub const HARD_CAP: u64 = 2_250_000_000_000;    // $2.25M
 
 #[account]
 pub struct LotteryState {
     // ... existing fields ...
     
-    /// Soft cap threshold (can be adjusted via governance)
+    /// Soft cap threshold (probabilistic rolldown begins)
     pub soft_cap: u64,
     
-    /// Hard cap threshold
+    /// Hard cap threshold (forced rolldown)
     pub hard_cap: u64,
-    
-    /// Soft cap rolldown rate in basis points
-    pub soft_cap_rolldown_rate_bps: u16,
-    
-    /// Total distributed via soft cap rolldowns (for analytics)
-    pub total_soft_rolldowns: u64,
 }
 
-/// Check and execute soft/hard rolldown after draw
+/// Check and execute probabilistic rolldown after draw
 pub fn process_rolldown(ctx: Context<ProcessRolldown>) -> Result<()> {
     let state = &mut ctx.accounts.lottery_state;
     let draw_result = &mut ctx.accounts.draw_result;
@@ -244,7 +234,7 @@ pub fn process_rolldown(ctx: Context<ProcessRolldown>) -> Result<()> {
         return Ok(());
     }
     
-    // Hard cap check (full rolldown)
+    // Hard cap check (forced rolldown)
     if state.jackpot_balance >= state.hard_cap {
         execute_full_rolldown(ctx)?;
         state.jackpot_balance = state.seed_amount;
@@ -253,18 +243,23 @@ pub fn process_rolldown(ctx: Context<ProcessRolldown>) -> Result<()> {
         return Ok(());
     }
     
-    // Soft cap check (partial rolldown)
+    // Probabilistic rolldown check (soft cap zone)
     if state.jackpot_balance > state.soft_cap {
-        let excess = state.jackpot_balance - state.soft_cap;
-        let rolldown_amount = excess * state.soft_cap_rolldown_rate_bps as u64 / 10000;
+        // Calculate rolldown probability
+        let probability_numerator = state.jackpot_balance - state.soft_cap;
+        let probability_denominator = state.hard_cap - state.soft_cap;
+        let probability = probability_numerator as u128 * 10000 / probability_denominator as u128; // basis points
         
-        execute_mini_rolldown(ctx, rolldown_amount)?;
+        // Generate random number [0, 9999] via Chainlink VRF
+        let random_value = get_random_value() % 10000;
         
-        state.jackpot_balance -= rolldown_amount;
-        state.total_soft_rolldowns += rolldown_amount;
-        draw_result.was_rolldown = true;
-        draw_result.rolldown_type = RolldownType::Soft;
-        draw_result.rolldown_amount = rolldown_amount;
+        if random_value < probability as u64 {
+            // Probabilistic rolldown triggered
+            execute_full_rolldown(ctx)?;
+            state.jackpot_balance = state.seed_amount;
+            draw_result.was_rolldown = true;
+            draw_result.rolldown_type = RolldownType::Soft; // Soft indicates probabilistic trigger
+        }
     }
     
     Ok(())
@@ -273,67 +268,40 @@ pub fn process_rolldown(ctx: Context<ProcessRolldown>) -> Result<()> {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
 pub enum RolldownType {
     None,
-    Soft,   // Mini rolldown (30% of excess)
-    Hard,   // Full rolldown (100% of jackpot)
+    Soft,   // Probabilistic rolldown (full jackpot)
+    Hard,   // Forced rolldown (100% of jackpot at hard cap)
 }
 
-fn execute_mini_rolldown(
-    ctx: Context<ProcessRolldown>,
-    amount: u64
-) -> Result<()> {
-    let draw_result = &mut ctx.accounts.draw_result;
-    
-    // Calculate prizes for mini-rolldown
-    let match_5_pool = amount * 2500 / 10000;  // 25%
-    let match_4_pool = amount * 3500 / 10000;  // 35%
-    let match_3_pool = amount * 4000 / 10000;  // 40%
-    
-    // Calculate per-winner prizes
-    if draw_result.match_5_winners > 0 {
-        draw_result.match_5_bonus = match_5_pool / draw_result.match_5_winners as u64;
-    }
-    if draw_result.match_4_winners > 0 {
-        draw_result.match_4_bonus = match_4_pool / draw_result.match_4_winners as u64;
-    }
-    if draw_result.match_3_winners > 0 {
-        draw_result.match_3_bonus = match_3_pool / draw_result.match_3_winners as u64;
-    }
-    
-    emit!(MiniRolldown {
-        draw_id: draw_result.draw_id,
-        amount,
-        match_5_bonus: draw_result.match_5_bonus,
-        match_4_bonus: draw_result.match_4_bonus,
-        match_3_bonus: draw_result.match_3_bonus,
-    });
-    
-    Ok(())
-}
+// Mini-rolldown function removed - replaced with probabilistic full rolldown
 ```
 
 ### 2.7 Expected Value Analysis
 
-**Soft Cap Zone ($1.5M - $2M):**
+**Probabilistic Rolldown Zone ($1.75M - $2.25M):**
 
 ```
-Scenario: Jackpot at $1.7M, 100k tickets sold
+Scenario: Jackpot at $2.0M, 100k tickets sold
+Probability of rolldown: 50%
 
-Mini-Rolldown:
-├── Excess: $200,000
-├── Rolldown: $60,000
-├── Match 5 (25%): $15,000 ÷ 2.56 winners = $5,859 bonus
-├── Match 4 (35%): $21,000 ÷ 125 winners = $168 bonus
-├── Match 3 (40%): $24,000 ÷ 2,128 winners = $11.28 bonus
+Expected rolldown contribution:
+├── If rolldown triggers (50% chance):
+│   ├── Match 5: (1/39,028) × $25,000* = $0.32
+│   ├── Match 4: (1/800) × $900* = $1.13
+│   ├── Match 3: (1/47) × $45* = $0.96
+│   └── Match 2: (1/6.8) × $2.50 = $0.37
+│   └── Total EV during rolldown: $2.78
+├── If no rolldown (50% chance):
+│   └── Normal EV: $0.88
 
-EV Calculation (Soft Cap Zone):
-├── Match 2: (1/6.8) × $2.50 = $0.37
-├── Match 3: (1/47) × ($5 + $11.28) = $0.35
-├── Match 4: (1/800) × ($150 + $168) = $0.40
-├── Match 5: (1/39,028) × ($4,000 + $5,859) = $0.25
+Weighted EV = (0.5 × $2.78) + (0.5 × $0.88) = $1.83
+*Example prize amounts scaled to $2.0M jackpot
 
-Total EV: $1.37 on $2.50 ticket
-Still negative, but better than normal mode ($0.88)
-Players get "taste" of +EV without full exploit
+As jackpot approaches hard cap:
+├── At $2.25M: Probability = 100%, EV = $2.78
+├── At $2.0M: Probability = 50%, EV = $1.83
+├── At $1.875M: Probability = 25%, EV = $1.36
+
+Players get increasing +EV as jackpot grows, with guaranteed +EV at hard cap.
 ```
 
 ---
@@ -539,8 +507,8 @@ Expected Value of Lucky Numbers NFT:
 
 Assumptions:
 ├── Jackpot odds: 1 in 9,366,819
-├── Average jackpot: $1,500,000
-├── Bonus: 1% = $15,000
+├── Average jackpot: $1,750,000
+├── Bonus: 1% = $17,500
 ├── Draws per year: 365
 
 Probability these numbers hit jackpot in 1 year:

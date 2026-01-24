@@ -10,18 +10,23 @@ SolanaLotto is a decentralized lottery protocol that creates **predictable windo
 
 ### The Core Innovation
 
-SolanaLotto uses a **two-tier cap system**:
+SolanaLotto uses a **probabilistic rolldown system**:
 
 | Cap | Threshold | What Happens |
 |-----|-----------|--------------|
-| **Soft Cap** | $1.5M | 30% of excess rolls down (mini-rolldowns) |
-| **Hard Cap** | $2.0M | 100% of jackpot distributes (full rolldown) |
+| **Soft Cap** | $1.75M | Probabilistic rolldown trigger possible each draw |
+| **Hard Cap** | $2.25M | 100% of jackpot distributes (forced rolldown) |
+
+Between $1.75M and $2.25M, each draw has a chance to trigger rolldown:
+- Probability = (Jackpot - $1.75M) / ($2.25M - $1.75M)
+- Increases linearly as jackpot grows
+- At hard cap, probability = 100% (forced rolldown)
 
 During full rolldown events:
 
 - **Ticket Cost:** $2.50
-- **Expected Value:** ~$2.78
-- **Player Edge:** +11.2%
+- **Expected Value:** ~$4.06
+- **Player Edge:** +62.4%
 
 This isn't a bug—it's the core feature that drives engagement and volume.
 
@@ -88,39 +93,40 @@ Prizes are automatically calculated. Claim them anytime through the app.
 
 ### Understanding the Rolldown
 
-1. **Monitor Jackpot:** Watch as it grows toward the $1.75M cap
-2. **Calculate EV:** When jackpot ≥ $1.5M, start preparing
-3. **Wait for Trigger:** Rolldown happens when jackpot ≥ cap AND no Match-6 winner
-4. **Buy in Volume:** During rolldown, expected value exceeds ticket cost
-5. **Profit:** Collect winnings from Match 3, 4, and 5 tiers
+1. **Monitor Jackpot:** Watch as it grows toward the $1.75M soft cap
+2. **Calculate Probability:** Use formula P = (Jackpot - $1.75M) / $0.5M when jackpot ≥ $1.75M
+3. **Strategic Buying:** Buy tickets when probability of rolldown justifies expected value
+4. **Maximize at Hard Cap:** Buy maximum volume during forced rolldown at $2.25M hard cap
+5. **Profit:** Collect winnings from Match 3, 4, and 5 tiers during rolldowns
 
-### Expected Value During Full Rolldown ($2M Hard Cap)
+### Expected Value During Full Rolldown ($2.25M Hard Cap)
 
 | Match | Rolldown Prize | Odds | EV Contribution |
 |-------|----------------|------|-----------------|
-| 5 | ~$25,000 | 1/39,028 | $0.64 |
-| 4 | ~$900 | 1/800 | $1.13 |
-| 3 | ~$45 | 1/47 | $0.96 |
+| 5 | ~$51,000 | 1/39,028 | $1.31 |
+| 4 | ~$1,030 | 1/800 | $1.29 |
+| 3 | ~$51 | 1/47 | $1.09 |
 | 2 | $2.50 | 1/6.8 | $0.37 |
-| **Total EV** | | | **$3.10** |
+| **Total EV** | | | **$4.06** |
 
-**Edge: $3.10 - $2.50 = +$0.60 per ticket (+24%)**
+**Edge: $4.06 - $2.50 = +$1.56 per ticket (+62.4%)**
 
-### Soft Cap Mini-Rolldowns
+### Probabilistic Rolldown Zone
 
-Between $1.5M and $2M, you get **mini-rolldowns** every draw:
-- 30% of excess over $1.5M rolls down
-- Small +EV bumps without the full exploit
+Between $1.75M and $2.25M, each draw has a chance to trigger full rolldown:
+- Probability increases linearly with jackpot size
+- Expected value increases as jackpot grows
 - Unpredictable timing prevents calendar gaming
 
 ### Optimal Strategy
 
-1. **Monitor soft cap zone** ($1.5M-$2M) for mini-rolldown opportunities
-2. **Accumulate capital** for hard cap rolldowns (~every 2-3 weeks)
-3. **Buy maximum volume** during full rolldowns
-4. **Join syndicates** to pool capital and reduce variance
-5. **Enter Syndicate Wars** for bonus prize pool (1% of monthly sales)
-6. **Collect Lucky Numbers NFTs** for future jackpot bonuses
+1. **Monitor jackpot growth** as it approaches $1.75M soft cap
+2. **Calculate probability** of rolldown using formula: (Jackpot - $1.75M) / $0.5M
+3. **Buy tickets when probability is high** for maximum +EV
+4. **Buy maximum volume** during forced rolldowns at $2.25M hard cap
+5. **Join syndicates** to pool capital and reduce variance
+6. **Enter Syndicate Wars** for bonus prize pool (1% of monthly sales)
+7. **Collect Lucky Numbers NFTs** for future jackpot bonuses
 
 ### Risk Warning
 
@@ -195,8 +201,8 @@ lotto.joinSyndicate(wallet, syndicatePubkey, amount)
 | **Ticket Price** | $2.50 USDC |
 | **Matrix** | 6/46 (pick 6 from 46) |
 | **Jackpot Odds** | 1 in 9,366,819 |
-| **Soft Cap** | $1,500,000 (mini-rolldowns begin) |
-| **Hard Cap** | $2,000,000 (full rolldown) |
+| **Soft Cap** | $1,750,000 (probabilistic rolldown possible) |
+| **Hard Cap** | $2,250,000 (forced rolldown) |
 | **Jackpot Seed** | $500,000 |
 | **House Fee** | 28-40% (dynamic) |
 | **Draw Frequency** | Daily (00:00 UTC) |
