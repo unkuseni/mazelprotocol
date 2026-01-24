@@ -1,1023 +1,329 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Transfer};
-use switchboard_on_demand::VrfAccountData;
-
-// Import modules
-pub mod constants;
-pub mod contexts;
-pub mod errors;
-pub mod events;
-pub mod helpers;
-pub mod state;
-
-// Re-export commonly used items
-pub use constants::*;
-pub use contexts::*;
-// ErrorCode is used via crate::errors::ErrorCode to avoid ambiguity
-pub use events::*;
-pub use helpers::*;
-pub use state::*;
+use anchor_spl::token;
+use switchboard_on_demand::accounts::RandomnessAccountData;
 
 declare_id!("3zi12qNicsbBazvKxGqFp8cirL1dFXCijsZzRCPrAGT4");
 
+pub mod constants;
+pub mod context;
+pub mod errors;
+pub mod state;
+
+pub use constants::*;
+pub use context::*;
+
 #[program]
-pub mod mazelprotocol {
+pub mod solana_lotto {
+
     use super::*;
+    use crate::errors;
+    use crate::state::*;
 
-    // ==================== TICKET MANAGER ====================
-
-    /// Purchase a single lottery ticket
-    pub fn buy_ticket(ctx: Context<BuyTicket>, numbers: [u8; NUMBERS_PER_TICKET]) -> Result<()> {
-        // Validate lottery is not paused
-        require!(
-            !ctx.accounts.lottery_state.is_paused,
-            crate::errors::ErrorCode::LotteryPaused
-        );
-
-        // Validate numbers
-        validate_numbers(&numbers)?;
-
-        // Transfer USDC from player to prize pool
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.player_usdc.to_account_info(),
-            to: ctx.accounts.prize_pool_usdc.to_account_info(),
-            authority: ctx.accounts.player.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, TICKET_PRICE)?;
-
-        // Calculate dynamic house fee based on current jackpot
-        let jackpot_balance = ctx.accounts.lottery_state.jackpot_balance;
-        let is_rolldown_active = ctx.accounts.lottery_state.is_rolldown_active;
-        let house_fee_bps = calculate_dynamic_fee(jackpot_balance, is_rolldown_active);
-
-        // Update state with current fee
-        ctx.accounts.lottery_state.house_fee_bps = house_fee_bps;
-
-        // Calculate fund allocation with dynamic fee
-        let house_fee = TICKET_PRICE * house_fee_bps as u64 / 10_000;
-        let prize_pool = TICKET_PRICE - house_fee;
-        let jackpot_contribution = prize_pool * JACKPOT_ALLOCATION_BPS as u64 / 10_000;
-        let fixed_prize_pool_contribution = prize_pool * FIXED_PRIZE_ALLOCATION_BPS as u64 / 10_000;
-        let reserve_contribution = prize_pool * RESERVE_ALLOCATION_BPS as u64 / 10_000;
-
-        // Verify allocation sums to prize pool (with rounding)
-        let total_allocated =
-            jackpot_contribution + fixed_prize_pool_contribution + reserve_contribution;
-        require!(
-            total_allocated <= prize_pool,
-            crate::errors::ErrorCode::AllocationError
-        );
-
-        // Update lottery state and get ticket_id
-        let lottery_state = &mut ctx.accounts.lottery_state;
-        let ticket_id = lottery_state.total_tickets_sold;
-
-        lottery_state.jackpot_balance += jackpot_contribution;
-        lottery_state.reserve_balance += reserve_contribution;
-
-        // Add any rounding remainder to jackpot
-        let remainder = prize_pool - total_allocated;
-        if remainder > 0 {
-            lottery_state.jackpot_balance += remainder;
-        }
-        lottery_state.total_tickets_sold += 1;
-
-        let mut sorted_numbers = numbers;
-        sorted_numbers.sort();
-
-        let ticket = &mut ctx.accounts.ticket;
-        ticket.owner = ctx.accounts.player.key();
-        ticket.draw_id = lottery_state.current_draw_id;
-        ticket.ticket_id = ticket_id;
-        ticket.numbers = sorted_numbers;
-        ticket.purchase_timestamp = Clock::get()?.unix_timestamp;
-        ticket.is_claimed = false;
-        ticket.prize_amount = 0;
-        ticket.match_count = 0;
-        ticket.syndicate = None;
-
-        // Emit event
-        emit!(TicketPurchased {
-            ticket_id: ticket.key(),
-            player: ctx.accounts.player.key(),
-            draw_id: ticket.draw_id,
-            numbers: ticket.numbers,
-            timestamp: ticket.purchase_timestamp,
-        });
-
-        Ok(())
-    }
-
-    /// Purchase multiple tickets in one transaction using TicketBatch for efficient storage
-    /// This creates a NEW batch account and stores ALL tickets, solving the "lost tickets" bug
-    /// For adding more tickets to an existing batch, use `add_to_batch`
-    pub fn buy_bulk(
-        ctx: Context<BuyTicketBatch>,
-        tickets: Vec<[u8; NUMBERS_PER_TICKET]>,
-    ) -> Result<()> {
-        // Validate lottery is not paused
-        require!(
-            !ctx.accounts.lottery_state.is_paused,
-            crate::errors::ErrorCode::LotteryPaused
-        );
-
-        require!(!tickets.is_empty(), crate::errors::ErrorCode::NoTickets);
-        require!(
-            tickets.len() <= TicketBatch::MAX_TICKETS,
-            crate::errors::ErrorCode::TooManyTickets
-        );
-
-        // Validate all ticket numbers before processing
-        for numbers in tickets.iter() {
-            validate_numbers(numbers)?;
-        }
-
-        // Calculate total price
-        let ticket_count = tickets.len() as u64;
-        let total_price = TICKET_PRICE * ticket_count;
-
-        // Transfer USDC from player to prize pool
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.player_usdc.to_account_info(),
-            to: ctx.accounts.prize_pool_usdc.to_account_info(),
-            authority: ctx.accounts.player.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, total_price)?;
-
-        // Calculate dynamic house fee based on current jackpot
-        let jackpot_balance = ctx.accounts.lottery_state.jackpot_balance;
-        let is_rolldown_active = ctx.accounts.lottery_state.is_rolldown_active;
-        let house_fee_bps = calculate_dynamic_fee(jackpot_balance, is_rolldown_active);
-
-        // Update state with current fee
-        ctx.accounts.lottery_state.house_fee_bps = house_fee_bps;
-
-        // Calculate fund allocation with dynamic fee
-        let house_fee = total_price * house_fee_bps as u64 / 10_000;
-        let prize_pool = total_price - house_fee;
-        let jackpot_contribution = prize_pool * JACKPOT_ALLOCATION_BPS as u64 / 10_000;
-        let fixed_prize_pool_contribution = prize_pool * FIXED_PRIZE_ALLOCATION_BPS as u64 / 10_000;
-        let reserve_contribution = prize_pool * RESERVE_ALLOCATION_BPS as u64 / 10_000;
-
-        // Verify allocation sums to prize pool (with rounding)
-        let total_allocated =
-            jackpot_contribution + fixed_prize_pool_contribution + reserve_contribution;
-        require!(
-            total_allocated <= prize_pool,
-            crate::errors::ErrorCode::AllocationError
-        );
-
-        // Update lottery state
-        let lottery_state = &mut ctx.accounts.lottery_state;
-        let start_ticket_id = lottery_state.total_tickets_sold;
-
-        lottery_state.jackpot_balance += jackpot_contribution;
-        lottery_state.reserve_balance += reserve_contribution;
-
-        // Add any rounding remainder to jackpot
-        let remainder = prize_pool - total_allocated;
-        if remainder > 0 {
-            lottery_state.jackpot_balance += remainder;
-        }
-
-        // Initialize the new ticket batch
-        let ticket_batch = &mut ctx.accounts.ticket_batch;
-        let current_timestamp = Clock::get()?.unix_timestamp;
-
-        ticket_batch.owner = ctx.accounts.player.key();
-        ticket_batch.draw_id = lottery_state.current_draw_id;
-        ticket_batch.start_ticket_id = start_ticket_id;
-        ticket_batch.bump = ctx.bumps.ticket_batch;
-        ticket_batch.tickets = Vec::with_capacity(tickets.len());
-
-        // Store ALL tickets in the batch
-        for numbers in tickets.iter() {
-            let mut sorted_numbers = *numbers;
-            sorted_numbers.sort();
-
-            let ticket_entry = TicketEntry {
-                numbers: sorted_numbers,
-                purchase_timestamp: current_timestamp,
-                is_claimed: false,
-                prize_amount: 0,
-                match_count: 0,
-            };
-
-            ticket_batch.tickets.push(ticket_entry);
-
-            // Emit event for each ticket
-            emit!(TicketPurchased {
-                ticket_id: ticket_batch.key(),
-                player: ctx.accounts.player.key(),
-                draw_id: lottery_state.current_draw_id,
-                numbers: sorted_numbers,
-                timestamp: current_timestamp,
-            });
-        }
-
-        // Update total tickets sold
-        lottery_state.total_tickets_sold += ticket_count;
-
-        emit!(BulkTicketsPurchased {
-            player: ctx.accounts.player.key(),
-            draw_id: lottery_state.current_draw_id,
-            ticket_count: ticket_count as u32,
-            total_amount: total_price,
-        });
-
-        Ok(())
-    }
-
-    /// Add more tickets to an existing batch (for players who want to buy more tickets in same draw)
-    pub fn add_to_batch(
-        ctx: Context<AddToTicketBatch>,
-        tickets: Vec<[u8; NUMBERS_PER_TICKET]>,
-    ) -> Result<()> {
-        // Validate lottery is not paused
-        require!(
-            !ctx.accounts.lottery_state.is_paused,
-            crate::errors::ErrorCode::LotteryPaused
-        );
-
-        require!(!tickets.is_empty(), crate::errors::ErrorCode::NoTickets);
-
-        let ticket_batch = &ctx.accounts.ticket_batch;
-
-        // Check we won't exceed max tickets in batch
-        require!(
-            ticket_batch.tickets.len() + tickets.len() <= TicketBatch::MAX_TICKETS,
-            crate::errors::ErrorCode::BatchFull
-        );
-
-        // Validate all ticket numbers before processing
-        for numbers in tickets.iter() {
-            validate_numbers(numbers)?;
-        }
-
-        // Calculate total price
-        let ticket_count = tickets.len() as u64;
-        let total_price = TICKET_PRICE * ticket_count;
-
-        // Transfer USDC from player to prize pool
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.player_usdc.to_account_info(),
-            to: ctx.accounts.prize_pool_usdc.to_account_info(),
-            authority: ctx.accounts.player.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, total_price)?;
-
-        // Calculate dynamic house fee based on current jackpot
-        let jackpot_balance = ctx.accounts.lottery_state.jackpot_balance;
-        let is_rolldown_active = ctx.accounts.lottery_state.is_rolldown_active;
-        let house_fee_bps = calculate_dynamic_fee(jackpot_balance, is_rolldown_active);
-
-        // Update state with current fee
-        ctx.accounts.lottery_state.house_fee_bps = house_fee_bps;
-
-        // Calculate fund allocation with dynamic fee
-        let house_fee = total_price * house_fee_bps as u64 / 10_000;
-        let prize_pool = total_price - house_fee;
-        let jackpot_contribution = prize_pool * JACKPOT_ALLOCATION_BPS as u64 / 10_000;
-        let fixed_prize_pool_contribution = prize_pool * FIXED_PRIZE_ALLOCATION_BPS as u64 / 10_000;
-        let reserve_contribution = prize_pool * RESERVE_ALLOCATION_BPS as u64 / 10_000;
-
-        // Verify allocation sums to prize pool (with rounding)
-        let total_allocated =
-            jackpot_contribution + fixed_prize_pool_contribution + reserve_contribution;
-        require!(
-            total_allocated <= prize_pool,
-            crate::errors::ErrorCode::AllocationError
-        );
-
-        // Update lottery state
-        let lottery_state = &mut ctx.accounts.lottery_state;
-        lottery_state.jackpot_balance += jackpot_contribution;
-        lottery_state.reserve_balance += reserve_contribution;
-
-        // Add any rounding remainder to jackpot
-        let remainder = prize_pool - total_allocated;
-        if remainder > 0 {
-            lottery_state.jackpot_balance += remainder;
-        }
-
-        // Add tickets to existing batch
-        let ticket_batch = &mut ctx.accounts.ticket_batch;
-        let current_timestamp = Clock::get()?.unix_timestamp;
-
-        for numbers in tickets.iter() {
-            let mut sorted_numbers = *numbers;
-            sorted_numbers.sort();
-
-            let ticket_entry = TicketEntry {
-                numbers: sorted_numbers,
-                purchase_timestamp: current_timestamp,
-                is_claimed: false,
-                prize_amount: 0,
-                match_count: 0,
-            };
-
-            ticket_batch.tickets.push(ticket_entry);
-
-            // Emit event for each ticket
-            emit!(TicketPurchased {
-                ticket_id: ticket_batch.key(),
-                player: ctx.accounts.player.key(),
-                draw_id: lottery_state.current_draw_id,
-                numbers: sorted_numbers,
-                timestamp: current_timestamp,
-            });
-        }
-
-        // Update total tickets sold
-        lottery_state.total_tickets_sold += ticket_count;
-
-        emit!(BulkTicketsPurchased {
-            player: ctx.accounts.player.key(),
-            draw_id: lottery_state.current_draw_id,
-            ticket_count: ticket_count as u32,
-            total_amount: total_price,
-        });
-
-        Ok(())
-    }
-
-    /// Redeem a free ticket using an NFT (simplified version)
-    pub fn redeem_free_ticket(
-        ctx: Context<RedeemFreeTicket>,
-        numbers: [u8; NUMBERS_PER_TICKET],
-        nft_mint: Pubkey,
-    ) -> Result<()> {
-        // Validate lottery is not paused
-        require!(
-            !ctx.accounts.lottery_state.is_paused,
-            crate::errors::ErrorCode::LotteryPaused
-        );
-
-        // In production, would verify NFT ownership and validity
-        // For now, we'll just validate numbers and create a free ticket
-
-        validate_numbers(&numbers)?;
-
-        // Create free ticket (no payment required)
-        let mut sorted_numbers = numbers;
-        sorted_numbers.sort();
-
-        let lottery_state = &mut ctx.accounts.lottery_state;
-        let ticket_id = lottery_state.total_tickets_sold;
-
-        let ticket = &mut ctx.accounts.ticket;
-        ticket.owner = ctx.accounts.player.key();
-        ticket.draw_id = lottery_state.current_draw_id;
-        ticket.ticket_id = ticket_id;
-        ticket.numbers = sorted_numbers;
-        ticket.purchase_timestamp = Clock::get()?.unix_timestamp;
-        ticket.is_claimed = false;
-        ticket.prize_amount = 0;
-        ticket.match_count = 0;
-        ticket.syndicate = None;
-
-        // Update ticket count
-        lottery_state.total_tickets_sold += 1;
-
-        emit!(FreeTicketRedeemed {
-            ticket_id: ticket.key(),
-            player: ctx.accounts.player.key(),
-            draw_id: ticket.draw_id,
-            numbers: ticket.numbers,
-            nft_mint,
-            timestamp: ticket.purchase_timestamp,
-        });
-
-        Ok(())
-    }
-
-    /// Deposit funds to the jackpot pool
-    pub fn deposit_to_jackpot(ctx: Context<DepositToJackpot>, amount: u64) -> Result<()> {
-        require!(amount > 0, crate::errors::ErrorCode::InvalidAmount);
-
-        // Transfer USDC from depositor to prize pool
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.depositor_usdc.to_account_info(),
-            to: ctx.accounts.prize_pool_usdc.to_account_info(),
-            authority: ctx.accounts.depositor.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, amount)?;
-
-        // Update jackpot balance
-        ctx.accounts.lottery_state.jackpot_balance += amount;
-
-        emit!(JackpotDeposited {
-            depositor: ctx.accounts.depositor.key(),
-            amount,
-            new_jackpot_balance: ctx.accounts.lottery_state.jackpot_balance,
-            timestamp: Clock::get()?.unix_timestamp,
-        });
-
-        Ok(())
-    }
-
-    /// Manually trigger rolldown distribution (admin function)
-    pub fn distribute_rolldown(ctx: Context<DistributeRolldown>) -> Result<()> {
-        let lottery_state = &mut ctx.accounts.lottery_state;
-
-        require!(
-            lottery_state.jackpot_balance >= lottery_state.jackpot_cap,
-            crate::errors::ErrorCode::JackpotBelowCap
-        );
-
-        // Extract winner counts before mutable borrow of draw_result
-        let winner_counts = WinnerCounts {
-            match_6: ctx.accounts.draw_result.match_6_winners,
-            match_5: ctx.accounts.draw_result.match_5_winners,
-            match_4: ctx.accounts.draw_result.match_4_winners,
-            match_3: ctx.accounts.draw_result.match_3_winners,
-            match_2: ctx.accounts.draw_result.match_2_winners,
-        };
-
-        require!(
-            winner_counts.match_6 == 0,
-            crate::errors::ErrorCode::JackpotAlreadyWon
-        );
-
-        let draw_result = &mut ctx.accounts.draw_result;
-
-        // Trigger full rolldown
-        let rolldown_event = trigger_rolldown_internal(
-            lottery_state,
-            draw_result,
-            &winner_counts,
-            FULL_ROLLDOWN_PERCENTAGE,
-        )?;
-
-        emit!(rolldown_event);
-
-        emit!(RolldownManuallyTriggered {
-            draw_id: draw_result.draw_id,
-            jackpot_amount: lottery_state.jackpot_balance,
-            timestamp: Clock::get()?.unix_timestamp,
-        });
-
-        Ok(())
-    }
-
-    // ==================== DRAW ENGINE ====================
-
-    /// Initialize a new draw period
-    pub fn initialize_draw(ctx: Context<InitializeDraw>) -> Result<()> {
-        let lottery_state = &mut ctx.accounts.lottery_state;
-
-        // Ensure previous draw is complete (or enough time has passed)
-        let current_time = Clock::get()?.unix_timestamp;
-        require!(
-            current_time >= lottery_state.next_draw_timestamp,
-            crate::errors::ErrorCode::DrawNotReady
-        );
-
-        // Increment draw ID and schedule next draw
-        lottery_state.current_draw_id += 1;
-        lottery_state.next_draw_timestamp = current_time + DRAW_INTERVAL;
-        lottery_state.is_rolldown_active = false;
-        lottery_state.is_soft_cap_zone = false;
-
-        // Initialize draw result
-        let draw_result = &mut ctx.accounts.draw_result;
-        draw_result.draw_id = lottery_state.current_draw_id;
-        draw_result.timestamp = current_time;
-        draw_result.total_tickets = 0;
-        draw_result.was_rolldown = false;
-        draw_result.match_6_winners = 0;
-        draw_result.match_5_winners = 0;
-        draw_result.match_4_winners = 0;
-        draw_result.match_3_winners = 0;
-        draw_result.match_2_winners = 0;
-        draw_result.total_prizes_distributed = 0;
-
-        emit!(DrawInitialized {
-            draw_id: lottery_state.current_draw_id,
-            scheduled_time: lottery_state.next_draw_timestamp,
-            jackpot_balance: lottery_state.jackpot_balance,
-        });
-
-        Ok(())
-    }
-
-    /// Request randomness from Switchboard VRF for the current draw
-    ///
-    /// This instruction creates a VRF request that will be fulfilled by Switchboard oracles.
-    /// Once the VRF result is available, the `execute_draw` function can be called.
-    pub fn request_randomness(ctx: Context<RequestRandomness>) -> Result<()> {
-        use switchboard_on_demand::{VrfAccountData, VrfRequestRandomness};
-
-        // Verify draw is ready for randomness request
-        let lottery_state = &mut ctx.accounts.lottery_state;
-        let current_time = Clock::get()?.unix_timestamp;
-        require!(
-            current_time >= lottery_state.next_draw_timestamp,
-            crate::errors::ErrorCode::DrawNotReady
-        );
-
-        // Load VRF account
-        let vrf = ctx.accounts.vrf.load()?;
-
-        // Request randomness from Switchboard VRF
-        let switchboard_program = ctx.accounts.switchboard_program.to_account_info();
-        let vrf_key = ctx.accounts.vrf.to_account_info();
-        let authority = ctx.accounts.vrf_authority.to_account_info();
-        let oracle_queue = ctx.accounts.oracle_queue.to_account_info();
-        let queue_authority = ctx.accounts.queue_authority.to_account_info();
-        let data_buffer = ctx.accounts.data_buffer.to_account_info();
-        let escrow = ctx.accounts.escrow.to_account_info();
-        let payer_wallet = ctx.accounts.payer_wallet.to_account_info();
-        let payer_authority = ctx.accounts.payer_authority.to_account_info();
-        let recent_blockhashes = ctx.accounts.recent_blockhashes.to_account_info();
-        let token_program = ctx.accounts.token_program.to_account_info();
-
-        let switchboard_ctx = VrfRequestRandomness {
-            authority: authority.clone(),
-            vrf: vrf_key.clone(),
-            oracle_queue: oracle_queue.clone(),
-            queue_authority: queue_authority.clone(),
-            data_buffer: data_buffer.clone(),
-            program_state: switchboard_program.clone(),
-            escrow: escrow.clone(),
-            payer_wallet: payer_wallet.clone(),
-            payer_authority: payer_authority.clone(),
-            recent_blockhashes: recent_blockhashes.clone(),
-            token_program: token_program.clone(),
-            system_program: ctx.accounts.system_program.to_account_info(),
-        };
-
-        // Generate a unique request ID based on draw_id and timestamp
-        let mut request_id = [0u8; 32];
-        let draw_id_bytes = lottery_state.current_draw_id.to_le_bytes();
-        let timestamp_bytes = current_time.to_le_bytes();
-        request_id[0..8].copy_from_slice(&draw_id_bytes);
-        request_id[8..16].copy_from_slice(&timestamp_bytes);
-
-        // Request randomness
-        switchboard_on_demand::cpi::request_randomness(
-            CpiContext::new(switchboard_program, switchboard_ctx),
-            request_id,
-        )?;
-
-        // Emit event
-        emit!(RandomnessRequested {
-            draw_id: lottery_state.current_draw_id,
-            vrf_request_id: request_id,
-            timestamp: current_time,
-        });
-
-        Ok(())
-    }
-
-    /// Execute a draw using VRF randomness
-    ///
-    /// This function reads the VRF result from the Switchboard VRF account
-    /// and converts it to lottery numbers. The VRF proof is stored on-chain
-    /// for auditability.
-    /// ```ignore
-    /// use switchboard_on_demand::VrfAccountData;
-    ///
-    /// // In execute_draw, verify the VRF result:
-    /// let vrf = ctx.accounts.vrf.load()?;
-    /// let result_buffer = vrf.get_result()?;
-    /// require!(!result_buffer.iter().all(|&x| x == 0), ErrorCode::VrfNotResolved);
-    ///
-    /// // Convert VRF result to lottery numbers
-    /// let random_numbers = vrf_result_to_lottery_numbers(&result_buffer);
-    /// ```
-    pub fn execute_draw(ctx: Context<ExecuteDraw>) -> Result<()> {
-        // Verify draw time has passed
-        let current_time = Clock::get()?.unix_timestamp;
-        require!(
-            current_time >= ctx.accounts.lottery_state.next_draw_timestamp,
-            crate::errors::ErrorCode::TooEarly
-        );
-
-        // Validate VRF account matches stored VRF account
-        require!(
-            ctx.accounts.vrf.key() == ctx.accounts.lottery_state.vrf_account,
-            crate::errors::ErrorCode::InvalidVrfProof
-        );
-
-        // Verify VRF result is ready
-        let vrf = ctx.accounts.vrf.load()?;
-        let result_buffer = vrf.get_result()?;
-        require!(
-            !result_buffer.iter().all(|&x| x == 0),
-            crate::errors::ErrorCode::VrfNotResolved
-        );
-
-        // Convert VRF result to lottery numbers
-        let random_numbers = vrf_result_to_lottery_numbers(&result_buffer);
-
-        // Validate random numbers
-        validate_numbers(&random_numbers)?;
-
-        // Store winning numbers (sorted)
-        let mut winning_numbers = random_numbers;
-        winning_numbers.sort();
-
-        // Check for rolldown condition (two-tier system)
-        let jackpot_balance = ctx.accounts.lottery_state.jackpot_balance;
-        let is_hard_cap_rolldown = jackpot_balance >= JACKPOT_CAP;
-        let is_soft_cap_zone = jackpot_balance >= SOFT_CAP && jackpot_balance < JACKPOT_CAP;
-        let is_rolldown = is_hard_cap_rolldown;
-
-        // Update state with rolldown flags
-        ctx.accounts.lottery_state.is_rolldown_active = is_rolldown;
-        if is_soft_cap_zone {
-            // Soft cap zone - mini-rolldown eligible
-            ctx.accounts.lottery_state.is_soft_cap_zone = true;
-        }
-
-        // Update draw result with VRF proof and winning numbers
-        let draw_result = &mut ctx.accounts.draw_result;
-        draw_result.winning_numbers = winning_numbers;
-        draw_result.vrf_proof = vrf.get_proof()?;
-        draw_result.was_rolldown = is_rolldown;
-        draw_result.timestamp = current_time;
-
-        // If rolldown condition met, activate it
-        if is_rolldown {
-            ctx.accounts.lottery_state.is_rolldown_active = true;
-        }
-
-        emit!(DrawExecuted {
-            draw_id: draw_result.draw_id,
-            winning_numbers,
-            is_rolldown,
-            jackpot_balance: ctx.accounts.lottery_state.jackpot_balance,
-        });
-
-        Ok(())
-    }
-
-    /// Calculate winners and distribute prizes
-    ///
-    /// SECURITY NOTE: This function currently accepts manual winner counts.
-    /// For a trustless system, winner verification should happen on-chain.
-    ///
-    /// Current limitations and future improvements:
-    /// 1. Winner counts are provided by admin (trusted backend)
-    /// 2. For full decentralization, implement one of:
-    ///    a) Merkle tree of ticket hashes - verify inclusion proofs on-chain
-    ///    b) ZK proofs - verify winner counts without revealing all tickets
-    ///    c) On-chain ticket iteration (expensive but trustless)
-    ///
-    /// The current design is "Web2.5" - backend calculates, contract executes.
-    /// This is acceptable for MVP if the backend is auditable and transparent.
-    pub fn calculate_winners(
-        ctx: Context<CalculateWinners>,
-        winner_counts: WinnerCounts,
-    ) -> Result<()> {
-        let draw_result = &mut ctx.accounts.draw_result;
-        let lottery_state = &mut ctx.accounts.lottery_state;
-
-        // Store winner counts
-        draw_result.match_6_winners = winner_counts.match_6;
-        draw_result.match_5_winners = winner_counts.match_5;
-        draw_result.match_4_winners = winner_counts.match_4;
-        draw_result.match_3_winners = winner_counts.match_3;
-        draw_result.match_2_winners = winner_counts.match_2;
-
-        // Calculate prizes with two-tier cap system
-        let jackpot_balance = lottery_state.jackpot_balance;
-        let is_soft_cap_zone = jackpot_balance >= SOFT_CAP && jackpot_balance < JACKPOT_CAP;
-
-        if draw_result.was_rolldown && winner_counts.match_6 == 0 {
-            // Hard cap rolldown - execute full distribution
-            let rolldown_event = trigger_rolldown_internal(
-                lottery_state,
-                draw_result,
-                &winner_counts,
-                FULL_ROLLDOWN_PERCENTAGE,
-            )?;
-            emit!(rolldown_event);
-        } else if is_soft_cap_zone && winner_counts.match_6 == 0 {
-            // Soft cap zone - execute mini-rolldown (30% of excess)
-            let mini_rolldown_event =
-                trigger_mini_rolldown_internal(lottery_state, draw_result, &winner_counts)?;
-            emit!(mini_rolldown_event);
-        } else if winner_counts.match_6 > 0 {
-            // Jackpot won - distribute to Match 6 winners
-            let prize_per_winner = lottery_state.jackpot_balance / winner_counts.match_6 as u64;
-            draw_result.match_6_prize = prize_per_winner;
-            draw_result.total_prizes_distributed = prize_per_winner * winner_counts.match_6 as u64;
-
-            // Reset jackpot to seed amount
-            lottery_state.jackpot_balance = lottery_state.seed_amount;
-        } else {
-            // Normal mode with fixed prizes
-            draw_result.match_5_prize = MATCH_5_PRIZE;
-            draw_result.match_4_prize = MATCH_4_PRIZE;
-            draw_result.match_3_prize = MATCH_3_PRIZE;
-            draw_result.match_2_prize = MATCH_2_VALUE;
-
-            // Calculate total distributed for fixed prizes
-            draw_result.total_prizes_distributed = (draw_result.match_5_prize
-                * winner_counts.match_5 as u64)
-                + (draw_result.match_4_prize * winner_counts.match_4 as u64)
-                + (draw_result.match_3_prize * winner_counts.match_3 as u64)
-                + (draw_result.match_2_prize * winner_counts.match_2 as u64);
-        }
-
-        // Update lottery state
-        lottery_state.total_prizes_paid += draw_result.total_prizes_distributed;
-        lottery_state.is_rolldown_active = false;
-
-        emit!(WinnersCalculated {
-            draw_id: draw_result.draw_id,
-            was_rolldown: draw_result.was_rolldown,
-            total_prizes: draw_result.total_prizes_distributed,
-            match_6_winners: winner_counts.match_6,
-            match_5_winners: winner_counts.match_5,
-            match_4_winners: winner_counts.match_4,
-            match_3_winners: winner_counts.match_3,
-            match_2_winners: winner_counts.match_2,
-        });
-
-        Ok(())
-    }
-
-    // ==================== PRIZE POOL ====================
-
-    /// Claim prize for a winning ticket (individual ticket)
-    pub fn claim_prize(ctx: Context<ClaimPrize>) -> Result<()> {
-        let ticket = &mut ctx.accounts.ticket;
-        let draw_result = &mut ctx.accounts.draw_result;
-
-        // Verify ticket is for this draw
-        require!(
-            ticket.draw_id == draw_result.draw_id,
-            crate::errors::ErrorCode::WrongDraw
-        );
-
-        // Verify not already claimed
-        require!(!ticket.is_claimed, crate::errors::ErrorCode::AlreadyClaimed);
-
-        // Calculate matches
-        let matches = count_matches(&ticket.numbers, &draw_result.winning_numbers);
-        ticket.match_count = matches;
-
-        // Determine prize amount
-        let prize = match matches {
-            6 => draw_result.match_6_prize,
-            5 => draw_result.match_5_prize,
-            4 => draw_result.match_4_prize,
-            3 => draw_result.match_3_prize,
-            2 => draw_result.match_2_prize,
-            _ => 0,
-        };
-
-        // Verify claim doesn't exceed reported winner count
-        match matches {
-            6 => require!(
-                draw_result.match_6_claimed < draw_result.match_6_winners,
-                crate::errors::ErrorCode::ClaimExceedsWinners
-            ),
-            5 => require!(
-                draw_result.match_5_claimed < draw_result.match_5_winners,
-                crate::errors::ErrorCode::ClaimExceedsWinners
-            ),
-            4 => require!(
-                draw_result.match_4_claimed < draw_result.match_4_winners,
-                crate::errors::ErrorCode::ClaimExceedsWinners
-            ),
-            3 => require!(
-                draw_result.match_3_claimed < draw_result.match_3_winners,
-                crate::errors::ErrorCode::ClaimExceedsWinners
-            ),
-            2 => require!(
-                draw_result.match_2_claimed < draw_result.match_2_winners,
-                crate::errors::ErrorCode::ClaimExceedsWinners
-            ),
-            _ => (),
-        }
-
-        // Increment claimed counter
-        match matches {
-            6 => draw_result.match_6_claimed += 1,
-            5 => draw_result.match_5_claimed += 1,
-            4 => draw_result.match_4_claimed += 1,
-            3 => draw_result.match_3_claimed += 1,
-            2 => draw_result.match_2_claimed += 1,
-            _ => (),
-        }
-
-        ticket.prize_amount = prize;
-        ticket.is_claimed = true;
-
-        if prize > 0 {
-            // Build PDA signer seeds for prize pool authority
-            let seeds = &[
-                b"prize_pool_auth".as_ref(),
-                &[ctx.bumps.prize_pool_authority],
-            ];
-            let signer_seeds = &[&seeds[..]];
-
-            // Transfer prize to winner
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.prize_pool_usdc.to_account_info(),
-                to: ctx.accounts.player_usdc.to_account_info(),
-                authority: ctx.accounts.prize_pool_authority.to_account_info(),
-            };
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-            token::transfer(cpi_ctx, prize)?;
-
-            // Update lottery state
-            ctx.accounts.lottery_state.total_prizes_paid += prize;
-        }
-
-        emit!(PrizeClaimed {
-            ticket_id: ticket.key(),
-            player: ctx.accounts.player.key(),
-            match_count: matches,
-            prize_amount: prize,
-            draw_id: ticket.draw_id,
-        });
-
-        Ok(())
-    }
-
-    /// Claim prize for a ticket in a batch
-    /// ticket_index is the position of the ticket within the batch (0-indexed)
-    pub fn claim_batch_prize(ctx: Context<ClaimBatchPrize>, ticket_index: u32) -> Result<()> {
-        let ticket_batch = &mut ctx.accounts.ticket_batch;
-        let draw_result = &mut ctx.accounts.draw_result;
-
-        // Verify batch is for this draw
-        require!(
-            ticket_batch.draw_id == draw_result.draw_id,
-            crate::errors::ErrorCode::WrongDraw
-        );
-
-        // Verify ticket index is valid
-        require!(
-            (ticket_index as usize) < ticket_batch.tickets.len(),
-            crate::errors::ErrorCode::InvalidTicketIndex
-        );
-
-        let ticket_entry = &mut ticket_batch.tickets[ticket_index as usize];
-
-        // Verify not already claimed
-        require!(
-            !ticket_entry.is_claimed,
-            crate::errors::ErrorCode::AlreadyClaimed
-        );
-
-        // Calculate matches
-        let matches = count_matches(&ticket_entry.numbers, &draw_result.winning_numbers);
-        ticket_entry.match_count = matches;
-
-        // Determine prize amount
-        let prize = match matches {
-            6 => draw_result.match_6_prize,
-            5 => draw_result.match_5_prize,
-            4 => draw_result.match_4_prize,
-            3 => draw_result.match_3_prize,
-            2 => draw_result.match_2_prize,
-            _ => 0,
-        };
-
-        // Verify claim doesn't exceed reported winner count
-        match matches {
-            6 => require!(
-                draw_result.match_6_claimed < draw_result.match_6_winners,
-                crate::errors::ErrorCode::ClaimExceedsWinners
-            ),
-            5 => require!(
-                draw_result.match_5_claimed < draw_result.match_5_winners,
-                crate::errors::ErrorCode::ClaimExceedsWinners
-            ),
-            4 => require!(
-                draw_result.match_4_claimed < draw_result.match_4_winners,
-                crate::errors::ErrorCode::ClaimExceedsWinners
-            ),
-            3 => require!(
-                draw_result.match_3_claimed < draw_result.match_3_winners,
-                crate::errors::ErrorCode::ClaimExceedsWinners
-            ),
-            2 => require!(
-                draw_result.match_2_claimed < draw_result.match_2_winners,
-                crate::errors::ErrorCode::ClaimExceedsWinners
-            ),
-            _ => (),
-        }
-
-        // Increment claimed counter
-        match matches {
-            6 => draw_result.match_6_claimed += 1,
-            5 => draw_result.match_5_claimed += 1,
-            4 => draw_result.match_4_claimed += 1,
-            3 => draw_result.match_3_claimed += 1,
-            2 => draw_result.match_2_claimed += 1,
-            _ => (),
-        }
-
-        ticket_entry.prize_amount = prize;
-        ticket_entry.is_claimed = true;
-
-        if prize > 0 {
-            // Build PDA signer seeds for prize pool authority
-            let seeds = &[
-                b"prize_pool_auth".as_ref(),
-                &[ctx.bumps.prize_pool_authority],
-            ];
-            let signer_seeds = &[&seeds[..]];
-
-            // Transfer prize to winner
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.prize_pool_usdc.to_account_info(),
-                to: ctx.accounts.player_usdc.to_account_info(),
-                authority: ctx.accounts.prize_pool_authority.to_account_info(),
-            };
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-            token::transfer(cpi_ctx, prize)?;
-
-            // Update lottery state
-            ctx.accounts.lottery_state.total_prizes_paid += prize;
-        }
-
-        emit!(BatchPrizeClaimed {
-            batch_id: ticket_batch.key(),
-            ticket_index,
-            player: ctx.accounts.player.key(),
-            match_count: matches,
-            prize_amount: prize,
-            draw_id: ticket_batch.draw_id,
-        });
-
-        Ok(())
-    }
-
-    /// Initialize the lottery with default parameters
+    /// Initialize the lottery with configuration parameters
     pub fn initialize_lottery(
         ctx: Context<InitializeLottery>,
         ticket_price: u64,
-        house_fee_bps: u16,
         jackpot_cap: u64,
         seed_amount: u64,
+        soft_cap: u64,
+        hard_cap: u64,
     ) -> Result<()> {
         let lottery_state = &mut ctx.accounts.lottery_state;
 
-        lottery_state.authority = ctx.accounts.authority.key();
-        lottery_state.current_draw_id = 0;
-        lottery_state.jackpot_balance = seed_amount;
-        lottery_state.reserve_balance = 0;
-        lottery_state.insurance_balance = 0;
-        lottery_state.ticket_price = ticket_price;
-        lottery_state.house_fee_bps = house_fee_bps;
-        lottery_state.jackpot_cap = jackpot_cap;
-        lottery_state.seed_amount = seed_amount;
-        lottery_state.total_tickets_sold = 0;
-        lottery_state.total_prizes_paid = 0;
-        lottery_state.last_draw_timestamp = Clock::get()?.unix_timestamp;
-        lottery_state.next_draw_timestamp = Clock::get()?.unix_timestamp + DRAW_INTERVAL;
-        lottery_state.is_rolldown_active = false;
-        lottery_state.is_soft_cap_zone = false;
-        lottery_state.is_paused = false;
-        lottery_state.bump = ctx.bumps.lottery_state;
-
-        emit!(LotteryInitialized {
-            authority: lottery_state.authority,
+        // Initialize with provided parameters
+        lottery_state.set_inner(LotteryState::new(
+            ctx.accounts.authority.key(),
+            ctx.accounts.switchboard_queue.key(),
             ticket_price,
-            house_fee_bps,
             jackpot_cap,
             seed_amount,
-            start_time: lottery_state.last_draw_timestamp,
-        });
+            soft_cap,
+            hard_cap,
+            ctx.bumps.lottery_state,
+        ));
 
+        // Fund the initial jackpot seed
+        token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                token::Transfer {
+                    from: ctx.accounts.authority_usdc.to_account_info(),
+                    to: ctx.accounts.prize_pool_usdc.to_account_info(),
+                    authority: ctx.accounts.authority.to_account_info(),
+                },
+            ),
+            seed_amount,
+        )?;
+
+        msg!(
+            "Lottery initialized with seed: {} USDC",
+            seed_amount / 1_000_000
+        );
         Ok(())
     }
 
-    // ==================== ADMIN FUNCTIONS ====================
+    /// Purchase a single lottery ticket
+    pub fn buy_ticket(ctx: Context<BuyTicket>, numbers: [u8; NUMBERS_PER_TICKET]) -> Result<()> {
+        let lottery_state = &mut ctx.accounts.lottery_state;
 
-    /// Pause the lottery (emergency stop)
-    pub fn pause_lottery(ctx: Context<AdminAction>) -> Result<()> {
-        ctx.accounts.lottery_state.is_paused = true;
+        // Validate lottery is active
+        require!(!lottery_state.is_paused, errors::ErrorCode::Paused);
+        require!(
+            !lottery_state.is_draw_in_progress,
+            errors::ErrorCode::DrawInProgress
+        );
+
+        // Validate numbers
+        let lottery_numbers = LotteryNumbers::new(numbers)?;
+
+        // Calculate house fee
+        lottery_state.update_house_fee();
+        let house_fee_amount =
+            calculate_house_fee_amount(lottery_state.ticket_price, lottery_state.house_fee_bps);
+        let prize_pool_amount =
+            calculate_prize_pool_amount(lottery_state.ticket_price, lottery_state.house_fee_bps);
+
+        // Transfer ticket price: house fee + prize pool
+        let cpi_context = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            token::Transfer {
+                from: ctx.accounts.player_usdc.to_account_info(),
+                to: ctx.accounts.house_fee_usdc.to_account_info(),
+                authority: ctx.accounts.player.to_account_info(),
+            },
+        );
+        token::transfer(cpi_context, house_fee_amount)?;
+
+        let cpi_context = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            token::Transfer {
+                from: ctx.accounts.player_usdc.to_account_info(),
+                to: ctx.accounts.prize_pool_usdc.to_account_info(),
+                authority: ctx.accounts.player.to_account_info(),
+            },
+        );
+        token::transfer(cpi_context, prize_pool_amount)?;
+
+        // Allocate prize pool to jackpot and fixed prizes
+        let jackpot_allocation = (prize_pool_amount as u128 * JACKPOT_ALLOCATION_BPS as u128
+            / BPS_PER_100_PERCENT as u128) as u64;
+        let fixed_prize_allocation = (prize_pool_amount as u128
+            * FIXED_PRIZE_ALLOCATION_BPS as u128
+            / BPS_PER_100_PERCENT as u128) as u64;
+        let reserve_allocation = (prize_pool_amount as u128 * RESERVE_ALLOCATION_BPS as u128
+            / BPS_PER_100_PERCENT as u128) as u64;
+
+        lottery_state.jackpot_balance += jackpot_allocation;
+        lottery_state.insurance_balance += fixed_prize_allocation;
+        lottery_state.reserve_balance += reserve_allocation;
+
+        // Create ticket account
+        let ticket = TicketData::new(
+            ctx.accounts.player.key(),
+            lottery_state.current_draw_id,
+            lottery_numbers,
+            None, // No syndicate by default
+        );
+
+        ctx.accounts.ticket.set_inner(ticket);
+
+        msg!(
+            "Ticket purchased for draw {}",
+            lottery_state.current_draw_id
+        );
         Ok(())
     }
 
-    /// Unpause the lottery
-    pub fn unpause_lottery(ctx: Context<AdminAction>) -> Result<()> {
-        ctx.accounts.lottery_state.is_paused = false;
+    /// Start a new draw (commit phase)
+    pub fn start_draw(ctx: Context<StartDraw>) -> Result<()> {
+        let lottery_state = &mut ctx.accounts.lottery_state;
+
+        // Validate draw can start
+        require!(
+            lottery_state.is_draw_time(),
+            errors::ErrorCode::DrawNotReady
+        );
+        require!(
+            !lottery_state.is_draw_in_progress,
+            errors::ErrorCode::DrawInProgress
+        );
+        require!(!lottery_state.is_paused, errors::ErrorCode::Paused);
+
+        // Check if rolldown should be active
+        if lottery_state.jackpot_balance >= lottery_state.hard_cap {
+            lottery_state.is_rolldown_active = true;
+        } else if lottery_state.jackpot_balance > lottery_state.soft_cap {
+            // Use a deterministic value from blockhash for probabilistic check
+            let blockhash = ctx.accounts.clock.slot;
+            lottery_state.is_rolldown_active = lottery_state.should_trigger_rolldown(blockhash);
+        } else {
+            lottery_state.is_rolldown_active = false;
+        }
+
+        // Update house fee for this draw
+        lottery_state.update_house_fee();
+
+        // Start draw cycle
+        lottery_state.start_draw();
+
+        // Store current randomness account reference
+        lottery_state.current_randomness_account = ctx.accounts.randomness_account_data.key();
+
+        msg!(
+            "Draw {} started. Rolldown active: {}",
+            lottery_state.current_draw_id,
+            lottery_state.is_rolldown_active
+        );
         Ok(())
     }
 
-    /// Set the VRF account for randomness generation
-    pub fn set_vrf_account(ctx: Context<SetVrfAccount>) -> Result<()> {
-        ctx.accounts.lottery_state.vrf_account = ctx.accounts.vrf_account.key();
+    /// Execute draw with revealed randomness (reveal phase)
+    pub fn execute_draw(ctx: Context<ExecuteDraw>) -> Result<()> {
+        let clock = Clock::get()?;
+        let lottery_state = &mut ctx.accounts.lottery_state;
+
+        // Validate draw is in progress
+        require!(
+            lottery_state.is_draw_in_progress,
+            errors::ErrorCode::DrawNotInProgress
+        );
+
+        // SECURITY: Verify randomness account matches stored reference
+        if ctx.accounts.randomness_account_data.key() != lottery_state.current_randomness_account {
+            return Err(errors::ErrorCode::InvalidRandomnessAccount.into());
+        }
+
+        // Parse Switchboard randomness data
+        let randomness_data =
+            RandomnessAccountData::parse(ctx.accounts.randomness_account_data.data.borrow())
+                .map_err(|_| errors::ErrorCode::RandomnessNotResolved)?;
+
+        // SECURITY: Verify freshness (committed in previous slot)
+        if randomness_data.seed_slot != clock.slot - 1 {
+            msg!("seed_slot: {}", randomness_data.seed_slot);
+            msg!("current slot: {}", clock.slot);
+            return Err(errors::ErrorCode::RandomnessNotFresh.into());
+        }
+
+        // SECURITY: Ensure randomness hasn't been revealed yet
+        if !randomness_data.get_value(clock.slot).is_err() {
+            return Err(errors::ErrorCode::RandomnessAlreadyRevealed.into());
+        }
+
+        // Get the revealed random value (32 bytes)
+        let random_bytes = randomness_data
+            .get_value(clock.slot)
+            .map_err(|_| errors::ErrorCode::RandomnessNotResolved)?;
+
+        // Generate winning lottery numbers from randomness
+        let mut winning_numbers = [0u8; NUMBERS_PER_TICKET];
+        let mut used = [false; MAX_NUMBER as usize + 1];
+
+        for i in 0..NUMBERS_PER_TICKET {
+            // Use different bytes for each number
+            let byte_index = (i * 3) % 32;
+            let mut candidate = (random_bytes[byte_index] % MAX_NUMBER) + 1;
+
+            // Ensure uniqueness with linear probing
+            while used[candidate as usize] {
+                candidate = (candidate % MAX_NUMBER) + 1;
+            }
+
+            winning_numbers[i] = candidate;
+            used[candidate as usize] = true;
+        }
+
+        winning_numbers.sort();
+
+        // Store draw result - need to convert 32 bytes to 64 bytes for VRF proof
+        let mut vrf_proof = [0u8; 64];
+        vrf_proof[..32].copy_from_slice(&random_bytes);
+        // Use blockhash for remaining 32 bytes for demonstration
+        let blockhash_bytes = ctx.accounts.clock.slot.to_le_bytes();
+        vrf_proof[32..40].copy_from_slice(&blockhash_bytes);
+
+        let draw_result = DrawResult::new(
+            lottery_state.current_draw_id,
+            winning_numbers,
+            vrf_proof,
+            0, // Total tickets will be updated from indexer
+            lottery_state.is_rolldown_active,
+        );
+
+        ctx.accounts.draw_result.set_inner(draw_result);
+
+        // Complete draw cycle
+        lottery_state.complete_draw();
+
+        // Reset rolldown status
+        lottery_state.is_rolldown_active = false;
+
+        // Reset jackpot if there was a winner (will be updated during prize distribution)
+        // If no jackpot winner, jackpot rolls over automatically
+
+        msg!(
+            "Draw {} executed. Winning numbers: {:?}",
+            lottery_state.current_draw_id - 1,
+            winning_numbers
+        );
+        Ok(())
+    }
+
+    /// Claim prize for a winning ticket
+    pub fn claim_prize(ctx: Context<ClaimPrize>) -> Result<()> {
+        let ticket = &mut ctx.accounts.ticket;
+
+        // Validate ticket
+        require!(!ticket.is_claimed, errors::ErrorCode::AlreadyClaimed);
+        require!(ticket.match_count >= 2, errors::ErrorCode::NoPrizeToClaim);
+
+        // Get draw result to calculate prize
+        let draw_result = &ctx.accounts.draw_result;
+        let prize_amount = draw_result.calculate_prize(ticket.match_count);
+
+        require!(prize_amount > 0, errors::ErrorCode::NoPrizeToClaim);
+
+        // Transfer prize from prize pool to player
+        let cpi_context = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            token::Transfer {
+                from: ctx.accounts.prize_pool_usdc.to_account_info(),
+                to: ctx.accounts.player_usdc.to_account_info(),
+                authority: ctx.accounts.prize_pool_authority.to_account_info(),
+            },
+        );
+        token::transfer(cpi_context, prize_amount)?;
+
+        // Mark ticket as claimed
+        ticket.is_claimed = true;
+        ticket.prize_amount = prize_amount;
+
+        // Update lottery state if jackpot was won
+        if ticket.match_count == 6 {
+            let lottery_state = &mut ctx.accounts.lottery_state;
+            lottery_state.jackpot_balance = lottery_state.seed_amount; // Reset to seed
+        }
+
+        msg!("Prize claimed: {} USDC", prize_amount / 1_000_000);
+        Ok(())
+    }
+
+    /// Admin function to pause/unpause lottery
+    pub fn set_paused(ctx: Context<SetPaused>, paused: bool) -> Result<()> {
+        let lottery_state = &mut ctx.accounts.lottery_state;
+        require!(
+            lottery_state.authority == ctx.accounts.authority.key(),
+            errors::ErrorCode::AdminAuthorityRequired
+        );
+
+        lottery_state.is_paused = paused;
+
+        if paused {
+            msg!("Lottery paused");
+        } else {
+            msg!("Lottery resumed");
+        }
+
         Ok(())
     }
 }
