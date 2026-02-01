@@ -226,6 +226,12 @@ impl LotteryState {
             .saturating_add(self.insurance_balance)
     }
 
+    /// Get the total safety buffer (reserve + insurance)
+    /// This is the 5% buffer mentioned in documentation (3% reserve + 2% insurance)
+    pub fn get_safety_buffer(&self) -> u64 {
+        self.reserve_balance.saturating_add(self.insurance_balance)
+    }
+
     /// Check if lottery can pay out prizes for given winner counts
     pub fn can_pay_prizes(&self, winner_counts: &WinnerCounts) -> bool {
         // Simple check: ensure we have at least some funds
@@ -243,6 +249,113 @@ impl LotteryState {
         let min_funds_needed = total_winners * 1000; // 0.001 USDC per winner minimum
 
         self.get_available_prize_pool() >= min_funds_needed
+    }
+
+    /// Detailed solvency check for fixed prizes
+    /// Returns (is_solvent, shortfall_amount, can_use_insurance)
+    ///
+    /// # Arguments
+    /// * `required_fixed_prizes` - Total fixed prizes needed (Match 3/4/5)
+    /// * `jackpot_to_distribute` - Jackpot amount if Match 6 winner exists
+    ///
+    /// # Returns
+    /// * `(bool, u64, bool)` - (is_solvent, shortfall_if_any, can_cover_with_insurance)
+    pub fn check_solvency_detailed(
+        &self,
+        required_fixed_prizes: u64,
+        jackpot_to_distribute: u64,
+    ) -> (bool, u64, bool) {
+        let total_required = required_fixed_prizes.saturating_add(jackpot_to_distribute);
+
+        // First check: can we pay from jackpot + reserve alone?
+        let primary_funds = self.jackpot_balance.saturating_add(self.reserve_balance);
+
+        if primary_funds >= total_required {
+            return (true, 0, false); // Fully solvent without insurance
+        }
+
+        // Calculate shortfall
+        let shortfall = total_required.saturating_sub(primary_funds);
+
+        // Check if insurance can cover the shortfall
+        let can_cover_with_insurance = self.insurance_balance >= shortfall;
+
+        if can_cover_with_insurance {
+            return (true, shortfall, true); // Solvent with insurance
+        }
+
+        // Not fully solvent even with insurance
+        let remaining_shortfall = shortfall.saturating_sub(self.insurance_balance);
+        (false, remaining_shortfall, true) // Insurance will be used but still short
+    }
+
+    /// Calculate how much can be paid from each fund source
+    /// Returns (from_jackpot, from_reserve, from_insurance, remaining_shortfall)
+    ///
+    /// This follows the priority order:
+    /// 1. Use jackpot balance first
+    /// 2. Use reserve balance second
+    /// 3. Use insurance balance last (emergency only)
+    pub fn calculate_fund_usage(&self, total_required: u64) -> (u64, u64, u64, u64) {
+        let mut remaining = total_required;
+
+        // Use jackpot first
+        let from_jackpot = remaining.min(self.jackpot_balance);
+        remaining = remaining.saturating_sub(from_jackpot);
+
+        // Use reserve second
+        let from_reserve = remaining.min(self.reserve_balance);
+        remaining = remaining.saturating_sub(from_reserve);
+
+        // Use insurance last (emergency)
+        let from_insurance = remaining.min(self.insurance_balance);
+        remaining = remaining.saturating_sub(from_insurance);
+
+        (from_jackpot, from_reserve, from_insurance, remaining)
+    }
+
+    /// Calculate the insurance coverage ratio
+    /// Returns the percentage of potential shortfall that insurance can cover (in BPS)
+    pub fn get_insurance_coverage_ratio(&self, potential_liability: u64) -> u16 {
+        if potential_liability == 0 {
+            return 10000; // 100% coverage if no liability
+        }
+
+        let coverage = (self.insurance_balance as u128 * 10000u128) / potential_liability as u128;
+        coverage.min(10000) as u16
+    }
+
+    /// Check if we should trigger emergency insurance usage
+    /// Returns true if reserve is depleted and insurance is needed
+    pub fn needs_emergency_insurance(&self, required_amount: u64) -> bool {
+        let available_without_insurance = self.jackpot_balance.saturating_add(self.reserve_balance);
+        required_amount > available_without_insurance && self.insurance_balance > 0
+    }
+
+    /// Get the current fee tier description based on jackpot balance
+    pub fn get_fee_tier_description(&self) -> &'static str {
+        if self.is_rolldown_active {
+            "Rolldown (28%)"
+        } else if self.jackpot_balance < FEE_TIER_1_THRESHOLD {
+            "Tier 1: < $500k (28%)"
+        } else if self.jackpot_balance < FEE_TIER_2_THRESHOLD {
+            "Tier 2: $500k-$1M (32%)"
+        } else if self.jackpot_balance < FEE_TIER_3_THRESHOLD {
+            "Tier 3: $1M-$1.5M (36%)"
+        } else {
+            "Tier 4: > $1.5M (40%)"
+        }
+    }
+
+    /// Get the rolldown status description
+    pub fn get_rolldown_status(&self) -> &'static str {
+        if self.jackpot_balance >= self.hard_cap {
+            "FORCED (Hard Cap Reached)"
+        } else if self.jackpot_balance >= self.soft_cap {
+            "ACTIVE (Probabilistic)"
+        } else {
+            "INACTIVE"
+        }
     }
 }
 

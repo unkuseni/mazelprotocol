@@ -6,7 +6,13 @@
 //! 2. Verifies the seed_slot matches the commit_slot (freshness check)
 //! 3. Retrieves the revealed random value
 //! 4. Generates winning numbers from the randomness
-//! 5. Creates the draw result account
+//! 5. Determines rolldown status based on soft/hard caps (probabilistic)
+//! 6. Creates the draw result account
+//!
+//! SOFT/HARD CAP ROLLDOWN SYSTEM:
+//! - Below soft cap: No rolldown possible (probability = 0%)
+//! - At soft cap: Probabilistic rolldown begins (linear scaling)
+//! - At hard cap: Forced rolldown (probability = 100%)
 //!
 //! SECURITY: This must be called in the slot AFTER the commit.
 //! The randomness is only valid if seed_slot == clock.slot - 1.
@@ -16,7 +22,7 @@ use switchboard_on_demand::accounts::RandomnessAccountData;
 
 use crate::constants::*;
 use crate::errors::LottoError;
-use crate::events::DrawExecuted;
+use crate::events::{DrawExecuted, HardCapReached, SoftCapReached};
 use crate::state::{DrawResult, LotteryState};
 
 /// Accounts required for executing the draw
@@ -234,7 +240,20 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
     let is_rolldown_active = ctx.accounts.lottery_state.is_rolldown_active;
     let current_draw_id = ctx.accounts.lottery_state.current_draw_id;
     let current_draw_tickets = ctx.accounts.lottery_state.current_draw_tickets;
+    let soft_cap = ctx.accounts.lottery_state.soft_cap;
+    let hard_cap = ctx.accounts.lottery_state.hard_cap;
     let rolldown_probability_bps = ctx.accounts.lottery_state.get_rolldown_probability_bps();
+
+    // Log soft/hard cap status
+    msg!("📊 Soft/Hard Cap Status:");
+    msg!("  Jackpot balance: {} USDC lamports", jackpot_balance);
+    msg!("  Soft cap: {} USDC lamports", soft_cap);
+    msg!("  Hard cap: {} USDC lamports", hard_cap);
+    msg!("  Rolldown active: {}", is_rolldown_active);
+    msg!(
+        "  Rolldown probability: {}%",
+        rolldown_probability_bps as f64 / 100.0
+    );
 
     // Get the revealed randomness
     let randomness = ctx
@@ -253,10 +272,53 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
     // Generate winning numbers
     let winning_numbers = generate_winning_numbers(&randomness);
 
-    // Determine rolldown status
-    let was_rolldown = if is_rolldown_active {
-        should_trigger_rolldown(&randomness, rolldown_probability_bps)
+    // ==========================================================================
+    // SOFT/HARD CAP ROLLDOWN DETERMINATION
+    // ==========================================================================
+    // Determine if this draw triggers a rolldown based on:
+    // - Hard cap: 100% probability (forced rolldown)
+    // - Soft cap to hard cap: Linear probability scaling
+    // - Below soft cap: 0% probability (no rolldown)
+
+    let was_rolldown = if jackpot_balance >= hard_cap {
+        // Hard cap reached - FORCED rolldown (100% probability)
+        msg!("⚠️  HARD CAP TRIGGERED: Forced rolldown!");
+
+        emit!(HardCapReached {
+            draw_id: current_draw_id,
+            jackpot_balance,
+            hard_cap,
+            timestamp: clock.unix_timestamp,
+        });
+
+        true
+    } else if is_rolldown_active && jackpot_balance >= soft_cap {
+        // Soft cap reached - probabilistic rolldown
+        let triggered = should_trigger_rolldown(&randomness, rolldown_probability_bps);
+
+        if triggered {
+            msg!(
+                "🎰 SOFT CAP ROLLDOWN TRIGGERED! (probability was {}%)",
+                rolldown_probability_bps as f64 / 100.0
+            );
+
+            emit!(SoftCapReached {
+                draw_id: current_draw_id,
+                jackpot_balance,
+                soft_cap,
+                rolldown_probability_bps,
+                timestamp: clock.unix_timestamp,
+            });
+        } else {
+            msg!(
+                "🎰 Soft cap active but rolldown NOT triggered (probability was {}%)",
+                rolldown_probability_bps as f64 / 100.0
+            );
+        }
+
+        triggered
     } else {
+        // Below soft cap - no rolldown
         false
     };
 
@@ -312,6 +374,12 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
     msg!("  Was rolldown: {}", was_rolldown);
     msg!("  Total tickets: {}", current_draw_tickets);
     msg!("  Jackpot at draw: {} USDC lamports", jackpot_balance);
+    if was_rolldown {
+        msg!("  🎰 ROLLDOWN ACTIVE: Jackpot will be distributed to lower tiers!");
+        msg!("    Match 5: 25% of jackpot (pari-mutuel)");
+        msg!("    Match 4: 35% of jackpot (pari-mutuel)");
+        msg!("    Match 3: 40% of jackpot (pari-mutuel)");
+    }
 
     Ok(())
 }

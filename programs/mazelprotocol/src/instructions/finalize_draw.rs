@@ -5,17 +5,23 @@
 //!
 //! The finalization process:
 //! 1. Validates winner counts submitted by authority
-//! 2. Calculates prizes based on mode (fixed or pari-mutuel rolldown)
-//! 3. Handles zero-winner tiers by redistributing funds
-//! 4. Updates the draw result with prize amounts
-//! 5. Resets lottery state for the next draw
-//! 6. Seeds the new jackpot if rolldown occurred
+//! 2. Performs solvency check (jackpot + reserve + insurance)
+//! 3. Calculates prizes based on mode (fixed or pari-mutuel rolldown)
+//! 4. Uses insurance pool if needed for prize shortfalls
+//! 5. Handles zero-winner tiers by redistributing funds
+//! 6. Updates the draw result with prize amounts
+//! 7. Resets lottery state for the next draw
+//! 8. Seeds the new jackpot if rolldown occurred
+//! 9. Updates dynamic house fee based on new jackpot level
 
 use anchor_lang::prelude::*;
 
 use crate::constants::*;
 use crate::errors::LottoError;
-use crate::events::{DrawFinalized, RolldownExecuted};
+use crate::events::{
+    DrawFinalized, DynamicFeeTierChanged, HardCapReached, InsurancePoolUsed, RolldownExecuted,
+    SoftCapReached, SolvencyCheckPerformed,
+};
 use crate::state::{DrawResult, LotteryState, WinnerCounts};
 
 /// Parameters for finalizing the draw
@@ -439,6 +445,10 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     let lottery_state = &mut ctx.accounts.lottery_state;
     let draw_result = &mut ctx.accounts.draw_result;
 
+    // Capture initial state for fee tier change detection
+    let old_house_fee_bps = lottery_state.house_fee_bps;
+    let old_fee_tier_description = lottery_state.get_fee_tier_description();
+
     // FIXED: Validate winner counts before updating
     // Check for suspicious patterns (e.g., all tickets winning in a tier)
     let total_tickets_in_draw = draw_result.total_tickets;
@@ -502,18 +512,89 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     let jackpot_at_draw = lottery_state.jackpot_balance;
     let was_rolldown = draw_result.was_rolldown && params.winner_counts.match_6 == 0;
 
-    // Get the actual prize pool balance for solvency check
-    // Note: In production, this should be passed as an account to verify on-chain
-    // For now, we use jackpot + reserve + insurance as available funds
-    let available_prize_pool = jackpot_at_draw
-        .saturating_add(lottery_state.reserve_balance)
-        .saturating_add(lottery_state.insurance_balance);
+    // ==========================================================================
+    // SOLVENCY CHECK WITH INSURANCE POOL INTEGRATION
+    // ==========================================================================
+    //
+    // Priority for prize funding:
+    // 1. Jackpot balance (primary source)
+    // 2. Reserve balance (3% of ticket sales)
+    // 3. Insurance balance (2% of ticket sales - emergency only)
+    //
+    // The insurance pool is the final safety net to ensure all prizes are paid.
 
+    // Get available funds from all sources
+    let primary_funds = jackpot_at_draw.saturating_add(lottery_state.reserve_balance);
+    let total_available = primary_funds.saturating_add(lottery_state.insurance_balance);
+    let insurance_balance_before = lottery_state.insurance_balance;
+
+    msg!("📊 Solvency check:");
+    msg!("  Jackpot balance: {} USDC lamports", jackpot_at_draw);
+    msg!(
+        "  Reserve balance: {} USDC lamports",
+        lottery_state.reserve_balance
+    );
+    msg!(
+        "  Insurance balance: {} USDC lamports",
+        lottery_state.insurance_balance
+    );
+    msg!("  Total available: {} USDC lamports", total_available);
+
+    // Calculate prizes with available funds
     let prize_calc = if was_rolldown {
         calculate_rolldown_prizes(&params.winner_counts, jackpot_at_draw)
     } else {
-        calculate_fixed_prizes(&params.winner_counts, jackpot_at_draw, available_prize_pool)
+        calculate_fixed_prizes(&params.winner_counts, jackpot_at_draw, total_available)
     };
+
+    // Check if insurance pool needs to be used
+    let mut insurance_used = 0u64;
+    if prize_calc.total_distributed > primary_funds && !was_rolldown {
+        // Fixed prizes exceed primary funds - need to use insurance
+        insurance_used = prize_calc
+            .total_distributed
+            .saturating_sub(primary_funds)
+            .min(lottery_state.insurance_balance);
+
+        if insurance_used > 0 {
+            lottery_state.insurance_balance = lottery_state
+                .insurance_balance
+                .saturating_sub(insurance_used);
+
+            msg!("⚠️  INSURANCE POOL ACTIVATED!");
+            msg!("  Amount used: {} USDC lamports", insurance_used);
+            msg!(
+                "  Remaining insurance: {} USDC lamports",
+                lottery_state.insurance_balance
+            );
+
+            // Emit insurance pool usage event
+            emit!(InsurancePoolUsed {
+                draw_id: lottery_state.current_draw_id,
+                amount_used: insurance_used,
+                balance_before: insurance_balance_before,
+                balance_after: lottery_state.insurance_balance,
+                reason: format!(
+                    "Prize pool shortfall: {} required, {} available from primary funds",
+                    prize_calc.total_distributed, primary_funds
+                ),
+                timestamp: clock.unix_timestamp,
+            });
+        }
+    }
+
+    // Emit solvency check event for audit trail
+    emit!(SolvencyCheckPerformed {
+        draw_id: lottery_state.current_draw_id,
+        prizes_required: prize_calc.total_distributed,
+        prize_pool_balance: jackpot_at_draw,
+        reserve_balance: lottery_state.reserve_balance,
+        insurance_balance: insurance_balance_before,
+        is_solvent: prize_calc.total_distributed <= total_available,
+        prizes_scaled: prize_calc.was_scaled_down,
+        scale_factor_bps: prize_calc.scale_factor_bps,
+        timestamp: clock.unix_timestamp,
+    });
 
     // Log calculation details for transparency
     msg!(
@@ -618,8 +699,71 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     // Set next draw timestamp
     lottery_state.next_draw_timestamp = clock.unix_timestamp + lottery_state.draw_interval;
 
-    // Update house fee based on new jackpot level
-    lottery_state.house_fee_bps = lottery_state.get_current_house_fee_bps();
+    // ==========================================================================
+    // DYNAMIC HOUSE FEE UPDATE
+    // ==========================================================================
+    // Update house fee based on new jackpot level after draw finalization
+    let new_house_fee_bps = lottery_state.get_current_house_fee_bps();
+    lottery_state.house_fee_bps = new_house_fee_bps;
+
+    // Emit event if fee tier changed
+    if old_house_fee_bps != new_house_fee_bps {
+        let new_fee_tier_description = lottery_state.get_fee_tier_description();
+        msg!(
+            "📈 Dynamic fee tier changed: {} ({} bps) -> {} ({} bps)",
+            old_fee_tier_description,
+            old_house_fee_bps,
+            new_fee_tier_description,
+            new_house_fee_bps
+        );
+
+        emit!(DynamicFeeTierChanged {
+            draw_id: lottery_state.current_draw_id,
+            old_fee_bps: old_house_fee_bps,
+            new_fee_bps: new_house_fee_bps,
+            jackpot_balance: lottery_state.jackpot_balance,
+            tier_description: new_fee_tier_description.to_string(),
+            timestamp: clock.unix_timestamp,
+        });
+    }
+
+    // ==========================================================================
+    // SOFT/HARD CAP CHECK FOR NEXT DRAW
+    // ==========================================================================
+    // Check if rolldown should be active for the next draw based on new jackpot level
+    if lottery_state.jackpot_balance >= lottery_state.hard_cap {
+        lottery_state.is_rolldown_active = true;
+        msg!(
+            "⚠️  HARD CAP REACHED for next draw! Jackpot {} >= Hard Cap {}",
+            lottery_state.jackpot_balance,
+            lottery_state.hard_cap
+        );
+        msg!("  Next draw WILL be a forced rolldown.");
+
+        emit!(HardCapReached {
+            draw_id: lottery_state.current_draw_id,
+            jackpot_balance: lottery_state.jackpot_balance,
+            hard_cap: lottery_state.hard_cap,
+            timestamp: clock.unix_timestamp,
+        });
+    } else if lottery_state.jackpot_balance >= lottery_state.soft_cap {
+        lottery_state.is_rolldown_active = true;
+        let rolldown_prob = lottery_state.get_rolldown_probability_bps();
+        msg!(
+            "🎰 SOFT CAP REACHED for next draw! Jackpot {} >= Soft Cap {}",
+            lottery_state.jackpot_balance,
+            lottery_state.soft_cap
+        );
+        msg!("  Rolldown probability: {}%", rolldown_prob as f64 / 100.0);
+
+        emit!(SoftCapReached {
+            draw_id: lottery_state.current_draw_id,
+            jackpot_balance: lottery_state.jackpot_balance,
+            soft_cap: lottery_state.soft_cap,
+            rolldown_probability_bps: rolldown_prob,
+            timestamp: clock.unix_timestamp,
+        });
+    }
 
     // Emit finalization event
     emit!(DrawFinalized {
@@ -697,6 +841,22 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
             prize_calc.scale_factor_bps as f64 / 100.0
         );
     }
+    if insurance_used > 0 {
+        msg!("  🛡️ INSURANCE USED: {} USDC lamports", insurance_used);
+        msg!(
+            "  Insurance remaining: {} USDC lamports",
+            lottery_state.insurance_balance
+        );
+    }
+    msg!(
+        "  Dynamic fee for next draw: {} bps ({})",
+        lottery_state.house_fee_bps,
+        lottery_state.get_fee_tier_description()
+    );
+    msg!(
+        "  Rolldown status for next draw: {}",
+        lottery_state.get_rolldown_status()
+    );
     msg!("  Calculation details: {}", prize_calc.calculation_details);
 
     Ok(())

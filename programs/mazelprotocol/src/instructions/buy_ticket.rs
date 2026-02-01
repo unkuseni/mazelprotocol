@@ -226,9 +226,21 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
     }
 
     // Calculate price and fees (0 if using free ticket)
+    //
+    // Fund allocation breakdown:
+    // 1. ticket_price goes to player
+    // 2. house_fee = ticket_price * house_fee_bps (dynamic based on jackpot level)
+    // 3. remaining = ticket_price - house_fee
+    // 4. From remaining:
+    //    - insurance_contribution = remaining * 2% (goes to insurance_pool_usdc)
+    //    - prize_pool_transfer = remaining - insurance_contribution (goes to prize_pool_usdc)
+    //    - Within prize_pool_transfer, we track:
+    //      - jackpot_contribution = prize_pool_transfer * 55.6%
+    //      - reserve_contribution = prize_pool_transfer * 3%
+    //      - fixed_prize_pool = prize_pool_transfer * 39.4% (implicit)
     let (
         house_fee,
-        prize_pool_amount,
+        prize_pool_transfer, // Actual USDC transferred to prize_pool_usdc
         jackpot_contribution,
         reserve_contribution,
         insurance_contribution,
@@ -237,18 +249,31 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         // Free ticket - no USDC transfer needed
         (0u64, 0u64, 0u64, 0u64, 0u64, 0u64)
     } else {
+        // Calculate dynamic house fee based on current jackpot level
         let house_fee =
             (ticket_price as u128 * house_fee_bps as u128 / BPS_DENOMINATOR as u128) as u64;
-        let prize_pool_amount = ticket_price.saturating_sub(house_fee);
-        let jackpot_contribution = (prize_pool_amount as u128 * JACKPOT_ALLOCATION_BPS as u128
+
+        // Calculate what's left after house fee
+        let after_house_fee = ticket_price.saturating_sub(house_fee);
+
+        // Insurance gets 2% of after_house_fee (transferred to separate account)
+        let insurance_contribution = (after_house_fee as u128 * INSURANCE_ALLOCATION_BPS as u128
             / BPS_DENOMINATOR as u128) as u64;
-        let reserve_contribution = (prize_pool_amount as u128 * RESERVE_ALLOCATION_BPS as u128
+
+        // Prize pool transfer is after_house_fee MINUS insurance (which goes to separate account)
+        let prize_pool_transfer = after_house_fee.saturating_sub(insurance_contribution);
+
+        // From the prize pool transfer, calculate internal accounting allocations:
+        // These are tracked in lottery_state but the USDC all goes to prize_pool_usdc
+        let jackpot_contribution = (prize_pool_transfer as u128 * JACKPOT_ALLOCATION_BPS as u128
             / BPS_DENOMINATOR as u128) as u64;
-        let insurance_contribution = (prize_pool_amount as u128 * INSURANCE_ALLOCATION_BPS as u128
+        let reserve_contribution = (prize_pool_transfer as u128 * RESERVE_ALLOCATION_BPS as u128
             / BPS_DENOMINATOR as u128) as u64;
+        // Note: fixed_prize_allocation is implicit (the remainder in prize_pool)
+
         (
             house_fee,
-            prize_pool_amount,
+            prize_pool_transfer,
             jackpot_contribution,
             reserve_contribution,
             insurance_contribution,
@@ -258,26 +283,37 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
 
     // Only perform USDC transfers if not using free ticket
     if !using_free_ticket {
-        // FIXED: Check player has sufficient balance for TOTAL amount (both transfers)
+        // Verify player has sufficient balance for TOTAL amount
+        // Total = house_fee + prize_pool_transfer + insurance_contribution = ticket_price
         require!(
             ctx.accounts.player_usdc.amount >= ticket_price,
             LottoError::InsufficientFunds
         );
 
-        // FIXED: Transfer prize pool amount first (larger amount), then house fee
-        // This ensures if prize pool transfer fails, user doesn't lose house fee
-        ctx.accounts.transfer_to_prize_pool(prize_pool_amount)?;
+        // Transfer to prize pool (excludes insurance - that goes to separate account)
+        ctx.accounts.transfer_to_prize_pool(prize_pool_transfer)?;
+
+        // Transfer to house fee account
         ctx.accounts.transfer_to_house_fee(house_fee)?;
 
-        // Transfer insurance contribution if any
+        // Transfer insurance contribution to separate insurance pool
         if insurance_contribution > 0 {
             ctx.accounts
                 .transfer_to_insurance_pool(insurance_contribution)?;
         }
+
+        // Verify: house_fee + prize_pool_transfer + insurance_contribution = ticket_price
+        debug_assert_eq!(
+            house_fee + prize_pool_transfer + insurance_contribution,
+            ticket_price,
+            "Fund allocation mismatch!"
+        );
     }
 
-    // Update lottery state
+    // Update lottery state with internal accounting
     let lottery_state = &mut ctx.accounts.lottery_state;
+    let old_house_fee_bps = lottery_state.house_fee_bps;
+
     if jackpot_contribution > 0 {
         lottery_state.jackpot_balance = lottery_state
             .jackpot_balance
@@ -305,12 +341,36 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         .checked_add(1)
         .ok_or(LottoError::Overflow)?;
 
-    // Update house fee based on new jackpot level
-    lottery_state.house_fee_bps = lottery_state.get_current_house_fee_bps();
+    // Update house fee based on new jackpot level (dynamic fee system)
+    let new_house_fee_bps = lottery_state.get_current_house_fee_bps();
+    lottery_state.house_fee_bps = new_house_fee_bps;
 
-    // Check if rolldown should be pending
-    if lottery_state.jackpot_balance >= soft_cap {
+    // Log if dynamic fee tier changed
+    if old_house_fee_bps != new_house_fee_bps {
+        msg!(
+            "📈 Dynamic fee tier changed: {}bps -> {}bps",
+            old_house_fee_bps,
+            new_house_fee_bps
+        );
+    }
+
+    // Check if rolldown should be pending based on soft cap
+    if lottery_state.jackpot_balance >= soft_cap && !lottery_state.is_rolldown_active {
         lottery_state.is_rolldown_active = true;
+        msg!(
+            "🎰 ROLLDOWN ACTIVATED! Jackpot {} >= Soft Cap {}",
+            lottery_state.jackpot_balance,
+            soft_cap
+        );
+    }
+
+    // Check for hard cap (forced rolldown)
+    if lottery_state.jackpot_balance >= lottery_state.hard_cap {
+        msg!(
+            "⚠️  HARD CAP REACHED! Jackpot {} >= Hard Cap {}. Next draw WILL be rolldown.",
+            lottery_state.jackpot_balance,
+            lottery_state.hard_cap
+        );
     }
 
     let new_jackpot_balance = lottery_state.jackpot_balance;
@@ -390,13 +450,37 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         );
     } else {
         msg!("  Price: {} USDC lamports", ticket_price);
-        msg!("  House fee: {} USDC lamports", house_fee);
         msg!(
-            "  Jackpot contribution: {} USDC lamports",
+            "  House fee ({}bps): {} USDC lamports",
+            house_fee_bps,
+            house_fee
+        );
+        msg!(
+            "  Prize pool transfer: {} USDC lamports",
+            prize_pool_transfer
+        );
+        msg!(
+            "  -> Jackpot contribution: {} USDC lamports",
             jackpot_contribution
+        );
+        msg!(
+            "  -> Reserve contribution: {} USDC lamports",
+            reserve_contribution
+        );
+        msg!(
+            "  Insurance contribution: {} USDC lamports",
+            insurance_contribution
         );
     }
     msg!("  Current jackpot: {} USDC lamports", new_jackpot_balance);
+    msg!(
+        "  Insurance pool: {} USDC lamports",
+        ctx.accounts.lottery_state.insurance_balance
+    );
+    msg!(
+        "  Rolldown active: {}",
+        ctx.accounts.lottery_state.is_rolldown_active
+    );
     msg!(
         "  User tickets this draw: {}/{}",
         user_stats.tickets_this_draw,

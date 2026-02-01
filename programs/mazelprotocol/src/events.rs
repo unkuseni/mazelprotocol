@@ -478,6 +478,114 @@ pub struct InsurancePoolFunded {
 }
 
 // ============================================================================
+// DYNAMIC FEE & CAP EVENTS
+// ============================================================================
+
+/// Emitted when dynamic house fee tier changes
+#[event]
+pub struct DynamicFeeTierChanged {
+    /// Draw ID when change occurred
+    pub draw_id: u64,
+    /// Previous fee in basis points
+    pub old_fee_bps: u16,
+    /// New fee in basis points
+    pub new_fee_bps: u16,
+    /// Current jackpot balance that triggered the change
+    pub jackpot_balance: u64,
+    /// Fee tier description
+    pub tier_description: String,
+    /// Timestamp
+    pub timestamp: i64,
+}
+
+/// Emitted when soft cap is reached and rolldown becomes possible
+#[event]
+pub struct SoftCapReached {
+    /// Draw ID
+    pub draw_id: u64,
+    /// Current jackpot balance
+    pub jackpot_balance: u64,
+    /// Soft cap threshold
+    pub soft_cap: u64,
+    /// Rolldown probability in basis points (0-10000)
+    pub rolldown_probability_bps: u16,
+    /// Timestamp
+    pub timestamp: i64,
+}
+
+/// Emitted when hard cap is reached and rolldown is forced
+#[event]
+pub struct HardCapReached {
+    /// Draw ID
+    pub draw_id: u64,
+    /// Current jackpot balance
+    pub jackpot_balance: u64,
+    /// Hard cap threshold
+    pub hard_cap: u64,
+    /// Timestamp
+    pub timestamp: i64,
+}
+
+/// Emitted when insurance pool is used for prize pool shortfall
+#[event]
+pub struct InsurancePoolUsed {
+    /// Draw ID
+    pub draw_id: u64,
+    /// Amount transferred from insurance to prize pool
+    pub amount_used: u64,
+    /// Insurance pool balance before transfer
+    pub balance_before: u64,
+    /// Insurance pool balance after transfer
+    pub balance_after: u64,
+    /// Reason for using insurance
+    pub reason: String,
+    /// Timestamp
+    pub timestamp: i64,
+}
+
+/// Emitted when emergency fund transfer occurs
+#[event]
+pub struct EmergencyFundTransferred {
+    /// Draw ID (if applicable)
+    pub draw_id: u64,
+    /// Source of funds (reserve or insurance)
+    pub source: String,
+    /// Amount transferred
+    pub amount: u64,
+    /// Destination (usually prize pool)
+    pub destination: String,
+    /// Reason for transfer
+    pub reason: String,
+    /// Authority who initiated
+    pub authority: Pubkey,
+    /// Timestamp
+    pub timestamp: i64,
+}
+
+/// Emitted when prize pool solvency check is performed
+#[event]
+pub struct SolvencyCheckPerformed {
+    /// Draw ID
+    pub draw_id: u64,
+    /// Total prizes required
+    pub prizes_required: u64,
+    /// Prize pool balance
+    pub prize_pool_balance: u64,
+    /// Reserve balance available
+    pub reserve_balance: u64,
+    /// Insurance balance available
+    pub insurance_balance: u64,
+    /// Whether solvency check passed
+    pub is_solvent: bool,
+    /// Whether prizes were scaled down
+    pub prizes_scaled: bool,
+    /// Scale factor if scaled (10000 = 100%)
+    pub scale_factor_bps: u16,
+    /// Timestamp
+    pub timestamp: i64,
+}
+
+// ============================================================================
 // DRAW RECOVERY EVENTS
 // ============================================================================
 
