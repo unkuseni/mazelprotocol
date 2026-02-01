@@ -15,8 +15,8 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::constants::*;
 use crate::errors::LottoError;
 use crate::events::{
-    ConfigUpdated, DrawCancelled, DrawForceFinalized, EmergencyPause, EmergencyUnpause,
-    HouseFeesWithdrawn, InsurancePoolFunded,
+    ConfigUpdated, DrawCancelled, DrawForceFinalized, EmergencyFundTransferred, EmergencyPause,
+    EmergencyUnpause, HouseFeesWithdrawn, InsurancePoolFunded,
 };
 use crate::state::LotteryState;
 
@@ -968,6 +968,11 @@ pub fn handler_emergency_fund_transfer(
 
     // Update lottery state balances
     let lottery_state = &mut ctx.accounts.lottery_state;
+    let balance_before = match source {
+        FundSource::Reserve => lottery_state.reserve_balance,
+        FundSource::Insurance => lottery_state.insurance_balance,
+    };
+
     match source {
         FundSource::Reserve => {
             lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(amount);
@@ -978,29 +983,53 @@ pub fn handler_emergency_fund_transfer(
         }
     }
 
-    // Emit insurance pool funded event (reusing existing event for audit trail)
+    let balance_after = match source {
+        FundSource::Reserve => lottery_state.reserve_balance,
+        FundSource::Insurance => lottery_state.insurance_balance,
+    };
+
+    // Emit dedicated emergency fund transfer event for comprehensive audit trail
+    emit!(EmergencyFundTransferred {
+        draw_id: lottery_state.current_draw_id,
+        source: format!("{:?}", source),
+        amount,
+        destination: "prize_pool".to_string(),
+        reason: reason.clone(),
+        authority: ctx.accounts.authority.key(),
+        timestamp: clock.unix_timestamp,
+    });
+
+    // Also emit insurance pool funded event for backward compatibility
     emit!(InsurancePoolFunded {
         amount,
-        new_balance: match source {
-            FundSource::Reserve => lottery_state.reserve_balance,
-            FundSource::Insurance => lottery_state.insurance_balance,
-        },
+        new_balance: balance_after,
         source: format!("emergency_transfer_{:?}", source),
         timestamp: clock.unix_timestamp,
     });
 
     msg!("⚠️  EMERGENCY FUND TRANSFER executed!");
+    msg!("  Authority: {}", ctx.accounts.authority.key());
+    msg!("  Draw ID: {}", lottery_state.current_draw_id);
     msg!("  Source: {:?}", source);
     msg!("  Amount: {} USDC lamports", amount);
     msg!("  Reason: {}", reason);
-    msg!(
-        "  Source balance after: {} USDC lamports",
-        match source {
-            FundSource::Reserve => lottery_state.reserve_balance,
-            FundSource::Insurance => lottery_state.insurance_balance,
-        }
-    );
+    msg!("  Balance before: {} USDC lamports", balance_before);
+    msg!("  Balance after: {} USDC lamports", balance_after);
     msg!("  Funds transferred to prize pool for prize distribution");
+    msg!("");
+    msg!("  📊 Current Fund Status:");
+    msg!(
+        "    Reserve balance: {} USDC lamports",
+        lottery_state.reserve_balance
+    );
+    msg!(
+        "    Insurance balance: {} USDC lamports",
+        lottery_state.insurance_balance
+    );
+    msg!(
+        "    Safety buffer (reserve + insurance): {} USDC lamports",
+        lottery_state.get_safety_buffer()
+    );
 
     Ok(())
 }
