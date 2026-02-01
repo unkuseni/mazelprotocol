@@ -465,7 +465,9 @@ System limits and validation parameters.
 
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `MAX_BULK_TICKETS` | `10` | Maximum tickets per bulk purchase |
+| `MAX_BULK_TICKETS` | `50` | Maximum tickets per bulk purchase (individual users) |
+| `MAX_SYNDICATE_BULK_TICKETS` | `150` | Maximum tickets per bulk purchase (syndicates) |
+| `MAX_TICKETS_PER_DRAW_PER_USER` | `5000` | Maximum tickets per draw per user |
 | `MAX_SYNDICATE_MEMBERS` | `100` | Maximum members per syndicate |
 | `MAX_NUMBER` | `46` | Maximum selectable number (main lottery) |
 | `MIN_NUMBER` | `1` | Minimum selectable number |

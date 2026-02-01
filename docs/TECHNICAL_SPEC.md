@@ -402,7 +402,9 @@ pub const SYNDICATE_WARS_POOL_BPS: u16 = 100;      // 1% of monthly sales
 pub const SYNDICATE_WARS_MIN_TICKETS: u64 = 1000;  // Minimum to qualify
 
 // Limits
-pub const MAX_BULK_TICKETS: usize = 10;
+pub const MAX_BULK_TICKETS: usize = 50;            // Max tickets per bulk purchase (individual)
+pub const MAX_SYNDICATE_BULK_TICKETS: usize = 150; // Max tickets per bulk purchase (syndicates)
+pub const MAX_TICKETS_PER_DRAW_PER_USER: u64 = 5000; // Max tickets per draw per user
 pub const MAX_SYNDICATE_MEMBERS: usize = 100;
 pub const MAX_NUMBER: u8 = 46;
 pub const MIN_NUMBER: u8 = 1;
@@ -1339,17 +1341,30 @@ fn validate_numbers(numbers: &[u8; 6]) -> Result<()> {
 
 #### `buy_bulk`
 
-Purchases multiple tickets in one transaction.
+Purchases multiple tickets in one transaction. Individual users can purchase up to 50 tickets per transaction, while syndicates can purchase up to 150 tickets per transaction. Tickets are stored in a unified ticket account for efficient storage and claiming.
 
 ```rust
 #[derive(Accounts)]
 pub struct BuyBulk<'info> {
-    // Same as BuyTicket, but ticket is remaining_accounts
     #[account(mut)]
     pub player: Signer<'info>,
     
     #[account(mut, seeds = [LOTTERY_SEED], bump = lottery_state.bump)]
     pub lottery_state: Account<'info, LotteryState>,
+    
+    #[account(
+        init,
+        payer = player,
+        space = UnifiedTicket::size_for_count(params.tickets.len()),
+        seeds = [
+            UNIFIED_TICKET_SEED,
+            player.key().as_ref(),
+            &lottery_state.current_draw_id.to_le_bytes(),
+            &lottery_state.current_draw_tickets.to_le_bytes()
+        ],
+        bump
+    )]
+    pub unified_ticket: Account<'info, UnifiedTicket>,
     
     #[account(mut)]
     pub player_usdc: Account<'info, TokenAccount>,
@@ -1367,13 +1382,66 @@ pub struct BuyBulk<'info> {
     
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
-    // Ticket accounts passed as remaining_accounts
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct BuyBulkParams {
-    /// Vector of ticket number sets (max 10)
+    /// Vector of ticket number sets (max 50 for individuals, 150 for syndicates)
     pub tickets: Vec<[u8; 6]>,
+}
+```
+
+#### `claim_bulk_prize`
+
+Claims prize for a specific ticket within a unified ticket account.
+
+```rust
+#[derive(Accounts)]
+pub struct ClaimBulkPrize<'info> {
+    #[account(mut)]
+    pub player: Signer<'info>,
+    
+    #[account(mut, seeds = [LOTTERY_SEED], bump = lottery_state.bump)]
+    pub lottery_state: Account<'info, LotteryState>,
+    
+    #[account(
+        mut,
+        constraint = unified_ticket.owner == player.key()
+    )]
+    pub unified_ticket: Account<'info, UnifiedTicket>,
+    
+    #[account(seeds = [DRAW_SEED, &unified_ticket.draw_id.to_le_bytes()], bump)]
+    pub draw_result: Account<'info, DrawResult>,
+    
+    #[account(mut)]
+    pub player_usdc: Account<'info, TokenAccount>,
+    
+    #[account(mut, seeds = [b"prize_pool_usdc"], bump)]
+    pub prize_pool_usdc: Account<'info, TokenAccount>,
+    
+    pub usdc_mint: Account<'info, Mint>,
+    
+    #[account(mut, seeds = [USER_SEED, player.key().as_ref()], bump)]
+    pub user_stats: Account<'info, UserStats>,
+    
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct ClaimBulkPrizeParams {
+    /// The index of the ticket within the unified ticket to claim (0-based)
+    pub ticket_index: u32,
+}
+```
+
+#### `claim_all_bulk_prizes`
+
+Claims all prizes from a unified ticket in one transaction. May fail for large unified tickets due to compute limits.
+
+```rust
+#[derive(Accounts)]
+pub struct ClaimAllBulkPrizes<'info> {
+    // Same accounts as ClaimBulkPrize, but no params needed
 }
 ```
 

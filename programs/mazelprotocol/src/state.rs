@@ -6,6 +6,7 @@
 use anchor_lang::prelude::*;
 
 use crate::constants::*;
+use crate::errors::LottoError;
 
 // ============================================================================
 // CORE STATE STRUCTURES
@@ -17,6 +18,9 @@ use crate::constants::*;
 pub struct LotteryState {
     /// Admin authority (multi-sig wallet recommended)
     pub authority: Pubkey,
+
+    /// Pending authority for two-step transfer (None if no transfer pending)
+    pub pending_authority: Option<Pubkey>,
 
     /// Switchboard queue for randomness requests
     pub switchboard_queue: Pubkey,
@@ -57,8 +61,14 @@ pub struct LotteryState {
     /// Unix timestamp of next scheduled draw
     pub next_draw_timestamp: i64,
 
+    /// Draw interval in seconds
+    pub draw_interval: i64,
+
     /// Slot when current randomness was committed
     pub commit_slot: u64,
+
+    /// Unix timestamp when randomness was committed (for timeout)
+    pub commit_timestamp: i64,
 
     /// Current draw ticket count
     pub current_draw_tickets: u64,
@@ -78,6 +88,9 @@ pub struct LotteryState {
     /// Whether the lottery is paused
     pub is_paused: bool,
 
+    /// Whether the lottery has been funded with initial seed
+    pub is_funded: bool,
+
     /// PDA bump seed
     pub bump: u8,
 }
@@ -88,6 +101,7 @@ impl LotteryState {
     /// Check if ticket sales are open for the current draw
     pub fn is_ticket_sale_open(&self, current_timestamp: i64) -> bool {
         !self.is_paused
+            && self.is_funded
             && !self.is_draw_in_progress
             && current_timestamp < self.next_draw_timestamp - TICKET_SALE_CUTOFF
     }
@@ -105,6 +119,23 @@ impl LotteryState {
     /// Calculate rolldown probability
     pub fn get_rolldown_probability_bps(&self) -> u16 {
         calculate_rolldown_probability_bps(self.jackpot_balance)
+    }
+
+    /// Check if the draw commit has timed out
+    /// Timeout is 1 hour (3600 seconds) after commit
+    pub fn is_commit_timed_out(&self, current_timestamp: i64) -> bool {
+        self.is_draw_in_progress
+            && self.commit_timestamp > 0
+            && current_timestamp > self.commit_timestamp + DRAW_COMMIT_TIMEOUT
+    }
+
+    /// Reset draw state (used for timeout recovery or after finalization)
+    pub fn reset_draw_state(&mut self) {
+        self.is_draw_in_progress = false;
+        self.is_rolldown_active = false;
+        self.commit_slot = 0;
+        self.commit_timestamp = 0;
+        self.current_randomness_account = Pubkey::default();
     }
 }
 
@@ -144,6 +175,9 @@ pub struct DrawResult {
     pub match_3_prize_per_winner: u64,
     pub match_2_prize_per_winner: u64,
 
+    /// Explicit flag set when draw is finalized (handles edge cases)
+    pub is_explicitly_finalized: bool,
+
     /// PDA bump seed
     pub bump: u8,
 }
@@ -151,7 +185,6 @@ pub struct DrawResult {
 impl DrawResult {
     pub const LEN: usize = DRAW_RESULT_SIZE;
 
-    /// Get prize amount for a given match count
     pub fn get_prize_for_matches(&self, match_count: u8) -> u64 {
         match match_count {
             6 => self.match_6_prize_per_winner,
@@ -161,6 +194,17 @@ impl DrawResult {
             2 => self.match_2_prize_per_winner,
             _ => 0,
         }
+    }
+
+    /// Check if the draw has been finalized (prizes calculated)
+    pub fn is_finalized(&self) -> bool {
+        // A draw is finalized if explicitly marked OR if any prize tier has prizes set
+        // This handles edge cases like rolldowns where only Match 3/4 have winners
+        self.is_explicitly_finalized
+            || self.match_6_prize_per_winner > 0
+            || self.match_5_prize_per_winner > 0
+            || self.match_4_prize_per_winner > 0
+            || self.match_3_prize_per_winner > 0
     }
 }
 
@@ -205,23 +249,23 @@ impl TicketData {
     }
 }
 
-/// User statistics account - tracks player history and achievements
+/// User statistics account - tracks player participation and achievements
 #[account]
 #[derive(Default)]
 pub struct UserStats {
-    /// User wallet address
+    /// User's wallet address
     pub wallet: Pubkey,
 
     /// Total tickets purchased (lifetime)
     pub total_tickets: u64,
 
-    /// Total USDC spent
+    /// Total USDC spent (lifetime)
     pub total_spent: u64,
 
-    /// Total USDC won
+    /// Total USDC won (lifetime)
     pub total_won: u64,
 
-    /// Current consecutive draw streak
+    /// Current consecutive draw participation streak
     pub current_streak: u32,
 
     /// Best streak achieved
@@ -230,8 +274,14 @@ pub struct UserStats {
     /// Number of jackpot wins
     pub jackpot_wins: u32,
 
-    /// Last draw user participated in
+    /// Last draw ID where user participated
     pub last_draw_participated: u64,
+
+    /// Number of tickets purchased in the current draw (for limit enforcement)
+    pub tickets_this_draw: u64,
+
+    /// Number of free tickets available (from Match 2 wins)
+    pub free_tickets_available: u32,
 
     /// PDA bump seed
     pub bump: u8,
@@ -242,8 +292,12 @@ impl UserStats {
 
     /// Update streak based on current draw
     pub fn update_streak(&mut self, current_draw_id: u64) {
-        if self.last_draw_participated == current_draw_id - 1 {
-            self.current_streak += 1;
+        // FIXED: Handle edge case where current_draw_id could be 0 or 1
+        if current_draw_id > 0
+            && self.last_draw_participated == current_draw_id.saturating_sub(1)
+            && self.last_draw_participated > 0
+        {
+            self.current_streak = self.current_streak.saturating_add(1);
             if self.current_streak > self.best_streak {
                 self.best_streak = self.current_streak;
             }
@@ -311,6 +365,9 @@ pub struct Syndicate {
     /// Manager fee (basis points, max 500 = 5%)
     pub manager_fee_bps: u16,
 
+    /// Syndicate's USDC token account (PDA-controlled)
+    pub usdc_account: Pubkey,
+
     /// List of members
     pub members: Vec<SyndicateMember>,
 
@@ -328,15 +385,12 @@ impl Syndicate {
     pub fn add_member(&mut self, wallet: Pubkey, contribution: u64) -> Result<()> {
         require!(
             (self.member_count as usize) < MAX_SYNDICATE_MEMBERS,
-            crate::errors::LottoError::SyndicateFull
+            LottoError::SyndicateFull
         );
 
         // Check if already a member
         for member in &self.members {
-            require!(
-                member.wallet != wallet,
-                crate::errors::LottoError::AlreadySyndicateMember
-            );
+            require!(member.wallet != wallet, LottoError::AlreadySyndicateMember);
         }
 
         self.members.push(SyndicateMember {
@@ -344,8 +398,8 @@ impl Syndicate {
             contribution,
             share_percentage_bps: 0, // Will be calculated
         });
-        self.total_contribution += contribution;
-        self.member_count += 1;
+        self.total_contribution = self.total_contribution.saturating_add(contribution);
+        self.member_count = self.member_count.saturating_add(1);
 
         // Recalculate shares
         self.recalculate_shares();
@@ -353,21 +407,103 @@ impl Syndicate {
         Ok(())
     }
 
+    /// Remove a member from the syndicate
+    /// Returns the member's contribution amount for refund
+    pub fn remove_member(&mut self, wallet: &Pubkey) -> Result<u64> {
+        let member_index = self
+            .members
+            .iter()
+            .position(|m| m.wallet == *wallet)
+            .ok_or(LottoError::NotSyndicateMember)?;
+
+        let contribution = self.members[member_index].contribution;
+
+        // Remove the member
+        self.members.remove(member_index);
+        self.member_count = self.member_count.saturating_sub(1);
+        self.total_contribution = self.total_contribution.saturating_sub(contribution);
+
+        // Recalculate shares
+        self.recalculate_shares();
+
+        Ok(contribution)
+    }
+
     /// Recalculate member shares based on contributions
+    /// FIXED: Ensures total shares always sum to exactly 10000 BPS
     pub fn recalculate_shares(&mut self) {
-        if self.total_contribution == 0 {
+        if self.members.is_empty() {
             return;
         }
 
-        for member in &mut self.members {
-            member.share_percentage_bps = ((member.contribution as u128 * BPS_DENOMINATOR as u128)
+        if self.total_contribution == 0 {
+            // If no contributions, distribute equally
+            // Use largest remainder method to ensure sum = 10000
+            let base_share = BPS_DENOMINATOR as u16 / self.member_count as u16;
+            let remainder = BPS_DENOMINATOR as u16 % self.member_count as u16;
+
+            for (i, member) in self.members.iter_mut().enumerate() {
+                // Give 1 extra BPS to the first 'remainder' members
+                member.share_percentage_bps = if (i as u16) < remainder {
+                    base_share + 1
+                } else {
+                    base_share
+                };
+            }
+            return;
+        }
+
+        // Calculate initial shares using integer division
+        let mut total_assigned: u16 = 0;
+        let mut shares: Vec<(usize, u16, u64)> = Vec::with_capacity(self.members.len());
+
+        for (i, member) in self.members.iter().enumerate() {
+            let share = ((member.contribution as u128 * BPS_DENOMINATOR as u128)
                 / self.total_contribution as u128) as u16;
+            shares.push((i, share, member.contribution));
+            total_assigned += share;
+        }
+
+        // Distribute remaining BPS to members with highest contributions
+        // This ensures the total always sums to exactly 10000
+        let mut remainder = BPS_DENOMINATOR as u16 - total_assigned;
+
+        if remainder > 0 {
+            // Sort by contribution descending to give remainder to largest contributors
+            shares.sort_by(|a, b| b.2.cmp(&a.2));
+
+            for (idx, share, _) in shares.iter_mut() {
+                if remainder == 0 {
+                    break;
+                }
+                *share += 1;
+                remainder -= 1;
+                // Update the actual member
+                self.members[*idx].share_percentage_bps = *share;
+            }
+
+            // For members not getting extra, set their calculated share
+            for (idx, share, _) in &shares {
+                if self.members[*idx].share_percentage_bps != *share {
+                    self.members[*idx].share_percentage_bps = *share;
+                }
+            }
+        } else {
+            // No remainder, just set the shares directly
+            for (idx, share, _) in &shares {
+                self.members[*idx].share_percentage_bps = *share;
+            }
         }
     }
 
     /// Find a member by wallet address
     pub fn find_member(&self, wallet: &Pubkey) -> Option<&SyndicateMember> {
         self.members.iter().find(|m| m.wallet == *wallet)
+    }
+
+    /// Find a member mutably by wallet address
+    pub fn find_member_mut(&mut self, wallet: &Pubkey) -> Option<&mut SyndicateMember> {
+        self.members.iter_mut().find(|m| m.wallet == *wallet)
     }
 }
 

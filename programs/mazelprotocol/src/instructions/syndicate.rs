@@ -3,16 +3,17 @@
 //! This module contains instructions for syndicate (group buying pool) management:
 //! - create_syndicate: Create a new syndicate pool
 //! - join_syndicate: Join an existing syndicate
+//! - leave_syndicate: Leave a syndicate and receive refund
+//! - close_syndicate: Close an empty syndicate
 //! - buy_syndicate_tickets: Purchase tickets for the entire syndicate
-//! - distribute_syndicate_prize: Distribute winnings to syndicate members
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::*;
 use crate::errors::LottoError;
-use crate::events::{SyndicateCreated, SyndicateMemberJoined};
-use crate::state::{Syndicate, SyndicateMember, UserStats};
+use crate::events::{BulkTicketsPurchased, SyndicateCreated, SyndicateMemberJoined};
+use crate::state::{LotteryState, Syndicate, SyndicateMember, TicketData, UserStats};
 
 // ============================================================================
 // CREATE SYNDICATE INSTRUCTION
@@ -53,6 +54,28 @@ pub struct CreateSyndicate<'info> {
     )]
     pub syndicate: Account<'info, Syndicate>,
 
+    /// Syndicate's USDC token account (PDA-controlled)
+    /// This holds all member contributions
+    #[account(
+        init,
+        payer = creator,
+        seeds = [
+            SYNDICATE_SEED,
+            b"usdc",
+            syndicate.key().as_ref()
+        ],
+        bump,
+        token::mint = usdc_mint,
+        token::authority = syndicate
+    )]
+    pub syndicate_usdc: Account<'info, TokenAccount>,
+
+    /// USDC mint
+    pub usdc_mint: Account<'info, anchor_spl::token::Mint>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+
     /// System program
     pub system_program: Program<'info, System>,
 }
@@ -81,8 +104,9 @@ impl<'info> CreateSyndicate<'info> {
 /// This instruction:
 /// 1. Validates the syndicate parameters
 /// 2. Creates the syndicate account PDA
-/// 3. Adds the creator as the first member
-/// 4. Sets up the syndicate configuration
+/// 3. Creates the syndicate's USDC token account
+/// 4. Adds the creator as the first member
+/// 5. Sets up the syndicate configuration
 ///
 /// # Arguments
 /// * `ctx` - The context containing required accounts
@@ -109,6 +133,7 @@ pub fn handler_create_syndicate(
     syndicate.member_count = 1; // Creator is first member
     syndicate.total_contribution = 0;
     syndicate.manager_fee_bps = params.manager_fee_bps;
+    syndicate.usdc_account = ctx.accounts.syndicate_usdc.key();
     syndicate.bump = ctx.bumps.syndicate;
 
     // Add creator as first member with 0 contribution
@@ -140,6 +165,7 @@ pub fn handler_create_syndicate(
     msg!("  Name: {}", name_str);
     msg!("  Is public: {}", params.is_public);
     msg!("  Manager fee: {} bps", params.manager_fee_bps);
+    msg!("  USDC account: {}", ctx.accounts.syndicate_usdc.key());
 
     Ok(())
 }
@@ -164,11 +190,10 @@ pub struct JoinSyndicate<'info> {
     pub member: Signer<'info>,
 
     /// The syndicate to join
+    /// Note: realloc is handled conditionally in the handler to avoid
+    /// unnecessary space allocation when existing members add contributions
     #[account(
         mut,
-        realloc = Syndicate::size_for_members(syndicate.member_count as usize + 1),
-        realloc::payer = member,
-        realloc::zero = false,
         constraint = syndicate.is_public || syndicate.creator == member.key() @ LottoError::SyndicatePrivate,
         constraint = (syndicate.member_count as usize) < MAX_SYNDICATE_MEMBERS @ LottoError::SyndicateFull
     )]
@@ -183,7 +208,16 @@ pub struct JoinSyndicate<'info> {
     pub member_usdc: Account<'info, TokenAccount>,
 
     /// Syndicate's USDC token account (destination for contribution)
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            b"usdc",
+            syndicate.key().as_ref()
+        ],
+        bump,
+        constraint = syndicate_usdc.key() == syndicate.usdc_account @ LottoError::InvalidTokenAccount
+    )]
     pub syndicate_usdc: Account<'info, TokenAccount>,
 
     /// User stats account (for eligibility checks)
@@ -226,8 +260,11 @@ impl<'info> JoinSyndicate<'info> {
 /// 1. Validates the syndicate is joinable (public or creator)
 /// 2. Validates the syndicate has space for new members
 /// 3. Transfers USDC contribution from member to syndicate
-/// 4. Adds the member to the syndicate
+/// 4. Adds the member to the syndicate (or updates existing contribution)
 /// 5. Recalculates all member shares
+///
+/// FIXED: Account reallocation only happens for new members, not when
+/// existing members add more contribution. This saves rent costs.
 ///
 /// # Arguments
 /// * `ctx` - The context containing required accounts
@@ -253,6 +290,42 @@ pub fn handler_join_syndicate(
         .iter()
         .any(|m| m.wallet == member_key);
 
+    // FIXED: Only reallocate if this is a new member
+    // Existing members adding contribution don't need more space
+    if !is_existing_member {
+        let new_size =
+            Syndicate::size_for_members(ctx.accounts.syndicate.member_count as usize + 1);
+        let current_size = ctx.accounts.syndicate.to_account_info().data_len();
+
+        if new_size > current_size {
+            // Calculate additional rent needed
+            let rent = Rent::get()?;
+            let new_minimum_balance = rent.minimum_balance(new_size);
+            let current_balance = ctx.accounts.syndicate.to_account_info().lamports();
+            let lamports_diff = new_minimum_balance.saturating_sub(current_balance);
+
+            // Transfer lamports for rent if needed
+            if lamports_diff > 0 {
+                let cpi_context = CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.member.to_account_info(),
+                        to: ctx.accounts.syndicate.to_account_info(),
+                    },
+                );
+                anchor_lang::system_program::transfer(cpi_context, lamports_diff)?;
+            }
+
+            // Reallocate account data using resize (realloc is deprecated)
+            ctx.accounts
+                .syndicate
+                .to_account_info()
+                .realloc(new_size, false)?;
+            // Note: resize() is the recommended method but realloc() still works
+            // In newer Anchor versions, use: .resize(new_size, false)?;
+        }
+    }
+
     // Transfer contribution first (before mutable borrow of syndicate)
     if params.contribution > 0 {
         ctx.accounts.transfer_contribution(params.contribution)?;
@@ -262,7 +335,7 @@ pub fn handler_join_syndicate(
     let syndicate = &mut ctx.accounts.syndicate;
 
     if is_existing_member {
-        // If existing member, add to their contribution
+        // If existing member, add to their contribution (no realloc needed)
         for member in syndicate.members.iter_mut() {
             if member.wallet == member_key {
                 member.contribution = member
@@ -273,7 +346,7 @@ pub fn handler_join_syndicate(
             }
         }
     } else {
-        // New member
+        // New member (space already reallocated above)
         syndicate.members.push(SyndicateMember {
             wallet: member_key,
             contribution: params.contribution,
@@ -356,7 +429,16 @@ pub struct LeaveSyndicate<'info> {
     pub member_usdc: Account<'info, TokenAccount>,
 
     /// Syndicate's USDC token account (source of refund)
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            b"usdc",
+            syndicate.key().as_ref()
+        ],
+        bump,
+        constraint = syndicate_usdc.key() == syndicate.usdc_account @ LottoError::InvalidTokenAccount
+    )]
     pub syndicate_usdc: Account<'info, TokenAccount>,
 
     /// Token program
@@ -371,7 +453,7 @@ pub struct LeaveSyndicate<'info> {
 /// This instruction:
 /// 1. Validates the member is part of the syndicate
 /// 2. Calculates the refund amount based on contribution
-/// 3. Transfers USDC refund to member
+/// 3. Transfers USDC refund from syndicate to member
 /// 4. Removes the member from the syndicate
 /// 5. Recalculates remaining member shares
 ///
@@ -386,36 +468,56 @@ pub fn handler_leave_syndicate(ctx: Context<LeaveSyndicate>) -> Result<()> {
     let member_key = ctx.accounts.member.key();
     let syndicate_key = ctx.accounts.syndicate.key();
 
-    let syndicate = &mut ctx.accounts.syndicate;
+    // Get the syndicate info needed for PDA signer seeds
+    let syndicate_creator = ctx.accounts.syndicate.creator;
+    let syndicate_id = ctx.accounts.syndicate.syndicate_id;
+    let syndicate_bump = ctx.accounts.syndicate.bump;
 
-    // Find the member
-    let member_index = syndicate
-        .members
-        .iter()
-        .position(|m| m.wallet == member_key)
-        .ok_or(LottoError::NotSyndicateMember)?;
+    // Use the remove_member helper to get contribution and update state
+    let contribution = ctx.accounts.syndicate.remove_member(&member_key)?;
 
-    let contribution = syndicate.members[member_index].contribution;
+    let remaining_members = ctx.accounts.syndicate.member_count;
 
-    // Remove the member
-    syndicate.members.remove(member_index);
-    syndicate.member_count = syndicate.member_count.saturating_sub(1);
-    syndicate.total_contribution = syndicate.total_contribution.saturating_sub(contribution);
+    // FIXED: Actually transfer the contribution back to the member
+    if contribution > 0 {
+        // Verify syndicate has enough balance
+        require!(
+            ctx.accounts.syndicate_usdc.amount >= contribution,
+            LottoError::InsufficientTokenBalance
+        );
 
-    // Recalculate shares
-    syndicate.recalculate_shares();
+        // Create signer seeds for the syndicate PDA
+        let seeds = &[
+            SYNDICATE_SEED,
+            syndicate_creator.as_ref(),
+            &syndicate_id.to_le_bytes(),
+            &[syndicate_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
 
-    let remaining_members = syndicate.member_count;
+        // Transfer refund from syndicate to member
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.syndicate_usdc.to_account_info(),
+            to: ctx.accounts.member_usdc.to_account_info(),
+            authority: ctx.accounts.syndicate.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
-    // Note: In a full implementation, you would transfer the contribution back
-    // This requires the syndicate to have authority over its USDC account
-    // For now, we just log the refund amount
+        token::transfer(cpi_ctx, contribution)?;
+
+        msg!("Refund transferred successfully!");
+    }
 
     msg!("Member left syndicate!");
     msg!("  Syndicate: {}", syndicate_key);
     msg!("  Member: {}", member_key);
     msg!("  Refund amount: {} USDC lamports", contribution);
     msg!("  Remaining members: {}", remaining_members);
+    msg!(
+        "  Remaining contribution pool: {} USDC lamports",
+        ctx.accounts.syndicate.total_contribution
+    );
 
     Ok(())
 }
@@ -439,6 +541,29 @@ pub struct CloseSyndicate<'info> {
         constraint = syndicate.member_count <= 1 @ LottoError::SyndicateFull // Only creator left
     )]
     pub syndicate: Account<'info, Syndicate>,
+
+    /// Creator's USDC token account (to receive remaining funds)
+    #[account(
+        mut,
+        constraint = creator_usdc.owner == creator.key() @ LottoError::TokenAccountOwnerMismatch
+    )]
+    pub creator_usdc: Account<'info, TokenAccount>,
+
+    /// Syndicate's USDC token account (will be closed)
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            b"usdc",
+            syndicate.key().as_ref()
+        ],
+        bump,
+        constraint = syndicate_usdc.key() == syndicate.usdc_account @ LottoError::InvalidTokenAccount
+    )]
+    pub syndicate_usdc: Account<'info, TokenAccount>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
 }
 
 /// Close a syndicate
@@ -446,7 +571,18 @@ pub struct CloseSyndicate<'info> {
 /// This instruction:
 /// 1. Validates the caller is the creator
 /// 2. Validates all other members have left
-/// 3. Closes the syndicate account and returns rent to creator
+/// 3. Transfers any remaining USDC to creator
+/// 4. Closes the syndicate USDC account
+/// 5. Closes the syndicate account and returns rent to creator
+///
+/// # Dust Handling
+/// Any remaining USDC in the syndicate account goes to the creator.
+/// This should only be the creator's own contribution or small amounts
+/// from rounding during ticket purchases. All other members should have
+/// received their full refund when leaving.
+///
+/// If significant funds remain (indicating a bug or failed refunds),
+/// consider using withdraw_creator_contribution first to verify amounts.
 ///
 /// # Arguments
 /// * `ctx` - The context containing required accounts
@@ -454,11 +590,585 @@ pub struct CloseSyndicate<'info> {
 /// # Returns
 /// * `Result<()>` - Success or error
 pub fn handler_close_syndicate(ctx: Context<CloseSyndicate>) -> Result<()> {
+    let syndicate_key = ctx.accounts.syndicate.key();
+    let syndicate_creator = ctx.accounts.syndicate.creator;
+    let syndicate_id = ctx.accounts.syndicate.syndicate_id;
+    let syndicate_bump = ctx.accounts.syndicate.bump;
+    let remaining_balance = ctx.accounts.syndicate_usdc.amount;
+
+    // Get creator's recorded contribution for comparison
+    let creator_contribution = ctx
+        .accounts
+        .syndicate
+        .find_member(&syndicate_creator)
+        .map(|m| m.contribution)
+        .unwrap_or(0);
+
+    // FIXED: Warn if remaining balance exceeds creator's contribution (potential unfairness)
+    let excess_funds = remaining_balance.saturating_sub(creator_contribution);
+    if excess_funds > 0 {
+        msg!(
+            "⚠️  WARNING: Remaining balance ({}) exceeds creator contribution ({}).",
+            remaining_balance,
+            creator_contribution
+        );
+        msg!(
+            "    Excess of {} USDC lamports may be from failed refunds or rounding.",
+            excess_funds
+        );
+        msg!("    All funds will be transferred to creator.");
+    }
+
+    // Transfer any remaining USDC to creator
+    if remaining_balance > 0 {
+        let seeds = &[
+            SYNDICATE_SEED,
+            syndicate_creator.as_ref(),
+            &syndicate_id.to_le_bytes(),
+            &[syndicate_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.syndicate_usdc.to_account_info(),
+            to: ctx.accounts.creator_usdc.to_account_info(),
+            authority: ctx.accounts.syndicate.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+
+        token::transfer(cpi_ctx, remaining_balance)?;
+
+        msg!(
+            "Transferred remaining {} USDC lamports to creator",
+            remaining_balance
+        );
+        if excess_funds > 0 {
+            msg!(
+                "  (includes {} excess beyond creator's tracked contribution)",
+                excess_funds
+            );
+        }
+    }
+
+    // Close the syndicate USDC token account
+    let seeds = &[
+        SYNDICATE_SEED,
+        syndicate_creator.as_ref(),
+        &syndicate_id.to_le_bytes(),
+        &[syndicate_bump],
+    ];
+    let signer_seeds = &[&seeds[..]];
+
+    let cpi_accounts = token::CloseAccount {
+        account: ctx.accounts.syndicate_usdc.to_account_info(),
+        destination: ctx.accounts.creator.to_account_info(),
+        authority: ctx.accounts.syndicate.to_account_info(),
+    };
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+
+    token::close_account(cpi_ctx)?;
+
     msg!("Syndicate closed!");
-    msg!("  Syndicate: {}", ctx.accounts.syndicate.key());
+    msg!("  Syndicate: {}", syndicate_key);
     msg!("  Creator: {}", ctx.accounts.creator.key());
+    msg!(
+        "  Final balance transferred: {} USDC lamports",
+        remaining_balance
+    );
 
     // Account closure is handled automatically by the `close` constraint
+
+    Ok(())
+}
+
+// ============================================================================
+// WITHDRAW CREATOR CONTRIBUTION
+// ============================================================================
+
+/// Accounts required for creator to withdraw their contribution
+#[derive(Accounts)]
+pub struct WithdrawCreatorContribution<'info> {
+    /// The creator withdrawing their contribution
+    #[account(mut)]
+    pub creator: Signer<'info>,
+
+    /// The syndicate
+    #[account(
+        mut,
+        constraint = syndicate.creator == creator.key() @ LottoError::Unauthorized
+    )]
+    pub syndicate: Account<'info, Syndicate>,
+
+    /// Creator's USDC token account (to receive withdrawal)
+    #[account(
+        mut,
+        constraint = creator_usdc.owner == creator.key() @ LottoError::TokenAccountOwnerMismatch
+    )]
+    pub creator_usdc: Account<'info, TokenAccount>,
+
+    /// Syndicate's USDC token account
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            b"usdc",
+            syndicate.key().as_ref()
+        ],
+        bump,
+        constraint = syndicate_usdc.key() == syndicate.usdc_account @ LottoError::InvalidTokenAccount
+    )]
+    pub syndicate_usdc: Account<'info, TokenAccount>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+}
+
+/// Allow creator to withdraw their own contribution
+///
+/// The creator cannot leave the syndicate, but they can withdraw their
+/// contribution amount. This is useful if the creator wants to reduce
+/// their stake without abandoning the syndicate.
+///
+/// # Arguments
+/// * `ctx` - The context containing required accounts
+/// * `amount` - Amount to withdraw (must be <= creator's contribution)
+///
+/// # Returns
+/// * `Result<()>` - Success or error
+pub fn handler_withdraw_creator_contribution(
+    ctx: Context<WithdrawCreatorContribution>,
+    amount: u64,
+) -> Result<()> {
+    let creator_key = ctx.accounts.creator.key();
+    let syndicate_key = ctx.accounts.syndicate.key();
+
+    // Find creator's contribution
+    let creator_contribution = ctx
+        .accounts
+        .syndicate
+        .find_member(&creator_key)
+        .map(|m| m.contribution)
+        .ok_or(LottoError::NotSyndicateMember)?;
+
+    // Validate withdrawal amount
+    require!(amount > 0, LottoError::InvalidSeedAmount);
+    require!(
+        amount <= creator_contribution,
+        LottoError::InsufficientFunds
+    );
+    require!(
+        ctx.accounts.syndicate_usdc.amount >= amount,
+        LottoError::InsufficientTokenBalance
+    );
+
+    // Get syndicate info for signer seeds
+    let syndicate_creator = ctx.accounts.syndicate.creator;
+    let syndicate_id = ctx.accounts.syndicate.syndicate_id;
+    let syndicate_bump = ctx.accounts.syndicate.bump;
+
+    // Update creator's contribution in syndicate
+    let syndicate = &mut ctx.accounts.syndicate;
+    if let Some(member) = syndicate.find_member_mut(&creator_key) {
+        member.contribution = member.contribution.saturating_sub(amount);
+    }
+    syndicate.total_contribution = syndicate.total_contribution.saturating_sub(amount);
+    syndicate.recalculate_shares();
+
+    // Transfer USDC to creator
+    let seeds = &[
+        SYNDICATE_SEED,
+        syndicate_creator.as_ref(),
+        &syndicate_id.to_le_bytes(),
+        &[syndicate_bump],
+    ];
+    let signer_seeds = &[&seeds[..]];
+
+    let cpi_accounts = Transfer {
+        from: ctx.accounts.syndicate_usdc.to_account_info(),
+        to: ctx.accounts.creator_usdc.to_account_info(),
+        authority: ctx.accounts.syndicate.to_account_info(),
+    };
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+
+    token::transfer(cpi_ctx, amount)?;
+
+    msg!("Creator contribution withdrawn!");
+    msg!("  Syndicate: {}", syndicate_key);
+    msg!("  Amount withdrawn: {} USDC lamports", amount);
+    msg!(
+        "  Remaining creator contribution: {} USDC lamports",
+        creator_contribution - amount
+    );
+    msg!(
+        "  Total syndicate contribution: {} USDC lamports",
+        ctx.accounts.syndicate.total_contribution
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// BUY SYNDICATE TICKETS INSTRUCTION
+// ============================================================================
+
+/// Parameters for buying syndicate tickets
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct BuySyndicateTicketsParams {
+    /// Array of ticket numbers (each ticket has 6 numbers)
+    pub tickets: Vec<[u8; 6]>,
+}
+
+/// Accounts required for buying syndicate tickets
+#[derive(Accounts)]
+#[instruction(params: BuySyndicateTicketsParams)]
+pub struct BuySyndicateTickets<'info> {
+    /// The syndicate creator initiating the purchase (only creator can buy for syndicate)
+    #[account(mut)]
+    pub creator: Signer<'info>,
+
+    /// The syndicate account
+    #[account(
+        mut,
+        constraint = syndicate.creator == creator.key() @ LottoError::Unauthorized
+    )]
+    pub syndicate: Account<'info, Syndicate>,
+
+    /// The main lottery state account
+    #[account(
+        mut,
+        seeds = [LOTTERY_SEED],
+        bump = lottery_state.bump,
+        constraint = !lottery_state.is_paused @ LottoError::Paused,
+        constraint = lottery_state.is_funded @ LottoError::LotteryNotInitialized,
+        constraint = !lottery_state.is_draw_in_progress @ LottoError::DrawInProgress
+    )]
+    pub lottery_state: Account<'info, LotteryState>,
+
+    /// Syndicate's USDC token account (source of funds)
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            b"usdc",
+            syndicate.key().as_ref()
+        ],
+        bump,
+        constraint = syndicate_usdc.key() == syndicate.usdc_account @ LottoError::InvalidTokenAccount
+    )]
+    pub syndicate_usdc: Account<'info, TokenAccount>,
+
+    /// Prize pool USDC token account
+    #[account(
+        mut,
+        seeds = [PRIZE_POOL_USDC_SEED],
+        bump
+    )]
+    pub prize_pool_usdc: Account<'info, TokenAccount>,
+
+    /// House fee USDC token account
+    #[account(
+        mut,
+        seeds = [HOUSE_FEE_USDC_SEED],
+        bump
+    )]
+    pub house_fee_usdc: Account<'info, TokenAccount>,
+
+    /// USDC mint
+    pub usdc_mint: Account<'info, Mint>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+
+    /// System program
+    pub system_program: Program<'info, System>,
+}
+
+/// Validate ticket numbers
+fn validate_ticket_numbers(numbers: &[u8; 6]) -> Result<()> {
+    // Check range for each number
+    for &num in numbers.iter() {
+        require!(
+            num >= MIN_NUMBER && num <= MAX_NUMBER,
+            LottoError::NumbersOutOfRange
+        );
+    }
+
+    // Check for duplicates by sorting and comparing adjacent
+    let mut sorted = *numbers;
+    sorted.sort();
+    for i in 0..5 {
+        require!(sorted[i] != sorted[i + 1], LottoError::DuplicateNumbers);
+    }
+
+    Ok(())
+}
+
+/// Buy tickets for the syndicate using pooled funds
+///
+/// This instruction:
+/// 1. Validates the caller is the syndicate creator
+/// 2. Validates all ticket numbers
+/// 3. Checks syndicate has sufficient funds
+/// 4. Calculates fees and transfers USDC from syndicate to prize pool and house fee
+/// 5. Creates ticket accounts for each ticket (owned by syndicate)
+/// 6. Updates lottery state
+///
+/// Note: Ticket accounts need to be created in separate transactions due to
+/// account creation limits. This instruction handles the fund transfer only.
+///
+/// # Arguments
+/// * `ctx` - The context containing required accounts
+/// * `params` - Ticket numbers to purchase
+///
+/// # Returns
+/// * `Result<()>` - Success or error
+pub fn handler_buy_syndicate_tickets(
+    ctx: Context<BuySyndicateTickets>,
+    params: BuySyndicateTicketsParams,
+) -> Result<()> {
+    let clock = Clock::get()?;
+
+    // Validate ticket count
+    let ticket_count = params.tickets.len();
+    require!(ticket_count > 0, LottoError::EmptyTicketArray);
+    require!(
+        ticket_count <= MAX_SYNDICATE_BULK_TICKETS,
+        LottoError::BulkPurchaseLimitExceeded
+    );
+
+    // Validate all ticket numbers
+    for ticket in &params.tickets {
+        validate_ticket_numbers(ticket)?;
+    }
+
+    // Get lottery state values
+    let ticket_price = ctx.accounts.lottery_state.ticket_price;
+    let next_draw_timestamp = ctx.accounts.lottery_state.next_draw_timestamp;
+    let current_draw_id = ctx.accounts.lottery_state.current_draw_id;
+    let house_fee_bps = ctx.accounts.lottery_state.get_current_house_fee_bps();
+
+    // Check if ticket sales are open
+    require!(
+        clock.unix_timestamp < next_draw_timestamp - TICKET_SALE_CUTOFF,
+        LottoError::TicketSaleEnded
+    );
+
+    // Calculate total cost
+    let total_cost = ticket_price
+        .checked_mul(ticket_count as u64)
+        .ok_or(LottoError::Overflow)?;
+
+    // Verify syndicate has sufficient funds
+    require!(
+        ctx.accounts.syndicate_usdc.amount >= total_cost,
+        LottoError::InsufficientFunds
+    );
+
+    // Calculate fees
+    let total_house_fee =
+        (total_cost as u128 * house_fee_bps as u128 / BPS_DENOMINATOR as u128) as u64;
+    let total_prize_pool = total_cost.saturating_sub(total_house_fee);
+
+    // Get syndicate signer seeds
+    let syndicate_creator = ctx.accounts.syndicate.creator;
+    let syndicate_id = ctx.accounts.syndicate.syndicate_id;
+    let syndicate_bump = ctx.accounts.syndicate.bump;
+
+    let seeds = &[
+        SYNDICATE_SEED,
+        syndicate_creator.as_ref(),
+        &syndicate_id.to_le_bytes(),
+        &[syndicate_bump],
+    ];
+    let signer_seeds = &[&seeds[..]];
+
+    // Transfer house fee from syndicate to house fee account
+    if total_house_fee > 0 {
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.syndicate_usdc.to_account_info(),
+            to: ctx.accounts.house_fee_usdc.to_account_info(),
+            authority: ctx.accounts.syndicate.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        token::transfer(cpi_ctx, total_house_fee)?;
+    }
+
+    // Transfer prize pool amount from syndicate to prize pool
+    if total_prize_pool > 0 {
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.syndicate_usdc.to_account_info(),
+            to: ctx.accounts.prize_pool_usdc.to_account_info(),
+            authority: ctx.accounts.syndicate.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        token::transfer(cpi_ctx, total_prize_pool)?;
+    }
+
+    // Update syndicate total contribution (deduct spent amount)
+    let syndicate = &mut ctx.accounts.syndicate;
+    syndicate.total_contribution = syndicate.total_contribution.saturating_sub(total_cost);
+
+    // Calculate jackpot and reserve contributions
+    let jackpot_contribution = (total_prize_pool as u128 * JACKPOT_ALLOCATION_BPS as u128
+        / BPS_DENOMINATOR as u128) as u64;
+    let reserve_contribution = (total_prize_pool as u128 * RESERVE_ALLOCATION_BPS as u128
+        / BPS_DENOMINATOR as u128) as u64;
+
+    // Update lottery state
+    let lottery_state = &mut ctx.accounts.lottery_state;
+    lottery_state.jackpot_balance = lottery_state
+        .jackpot_balance
+        .checked_add(jackpot_contribution)
+        .ok_or(LottoError::Overflow)?;
+    lottery_state.reserve_balance = lottery_state
+        .reserve_balance
+        .checked_add(reserve_contribution)
+        .ok_or(LottoError::Overflow)?;
+    lottery_state.current_draw_tickets = lottery_state
+        .current_draw_tickets
+        .checked_add(ticket_count as u64)
+        .ok_or(LottoError::Overflow)?;
+    lottery_state.total_tickets_sold = lottery_state
+        .total_tickets_sold
+        .checked_add(ticket_count as u64)
+        .ok_or(LottoError::Overflow)?;
+
+    // Update house fee based on new jackpot level
+    lottery_state.house_fee_bps = lottery_state.get_current_house_fee_bps();
+
+    // Check if rolldown should be pending
+    if lottery_state.jackpot_balance >= lottery_state.soft_cap {
+        lottery_state.is_rolldown_active = true;
+    }
+
+    let syndicate_key = ctx.accounts.syndicate.key();
+
+    // Emit event
+    emit!(BulkTicketsPurchased {
+        player: ctx.accounts.creator.key(),
+        draw_id: current_draw_id,
+        ticket_count: ticket_count as u32,
+        total_price: total_cost,
+        syndicate: Some(syndicate_key),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!("Syndicate tickets purchased successfully!");
+    msg!("  Syndicate: {}", syndicate_key);
+    msg!("  Ticket count: {}", ticket_count);
+    msg!("  Total cost: {} USDC lamports", total_cost);
+    msg!("  House fee: {} USDC lamports", total_house_fee);
+    msg!(
+        "  Prize pool contribution: {} USDC lamports",
+        total_prize_pool
+    );
+    msg!(
+        "  Remaining syndicate funds: {} USDC lamports",
+        ctx.accounts.syndicate.total_contribution
+    );
+    msg!(
+        "  NOTE: Individual ticket accounts must be created separately via create_syndicate_ticket"
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// CREATE SYNDICATE TICKET INSTRUCTION
+// ============================================================================
+
+/// Accounts required for creating a single syndicate ticket account
+#[derive(Accounts)]
+#[instruction(numbers: [u8; 6])]
+pub struct CreateSyndicateTicket<'info> {
+    /// The payer for the ticket account (typically syndicate creator)
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    /// The syndicate that owns the ticket
+    #[account(
+        constraint = syndicate.creator == payer.key() @ LottoError::Unauthorized
+    )]
+    pub syndicate: Account<'info, Syndicate>,
+
+    /// The lottery state account
+    #[account(
+        mut,
+        seeds = [LOTTERY_SEED],
+        bump = lottery_state.bump
+    )]
+    pub lottery_state: Account<'info, LotteryState>,
+
+    /// The ticket account to be created
+    #[account(
+        init,
+        payer = payer,
+        space = TICKET_SIZE,
+        seeds = [
+            TICKET_SEED,
+            &lottery_state.current_draw_id.to_le_bytes(),
+            &lottery_state.current_draw_tickets.to_le_bytes()
+        ],
+        bump
+    )]
+    pub ticket: Account<'info, TicketData>,
+
+    /// System program
+    pub system_program: Program<'info, System>,
+}
+
+/// Create a single ticket account for a syndicate
+///
+/// This is called after buy_syndicate_tickets to create individual ticket accounts.
+/// The funds have already been transferred; this just creates the account records.
+///
+/// # Arguments
+/// * `ctx` - The context containing required accounts
+/// * `numbers` - The 6 numbers for this ticket
+///
+/// # Returns
+/// * `Result<()>` - Success or error
+pub fn handler_create_syndicate_ticket(
+    ctx: Context<CreateSyndicateTicket>,
+    numbers: [u8; 6],
+) -> Result<()> {
+    let clock = Clock::get()?;
+
+    // Validate numbers
+    validate_ticket_numbers(&numbers)?;
+
+    // Sort numbers for consistent storage
+    let mut sorted_numbers = numbers;
+    sorted_numbers.sort();
+
+    let current_draw_id = ctx.accounts.lottery_state.current_draw_id;
+    let syndicate_key = ctx.accounts.syndicate.key();
+
+    // Create ticket
+    let ticket = &mut ctx.accounts.ticket;
+    ticket.owner = syndicate_key; // Syndicate owns the ticket
+    ticket.draw_id = current_draw_id;
+    ticket.numbers = sorted_numbers;
+    ticket.purchase_timestamp = clock.unix_timestamp;
+    ticket.is_claimed = false;
+    ticket.match_count = 0;
+    ticket.prize_amount = 0;
+    ticket.syndicate = Some(syndicate_key);
+    ticket.bump = ctx.bumps.ticket;
+
+    // Note: lottery_state.current_draw_tickets is NOT incremented here
+    // because it was already incremented in buy_syndicate_tickets
+    // This instruction only creates the account record
+
+    msg!("Syndicate ticket created!");
+    msg!("  Ticket: {}", ctx.accounts.ticket.key());
+    msg!("  Syndicate: {}", syndicate_key);
+    msg!("  Numbers: {:?}", sorted_numbers);
 
     Ok(())
 }

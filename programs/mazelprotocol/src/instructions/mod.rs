@@ -11,6 +11,12 @@ pub mod initialize;
 // Ticket purchase
 pub mod buy_ticket;
 
+// Bulk ticket purchase
+pub mod buy_bulk;
+
+// Bulk prize claiming
+pub mod claim_bulk_prize;
+
 // Randomness commit (Switchboard integration)
 pub mod commit_randomness;
 
@@ -26,17 +32,30 @@ pub mod claim_prize;
 // Syndicate management
 pub mod syndicate;
 
-// Re-export account structs and params
+// Re-export account structs and params from admin
 pub use admin::{
-    Pause, TransferAuthority, Unpause, UpdateConfig, UpdateConfigParams, WithdrawHouseFees,
+    AcceptAuthority, CancelAuthorityTransfer, CancelDraw, ForceFinalizeDraw, Pause,
+    ProposeAuthority, TransferAuthority, Unpause, UpdateConfig, UpdateConfigParams,
+    WithdrawHouseFees,
 };
+
+// Re-export account structs and params from initialize
+pub use initialize::{AddReserveFunds, FundSeed, Initialize, InitializeParams};
+
+// Re-export account structs and params from ticket operations
+pub use buy_bulk::{BuyBulk, BuyBulkParams};
 pub use buy_ticket::{BuyTicket, BuyTicketParams};
+pub use claim_bulk_prize::{ClaimAllBulkPrizes, ClaimBulkPrize, ClaimBulkPrizeParams};
 pub use claim_prize::ClaimPrize;
+
+// Re-export account structs from randomness and draw operations
 pub use commit_randomness::CommitRandomness;
 pub use execute_draw::ExecuteDraw;
 pub use finalize_draw::{FinalizeDraw, FinalizeDrawParams};
-pub use initialize::{Initialize, InitializeParams};
+
+// Re-export account structs and params from syndicate operations
 pub use syndicate::{
-    CloseSyndicate, CreateSyndicate, CreateSyndicateParams, JoinSyndicate, JoinSyndicateParams,
-    LeaveSyndicate,
+    BuySyndicateTickets, BuySyndicateTicketsParams, CloseSyndicate, CreateSyndicate,
+    CreateSyndicateParams, CreateSyndicateTicket, JoinSyndicate, JoinSyndicateParams,
+    LeaveSyndicate, WithdrawCreatorContribution,
 };

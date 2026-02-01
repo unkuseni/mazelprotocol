@@ -25,6 +25,8 @@ pub const LUCKY_NUMBERS_SEED: &[u8] = b"lucky_numbers";
 pub const QUICK_PICK_SEED: &[u8] = b"quick_pick";
 /// PDA seed for syndicate wars
 pub const SYNDICATE_WARS_SEED: &[u8] = b"syndicate_wars";
+/// PDA seed for unified ticket accounts (bulk purchases)
+pub const UNIFIED_TICKET_SEED: &[u8] = b"unified_ticket";
 /// PDA seed for prize pool USDC token account
 pub const PRIZE_POOL_USDC_SEED: &[u8] = b"prize_pool_usdc";
 /// PDA seed for house fee USDC token account
@@ -53,6 +55,14 @@ pub const DRAW_INTERVAL: i64 = 86400;
 
 /// Time before draw when ticket sales close (1 hour before draw)
 pub const TICKET_SALE_CUTOFF: i64 = 3600;
+
+/// Timeout for draw commit (1 hour) - if reveal doesn't happen, draw can be cancelled
+pub const DRAW_COMMIT_TIMEOUT: i64 = 3600;
+
+/// Ticket claim expiration period (90 days in seconds)
+/// After this period from draw execution, tickets can no longer be claimed
+/// Set to 0 to disable expiration (tickets can be claimed forever)
+pub const TICKET_CLAIM_EXPIRATION: i64 = 90 * 24 * 60 * 60; // 90 days
 
 // ============================================================================
 // DYNAMIC FEE TIERS
@@ -188,8 +198,10 @@ pub const SYNDICATE_WARS_MIN_TICKETS: u64 = 1000;
 // SYSTEM LIMITS
 // ============================================================================
 
-/// Maximum tickets per bulk purchase
-pub const MAX_BULK_TICKETS: usize = 10;
+/// Maximum tickets per bulk purchase for individual users
+pub const MAX_BULK_TICKETS: usize = 50;
+/// Maximum tickets per bulk purchase for syndicates
+pub const MAX_SYNDICATE_BULK_TICKETS: usize = 150;
 /// Maximum members per syndicate
 pub const MAX_SYNDICATE_MEMBERS: usize = 100;
 /// Maximum syndicate name length (UTF-8 bytes)
@@ -197,7 +209,7 @@ pub const MAX_SYNDICATE_NAME_LENGTH: usize = 32;
 /// Maximum manager fee for syndicates: 5%
 pub const MAX_MANAGER_FEE_BPS: u16 = 500;
 /// Maximum tickets per draw per user
-pub const MAX_TICKETS_PER_DRAW_PER_USER: u64 = 1000;
+pub const MAX_TICKETS_PER_DRAW_PER_USER: u64 = 5000;
 /// Basis points denominator
 pub const BPS_DENOMINATOR: u64 = 10000;
 
@@ -208,6 +220,7 @@ pub const BPS_DENOMINATOR: u64 = 10000;
 /// LotteryState account size
 pub const LOTTERY_STATE_SIZE: usize = 8 + // discriminator
     32 + // authority
+    33 + // pending_authority (Option<Pubkey>)
     32 + // switchboard_queue
     32 + // current_randomness_account
     8 +  // current_draw_id
@@ -221,13 +234,16 @@ pub const LOTTERY_STATE_SIZE: usize = 8 + // discriminator
     8 +  // soft_cap
     8 +  // hard_cap
     8 +  // next_draw_timestamp
+    8 +  // draw_interval
     8 +  // commit_slot
+    8 +  // commit_timestamp
     8 +  // current_draw_tickets
     8 +  // total_tickets_sold
     8 +  // total_prizes_paid
     1 +  // is_draw_in_progress
     1 +  // is_rolldown_active
     1 +  // is_paused
+    1 +  // is_funded
     1 +  // bump
     64; // padding for future use
 
@@ -235,7 +251,7 @@ pub const LOTTERY_STATE_SIZE: usize = 8 + // discriminator
 pub const DRAW_RESULT_SIZE: usize = 8 + // discriminator
     8 +  // draw_id
     6 +  // winning_numbers
-    64 + // randomness_proof (32 bytes for signature + 32 padding)
+    32 + // randomness_proof (32 bytes for signature)
     8 +  // timestamp
     8 +  // total_tickets
     1 +  // was_rolldown
@@ -249,6 +265,7 @@ pub const DRAW_RESULT_SIZE: usize = 8 + // discriminator
     8 +  // match_4_prize_per_winner
     8 +  // match_3_prize_per_winner
     8 +  // match_2_prize_per_winner
+    1 +  // is_explicitly_finalized
     1 +  // bump
     32; // padding
 
@@ -275,6 +292,8 @@ pub const USER_STATS_SIZE: usize = 8 + // discriminator
     4 +  // best_streak
     4 +  // jackpot_wins
     8 +  // last_draw_participated
+    8 +  // tickets_this_draw
+    4 +  // free_tickets_available
     1 +  // bump
     16; // padding
 
@@ -287,6 +306,7 @@ pub const SYNDICATE_BASE_SIZE: usize = 8 + // discriminator
     4 +  // member_count
     8 +  // total_contribution
     2 +  // manager_fee_bps
+    32 + // usdc_account
     4 +  // members vec length
     1 +  // bump
     16; // padding

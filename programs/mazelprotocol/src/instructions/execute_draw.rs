@@ -74,8 +74,11 @@ impl<'info> ExecuteDraw<'info> {
 
         // SECURITY: Verify randomness was committed in a recent slot
         // The reveal should happen shortly after commit
+        // FIXED: Reduced from 100 to 25 slots (~10 seconds) for better MEV protection
+        // This window should be long enough for normal transaction propagation
+        // but short enough to prevent attackers from observing and frontrunning
         require!(
-            randomness_data.seed_slot >= current_slot.saturating_sub(100),
+            randomness_data.seed_slot >= current_slot.saturating_sub(25),
             LottoError::RandomnessExpired
         );
 
@@ -231,6 +234,9 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
     draw_result.match_4_prize_per_winner = 0;
     draw_result.match_3_prize_per_winner = 0;
     draw_result.match_2_prize_per_winner = 0;
+
+    // Explicitly mark as not finalized (will be set true in finalize_draw)
+    draw_result.is_explicitly_finalized = false;
 
     draw_result.bump = ctx.bumps.draw_result;
 
