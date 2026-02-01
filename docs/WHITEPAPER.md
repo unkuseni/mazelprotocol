@@ -21,11 +21,9 @@ SolanaLotto introduces a novel lottery mechanism that intentionally creates wind
 5. [Game Theory Analysis](#5-game-theory-analysis)
 6. [Technical Implementation](#6-technical-implementation)
 7. [Security Considerations](#7-security-considerations)
-8. [Tokenomics](#8-tokenomics)
-9. [Governance](#9-governance)
-10. [Conclusion](#10-conclusion)
-11. [References](#11-references)
-12. [Appendices](#12-appendices)
+8. [Conclusion](#8-conclusion)
+9. [References](#9-references)
+10. [Appendices](#10-appendices)
 
 ---
 
@@ -57,7 +55,7 @@ This creates a "game within a game" where casual players enjoy entertainment val
 | Principle | Implementation |
 |-----------|----------------|
 | **Transparency** | All parameters, odds, and balances on-chain |
-| **Fairness** | Chainlink VRF for verifiable randomness |
+| **Fairness** | Switchboard Randomness with TEE for verifiable randomness |
 | **Sustainability** | 34% house fee guarantees operator profitability |
 | **Accessibility** | $2.50 ticket price on low-fee Solana |
 | **Intentional Exploitability** | Rolldown mechanism creates +EV windows |
@@ -99,7 +97,7 @@ SolanaLotto incorporates Cash WinFall's successful mechanics while addressing it
 | Protocol | Mechanism | Limitation |
 |----------|-----------|------------|
 | PoolTogether | No-loss savings game | Low yields, no jackpot excitement |
-| Chainlink VRF Lotteries | Standard negative-EV | No differentiation from traditional |
+| Standard VRF Lotteries | Standard negative-EV | No differentiation from traditional |
 | Various NFT lotteries | Random NFT distribution | Illiquid prizes, opaque odds |
 
 SolanaLotto is the first protocol to implement intentional +EV windows in a decentralized lottery.
@@ -480,8 +478,8 @@ With target $V_{normal} = 100,000$, the compatible region spans $100,000$ to $82
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
-│  │   SOLANA     │ │  CHAINLINK   │ │    USDC      │        │
-│  │   RUNTIME    │ │     VRF      │ │   (CIRCLE)   │        │
+│  │   SOLANA     │ │ SWITCHBOARD  │ │    USDC      │        │
+│  │   RUNTIME    │ │  RANDOMNESS  │ │   (CIRCLE)   │        │
 │  └──────────────┘ └──────────────┘ └──────────────┘        │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -625,47 +623,87 @@ pub fn initialize_draw(ctx: Context<InitializeDraw>) -> Result<()> {
     Ok(())
 }
 
-/// Request randomness from Chainlink VRF
-pub fn request_randomness(ctx: Context<RequestRandomness>) -> Result<()> {
+/// Commit to randomness for the upcoming draw (Switchboard commit-reveal pattern)
+pub fn commit_randomness(ctx: Context<CommitRandomness>) -> Result<()> {
+    let clock = Clock::get()?;
+    let lottery_state = &mut ctx.accounts.lottery_state;
+    
     // Verify draw time has passed
     require!(
-        Clock::get()?.unix_timestamp >= ctx.accounts.lottery_state.next_draw_timestamp,
+        clock.unix_timestamp >= lottery_state.next_draw_timestamp,
         TooEarly
     );
     
-    // Call Chainlink VRF
-    let vrf_request = VrfRequest {
-        callback: ctx.accounts.draw_callback.key(),
-        num_words: 6, // We need 6 random numbers
-        confirmations: 3,
-    };
-    
-    chainlink_vrf::request_randomness(
-        ctx.accounts.vrf_coordinator.to_account_info(),
-        vrf_request,
+    // Parse Switchboard randomness account data
+    let randomness_data = RandomnessAccountData::parse(
+        ctx.accounts.randomness_account_data.data.borrow()
     )?;
+    
+    // Verify randomness was committed in the previous slot
+    require!(
+        randomness_data.seed_slot == clock.slot - 1,
+        RandomnessExpired
+    );
+    
+    // Ensure randomness hasn't been revealed yet
+    require!(
+        randomness_data.get_value(clock.slot).is_err(),
+        RandomnessAlreadyRevealed
+    );
+    
+    // Store commit slot for later verification
+    lottery_state.commit_slot = randomness_data.seed_slot;
+    lottery_state.randomness_account = ctx.accounts.randomness_account_data.key();
+    lottery_state.is_draw_in_progress = true;
+    
+    emit!(RandomnessCommitted {
+        draw_id: lottery_state.current_draw_id,
+        commit_slot: lottery_state.commit_slot,
+        timestamp: clock.unix_timestamp,
+        confirmations: 3,
+    });
     
     Ok(())
 }
 
-/// VRF callback - execute the draw
-pub fn execute_draw(
-    ctx: Context<ExecuteDraw>,
-    vrf_proof: [u8; 64],
-    random_words: [u64; 6],
-) -> Result<()> {
-    // Verify VRF proof
+/// Reveal randomness and execute the draw (Switchboard commit-reveal pattern)
+pub fn execute_draw(ctx: Context<ExecuteDraw>) -> Result<()> {
+    let clock = Clock::get()?;
+    let lottery_state = &mut ctx.accounts.lottery_state;
+    
+    // Verify randomness account matches stored reference
     require!(
-        chainlink_vrf::verify_proof(&vrf_proof, &random_words),
-        InvalidVrfProof
+        ctx.accounts.randomness_account_data.key() == lottery_state.randomness_account,
+        InvalidRandomnessAccount
     );
     
-    // Convert random words to lottery numbers [1, 46]
+    // Parse Switchboard randomness data
+    let randomness_data = RandomnessAccountData::parse(
+        ctx.accounts.randomness_account_data.data.borrow()
+    )?;
+    
+    // Verify seed_slot matches commit
+    require!(
+        randomness_data.seed_slot == lottery_state.commit_slot,
+        RandomnessExpired
+    );
+    
+    // Get the revealed random value (32 bytes)
+    let revealed_random_value = randomness_data
+        .get_value(clock.slot)
+        .map_err(|_| RandomnessNotResolved)?;
+    
+    // Convert 32 random bytes to 6 unique lottery numbers [1, 46]
     let mut winning_numbers: [u8; 6] = [0; 6];
     let mut used: Vec<u8> = Vec::new();
     
     for i in 0..6 {
-        let mut num = ((random_words[i] % 46) + 1) as u8;
+        // Use different bytes for each number
+        let byte_index = i * 4;
+        let mut num = ((revealed_random_value[byte_index] as u64 
+            + revealed_random_value[byte_index + 1] as u64 * 256) % 46 + 1) as u8;
+        
+        // Ensure no duplicates
         while used.contains(&num) {
             num = if num == 46 { 1 } else { num + 1 };
         }
@@ -676,10 +714,10 @@ pub fn execute_draw(
     
     // Store draw result
     let draw_result = &mut ctx.accounts.draw_result;
-    draw_result.draw_id = ctx.accounts.lottery_state.current_draw_id;
+    draw_result.draw_id = lottery_state.current_draw_id;
     draw_result.winning_numbers = winning_numbers;
-    draw_result.vrf_proof = vrf_proof;
-    draw_result.timestamp = Clock::get()?.unix_timestamp;
+    draw_result.randomness_proof = revealed_random_value;
+    draw_result.timestamp = clock.unix_timestamp;
     
     // Check for rolldown condition
     let state = &ctx.accounts.lottery_state;
@@ -842,41 +880,56 @@ fn count_matches(ticket: &[u8; 6], winning: &[u8; 6]) -> u8 {
 
 ### 6.3 Randomness Generation
 
-**Chainlink VRF Integration:**
+**Switchboard Randomness Integration (TEE + Commit-Reveal):**
+
+Switchboard uses Trusted Execution Environments (TEEs) - protected areas inside a processor that cannot be altered or inspected. This means:
+- No one, including the oracle operator, can alter the code running in the TEE
+- No one can see what's happening inside the chip, only inputs and outputs
+- Economic security via $SWTCH slashing for misbehaving oracles
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│                    VRF FLOW                                │
+│              SWITCHBOARD COMMIT-REVEAL FLOW                │
 ├───────────────────────────────────────────────────────────┤
 │                                                            │
 │  1. DRAW TIME REACHED                                      │
 │     │                                                      │
 │     ▼                                                      │
-│  2. REQUEST RANDOMNESS                                     │
-│     └── Send request to Chainlink VRF Coordinator          │
-│     └── Include callback address                           │
-│     └── Specify 6 random words needed                      │
+│  2. CREATE RANDOMNESS ACCOUNT                              │
+│     └── Generate keypair for randomness account            │
+│     └── Initialize via Switchboard program                 │
 │     │                                                      │
 │     ▼                                                      │
-│  3. VRF COORDINATOR PROCESSES                              │
-│     └── Multiple oracle nodes generate randomness          │
-│     └── BLS signature aggregation                          │
-│     └── Verifiable proof generated                         │
+│  3. COMMIT PHASE                                           │
+│     └── Commit to current Solana slothash                  │
+│     └── Store commit slot in lottery state                 │
+│     └── Randomness not yet revealed                        │
 │     │                                                      │
 │     ▼                                                      │
-│  4. CALLBACK RECEIVED                                      │
-│     └── Proof verified on-chain                            │
-│     └── Random words converted to lottery numbers          │
-│     └── Draw result stored                                 │
+│  4. ORACLE GENERATES (inside TEE)                          │
+│     └── Oracle generates randomness in secure enclave      │
+│     └── Based on committed slot (cannot be manipulated)    │
+│     └── Oracle cannot see or bias the randomness           │
 │     │                                                      │
 │     ▼                                                      │
-│  5. ANYONE CAN VERIFY                                      │
-│     └── VRF proof is public                                │
-│     └── Deterministic derivation from proof to numbers     │
-│     └── No manipulation possible                           │
+│  5. REVEAL PHASE                                           │
+│     └── Reveal randomness on-chain                         │
+│     └── Verify commit slot matches                         │
+│     └── Convert 32 bytes to winning numbers                │
+│     │                                                      │
+│     ▼                                                      │
+│  6. SETTLEMENT                                             │
+│     └── Calculate winners by match tier                    │
+│     └── Distribute prizes                                  │
+│     └── Check rolldown conditions                          │
 │                                                            │
 └───────────────────────────────────────────────────────────┘
 ```
+
+**Security Guarantees:**
+- Neither protocol nor oracle can predict randomness before commit
+- Commit-reveal pattern prevents selective revelation attacks
+- All proofs verifiable on-chain by anyone
 
 **Number Derivation Algorithm:**
 
@@ -963,8 +1016,9 @@ interface IndexerService {
 
 | Threat | Attack Vector | Mitigation |
 |--------|---------------|------------|
-| **RNG Manipulation** | Compromised VRF oracle | Multiple independent oracles, commit-reveal backup |
-| **Front-Running** | MEV bots see winning numbers | Ticket sales close before VRF request |
+| **RNG Manipulation** | Compromised oracle | Switchboard TEE ensures oracle cannot see/alter randomness |
+| **Selective Revelation** | Only reveal favorable outcomes | Commit-reveal pattern - must commit before randomness known |
+| **Front-Running** | MEV bots see winning numbers | Ticket sales close before commit, Jito integration |
 | **Smart Contract Exploit** | Code vulnerability | Multiple audits, formal verification, bug bounty |
 | **Governance Attack** | Malicious proposal | Timelock, quorum requirements, guardian multi-sig |
 | **Oracle Manipulation** | Fake winner counts | On-chain verification of ticket-number matches |
@@ -1022,219 +1076,9 @@ The protocol maintains these invariants at all times:
 
 ---
 
-## 8. Tokenomics
+## 8. Conclusion
 
-### 8.1 $LOTTO Token Model
-
-**Token Properties:**
-
-| Property | Value |
-|----------|-------|
-| Name | LOTTO |
-| Symbol | LOTTO |
-| Decimals | 9 |
-| Total Supply | 100,000,000 |
-| Standard | SPL Token |
-| Type | Governance + Utility |
-
-### 8.2 Distribution Schedule
-
-```
-Year 0 (Launch):
-├── Initial Liquidity: 10,000,000 (10%)
-├── Team Cliff: 0 (locked)
-└── Circulating: ~10,000,000
-
-Year 1:
-├── Community Rewards: 10,000,000 (25% of allocation)
-├── Liquidity Mining: 8,000,000 (40% of allocation)
-├── Team Vesting: 0 (still locked)
-└── Circulating: ~28,000,000
-
-Year 2:
-├── Community Rewards: 10,000,000 (cumulative 50%)
-├── Liquidity Mining: 6,000,000 (cumulative 70%)
-├── Team Vesting: 3,750,000 (25% of allocation)
-└── Circulating: ~47,750,000
-
-Year 4 (Fully Vested):
-├── Community Rewards: 40,000,000 (100%)
-├── Liquidity Mining: 20,000,000 (100%)
-├── Team: 15,000,000 (100%)
-├── Treasury: 15,000,000 (DAO-controlled)
-└── Circulating: ~100,000,000
-```
-
-### 8.3 Token Utility
-
-**Governance Weight:**
-```
-Voting Power = Staked LOTTO × Time Multiplier × Tier Multiplier
-
-Time Multiplier:
-- < 30 days: 1.0x
-- 30-90 days: 1.1x
-- 90-180 days: 1.25x
-- 180+ days: 1.5x
-
-Tier Multiplier:
-- Bronze: 1.0x
-- Silver: 1.0x
-- Gold: 1.0x
-- Diamond: 2.0x
-```
-
-**Staking Rewards:**
-```
-Weekly Rewards Pool = House Fees × 10%
-
-Distribution:
-├── Diamond (5% share): Pool × 0.05 / Diamond_Staked
-├── Gold (3% share): Pool × 0.03 / Gold_Staked
-├── Silver (1.5% share): Pool × 0.015 / Silver_Staked
-└── Bronze (0.5% share): Pool × 0.005 / Bronze_Staked
-```
-
-**Buyback Mechanism:**
-```
-Weekly Buyback = House Fees × 10%
-
-Process:
-1. Convert USDC to LOTTO via Jupiter aggregator
-2. 50% of purchased LOTTO → Burned
-3. 50% of purchased LOTTO → Staking rewards pool
-```
-
-### 8.4 Economic Equilibrium
-
-**Token Demand Drivers:**
-- Staking for fee share
-- Governance participation
-- Ticket discounts (up to 20%)
-- Exclusive access benefits
-
-**Token Supply Sinks:**
-- Staking lockups (reduced velocity)
-- Buyback and burn (permanent reduction)
-- DAO treasury (governance-locked)
-
-**Equilibrium Price Model:**
-
-Let $P$ = token price, $S$ = staked supply, $R$ = weekly rewards, $D$ = discount value
-
-At equilibrium, staking yield equals opportunity cost:
-
-$$\frac{R \times P}{S \times P} = r_{market}$$
-
-Where $r_{market}$ is the market interest rate for comparable risk.
-
-For $R = \$85,000/week$ (10% of $850k weekly house fees) and $r_{market} = 10\%$ APY:
-
-$$S \times P = \frac{R \times 52}{r_{market}} = \frac{85,000 \times 52}{0.10} = \$44,200,000$$
-
-If 50M tokens staked: $P = \$0.884$ equilibrium price.
-
----
-
-## 9. Governance
-
-### 9.1 DAO Structure
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    GOVERNANCE HIERARCHY                  │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│                   ┌─────────────────┐                   │
-│                   │   TOKEN HOLDERS │                   │
-│                   │   (Vote Power)  │                   │
-│                   └────────┬────────┘                   │
-│                            │                            │
-│              ┌─────────────┼─────────────┐              │
-│              ▼             ▼             ▼              │
-│       ┌───────────┐ ┌───────────┐ ┌───────────┐       │
-│       │  PROPOSE  │ │   VOTE    │ │  DELEGATE │       │
-│       └─────┬─────┘ └─────┬─────┘ └─────┬─────┘       │
-│             │             │             │              │
-│             └─────────────┼─────────────┘              │
-│                           ▼                            │
-│                   ┌─────────────────┐                  │
-│                   │    TIMELOCK     │                  │
-│                   │    (48 hours)   │                  │
-│                   └────────┬────────┘                  │
-│                            │                            │
-│                            ▼                            │
-│                   ┌─────────────────┐                  │
-│                   │    EXECUTION    │                  │
-│                   │  (Multi-sig)    │                  │
-│                   └─────────────────┘                  │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 9.2 Proposal Types
-
-| Type | Description | Quorum | Approval | Timelock |
-|------|-------------|--------|----------|----------|
-| **Parameter Change** | Fees, caps, allocations | 5% | 60% | 48h |
-| **New Game Mode** | Quick Pick, Mega events | 10% | 66% | 7 days |
-| **Contract Upgrade** | Smart contract changes | 15% | 75% | 14 days |
-| **Treasury Spend** | Fund allocation | 10% | 60% | 48h |
-| **Emergency** | Pause, security fixes | 1% | 50% | 0h |
-
-### 9.3 Proposal Lifecycle
-
-```
-1. DRAFT (Off-chain)
-   └── Forum discussion
-   └── Community feedback
-   └── Technical review
-   
-2. PROPOSAL (On-chain)
-   └── Requires 100,000 LOTTO to submit
-   └── 3-day discussion period
-   
-3. VOTING (5 days)
-   └── Token holders vote
-   └── Delegation supported
-   └── Quorum must be met
-   
-4. TIMELOCK (Variable)
-   └── Successful proposals queued
-   └── Guardian can veto malicious proposals
-   └── Public review period
-   
-5. EXECUTION
-   └── Multi-sig executes
-   └── On-chain verification
-   └── Event emission
-```
-
-### 9.4 Guardian Role
-
-The Guardian is a 3-of-5 multi-sig with limited powers:
-
-**Can:**
-- Veto malicious proposals during timelock
-- Emergency pause protocol
-- Cancel queued transactions
-
-**Cannot:**
-- Propose changes
-- Execute proposals
-- Access funds
-- Modify parameters unilaterally
-
-Guardian keys held by:
-- 2 Team members
-- 2 Independent security researchers
-- 1 Community-elected representative
-
----
-
-## 10. Conclusion
-
-### 10.1 Summary
+### 8.1 Summary
 
 SolanaLotto represents a paradigm shift in lottery design by embracing, rather than hiding, the mathematical realities of probability games. The rolldown mechanism creates a unique value proposition:
 
@@ -1243,17 +1087,17 @@ SolanaLotto represents a paradigm shift in lottery design by embracing, rather t
 3. **For Operators:** Sustainable profitability through volume-based fees
 4. **For Token Holders:** Governance rights and economic participation
 
-### 10.2 Key Innovations
+### 8.2 Key Innovations
 
 | Innovation | Impact |
 |------------|--------|
 | **Intentional +EV Windows** | Attracts sophisticated capital, increases volume |
 | **On-Chain Transparency** | Builds trust, enables verification |
 | **Rolldown Mechanism** | Creates unique game dynamics |
-| **Token-Aligned Incentives** | Long-term stakeholder alignment |
-| **DAO Governance** | Community ownership and evolution |
+| **Syndicate System** | Community pooling and collaboration |
+| **MEV Protection** | Fair participation for all players |
 
-### 10.3 Future Directions
+### 8.3 Future Directions
 
 - Cross-chain expansion (Arbitrum, Base, other L2s)
 - Additional game modes (Quick Pick, Mega Events)
@@ -1261,24 +1105,24 @@ SolanaLotto represents a paradigm shift in lottery design by embracing, rather t
 - Insurance products for players
 - White-label platform for other projects
 
-### 10.4 Call to Action
+### 8.4 Call to Action
 
 SolanaLotto invites participation from:
 - **Developers:** Contribute to open-source protocol
 - **Auditors:** Review and improve security
 - **Players:** Participate in fair, transparent lottery
-- **Token Holders:** Govern protocol evolution
+- **Syndicates:** Pool resources for strategic play
 - **Researchers:** Study novel mechanism design
 
 ---
 
-## 11. References
+## 9. References
 
 1. Selbee, G. (2018). "Cracking the Lottery Code: How a Retired Couple Won $26 Million." *60 Minutes Interview*.
 
 2. Massachusetts State Lottery Commission. (2012). "Cash WinFall Game Rules and Procedures."
 
-3. Chainlink Labs. (2023). "Verifiable Random Function (VRF) v2 Documentation."
+3. Switchboard Labs. (2024). "Switchboard Randomness Documentation." https://docs.switchboard.xyz/docs-by-chain/solana-svm/randomness
 
 4. Solana Foundation. (2024). "Solana Program Library (SPL) Specification."
 
@@ -1292,7 +1136,7 @@ SolanaLotto invites participation from:
 
 ---
 
-## 12. Appendices
+## 10. Appendices
 
 ### Appendix A: Full Probability Tables
 
@@ -1338,7 +1182,8 @@ SolanaLotto invites participation from:
 | **EV (Expected Value)** | The average outcome of a bet if repeated infinitely |
 | **House Edge** | The percentage advantage the operator has |
 | **Rolldown** | Distribution of jackpot to lower tiers when unclaimed |
-| **VRF** | Verifiable Random Function - cryptographic randomness |
+| **TEE** | Trusted Execution Environment - secure hardware enclave |
+| **Commit-Reveal** | Pattern where user commits before randomness is known |
 | **Matrix** | The lottery format (e.g., 6/46 = pick 6 from 46) |
 | **Seed** | The initial jackpot amount after reset |
 | **Cap** | Maximum jackpot before rolldown triggers |

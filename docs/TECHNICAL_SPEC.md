@@ -93,7 +93,7 @@ solana-sdk = "1.17.0"
 
 | Service | Purpose | Provider |
 |---------|---------|----------|
-| **VRF Oracle** | Verifiable randomness | Switchboard / Chainlink |
+| **Randomness Oracle** | Verifiable randomness (TEE + Commit-Reveal) | Switchboard |
 | **Price Feed** | USDC/USD verification | Pyth Network |
 | **Indexer** | Historical data queries | Custom (Geyser plugin) |
 
@@ -229,14 +229,6 @@ Syndicate (PDA: ["syndicate", creator, syndicate_id])
 ├── total_contribution: u64
 ├── manager_fee_bps: u16
 └── members: Vec<SyndicateMember>
-
-StakeAccount (PDA: ["stake", wallet])
-├── owner: Pubkey
-├── staked_amount: u64
-├── stake_timestamp: i64
-├── tier: StakeTier
-├── pending_rewards: u64
-└── last_claim_timestamp: i64
 ```
 
 ### 3.3 PDA Derivation
@@ -290,15 +282,7 @@ pub fn syndicate_pda(creator: &Pubkey, syndicate_id: u64) -> (Pubkey, u8) {
     )
 }
 
-// Stake Account
-pub fn stake_account_pda(wallet: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[b"stake", wallet.as_ref()],
-        &PROGRAM_ID
-    )
-}
-
-// Prize Pool USDC ATA
+// Prize Pool USDC
 pub fn prize_pool_usdc_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[b"prize_pool_usdc"],
@@ -330,7 +314,6 @@ pub const USER_SEED: &[u8] = b"user";
 pub const STAKE_SEED: &[u8] = b"stake";
 pub const SYNDICATE_SEED: &[u8] = b"syndicate";
 pub const LUCKY_NUMBERS_SEED: &[u8] = b"lucky_numbers";
-pub const SECOND_CHANCE_SEED: &[u8] = b"second_chance";
 pub const QUICK_PICK_SEED: &[u8] = b"quick_pick";
 pub const SYNDICATE_WARS_SEED: &[u8] = b"syndicate_wars";
 
@@ -372,25 +355,47 @@ pub const ROLLDOWN_MATCH_5_BPS: u16 = 2500;        // 25%
 pub const ROLLDOWN_MATCH_4_BPS: u16 = 3500;        // 35%
 pub const ROLLDOWN_MATCH_3_BPS: u16 = 4000;        // 40%
 
-// Staking Tiers (LOTTO tokens in lamports)
-pub const BRONZE_THRESHOLD: u64 = 1_000_000_000_000;     // 1,000 LOTTO
-pub const SILVER_THRESHOLD: u64 = 10_000_000_000_000;    // 10,000 LOTTO
-pub const GOLD_THRESHOLD: u64 = 50_000_000_000_000;      // 50,000 LOTTO
-pub const DIAMOND_THRESHOLD: u64 = 250_000_000_000_000;  // 250,000 LOTTO
+// Quick Pick Express Parameters (5/35) - With Rolldown Exploit (+59% Player Edge!)
+pub const QUICK_PICK_TICKET_PRICE: u64 = 1_500_000;  // $1.50
+pub const QUICK_PICK_NUMBERS: u8 = 5;                 // Pick 5 numbers
+pub const QUICK_PICK_RANGE: u8 = 35;                  // From 1-35
+pub const QUICK_PICK_INTERVAL: i64 = 14400;          // 4 hours
 
-// Quick Pick Express Parameters (4/20)
-pub const QUICK_PICK_TICKET_PRICE: u64 = 500_000;  // $0.50
-pub const QUICK_PICK_NUMBERS: u8 = 4;
-pub const QUICK_PICK_RANGE: u8 = 20;
-pub const QUICK_PICK_HOUSE_FEE_BPS: u16 = 3000;    // 30%
-pub const QUICK_PICK_INTERVAL: i64 = 14400;        // 4 hours
+// Quick Pick $50 Gate Requirement
+pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000;  // $50 lifetime main lottery spend required
+
+// Quick Pick Jackpot System (scaled for 2-3 day cycles)
+pub const QUICK_PICK_SEED_AMOUNT: u64 = 5_000_000_000;    // $5,000 seed
+pub const QUICK_PICK_SOFT_CAP: u64 = 30_000_000_000;      // $30,000 (probabilistic rolldown)
+pub const QUICK_PICK_HARD_CAP: u64 = 40_000_000_000;      // $40,000 (forced rolldown)
+
+// Quick Pick Dynamic Fee Tiers
+pub const QUICK_PICK_FEE_TIER_1_THRESHOLD: u64 = 10_000_000_000;  // $10,000
+pub const QUICK_PICK_FEE_TIER_2_THRESHOLD: u64 = 20_000_000_000;  // $20,000
+pub const QUICK_PICK_FEE_TIER_3_THRESHOLD: u64 = 30_000_000_000;  // $30,000
+pub const QUICK_PICK_FEE_TIER_1_BPS: u16 = 3000;         // 30% (< $10,000)
+pub const QUICK_PICK_FEE_TIER_2_BPS: u16 = 3300;         // 33% ($10,000 - $20,000)
+pub const QUICK_PICK_FEE_TIER_3_BPS: u16 = 3600;         // 36% ($20,000 - $30,000)
+pub const QUICK_PICK_FEE_TIER_4_BPS: u16 = 3800;         // 38% (> $30,000)
+pub const QUICK_PICK_FEE_ROLLDOWN_BPS: u16 = 2800;       // 28% (during rolldown - encourages volume)
+
+// Quick Pick Fixed Prizes (Normal Mode) — NO FREE TICKET
+pub const QUICK_PICK_MATCH_4_PRIZE: u64 = 100_000_000;   // $100
+pub const QUICK_PICK_MATCH_3_PRIZE: u64 = 4_000_000;     // $4
+// No Match 2 prize in Quick Pick Express
+
+// Quick Pick Rolldown Allocation (THE EXPLOIT: +59% Player Edge)
+pub const QUICK_PICK_ROLLDOWN_MATCH_4_BPS: u16 = 6000;   // 60% to Match 4
+pub const QUICK_PICK_ROLLDOWN_MATCH_3_BPS: u16 = 4000;   // 40% to Match 3
+
+// Quick Pick Prize Pool Allocation (no free tickets = more to jackpot)
+pub const QUICK_PICK_JACKPOT_ALLOCATION_BPS: u16 = 6000;       // 60%
+pub const QUICK_PICK_FIXED_PRIZE_ALLOCATION_BPS: u16 = 3700;   // 37%
+pub const QUICK_PICK_INSURANCE_ALLOCATION_BPS: u16 = 300;      // 3%
 
 // Lucky Numbers NFT
 pub const LUCKY_NUMBERS_BONUS_BPS: u16 = 100;      // 1% of jackpot
 pub const LUCKY_NUMBERS_MIN_MATCH: u8 = 4;         // Match 4+ to receive
-
-// Second Chance Draws
-pub const SECOND_CHANCE_PRIZE_POOL_BPS: u16 = 500; // 5% of reserve
 
 // Syndicate Wars
 pub const SYNDICATE_WARS_POOL_BPS: u16 = 100;      // 1% of monthly sales
@@ -417,10 +422,7 @@ pub const DRAW_RESULT_SIZE: usize = 8 + 8 + 6 + 64 + 8 + 1 + 20 + 40 + 8 = 163;
 pub const TICKET_SIZE: usize = 8 + 32 + 8 + 6 + 8 + 1 + 1 + 8 + 33 = 105;
 
 // UserStats: 8 + 32 + 8*4 + 4*2 + 8
-pub const USER_STATS_SIZE: usize = 8 + 32 + 32 + 8 + 8 = 88;
-
-// StakeAccount: 8 + 32 + 8 + 8 + 1 + 8 + 8
-pub const STAKE_ACCOUNT_SIZE: usize = 8 + 32 + 8 + 8 + 1 + 8 + 8 = 73;
+pub const USER_STATS_SIZE: usize = 8 + 32 + 8*6 + 1 = 89;
 
 // Syndicate (base): 8 + 32 + 8 + 32 + 1 + 4 + 8 + 2 + 4 (vec length)
 // + members: N * (32 + 8 + 8) = N * 48
@@ -537,8 +539,8 @@ pub struct DrawResult {
     /// Winning numbers (sorted ascending)
     pub winning_numbers: [u8; 6],
     
-    /// VRF proof for verification
-    pub vrf_proof: [u8; 64],
+    /// Switchboard randomness proof for verification
+    pub randomness_proof: [u8; 32],
     
     /// Draw execution timestamp
     pub timestamp: i64,
@@ -626,30 +628,6 @@ pub struct UserStats {
 }
 
 #[account]
-pub struct StakeAccount {
-    /// Staker wallet
-    pub owner: Pubkey,
-    
-    /// Amount of $LOTTO staked
-    pub staked_amount: u64,
-    
-    /// When stake was initiated
-    pub stake_timestamp: i64,
-    
-    /// Current staking tier
-    pub tier: StakeTier,
-    
-    /// Unclaimed rewards in USDC
-    pub pending_rewards: u64,
-    
-    /// Last time rewards were claimed
-    pub last_claim_timestamp: i64,
-    
-    /// PDA bump seed
-    pub bump: u8,
-}
-
-#[account]
 pub struct Syndicate {
     /// Syndicate creator
     pub creator: Pubkey,
@@ -683,51 +661,6 @@ pub struct Syndicate {
 ### 5.2 Supporting Structures
 
 ```rust
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
-pub enum StakeTier {
-    None,
-    Bronze,
-    Silver,
-    Gold,
-    Diamond,
-}
-
-impl StakeTier {
-    pub fn from_amount(amount: u64) -> Self {
-        if amount >= DIAMOND_THRESHOLD {
-            StakeTier::Diamond
-        } else if amount >= GOLD_THRESHOLD {
-            StakeTier::Gold
-        } else if amount >= SILVER_THRESHOLD {
-            StakeTier::Silver
-        } else if amount >= BRONZE_THRESHOLD {
-            StakeTier::Bronze
-        } else {
-            StakeTier::None
-        }
-    }
-    
-    pub fn discount_bps(&self) -> u16 {
-        match self {
-            StakeTier::None => 0,
-            StakeTier::Bronze => 500,   // 5%
-            StakeTier::Silver => 1000,  // 10%
-            StakeTier::Gold => 1500,    // 15%
-            StakeTier::Diamond => 2000, // 20%
-        }
-    }
-    
-    pub fn fee_share_bps(&self) -> u16 {
-        match self {
-            StakeTier::None => 0,
-            StakeTier::Bronze => 50,    // 0.5%
-            StakeTier::Silver => 150,   // 1.5%
-            StakeTier::Gold => 300,     // 3%
-            StakeTier::Diamond => 500,  // 5%
-        }
-    }
-}
-
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
 pub enum RolldownType {
     None,
@@ -858,13 +791,15 @@ impl UnifiedTicket {
     }
 }
 
-/// Quick Pick Express game state
+/// Quick Pick Express game state (5/35 Matrix with Rolldown Exploit)
+/// Odds: Match 5 = 1/324,632, Match 4 = 1/2,164, Match 3 = 1/74.6, Match 2 = 1/8
+/// Rolldown EV: +59% player edge when jackpot distributes!
 #[account]
-pub struct QuickPickState {
+pub struct QuickPickStateLegacy {
     /// Current draw number
     pub current_draw: u64,
     
-    /// Ticket price (500,000 = $0.50)
+    /// Ticket price (1,500,000 = $1.50)
     pub ticket_price: u64,
     
     /// Next draw timestamp
@@ -905,59 +840,6 @@ pub struct SyndicateWarsEntry {
     pub bump: u8,
 }
 
-/// Second Chance Draw entry
-#[account]
-pub struct SecondChanceEntry {
-    /// Original ticket reference
-    pub ticket: Pubkey,
-    
-    /// Player wallet
-    pub player: Pubkey,
-    
-    /// Week number for this entry
-    pub week_id: u64,
-    
-    /// Number of entries
-    pub entry_count: u32,
-    
-    /// PDA bump
-    pub bump: u8,
-}
-
-/// Second Chance Draw result
-#[account]
-pub struct SecondChanceResult {
-    /// Week identifier
-    pub week_id: u64,
-    
-    /// Total entries
-    pub total_entries: u64,
-    
-    /// Prize pool distributed
-    pub prize_pool: u64,
-    
-    /// Grand prize winner
-    pub grand_prize_winner: Pubkey,
-    
-    /// Runner up winners
-    pub runner_up_winners: Vec<Pubkey>,
-    
-    /// Consolation winners
-    pub consolation_winners: Vec<Pubkey>,
-    
-    /// Free ticket winners
-    pub free_ticket_winners: Vec<Pubkey>,
-    
-    /// Execution timestamp
-    pub timestamp: i64,
-    
-    /// VRF proof
-    pub vrf_proof: [u8; 64],
-    
-    /// PDA bump
-    pub bump: u8,
-}
-
 /// Match tier enumeration
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
 pub enum MatchTier {
@@ -969,56 +851,21 @@ pub enum MatchTier {
     Match6,
 }
 
-/// Stake tier enumeration
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
-pub enum StakeTier {
-    None,
-    Bronze,
-    Silver,
-    Gold,
-    Diamond,
-}
-
-impl StakeTier {
-    pub fn from_amount(amount: u64) -> Self {
-        if amount >= DIAMOND_THRESHOLD {
-            StakeTier::Diamond
-        } else if amount >= GOLD_THRESHOLD {
-            StakeTier::Gold
-        } else if amount >= SILVER_THRESHOLD {
-            StakeTier::Silver
-        } else if amount >= BRONZE_THRESHOLD {
-            StakeTier::Bronze
-        } else {
-            StakeTier::None
-        }
-    }
-    
-    pub fn discount_bps(&self) -> u16 {
-        match self {
-            StakeTier::None => 0,
-            StakeTier::Bronze => 500,   // 5%
-            StakeTier::Silver => 1000,  // 10%
-            StakeTier::Gold => 1500,    // 15%
-            StakeTier::Diamond => 2000, // 20%
-        }
-    }
-}
-
-/// Quick Pick Express game state
+/// Quick Pick Express game state with rolldown mechanics (5/35 Matrix)
+/// THE EXPLOIT: During rolldown, players enjoy +59% positive expected value!
 #[account]
 pub struct QuickPickState {
     /// Current draw number
     pub current_draw: u64,
     
-    /// Ticket price (500,000 = $0.50)
+    /// Ticket price (1,500,000 = $1.50)
     pub ticket_price: u64,
     
-    /// Matrix parameters
-    pub pick_count: u8,      // 4
-    pub number_range: u8,    // 20
+    /// Matrix parameters (5/35)
+    pub pick_count: u8,      // 5
+    pub number_range: u8,    // 35
     
-    /// House fee (3000 = 30%)
+    /// Current house fee (dynamic based on jackpot level, 28-38%)
     pub house_fee_bps: u16,
     
     /// Draw interval in seconds (14400 = 4 hours)
@@ -1027,16 +874,34 @@ pub struct QuickPickState {
     /// Next draw timestamp
     pub next_draw_timestamp: i64,
     
-    /// Prize amounts
-    pub match_4_prize: u64,
-    pub match_3_prize: u64,
-    pub match_2_value: u64,
+    /// Jackpot balance (accumulates between draws)
+    pub jackpot_balance: u64,
+    
+    /// Jackpot soft cap ($30,000 - probabilistic rolldown begins)
+    pub soft_cap: u64,
+    
+    /// Jackpot hard cap ($40,000 - forced rolldown)
+    pub hard_cap: u64,
+    
+    /// Seed amount for jackpot reset after rolldown ($5,000)
+    pub seed_amount: u64,
+    
+    /// Fixed prize amounts (Normal Mode) — NO FREE TICKET
+    pub match_4_prize: u64,  // $100
+    pub match_3_prize: u64,  // $4
+    // No match_2 prize in Quick Pick Express
     
     /// Current draw ticket count
     pub current_draw_tickets: u64,
     
-    /// Prize pool balance
+    /// Prize pool balance (for fixed prizes)
     pub prize_pool_balance: u64,
+    
+    /// Insurance pool balance
+    pub insurance_balance: u64,
+    
+    /// Rolldown pending flag (jackpot >= soft_cap)
+    pub is_rolldown_pending: bool,
     
     /// Is paused
     pub is_paused: bool,
@@ -1045,7 +910,7 @@ pub struct QuickPickState {
     pub bump: u8,
 }
 
-/// Quick Pick Express ticket
+/// Quick Pick Express ticket (5/35 Matrix)
 #[account]
 pub struct QuickPickTicket {
     /// Ticket owner
@@ -1054,8 +919,8 @@ pub struct QuickPickTicket {
     /// Draw this ticket is for
     pub draw_id: u64,
     
-    /// Selected numbers (sorted)
-    pub numbers: [u8; 4],
+    /// Selected numbers (5 numbers from 1-35, sorted)
+    pub numbers: [u8; 5],
     
     /// Purchase timestamp
     pub purchase_timestamp: i64,
@@ -1368,13 +1233,6 @@ pub struct BuyTicket<'info> {
     )]
     pub user_stats: Account<'info, UserStats>,
     
-    /// Optional: Stake account for discount calculation
-    #[account(
-        seeds = [STAKE_SEED, player.key().as_ref()],
-        bump = stake_account.bump
-    )]
-    pub stake_account: Option<Account<'info, StakeAccount>>,
-    
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -1507,8 +1365,6 @@ pub struct BuyBulk<'info> {
     #[account(mut, seeds = [USER_SEED, player.key().as_ref()], bump)]
     pub user_stats: Account<'info, UserStats>,
     
-    pub stake_account: Option<Account<'info, StakeAccount>>,
-    
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     // Ticket accounts passed as remaining_accounts
@@ -1543,13 +1399,13 @@ pub struct InitializeDraw<'info> {
 }
 ```
 
-#### `request_randomness`
+#### `commit_randomness`
 
-Requests randomness from VRF oracle.
+Commits to Switchboard randomness for the upcoming draw (commit-reveal pattern).
 
 ```rust
 #[derive(Accounts)]
-pub struct RequestRandomness<'info> {
+pub struct CommitRandomness<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     
@@ -1560,47 +1416,29 @@ pub struct RequestRandomness<'info> {
     )]
     pub lottery_state: Account<'info, LotteryState>,
     
-    /// Switchboard VRF account
-    pub vrf: AccountLoader<'info, VrfAccountData>,
+    /// Switchboard randomness account (must be created beforehand)
+    /// CHECK: Validated manually by parsing RandomnessAccountData
+    pub randomness_account_data: AccountInfo<'info>,
     
-    /// VRF authority
-    pub vrf_authority: AccountInfo<'info>,
+    /// Switchboard queue for the randomness request
+    pub switchboard_queue: AccountInfo<'info>,
     
-    /// Oracle queue
-    pub oracle_queue: AccountLoader<'info, OracleQueueAccountData>,
-    
-    /// Queue authority
-    pub queue_authority: AccountInfo<'info>,
-    
-    /// Data buffer
-    pub data_buffer: AccountInfo<'info>,
-    
-    /// VRF program
+    /// Switchboard on-demand program
     pub switchboard_program: AccountInfo<'info>,
     
-    /// Escrow account
-    #[account(mut)]
-    pub escrow: AccountInfo<'info>,
-    
-    /// Payer for VRF request
-    #[account(mut)]
-    pub payer_wallet: AccountInfo<'info>,
-    
-    /// Payer token account
-    #[account(mut)]
-    pub payer_authority: Signer<'info>,
-    
-    /// Recent blockhashes
-    pub recent_blockhashes: AccountInfo<'info>,
-    
-    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
 ```
 
+**Commit Phase Flow:**
+1. Create randomness account via Switchboard SDK
+2. Bundle commit instruction with lottery's commit_randomness
+3. Store commit slot in lottery state for later verification
+4. Randomness is not yet revealed at this point
+
 #### `execute_draw`
 
-VRF callback that executes the draw.
+Reveals Switchboard randomness and executes the draw.
 
 ```rust
 #[derive(Accounts)]
@@ -1621,8 +1459,8 @@ pub struct ExecuteDraw<'info> {
     )]
     pub draw_result: Account<'info, DrawResult>,
     
-    /// VRF account with randomness result
-    pub vrf: AccountLoader<'info, VrfAccountData>,
+    /// Switchboard randomness account with revealed result
+    pub randomness_account_data: AccountInfo<'info>,
     
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -1796,116 +1634,7 @@ fn count_matches(ticket_numbers: &[u8; 6], winning_numbers: &[u8; 6]) -> u8 {
 }
 ```
 
-### 6.5 Staking Instructions
-
-#### `stake_lotto`
-
-Stakes $LOTTO tokens.
-
-```rust
-#[derive(Accounts)]
-pub struct StakeLotto<'info> {
-    #[account(mut)]
-    pub staker: Signer<'info>,
-    
-    #[account(
-        init_if_needed,
-        payer = staker,
-        space = STAKE_ACCOUNT_SIZE,
-        seeds = [STAKE_SEED, staker.key().as_ref()],
-        bump
-    )]
-    pub stake_account: Account<'info, StakeAccount>,
-    
-    #[account(
-        mut,
-        constraint = staker_lotto.owner == staker.key()
-    )]
-    pub staker_lotto: Account<'info, TokenAccount>,
-    
-    #[account(
-        mut,
-        seeds = [b"staking_vault"],
-        bump
-    )]
-    pub staking_vault: Account<'info, TokenAccount>,
-    
-    pub lotto_mint: Account<'info, Mint>,
-    pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct StakeLottoParams {
-    pub amount: u64,
-}
-```
-
-#### `unstake_lotto`
-
-Unstakes $LOTTO tokens.
-
-```rust
-#[derive(Accounts)]
-pub struct UnstakeLotto<'info> {
-    #[account(mut)]
-    pub staker: Signer<'info>,
-    
-    #[account(
-        mut,
-        seeds = [STAKE_SEED, staker.key().as_ref()],
-        bump = stake_account.bump,
-        constraint = stake_account.owner == staker.key()
-    )]
-    pub stake_account: Account<'info, StakeAccount>,
-    
-    #[account(mut, constraint = staker_lotto.owner == staker.key())]
-    pub staker_lotto: Account<'info, TokenAccount>,
-    
-    #[account(mut, seeds = [b"staking_vault"], bump)]
-    pub staking_vault: Account<'info, TokenAccount>,
-    
-    #[account(seeds = [LOTTERY_SEED], bump)]
-    pub lottery_state: Account<'info, LotteryState>,
-    
-    pub token_program: Program<'info, Token>,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct UnstakeLottoParams {
-    pub amount: u64,
-}
-```
-
-#### `claim_staking_rewards`
-
-Claims accumulated staking rewards.
-
-```rust
-#[derive(Accounts)]
-pub struct ClaimStakingRewards<'info> {
-    #[account(mut)]
-    pub staker: Signer<'info>,
-    
-    #[account(
-        mut,
-        seeds = [STAKE_SEED, staker.key().as_ref()],
-        bump = stake_account.bump,
-        constraint = stake_account.owner == staker.key()
-    )]
-    pub stake_account: Account<'info, StakeAccount>,
-    
-    #[account(mut, constraint = staker_usdc.owner == staker.key())]
-    pub staker_usdc: Account<'info, TokenAccount>,
-    
-    #[account(mut, seeds = [b"staking_rewards_usdc"], bump)]
-    pub rewards_vault: Account<'info, TokenAccount>,
-    
-    pub token_program: Program<'info, Token>,
-}
-```
-
-### 6.6 Syndicate Instructions
+### 6.5 Syndicate Instructions
 
 #### `create_syndicate`
 
@@ -2007,9 +1736,10 @@ pub struct DrawInitialized {
 }
 
 #[event]
-pub struct RandomnessRequested {
+pub struct RandomnessCommitted {
     pub draw_id: u64,
-    pub vrf_request_id: [u8; 32],
+    pub commit_slot: u64,
+    pub randomness_account: Pubkey,
     pub timestamp: i64,
 }
 
@@ -2049,30 +1779,6 @@ pub struct PrizeClaimed {
     pub draw_id: u64,
     pub match_count: u8,
     pub prize_amount: u64,
-    pub timestamp: i64,
-}
-
-#[event]
-pub struct LottoStaked {
-    pub staker: Pubkey,
-    pub amount: u64,
-    pub total_staked: u64,
-    pub tier: StakeTier,
-    pub timestamp: i64,
-}
-
-#[event]
-pub struct LottoUnstaked {
-    pub staker: Pubkey,
-    pub amount: u64,
-    pub remaining_staked: u64,
-    pub timestamp: i64,
-}
-
-#[event]
-pub struct StakingRewardsClaimed {
-    pub staker: Pubkey,
-    pub amount: u64,
     pub timestamp: i64,
 }
 
@@ -2251,9 +1957,9 @@ pub enum ErrorCode {
     #[msg("Randomness freshness check failed.")]
     RandomnessNotFresh,
 
-    /// VRF proof verification failed
-    #[msg("Invalid VRF proof.")]
-    InvalidVrfProof,
+    /// Randomness proof verification failed
+    #[msg("Invalid randomness proof.")]
+    InvalidRandomnessProof,
 
     /// Switchboard queue is not configured for randomness generation
     #[msg("Switchboard queue not configured.")]
@@ -2301,33 +2007,6 @@ pub enum ErrorCode {
     /// Error calculating rolldown prize distribution
     #[msg("Rolldown calculation error.")]
     RolldownCalculationError,
-
-    // ============================================================================
-    // Staking System (7 errors)
-    // ============================================================================
-    /// User doesn't have enough staked tokens for the requested operation
-    #[msg("Insufficient staked tokens.")]
-    InsufficientStake,
-
-    /// Stake account has not been properly initialized
-    #[msg("Stake account not initialized.")]
-    StakeNotInitialized,
-
-    /// Stake is still within the lock period and cannot be withdrawn
-    #[msg("Stake lock period not elapsed.")]
-    StakeLocked,
-
-    /// No rewards are available for claiming at this time
-    #[msg("No rewards available to claim.")]
-    NoRewardsAvailable,
-
-    /// Stake tier calculation produced invalid results
-    #[msg("Invalid stake tier calculation.")]
-    InvalidStakeTier,
-
-    /// Stake amount is below the minimum required threshold
-    #[msg("Stake amount below minimum threshold.")]
-    StakeBelowMinimum,
 
     // ============================================================================
     // Syndicate System (9 errors)
@@ -2481,7 +2160,7 @@ pub enum ErrorCode {
     NotSupported,
 
     // ============================================================================
-    // Game-Specific Errors (9 errors)
+    // Game-Specific Errors (7 errors)
     // ============================================================================
     /// Rolldown feature is not currently active
     #[msg("Rolldown not active.")]
@@ -2491,17 +2170,13 @@ pub enum ErrorCode {
     #[msg("Rolldown already triggered.")]
     RolldownAlreadyTriggered,
 
-    /// Second chance draw is not available
-    #[msg("Second chance draw not available.")]
-    SecondChanceNotAvailable,
-
-    /// No eligible tickets found for second chance draw
-    #[msg("No eligible tickets for second chance.")]
-    NoSecondChanceEntries,
-
     /// Quick pick game feature is not active
     #[msg("Quick pick game not active.")]
     QuickPickNotActive,
+
+    /// Player has not spent enough in main lottery for Quick Pick Express access
+    #[msg("Insufficient main lottery spend. $50 minimum required for Quick Pick Express.")]
+    InsufficientMainLotterySpend,
 
     /// Maximum Lucky Numbers NFT limit has been reached
     #[msg("Lucky Numbers NFT limit reached.")]
@@ -2564,7 +2239,6 @@ pub enum ErrorCode {
 | **Ticket Purchase & Validation** | 13 | Ticket buying and validation errors |
 | **Draw Execution & Randomness** | 13 | Draw process and randomness generation errors |
 | **Prize Distribution & Claims** | 8 | Prize calculation and claiming errors |
-| **Staking System** | 7 | Staking operation and reward errors |
 | **Syndicate System** | 9 | Syndicate management and sharing errors |
 | **Financial & Token Operations** | 8 | Token transfer and financial operation errors |
 | **Mathematical & Parameter Validation** | 7 | Calculation and parameter validation errors |
@@ -2573,7 +2247,7 @@ pub enum ErrorCode {
 | **Game-Specific Errors** | 9 | Special game feature errors |
 | **Compatibility & Version Errors** | 3 | Version compatibility errors |
 | **Generic & Catch-All Errors** | 3 | General purpose errors |
-| **TOTAL** | **98** | All error codes in the protocol |
+| **TOTAL** | **91** | All error codes in the protocol |
 
 ### 8.2 Error Code Ranges
 
@@ -2586,15 +2260,14 @@ Each error category occupies a specific range for easier debugging and monitorin
 | Ticket Purchase & Validation | 200-299 | Number validation, purchase limits |
 | Draw Execution & Randomness | 300-399 | VRF proof validation, randomness timing |
 | Prize Distribution & Claims | 400-499 | Claim validation, prize calculations |
-| Staking System | 500-599 | Stake validation, reward calculations |
-| Syndicate System | 600-699 | Member management, share calculations |
-| Financial & Token Operations | 700-799 | Token transfers, USDC validation |
-| Mathematical & Parameter Validation | 800-899 | Arithmetic errors, basis points |
-| Account & PDA Validation | 900-999 | Account derivation, initialization |
-| System & Operational Errors | 1000-1099 | Clock access, timeouts, retries |
-| Game-Specific Errors | 1100-1199 | Rolldown, second chance, quick pick |
-| Compatibility & Version Errors | 1200-1299 | Version mismatches, deprecated features |
-| Generic & Catch-All Errors | 1300-1399 | Unknown errors, validation failures |
+| Syndicate System | 500-599 | Member management, share calculations |
+| Financial & Token Operations | 600-699 | Token transfers, USDC validation |
+| Mathematical & Parameter Validation | 700-799 | Arithmetic errors, basis points |
+| Account & PDA Validation | 800-899 | Account derivation, initialization |
+| System & Operational Errors | 900-999 | Clock access, timeouts, retries |
+| Game-Specific Errors | 1000-1099 | Rolldown, quick pick, mega events |
+| Compatibility & Version Errors | 1100-1199 | Version mismatches, deprecated features |
+| Generic & Catch-All Errors | 1200-1299 | Unknown errors, validation failures |
 
 ### 8.3 Common Error Scenarios
 
@@ -2619,7 +2292,7 @@ ErrorCode::BulkPurchaseLimitExceeded
 // Randomness issues
 ErrorCode::RandomnessNotResolved
 ErrorCode::RandomnessExpired
-ErrorCode::InvalidVrfProof
+ErrorCode::InvalidRandomnessProof
 
 // Draw state issues
 ErrorCode::DrawInProgress
@@ -2645,10 +2318,6 @@ ErrorCode::InvalidTicket
 ErrorCode::RolldownNotActive
 ErrorCode::RolldownAlreadyTriggered
 ErrorCode::RolldownCalculationError
-
-// Second chance draws
-ErrorCode::SecondChanceNotAvailable
-ErrorCode::NoSecondChanceEntries
 
 // Quick pick game
 ErrorCode::QuickPickNotActive
@@ -2933,21 +2602,6 @@ await lotto.joinSyndicate(wallet, syndicate.publicKey, 100_000_000); // $100
 await lotto.buyTicketForSyndicate(wallet, syndicate.publicKey, [1, 2, 3, 4, 5, 6]);
 ```
 
-#### Staking
-
-```typescript
-// Stake LOTTO tokens
-await lotto.stakeLotto(wallet, 10_000_000_000_000); // 10,000 LOTTO
-
-// Check staking tier
-const stakeAccount = await lotto.getStakeAccount(wallet.publicKey);
-console.log('Tier:', stakeAccount.tier);
-console.log('Discount:', stakeAccount.tier.discountBps / 100, '%');
-
-// Claim rewards
-await lotto.claimStakingRewards(wallet);
-```
-
 ### 9.4 Event Listening
 
 ```typescript
@@ -3148,21 +2802,7 @@ describe('SolanaLotto Integration', () => {
                 .to.be.rejectedWith('DuplicateNumber');
         });
 
-        it('should apply staking discount', async () => {
-            // Stake enough for Silver tier
-            await lotto.stakeLotto(wallet, 10_000_000_000_000);
-            
-            const state = await lotto.getLotteryState();
-            const stakeAccount = await lotto.getStakeAccount(wallet.publicKey);
-            
-            const basePrice = state.ticketPrice;
-            const discount = stakeAccount.tier.discountBps;
-            const expectedPrice = basePrice * (10000 - discount) / 10000;
-            
-            // Verify price in transaction
-            // ...
-        });
-    });
+      });
 
     describe('Draw Execution', () => {
         it('should execute draw with VRF randomness', async () => {
@@ -3256,7 +2896,6 @@ npx ts-node scripts/initialize.ts --network devnet
 export const MAINNET_CONFIG = {
     programId: new PublicKey('LOTTO...xxxx'),
     usdcMint: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
-    lottoMint: new PublicKey('LOTTO...yyyy'),
     vrfProgramId: new PublicKey('SW1TCH...xxxx'),
     oracleQueue: new PublicKey('QUEUE...xxxx'),
     
@@ -3264,7 +2903,6 @@ export const MAINNET_CONFIG = {
     lotteryState: lottery_state_pda()[0],
     prizePoolUsdc: prize_pool_usdc_pda()[0],
     houseFeeUsdc: house_fee_usdc_pda()[0],
-    stakingVault: staking_vault_pda()[0],
 };
 
 // config/devnet.ts
@@ -3284,7 +2922,8 @@ export const DEVNET_CONFIG = {
 | Term | Definition |
 |------|------------|
 | **PDA** | Program Derived Address - deterministic address derived from seeds |
-| **VRF** | Verifiable Random Function - cryptographic randomness with proof |
+| **TEE** | Trusted Execution Environment - secure hardware enclave for randomness |
+| **Commit-Reveal** | Pattern where user commits before randomness is known, preventing manipulation |
 | **BPS** | Basis Points - 1/100th of a percent (100 bps = 1%) |
 | **Lamports** | Smallest unit of SOL (1 SOL = 1 billion lamports) |
 | **ATA** | Associated Token Account - standard token account for a wallet |

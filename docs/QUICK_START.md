@@ -51,7 +51,7 @@ Fees scale with jackpot excitement:
 | [SOLANA_LOTTO.md](./SOLANA_LOTTO.md) | Main README with features, prizes, and API |
 | [WHITEPAPER.md](./WHITEPAPER.md) | Mathematical foundations and economic model |
 | [TECHNICAL_SPEC.md](./TECHNICAL_SPEC.md) | Smart contract specs for developers |
-| [ADVANCED_FEATURES.md](./ADVANCED_FEATURES.md) | **NEW:** Dynamic fees, Lucky Numbers NFT, Second Chance, MEV protection, Quick Pick Express, Mega Events, Syndicate Wars |
+| [ADVANCED_FEATURES.md](./ADVANCED_FEATURES.md) | Dynamic fees, Lucky Numbers NFT, MEV protection, Quick Pick Express, Mega Events, Syndicate Wars |
 
 ---
 
@@ -180,11 +180,6 @@ lotto.getUserTickets(publicKey)
 // Claims
 lotto.claimPrize(wallet, ticketPubkey)
 
-// Staking
-lotto.stakeLotto(wallet, amount)
-lotto.getStakeAccount(publicKey)
-lotto.claimStakingRewards(wallet)
-
 // Syndicates
 lotto.createSyndicate(wallet, config)
 lotto.joinSyndicate(wallet, syndicatePubkey, amount)
@@ -208,15 +203,24 @@ lotto.joinSyndicate(wallet, syndicatePubkey, amount)
 | **Draw Frequency** | Daily (00:00 UTC) |
 | **Rolldown Frequency** | ~Every 2-3 weeks |
 
-### Quick Pick Express (4/20)
+### Quick Pick Express (5/35)
+
+> ⚠️ **$50 Gate Requirement**: Must have spent $50+ lifetime in main lottery to access.
 
 | Metric | Value |
 |--------|-------|
-| **Ticket Price** | $0.50 USDC |
-| **Matrix** | 4/20 |
+| **Ticket Price** | $1.50 USDC |
+| **Matrix** | 5/35 (Pick 5 from 35) |
 | **Draw Frequency** | Every 4 hours (6x daily) |
-| **Match 4 Prize** | $500 (1 in 4,845) |
-| **Match 3 Prize** | $10 (1 in 76) |
+| **Jackpot Odds** | 1 in 324,632 |
+| **Jackpot Seed** | $5,000 |
+| **Soft Cap** | $30,000 (probabilistic rolldown) |
+| **Hard Cap** | $40,000 (forced rolldown) |
+| **Match 4 Prize** | $100 fixed / ~$3,000 rolldown |
+| **Match 3 Prize** | $4 fixed / ~$74 rolldown |
+| **Match 2 Prize** | No prize (no free ticket) |
+| **Cycle Duration** | ~2-3 days |
+| **🔥 Rolldown EV** | **+59% player edge!** |
 
 ### Mega Events (Quarterly)
 
@@ -234,12 +238,6 @@ lotto.joinSyndicate(wallet, syndicatePubkey, amount)
 ### 🏆 Lucky Numbers NFT
 Win Match 4+ → Receive NFT with your numbers → If those numbers ever hit jackpot → You get **1% of the jackpot** (even if you didn't play!)
 
-### 🎫 Second Chance Draws
-Every non-winning ticket enters weekly Second Chance Draw:
-- Grand Prize: $10,000
-- 10 Runner Ups: $1,000 each
-- 100 Consolation: $100 each
-
 ### 🏅 Syndicate Wars
 Monthly competition for syndicates:
 - Prize Pool: 1% of monthly sales (~$75k)
@@ -249,6 +247,13 @@ Monthly competition for syndicates:
 ### 🛡️ MEV Protection
 - Jito integration prevents front-running
 - Future: Threshold encryption for maximum security
+
+### 🔒 Provably Fair Randomness
+All randomness is generated using **Switchboard Randomness** with Trusted Execution Environments (TEEs):
+- **TEE-based security**: Even oracle operators cannot see or manipulate randomness
+- **Commit-reveal pattern**: Prevents selective revelation attacks
+- **On-chain verification**: All proofs are verifiable on-chain
+- **Slashing mechanism**: Misbehaving oracles lose their $SWTCH stake
 
 ---
 
@@ -278,14 +283,14 @@ Only play with money you can afford to lose. Verify your local laws before parti
 
 ---
 
-## 🆕 What's New (v2.0)
+## 🆕 What's New (v2.4)
 
+- ✅ **Quick Pick Express v2** (5/35 matrix, $1.50 tickets, **+59% rolldown exploit**, no free ticket, $50 gate)
+- ✅ **Switchboard Randomness** (TEE-based secure randomness with commit-reveal)
 - ✅ **Dynamic House Fee** (28-40% based on jackpot)
 - ✅ **Soft/Hard Cap System** (prevents calendar gaming)
 - ✅ **Lucky Numbers NFT** (1% future jackpot bonus)
-- ✅ **Second Chance Draws** (weekly)
-- ✅ **Quick Pick Express** (4/20, every 4 hours)
-- ✅ **Mega Rolldown Events** (quarterly, $5M jackpot)
+
 - ✅ **Syndicate Wars** (monthly competition)
 - ✅ **MEV Protection** (Jito + future threshold encryption)
 - ✅ **Insurance Pool** (variance protection)
@@ -302,7 +307,7 @@ MIT License - See [LICENSE](../LICENSE) for details.
 
 <div align="center">
 
-**SolanaLotto Protocol v2.0**
+**SolanaLotto Protocol v2.4**
 
 *Where the math finally works in your favor... sometimes.*
 

@@ -13,17 +13,15 @@ This guide provides comprehensive documentation for all constants used in the So
 5. [Prize Allocation System](#5-prize-allocation-system)
 6. [Fixed Prize Amounts](#6-fixed-prize-amounts)
 7. [Rolldown Allocation](#7-rolldown-allocation)
-8. [Staking System](#8-staking-system)
-9. [Quick Pick Express](#9-quick-pick-express)
-10. [Lucky Numbers NFT](#10-lucky-numbers-nft)
-11. [Second Chance Draws](#11-second-chance-draws)
-12. [Syndicate Wars](#12-syndicate-wars)
-13. [Limits & Validation](#13-limits--validation)
-14. [Randomness & Timing](#14-randomness--timing)
-15. [Mathematical Constants](#15-mathematical-constants)
-16. [Account Sizes](#16-account-sizes)
-17. [Helper Functions](#17-helper-functions)
-18. [Enumerations](#18-enumerations)
+8. [Quick Pick Express](#8-quick-pick-express)
+9. [Lucky Numbers NFT](#9-lucky-numbers-nft)
+10. [Syndicate Wars](#10-syndicate-wars)
+11. [Limits & Validation](#11-limits--validation)
+12. [Randomness & Timing](#12-randomness--timing)
+13. [Mathematical Constants](#13-mathematical-constants)
+14. [Account Sizes](#14-account-sizes)
+15. [Helper Functions](#15-helper-functions)
+16. [Enumerations](#16-enumerations)
 
 ## Conventions
 
@@ -34,7 +32,6 @@ This guide provides comprehensive documentation for all constants used in the So
 
 ### Amount Formats
 - **USDC amounts**: In lamports (6 decimals) - `$1.00 = 1,000,000`
-- **$LOTTO amounts**: In lamports (9 decimals) - `1 LOTTO = 1,000,000,000`
 - **SOL amounts**: In lamports (9 decimals) - `1 SOL = 1,000,000,000`
 
 ### Time Formats
@@ -54,7 +51,6 @@ Program Derived Address (PDA) seeds used for deterministic account derivation.
 | `TICKET_SEED` | `b"ticket"` | Individual ticket accounts | Ticket PDA derivation with owner and draw ID |
 | `DRAW_SEED` | `b"draw"` | Historical draw results | Draw result PDA with draw ID |
 | `USER_SEED` | `b"user"` | User statistics and tracking | User stats PDA with wallet address |
-| `STAKE_SEED` | `b"stake"` | $LOTTO token staking accounts | Stake account PDA with wallet address |
 | `SYNDICATE_SEED` | `b"syndicate"` | Syndicate (group play) accounts | Syndicate PDA with creator and ID |
 
 ### Token Accounts
@@ -67,7 +63,6 @@ Program Derived Address (PDA) seeds used for deterministic account derivation.
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `LUCKY_NUMBERS_SEED` | `b"lucky_numbers"` | Lucky Numbers NFT accounts (Match 4+ winners) |
-| `SECOND_CHANCE_SEED` | `b"second_chance"` | Second chance draw entries |
 | `QUICK_PICK_SEED` | `b"quick_pick"` | Quick Pick Express game state |
 | `SYNDICATE_WARS_SEED` | `b"syndicate_wars"` | Syndicate Wars competition entries |
 
@@ -264,65 +259,194 @@ let match_3_prize = jackpot * ROLLDOWN_MATCH_3_BPS as u64 / 10000 / match_3_winn
 
 ---
 
-## 8. Staking System
+## 8. Quick Pick Express
 
-$LOTTO token staking tiers and rewards.
+5/35 mini-game with **full rolldown mechanics and +59% player edge exploit** — exclusive to committed players.
 
-### Tier Thresholds
-| Constant | Value | Description | LOTTO Amount |
-|----------|-------|-------------|--------------|
-| `BRONZE_THRESHOLD` | `1,000,000,000,000` lamports | Bronze tier threshold | 1,000 LOTTO |
-| `SILVER_THRESHOLD` | `10,000,000,000,000` lamports | Silver tier threshold | 10,000 LOTTO |
-| `GOLD_THRESHOLD` | `50,000,000,000,000` lamports | Gold tier threshold | 50,000 LOTTO |
-| `DIAMOND_THRESHOLD` | `250,000,000,000,000` lamports | Diamond tier threshold | 250,000 LOTTO |
+> ⚠️ **$50 Gate Requirement**: Players must have spent $50+ lifetime in the main lottery to access Quick Pick Express.
 
-### Reward Rates (per epoch)
-| Constant | Value | Description | Annualized Rate* |
-|----------|-------|-------------|------------------|
-| `BRONZE_REWARD_BPS` | `100` BPS (1%) | Bronze reward rate | ~12% |
-| `SILVER_REWARD_BPS` | `150` BPS (1.5%) | Silver reward rate | ~18% |
-| `GOLD_REWARD_BPS` | `200` BPS (2%) | Gold reward rate | ~24% |
-| `DIAMOND_REWARD_BPS` | `250` BPS (2.5%) | Diamond reward rate | ~30% |
+**🎯 Key Feature:** During rolldown events, players enjoy **+58.7% positive expected value** — comparable to the main lottery's +62%!
 
-*Assuming 12 epochs per year
+### Access Gate
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `QUICK_PICK_MIN_SPEND_GATE` | `50,000,000` lamports | $50 minimum main lottery spend required |
 
-### Tier Determination
+### Core Parameters
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `QUICK_PICK_TICKET_PRICE` | `1,500,000` lamports | Ticket price ($1.50) |
+| `QUICK_PICK_NUMBERS` | `5` | Numbers per ticket |
+| `QUICK_PICK_RANGE` | `35` | Number range (1-35) |
+| `QUICK_PICK_INTERVAL` | `14,400` seconds | Draw interval (4 hours) |
+
+### Jackpot System
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `QUICK_PICK_SEED_AMOUNT` | `5,000,000,000` lamports | Jackpot seed ($5,000) |
+| `QUICK_PICK_SOFT_CAP` | `30,000,000,000` lamports | Soft cap ($30,000) - probabilistic rolldown |
+| `QUICK_PICK_HARD_CAP` | `40,000,000,000` lamports | Hard cap ($40,000) - forced rolldown |
+
+### Dynamic Fee Tiers
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `QUICK_PICK_FEE_TIER_1_THRESHOLD` | `10,000,000,000` lamports | $10,000 threshold |
+| `QUICK_PICK_FEE_TIER_2_THRESHOLD` | `20,000,000,000` lamports | $20,000 threshold |
+| `QUICK_PICK_FEE_TIER_3_THRESHOLD` | `30,000,000,000` lamports | $30,000 threshold |
+| `QUICK_PICK_FEE_TIER_1_BPS` | `3,000` BPS (30%) | Fee for jackpot < $10,000 |
+| `QUICK_PICK_FEE_TIER_2_BPS` | `3,300` BPS (33%) | Fee for $10,000 - $20,000 |
+| `QUICK_PICK_FEE_TIER_3_BPS` | `3,600` BPS (36%) | Fee for $20,000 - $30,000 |
+| `QUICK_PICK_FEE_TIER_4_BPS` | `3,800` BPS (38%) | Fee for jackpot > $30,000 |
+| `QUICK_PICK_FEE_ROLLDOWN_BPS` | `2,800` BPS (28%) | Fee during rolldown (encourages volume) |
+
+### Fixed Prizes (Normal Mode) — NO FREE TICKET
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `QUICK_PICK_MATCH_4_PRIZE` | `100,000,000` lamports | $100 prize for Match 4 |
+| `QUICK_PICK_MATCH_3_PRIZE` | `4,000,000` lamports | $4 prize for Match 3 |
+| — | — | No Match 2 prize in Quick Pick Express |
+
+### Rolldown Allocation (THE EXPLOIT: +59% Player Edge!)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `QUICK_PICK_ROLLDOWN_MATCH_4_BPS` | `6,000` BPS (60%) | Match 4 rolldown allocation |
+| `QUICK_PICK_ROLLDOWN_MATCH_3_BPS` | `4,000` BPS (40%) | Match 3 rolldown allocation |
+
+### Prize Pool Allocation (No Free Tickets = More to Jackpot)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `QUICK_PICK_JACKPOT_ALLOCATION_BPS` | `6,000` BPS (60%) | Jackpot allocation |
+| `QUICK_PICK_FIXED_PRIZE_ALLOCATION_BPS` | `3,700` BPS (37%) | Fixed prize allocation |
+| `QUICK_PICK_INSURANCE_ALLOCATION_BPS` | `300` BPS (3%) | Insurance pool allocation |
+
+### Odds (5/35 Matrix)
+```
+Total combinations: C(35, 5) = 324,632
+Match 5 (Jackpot): 1 in 324,632 (0.000308%)
+Match 4: 1 in 2,164 (0.0462%)
+Match 3: 1 in 74.6 (1.34%)
+Match 2: No prize (12.5% - no free ticket in Quick Pick)
+```
+
+### Expected Value Analysis
+```
+Normal Mode (87-91% house edge — no free tickets!):
+├── Match 5: $15,000 × 1/324,632 = $0.046
+├── Match 4: $100 × 1/2,164 = $0.046
+├── Match 3: $4 × 1/74.6 = $0.054
+├── Match 2: $0 (no free ticket)
+├── Total EV: ~$0.15 on $1.50 ticket
+
+🔥 Rolldown Mode (+59% PLAYER EDGE):
+├── Match 4: $3,000 × 1/2,164 = $1.39
+├── Match 3: $74 × 1/74.6 = $0.99
+├── Match 2: $0 (no free ticket)
+├── Total EV: $2.38 on $1.50 ticket
+├── PROFIT: +$0.88 per ticket!
+```
+
+### Gate Verification
 ```rust
-pub fn get_stake_tier(staked_amount: u64) -> StakeTier {
-    if staked_amount >= DIAMOND_THRESHOLD {
-        StakeTier::Diamond
-    } else if staked_amount >= GOLD_THRESHOLD {
-        StakeTier::Gold
-    } else if staked_amount >= SILVER_THRESHOLD {
-        StakeTier::Silver
-    } else if staked_amount >= BRONZE_THRESHOLD {
-        StakeTier::Bronze
-    } else {
-        StakeTier::None
+pub fn verify_quick_pick_eligibility(user_stats: &UserStats) -> Result<()> {
+    require!(
+        user_stats.total_spent >= QUICK_PICK_MIN_SPEND_GATE,
+        LottoError::InsufficientMainLotterySpend
+    );
+    Ok(())
+}
+```
+
+### Dynamic Fee Calculation
+```rust
+pub fn calculate_quick_pick_fee_bps(jackpot_balance: u64, is_rolldown_pending: bool) -> u16 {
+    if is_rolldown_pending {
+        return QUICK_PICK_FEE_ROLLDOWN_BPS; // 28% during rolldown
+    }
+    
+    if jackpot_balance < QUICK_PICK_FEE_TIER_1_THRESHOLD {  // < $10k
+        QUICK_PICK_FEE_TIER_1_BPS  // 30%
+    } else if jackpot_balance < QUICK_PICK_FEE_TIER_2_THRESHOLD {  // $10k-$20k
+        QUICK_PICK_FEE_TIER_2_BPS  // 33%
+    } else if jackpot_balance < QUICK_PICK_FEE_TIER_3_THRESHOLD {  // $20k-$30k
+        QUICK_PICK_FEE_TIER_3_BPS  // 36%
+    } else {  // > $30k
+        QUICK_PICK_FEE_TIER_4_BPS  // 38%
     }
 }
 ```
 
-### Benefits by Tier
-| Tier | Ticket Discount | Fee Share | Reward Rate | Minimum Stake |
-|------|----------------|-----------|-------------|---------------|
-| None | 0% | 0% | 0% | 0 LOTTO |
-| Bronze | 5% | 0.5% | 1% | 1,000 LOTTO |
-| Silver | 10% | 1.5% | 1.5% | 10,000 LOTTO |
-| Gold | 15% | 3% | 2% | 50,000 LOTTO |
-| Diamond | 20% | 5% | 2.5% | 250,000 LOTTO |
+### Probabilistic Rolldown
+```rust
+pub fn should_quick_pick_rolldown(jackpot_balance: u64, random_value: u64) -> bool {
+    if jackpot_balance < QUICK_PICK_SOFT_CAP {  // < $30,000
+        return false;
+    }
+    if jackpot_balance >= QUICK_PICK_HARD_CAP {  // >= $40,000
+        return true;  // Forced rolldown!
+    }
+    
+    // Linear probability between $30k and $40k
+    // At $35k: 50% chance, at $38k: 80% chance, etc.
+    let probability_bps = ((jackpot_balance - QUICK_PICK_SOFT_CAP) as u128 * 10000
+        / (QUICK_PICK_HARD_CAP - QUICK_PICK_SOFT_CAP) as u128) as u64;
+    
+    (random_value % 10000) < probability_bps
+}
+```
 
 ---
 
-## 9. Quick Pick Express
+## 9. Lucky Numbers NFT
 
-4/20 mini-game configuration.
+Lucky Numbers NFT configuration for Match 4+ winners.
 
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `QUICK_PICK_TICKET_PRICE` | `500,000` lamports | Ticket price ($0.50) |
-| `QUICK_PICK_NUMBERS` | `4` | Numbers per ticket |
-| `QUICK_PICK_RANGE` | `20` | Number range (1-20) |
-| `QUICK_PICK_HOUSE_FEE_BPS` | `3,000` BPS (30%) | House fee percentage |
-| `QUICK_PICK_INTERVAL` | `14,400` seconds | Draw interval (4 hours) |
-| `QUICK_PICK_MATCH_4_PRIZE` | `
+| `LUCKY_NUMBERS_BONUS_BPS` | `100` BPS (1%) | Bonus percentage of jackpot |
+| `LUCKY_NUMBERS_MIN_MATCH` | `4` | Minimum match tier to receive NFT |
+
+---
+
+## 10. Syndicate Wars
+
+Monthly syndicate competition configuration.
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `SYNDICATE_WARS_POOL_BPS` | `100` BPS (1%) | Pool percentage of monthly sales |
+| `SYNDICATE_WARS_MIN_TICKETS` | `1,000` | Minimum tickets to qualify |
+
+---
+
+## 11. Limits & Validation
+
+System limits and validation parameters.
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `MAX_BULK_TICKETS` | `10` | Maximum tickets per bulk purchase |
+| `MAX_SYNDICATE_MEMBERS` | `100` | Maximum members per syndicate |
+| `MAX_NUMBER` | `46` | Maximum selectable number (main lottery) |
+| `MIN_NUMBER` | `1` | Minimum selectable number |
+| `NUMBERS_PER_TICKET` | `6` | Numbers per ticket (main lottery) |
+
+---
+
+## 12. Comparison: Main Lottery vs Quick Pick Express
+
+| Feature | Main Lottery (6/46) | Quick Pick Express (5/35) |
+|---------|---------------------|---------------------------|
+| **Ticket Price** | $2.50 | $1.50 |
+| **Draw Frequency** | Daily | Every 4 hours |
+| **Jackpot Odds** | 1 in 9.37M | 1 in 324,632 |
+| **Jackpot Seed** | $500,000 | $5,000 |
+| **Soft Cap** | $1,750,000 | $30,000 |
+| **Hard Cap** | $2,250,000 | $40,000 |
+| **Cycle Duration** | ~15-16 days | ~2-3 days |
+| **Rolldown Mechanics** | ✅ Probabilistic | ✅ Probabilistic |
+| **Dynamic Fees** | ✅ 28-40% | ✅ 28-38% |
+| **Access** | Open to all | $50 gate required |
+| **Free Ticket (Match 2)** | ✅ Yes | ❌ No |
+| **Normal Mode Edge** | -65% (house) | -89% (house) |
+| **🔥 Rolldown EV** | **+62% (player)** | **+59% (player)** |
+| **Rolldown Frequency** | ~Every 2-3 weeks | ~Every 2-3 days |

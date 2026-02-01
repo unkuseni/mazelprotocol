@@ -1,6 +1,6 @@
 # SolanaLotto Advanced Features Specification
 
-## Version 1.0.0
+## Version 2.0.0
 
 ---
 
@@ -9,12 +9,10 @@
 1. [Dynamic House Fee System](#1-dynamic-house-fee-system)
 2. [Soft/Hard Rolldown Caps](#2-softhard-rolldown-caps)
 3. [Lucky Numbers NFT System](#3-lucky-numbers-nft-system)
-4. [Second Chance Draws](#4-second-chance-draws)
-5. [MEV Protection](#5-mev-protection)
-6. [Quick Pick Express (4/20)](#6-quick-pick-express-420)
-7. [Mega Rolldown Events](#7-mega-rolldown-events)
-8. [Syndicate Wars Competition](#8-syndicate-wars-competition)
-9. [Implementation Priority](#9-implementation-priority)
+4. [MEV Protection](#4-mev-protection)
+5. [Quick Pick Express (5/35)](#5-quick-pick-express-535)
+6. [Syndicate Wars Competition](#6-syndicate-wars-competition)
+7. [Implementation Priority](#7-implementation-priority)
 
 ---
 
@@ -119,7 +117,7 @@ pub fn buy_ticket(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()
 }
 ```
 
-### 1.5 UI/UX Considerations
+### 6.8 UI/UX Considerations
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -250,8 +248,8 @@ pub fn process_rolldown(ctx: Context<ProcessRolldown>) -> Result<()> {
         let probability_denominator = state.hard_cap - state.soft_cap;
         let probability = probability_numerator as u128 * 10000 / probability_denominator as u128; // basis points
         
-        // Generate random number [0, 9999] via Chainlink VRF
-        let random_value = get_random_value() % 10000;
+        // Generate random number [0, 9999] via Switchboard Randomness
+        let random_value = revealed_random_value[0] as u64 % 10000;
         
         if random_value < probability as u64 {
             // Probabilistic rolldown triggered
@@ -569,169 +567,9 @@ pub struct LuckyNumbersConfig {
 
 ---
 
-## 4. Second Chance Draws
+## 4. MEV Protection
 
-### 4.1 Overview
-
-Every non-winning ticket automatically enters a weekly Second Chance Draw, giving losing tickets residual value and encouraging continued participation.
-
-### 4.2 Prize Structure
-
-```
-Weekly Second Chance Draw:
-
-Prize Pool: 5% of weekly reserve fund allocation
-├── At 100k tickets/day: ~$35,000/week
-
-Prizes:
-├── 1× Grand Prize: $10,000
-├── 10× Runner Up: $1,000 each ($10,000 total)
-├── 100× Consolation: $100 each ($10,000 total)
-├── 1,000× Free Tickets: $2.50 each ($2,500 total)
-├── Buffer for operations: $2,500
-
-Total: $35,000
-```
-
-### 4.3 Eligibility Rules
-
-```rust
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct SecondChanceEntry {
-    /// Original ticket reference
-    pub ticket: Pubkey,
-    
-    /// Player wallet
-    pub player: Pubkey,
-    
-    /// Week number for this entry
-    pub week_id: u64,
-    
-    /// Number of entries (based on ticket value)
-    pub entry_count: u32,
-}
-
-/// Calculate entries for second chance
-pub fn calculate_second_chance_entries(ticket: &Ticket) -> u32 {
-    // Non-winners get 1 entry per ticket
-    if ticket.match_count < 2 {
-        return 1;
-    }
-    
-    // Match 2 winners already got free ticket, no second chance
-    0
-}
-```
-
-### 4.4 Drawing Mechanism
-
-```rust
-/// Weekly Second Chance Draw execution
-pub fn execute_second_chance_draw(
-    ctx: Context<ExecuteSecondChance>
-) -> Result<()> {
-    let state = &ctx.accounts.lottery_state;
-    let week_id = calculate_current_week();
-    
-    // Get all eligible entries for this week
-    let total_entries = get_weekly_entry_count(week_id)?;
-    
-    require!(total_entries > 0, LottoError::NoSecondChanceEntries);
-    
-    // Request VRF for second chance draw
-    let random_seeds = request_vrf_randomness(1111)?; // 1111 winners total
-    
-    // Select winners
-    let winners = select_second_chance_winners(
-        random_seeds,
-        total_entries,
-        SecondChancePrizes {
-            grand_prize_count: 1,
-            runner_up_count: 10,
-            consolation_count: 100,
-            free_ticket_count: 1000,
-        }
-    )?;
-    
-    // Distribute prizes
-    for winner in winners.grand_prize {
-        distribute_second_chance_prize(ctx, winner, 10_000_000_000)?;
-    }
-    for winner in winners.runner_up {
-        distribute_second_chance_prize(ctx, winner, 1_000_000_000)?;
-    }
-    for winner in winners.consolation {
-        distribute_second_chance_prize(ctx, winner, 100_000_000)?;
-    }
-    for winner in winners.free_ticket {
-        mint_free_ticket_nft(ctx, winner)?;
-    }
-    
-    emit!(SecondChanceDrawExecuted {
-        week_id,
-        total_entries,
-        total_distributed: 32_500_000_000, // $32,500
-        grand_prize_winner: winners.grand_prize[0],
-    });
-    
-    Ok(())
-}
-```
-
-### 4.5 UI Integration
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  YOUR TICKETS - DRAW #127                                │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  Ticket #1: [4, 12, 23, 31, 38, 45]                     │
-│  Status: Match 1 (No Prize)                             │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ 🎰 SECOND CHANCE ENTRY: ACTIVE                  │   │
-│  │    Week #23 Draw: Sunday 00:00 UTC              │   │
-│  │    Your entries: 1                               │   │
-│  │    Total entries this week: 487,293              │   │
-│  │    Your odds: 1 in 487,293                       │   │
-│  └─────────────────────────────────────────────────┘   │
-│                                                          │
-│  Ticket #2: [7, 14, 21, 28, 35, 42]                     │
-│  Status: Match 2 (Free Ticket!)                         │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ ✅ Free ticket claimed - not eligible for        │   │
-│  │    second chance (already won!)                  │   │
-│  └─────────────────────────────────────────────────┘   │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 4.6 Economic Impact
-
-```
-Player Psychology Benefits:
-├── "Even losing tickets have value"
-├── Reduces regret of not winning
-├── Weekly engagement touchpoint
-├── Social sharing of second chance wins
-
-Protocol Benefits:
-├── Increased ticket purchases (residual value perception)
-├── Weekly engagement beyond main draws
-├── Additional viral moments (grand prize winners)
-├── Data collection on player preferences
-
-Cost Analysis:
-├── $35,000/week from reserve fund
-├── Reserve accumulates $35,000/week at target volume
-├── Net neutral to reserve, but drives volume growth
-├── Volume growth > offsets second chance costs
-```
-
----
-
-## 5. MEV Protection
-
-### 5.1 Threat Model
+### 4.1 Threat Model
 
 **Attack Vector 1: Front-Running Ticket Purchase**
 ```
@@ -763,7 +601,7 @@ Scenario:
 Risk Level: MEDIUM
 ```
 
-### 5.2 Solution: Threshold Encryption
+### 4.2 Solution: Threshold Encryption
 
 **Overview:**
 
@@ -798,7 +636,7 @@ Ticket numbers are encrypted at purchase time. Decryption only occurs after winn
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 5.3 Implementation
+### 4.3 Implementation
 
 ```rust
 /// Encrypted ticket structure
@@ -932,7 +770,7 @@ pub fn decrypt_ticket(ctx: Context<DecryptTicket>) -> Result<()> {
 }
 ```
 
-### 5.4 Alternative: Jito Integration
+### 4.4 Alternative: Jito Integration
 
 For simpler MEV protection without full threshold encryption:
 
@@ -967,57 +805,248 @@ pub fn buy_ticket_with_jito(
 - Less censorship resistant than threshold encryption
 - Requires users to submit through Jito
 
-### 5.5 Recommendation
+### 4.5 Recommendation
 
 **Phase 1 (Launch):** Implement Jito integration for basic MEV protection
 **Phase 2 (6+ months):** Add threshold encryption for maximum security
 
 ---
 
-## 6. Quick Pick Express (4/20)
+## 5. Quick Pick Express (5/35)
 
-### 6.1 Overview
+### 5.1 Overview
 
-A high-frequency, low-stakes lottery game that runs every 4 hours (6x daily), providing continuous engagement between main draws.
+A high-frequency mini-lottery featuring the **same rolldown mechanics and +EV exploit as the main lottery**, running every 4 hours (6x daily). This exclusive game provides continuous engagement between main draws and is only accessible to players who have demonstrated commitment to the main lottery.
 
-### 6.2 Game Parameters
+**🎯 Key Feature:** During rolldown events, players enjoy **+59% positive expected value** — comparable to the main lottery's +62%!
 
-| Parameter | Value |
-|-----------|-------|
-| **Matrix** | 4/20 (Pick 4 from 20) |
-| **Ticket Price** | $0.50 USDC |
-| **Draw Frequency** | Every 4 hours (6x daily) |
-| **House Fee** | 30% |
-| **Prize Pool** | 70% |
+### 5.2 Access Requirements
 
-### 6.3 Odds Calculation
+> ⚠️ **$50 Gate Requirement**: Players must have spent a minimum of **$50 USDC lifetime** in the main SolanaLotto (6/46) before gaining access to Quick Pick Express.
+
+This requirement:
+- Ensures players understand the main lottery mechanics first
+- Creates exclusivity and rewards loyal players
+- Reduces abuse potential from bot accounts
+- Builds a committed player base for the mini-game
+
+**Implementation:**
+```rust
+// Check user eligibility before Quick Pick purchase
+pub fn verify_quick_pick_eligibility(user_stats: &UserStats) -> Result<()> {
+    require!(
+        user_stats.total_spent >= QUICK_PICK_MIN_SPEND_GATE,
+        LottoError::InsufficientMainLotterySpend
+    );
+    Ok(())
+}
+
+// Constant
+pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000; // $50 in USDC lamports
+```
+
+### 5.3 Game Parameters
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| **Matrix** | 5/35 (Pick 5 from 35) | Balanced odds — occasional jackpot wins + frequent rolldowns |
+| **Ticket Price** | $1.50 USDC | Accessible yet meaningful stake |
+| **Draw Frequency** | Every 4 hours (6x daily) | Continuous engagement |
+| **Jackpot Seed** | $5,000 | Attractive starting point |
+| **Soft Cap** | $30,000 | Probabilistic rolldown begins |
+| **Hard Cap** | $40,000 | Forced rolldown guaranteed |
+| **Cycle Duration** | ~2-3 days (12-18 draws) | Fast-paced excitement |
+
+### 5.4 Odds Calculation
 
 ```
-Total combinations: C(20, 4) = 4,845
+Total combinations: C(35, 5) = 324,632
 
 Match Probabilities:
-├── Match 4: C(4,4) × C(16,0) / 4,845 = 1/4,845
-├── Match 3: C(4,3) × C(16,1) / 4,845 = 64/4,845 = 1/75.7
-├── Match 2: C(4,2) × C(16,2) / 4,845 = 720/4,845 = 1/6.7
-├── Match 1: C(4,1) × C(16,3) / 4,845 = 2,240/4,845 = 46.2%
-├── Match 0: C(4,0) × C(16,4) / 4,845 = 1,820/4,845 = 37.6%
+├── Match 5 (Jackpot): C(5,5) × C(30,0) / 324,632 = 1/324,632 (0.000308%)
+├── Match 4: C(5,4) × C(30,1) / 324,632 = 150/324,632 = 1/2,164 (0.0462%)
+├── Match 3: C(5,3) × C(30,2) / 324,632 = 4,350/324,632 = 1/74.6 (1.34%)
+├── Match 2: C(5,2) × C(30,3) / 324,632 = 40,600/324,632 = 1/8.0 (12.5%)
+├── Match 1: C(5,1) × C(30,4) / 324,632 = 136,750/324,632 = 42.1%
+├── Match 0: C(5,0) × C(30,5) / 324,632 = 142,506/324,632 = 43.9%
 ```
 
-### 6.4 Prize Structure
+**Why 5/35?**
+- Jackpot odds (1 in 324,632) create ~14% chance of direct jackpot win per cycle
+- This means ~86% of cycles end in rolldown — consistent +EV opportunities
+- More exciting than 6/46 (where jackpots almost never hit)
+- Match 4 odds (1 in 2,164) provide meaningful secondary prizes
+
+### 5.5 Dynamic House Fee System
+
+Like the main lottery, Quick Pick Express uses dynamic fees based on jackpot level:
+
+| Jackpot Level | House Fee | Prize Pool | Effect |
+|---------------|-----------|------------|--------|
+| < $10,000 | **30%** | 70% | Attracts early players |
+| $10,000 - $20,000 | **33%** | 67% | Standard operations |
+| $20,000 - $30,000 | **36%** | 64% | Building anticipation |
+| > $30,000 | **38%** | 62% | Maximum extraction near cap |
+| During Rolldown | **28%** | 72% | Encourages maximum volume |
+
+### 5.6 Prize Structure - Normal Mode
+
+During normal operation (Jackpot < $30,000):
 
 | Match | Prize | Odds | Expected Value |
 |-------|-------|------|----------------|
-| 4 | $500 | 1 in 4,845 | $0.103 |
-| 3 | $10 | 1 in 75.7 | $0.132 |
-| 2 | Free Ticket ($0.50) | 1 in 6.7 | $0.075 |
-| **Total EV** | | | **$0.310** |
+| **5 (Jackpot)** | $5,000 → $40,000 (growing) | 1 in 324,632 | $0.015 - $0.12 |
+| **4** | $100 (fixed) | 1 in 2,164 | $0.046 |
+| **3** | $4 (fixed) | 1 in 74.6 | $0.054 |
+| **Total EV** | | | **$0.12 - $0.22** |
 
-**House Edge:** ($0.50 - $0.31) / $0.50 = **38%**
+**House Edge (Normal):** ~85-92% — funds the rolldown exploit
 
-### 6.5 Smart Contract Implementation
+### 5.7 🔥 Prize Structure - Rolldown Mode (THE EXPLOIT)
+
+When jackpot caps and no Match 5 winner, the **full jackpot distributes down**:
+
+| Match | Pool Share | Est. Prize* | Expected Value |
+|-------|------------|-------------|----------------|
+| **5** | 0% | $0 (no winner) | $0 |
+| **4** | 60% | ~$3,000 | $1.39 |
+| **3** | 40% | ~$74 | $0.99 |
+| **Total EV** | | | **$2.38** |
+
+*Based on 12,000 tickets during rolldown draw (~6 Match 4 winners, ~161 Match 3 winners)
+
+### 🎯 **Player Edge (Rolldown): +58.7%** 
+
+**This is the exploit!** During rolldown:
+- Ticket costs $1.50
+- Expected return is $2.38
+- **Profit: +$0.88 per ticket**
+
+This is even MORE profitable than the main lottery's +62% rolldown!
+
+### 5.8 The Rolldown Mechanism
+
+Quick Pick Express uses the same probabilistic rolldown system as the main lottery:
+
+#### Soft/Hard Cap System
+
+| Parameter | Value | Behavior |
+|-----------|-------|----------|
+| **Soft Cap** | $30,000 | Rolldown can trigger randomly each draw |
+| **Hard Cap** | $40,000 | Rolldown forced (100% of jackpot distributes) |
+
+#### Probabilistic Trigger
+
+When jackpot exceeds $30,000 but is below $40,000:
+
+```
+P(rolldown) = (jackpot - soft_cap) / (hard_cap - soft_cap)
+            = (jackpot - $30,000) / $10,000
+
+Example: Jackpot at $35,000
+├── Excess over soft cap: $5,000
+├── Total range: $10,000
+├── Rolldown probability: 50%
+```
+
+#### Rolldown Distribution Flow
+
+```
+┌─────────────────────────────────────────────────────────┐
+│            QUICK PICK ROLLDOWN TRIGGERED                 │
+│                  Jackpot: $30,000                        │
+└─────────────────────────────────────────────────────────┘
+                           │
+           ┌───────────────┴───────────────┐
+           ▼                               ▼
+    ┌─────────────┐                 ┌─────────────┐
+    │   MATCH 4   │                 │   MATCH 3   │
+    │     60%     │                 │     40%     │
+    │  $18,000    │                 │  $12,000    │
+    └─────────────┘                 └─────────────┘
+           │                               │
+           ▼                               ▼
+    ┌─────────────┐                 ┌─────────────┐
+    │  ~6 winners │                 │ ~161 winners│
+    │ $3,000 each │                 │  $74 each   │
+    └─────────────┘                 └─────────────┘
+    
+    (Based on 12,000 tickets sold during rolldown draw)
+```
+
+#### Post-Rolldown Reset
+
+After a rolldown:
+1. Jackpot resets to $5,000 seed
+2. Normal mode resumes
+3. New cycle begins (~2-3 days to next cap)
+
+### 5.9 Prize Pool Allocation
+
+Revenue allocation per $1.50 ticket (at 33% average fee):
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    TICKET: $1.50                          │
+├──────────────────────────────────────────────────────────┤
+│  ┌────────────────┐  ┌────────────────────────────────┐  │
+│  │   HOUSE FEE    │  │         PRIZE POOL             │  │
+│  │     $0.50      │  │           $1.00                │  │
+│  │   (28-38%)     │  │         (62-72%)               │  │
+│  └────────────────┘  └────────────────────────────────┘  │
+│                              │                            │
+│           ┌──────────────────┼──────────────────┐        │
+│           ▼                  ▼                  ▼        │
+│    ┌─────────────┐   ┌─────────────┐   ┌─────────────┐  │
+│    │   JACKPOT   │   │   FIXED     │   │  INSURANCE  │  │
+│    │    60%      │   │   PRIZES    │   │    POOL     │  │
+│    │   $0.60     │   │    37%      │   │     3%      │  │
+│    └─────────────┘   └─────────────┘   └─────────────┘  │
+└──────────────────────────────────────────────────────────┘
+```
+
+> **Note:** Quick Pick Express has no Match 2 (free ticket) prize. Only Match 3+ wins.
+
+### 5.10 Smart Contract Implementation
 
 ```rust
-/// Quick Pick Express game state
+// Quick Pick Express Constants (5/35 Matrix)
+pub const QUICK_PICK_TICKET_PRICE: u64 = 1_500_000;        // $1.50 in USDC lamports
+pub const QUICK_PICK_NUMBERS: u8 = 5;                       // Pick 5 numbers
+pub const QUICK_PICK_RANGE: u8 = 35;                        // From 1-35
+pub const QUICK_PICK_INTERVAL: i64 = 14400;                 // 4 hours in seconds
+pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000;      // $50 gate requirement
+
+// Quick Pick Jackpot Parameters
+pub const QUICK_PICK_SEED_AMOUNT: u64 = 5_000_000_000;      // $5,000 seed
+pub const QUICK_PICK_SOFT_CAP: u64 = 30_000_000_000;        // $30,000 soft cap
+pub const QUICK_PICK_HARD_CAP: u64 = 40_000_000_000;        // $40,000 hard cap
+
+// Quick Pick Dynamic Fees
+pub const QUICK_PICK_FEE_TIER_1_THRESHOLD: u64 = 10_000_000_000;  // $10,000
+pub const QUICK_PICK_FEE_TIER_2_THRESHOLD: u64 = 20_000_000_000;  // $20,000
+pub const QUICK_PICK_FEE_TIER_3_THRESHOLD: u64 = 30_000_000_000;  // $30,000
+pub const QUICK_PICK_FEE_TIER_1_BPS: u16 = 3000;            // 30%
+pub const QUICK_PICK_FEE_TIER_2_BPS: u16 = 3300;            // 33%
+pub const QUICK_PICK_FEE_TIER_3_BPS: u16 = 3600;            // 36%
+pub const QUICK_PICK_FEE_TIER_4_BPS: u16 = 3800;            // 38%
+pub const QUICK_PICK_FEE_ROLLDOWN_BPS: u16 = 2800;          // 28% during rolldown
+
+// Quick Pick Fixed Prizes (Normal Mode) — NO FREE TICKET
+pub const QUICK_PICK_MATCH_4_PRIZE: u64 = 100_000_000;      // $100
+pub const QUICK_PICK_MATCH_3_PRIZE: u64 = 4_000_000;        // $4
+// No Match 2 prize in Quick Pick Express
+
+// Quick Pick Rolldown Allocation
+pub const QUICK_PICK_ROLLDOWN_MATCH_4_BPS: u16 = 6000;      // 60%
+pub const QUICK_PICK_ROLLDOWN_MATCH_3_BPS: u16 = 4000;      // 40%
+
+// Quick Pick Prize Pool Allocation (no free tickets = more to jackpot)
+pub const QUICK_PICK_JACKPOT_ALLOCATION_BPS: u16 = 6000;    // 60%
+pub const QUICK_PICK_FIXED_PRIZE_ALLOCATION_BPS: u16 = 3700; // 37%
+pub const QUICK_PICK_INSURANCE_ALLOCATION_BPS: u16 = 300;   // 3%
+
+/// Quick Pick Express game state with rolldown mechanics (5/35)
 #[account]
 pub struct QuickPickState {
     /// Game identifier
@@ -1026,14 +1055,14 @@ pub struct QuickPickState {
     /// Current draw number
     pub current_draw: u64,
     
-    /// Ticket price (500,000 = $0.50)
+    /// Ticket price (1,500,000 = $1.50)
     pub ticket_price: u64,
     
     /// Matrix parameters
-    pub pick_count: u8,      // 4
-    pub number_range: u8,    // 20
+    pub pick_count: u8,      // 5
+    pub number_range: u8,    // 35
     
-    /// House fee (3000 = 30%)
+    /// Current house fee (dynamic based on jackpot)
     pub house_fee_bps: u16,
     
     /// Draw interval in seconds (14400 = 4 hours)
@@ -1042,73 +1071,228 @@ pub struct QuickPickState {
     /// Next draw timestamp
     pub next_draw_timestamp: i64,
     
-    /// Prize amounts (in USDC lamports)
-    pub match_4_prize: u64,
-    pub match_3_prize: u64,
-    pub match_2_value: u64, // Free ticket value
+    /// Jackpot balance (accumulates between draws)
+    pub jackpot_balance: u64,
+    
+    /// Jackpot caps
+    pub soft_cap: u64,       // $30,000
+    pub hard_cap: u64,       // $40,000
+    
+    /// Seed amount for jackpot reset
+    pub seed_amount: u64,    // $5,000
+    
+    /// Fixed prize amounts (in USDC lamports) — NO FREE TICKET
+    pub match_4_prize: u64,  // $100
+    pub match_3_prize: u64,  // $4
+    // No match_2 prize in Quick Pick Express
     
     /// Current draw ticket count
     pub current_draw_tickets: u64,
     
-    /// Prize pool balance
+    /// Prize pool balance (for fixed prizes)
     pub prize_pool_balance: u64,
+    
+    /// Insurance pool balance
+    pub insurance_balance: u64,
+    
+    /// Rolldown state
+    pub is_rolldown_pending: bool,
     
     /// Is paused
     pub is_paused: bool,
+    
+    /// PDA bump
+    pub bump: u8,
 }
 
-/// Quick Pick Express ticket
+/// Quick Pick Express ticket (5/35)
 #[account]
 pub struct QuickPickTicket {
     pub owner: Pubkey,
     pub draw_id: u64,
-    pub numbers: [u8; 4],
+    pub numbers: [u8; 5],    // 5 numbers for 5/35 matrix
     pub purchase_timestamp: i64,
     pub is_claimed: bool,
     pub match_count: u8,
     pub prize_amount: u64,
+    pub bump: u8,
 }
 
-/// Buy Quick Pick ticket
+/// Calculate dynamic house fee for Quick Pick
+pub fn calculate_quick_pick_fee_bps(jackpot_balance: u64, is_rolldown_pending: bool) -> u16 {
+    if is_rolldown_pending {
+        return QUICK_PICK_FEE_ROLLDOWN_BPS;
+    }
+    
+    if jackpot_balance < QUICK_PICK_FEE_TIER_1_THRESHOLD {
+        QUICK_PICK_FEE_TIER_1_BPS
+    } else if jackpot_balance < QUICK_PICK_FEE_TIER_2_THRESHOLD {
+        QUICK_PICK_FEE_TIER_2_BPS
+    } else if jackpot_balance < QUICK_PICK_FEE_TIER_3_THRESHOLD {
+        QUICK_PICK_FEE_TIER_3_BPS
+    } else {
+        QUICK_PICK_FEE_TIER_4_BPS
+    }
+}
+
+/// Check if probabilistic rolldown should trigger
+pub fn should_quick_pick_rolldown(jackpot_balance: u64, random_value: u64) -> bool {
+    if jackpot_balance < QUICK_PICK_SOFT_CAP {
+        return false;
+    }
+    
+    if jackpot_balance >= QUICK_PICK_HARD_CAP {
+        return true;
+    }
+    
+    // Linear probability between soft and hard caps
+    let probability_bps = ((jackpot_balance - QUICK_PICK_SOFT_CAP) as u128 * 10000
+        / (QUICK_PICK_HARD_CAP - QUICK_PICK_SOFT_CAP) as u128) as u64;
+    
+    (random_value % 10000) < probability_bps
+}
+
+/// Buy Quick Pick ticket with gate verification
 pub fn buy_quick_pick_ticket(
     ctx: Context<BuyQuickPick>,
-    numbers: [u8; 4],
+    numbers: [u8; 5],
 ) -> Result<()> {
     let state = &mut ctx.accounts.quick_pick_state;
     let ticket = &mut ctx.accounts.ticket;
+    let user_stats = &ctx.accounts.user_stats;
     
-    // Validate numbers (1-20, unique)
+    // Verify $50 gate requirement
+    require!(
+        user_stats.total_spent >= QUICK_PICK_MIN_SPEND_GATE,
+        LottoError::InsufficientMainLotterySpend
+    );
+    
+    // Validate numbers (1-35, unique)
     validate_quick_pick_numbers(&numbers)?;
     
-    // Calculate fees
-    let house_fee = state.ticket_price * state.house_fee_bps as u64 / 10000;
+    // Calculate dynamic fees based on current jackpot
+    let fee_bps = calculate_quick_pick_fee_bps(
+        state.jackpot_balance,
+        state.is_rolldown_pending
+    );
+    let house_fee = state.ticket_price * fee_bps as u64 / 10000;
     let prize_contribution = state.ticket_price - house_fee;
     
+    // Allocate prize contribution
+    let jackpot_contribution = prize_contribution * QUICK_PICK_JACKPOT_ALLOCATION_BPS as u64 / 10000;
+    let fixed_prize_contribution = prize_contribution * QUICK_PICK_FIXED_PRIZE_ALLOCATION_BPS as u64 / 10000;
+    let insurance_contribution = prize_contribution * QUICK_PICK_INSURANCE_ALLOCATION_BPS as u64 / 10000;
+    
     // Transfer USDC
-    transfer_usdc(ctx.accounts.player_usdc, ctx.accounts.prize_pool, state.ticket_price)?;
+    transfer_usdc(
+        ctx.accounts.player_usdc,
+        ctx.accounts.prize_pool,
+        state.ticket_price
+    )?;
     
     // Update state
-    state.prize_pool_balance += prize_contribution;
+    state.jackpot_balance += jackpot_contribution;
+    state.prize_pool_balance += fixed_prize_contribution;
+    state.insurance_balance += insurance_contribution;
     state.current_draw_tickets += 1;
+    state.house_fee_bps = fee_bps;
     
     // Create ticket
     ticket.owner = ctx.accounts.player.key();
     ticket.draw_id = state.current_draw;
-    ticket.numbers = sort_numbers_4(numbers);
+    ticket.numbers = sort_numbers_5(numbers);
     ticket.purchase_timestamp = Clock::get()?.unix_timestamp;
     ticket.is_claimed = false;
+    
+    emit!(QuickPickTicketPurchased {
+        ticket: ticket.key(),
+        player: ctx.accounts.player.key(),
+        draw_id: state.current_draw,
+        numbers: ticket.numbers,
+        price: state.ticket_price,
+        fee_bps,
+        jackpot_balance: state.jackpot_balance,
+    });
     
     Ok(())
 }
 
-fn validate_quick_pick_numbers(numbers: &[u8; 4]) -> Result<()> {
+/// Execute Quick Pick draw with rolldown logic
+pub fn execute_quick_pick_draw(
+    ctx: Context<ExecuteQuickPickDraw>,
+    winning_numbers: [u8; 5],
+    random_value: u64,
+) -> Result<()> {
+    let state = &mut ctx.accounts.quick_pick_state;
+    let draw_result = &mut ctx.accounts.draw_result;
+    
+    // Check for Match 5 winner (jackpot winner)
+    let has_jackpot_winner = draw_result.match_5_winners > 0;
+    
+    if has_jackpot_winner {
+        // Jackpot won - distribute to winner(s)
+        draw_result.match_5_prize_per_winner = state.jackpot_balance / draw_result.match_5_winners as u64;
+        draw_result.match_4_prize_per_winner = state.match_4_prize;
+        draw_result.match_3_prize_per_winner = state.match_3_prize;
+        draw_result.was_rolldown = false;
+        
+        // Reset jackpot to seed
+        state.jackpot_balance = state.seed_amount;
+    } else if should_quick_pick_rolldown(state.jackpot_balance, random_value) {
+        // No jackpot winner and rolldown triggered — THE EXPLOIT!
+        let jackpot_to_distribute = state.jackpot_balance;
+        
+        // Calculate rolldown prizes (60% to Match 4, 40% to Match 3)
+        let match_4_pool = jackpot_to_distribute * QUICK_PICK_ROLLDOWN_MATCH_4_BPS as u64 / 10000;
+        let match_3_pool = jackpot_to_distribute * QUICK_PICK_ROLLDOWN_MATCH_3_BPS as u64 / 10000;
+        
+        draw_result.match_5_prize_per_winner = 0;
+        
+        if draw_result.match_4_winners > 0 {
+            draw_result.match_4_prize_per_winner = match_4_pool / draw_result.match_4_winners as u64;
+        }
+        if draw_result.match_3_winners > 0 {
+            draw_result.match_3_prize_per_winner = match_3_pool / draw_result.match_3_winners as u64;
+        }
+        
+        draw_result.was_rolldown = true;
+        
+        // Reset jackpot to seed
+        state.jackpot_balance = state.seed_amount;
+        
+        emit!(QuickPickRolldownExecuted {
+            draw_id: state.current_draw,
+            jackpot_distributed: jackpot_to_distribute,
+            match_4_prize: draw_result.match_4_prize_per_winner,
+            match_3_prize: draw_result.match_3_prize_per_winner,
+        });
+    } else {
+        // Normal draw - fixed prizes only
+        draw_result.match_4_prize_per_winner = state.match_4_prize;
+        draw_result.match_3_prize_per_winner = state.match_3_prize;
+        draw_result.was_rolldown = false;
+    }
+    
+    // No Match 2 prize in Quick Pick Express
+    draw_result.match_2_prize_per_winner = 0;
+    
+    // Advance to next draw
+    state.current_draw += 1;
+    state.next_draw_timestamp += state.draw_interval;
+    state.current_draw_tickets = 0;
+    state.is_rolldown_pending = state.jackpot_balance >= state.soft_cap;
+    
+    Ok(())
+}
+
+fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> Result<()> {
     for &num in numbers.iter() {
-        require!(num >= 1 && num <= 20, LottoError::NumberOutOfRange);
+        require!(num >= 1 && num <= 35, LottoError::NumberOutOfRange);
     }
     
     let mut sorted = *numbers;
     sorted.sort();
-    for i in 0..3 {
+    for i in 0..4 {
         require!(sorted[i] != sorted[i + 1], LottoError::DuplicateNumber);
     }
     
@@ -1116,141 +1300,181 @@ fn validate_quick_pick_numbers(numbers: &[u8; 4]) -> Result<()> {
 }
 ```
 
-### 6.6 Revenue Projections
+### 5.11 Expected Value Analysis
+
+#### Normal Mode (Early Cycle, Jackpot ~$10,000)
+
+| Match | Calculation | Expected Value |
+|-------|-------------|----------------|
+| Match 5 | $10,000 × (1/324,632) | $0.031 |
+| Match 4 | $100 × (1/2,164) | $0.046 |
+| Match 3 | $4 × (1/74.6) | $0.054 |
+| **Total** | | **$0.13** |
+
+**House Edge:** ($1.50 - $0.13) / $1.50 = **91%**
+
+#### Near-Cap Mode (Jackpot ~$30,000)
+
+| Match | Calculation | Expected Value |
+|-------|-------------|----------------|
+| Match 5 | $30,000 × (1/324,632) | $0.092 |
+| Match 4 | $100 × (1/2,164) | $0.046 |
+| Match 3 | $4 × (1/74.6) | $0.054 |
+| **Total** | | **$0.19** |
+
+**House Edge:** ($1.50 - $0.19) / $1.50 = **87%**
+
+#### 🔥 Rolldown Mode (THE EXPLOIT — Full Jackpot Distribution)
+
+| Match | Calculation | Expected Value |
+|-------|-------------|----------------|
+| Match 5 | $0 (no winner) | $0.00 |
+| Match 4 | $3,000 × (1/2,164) | **$1.39** |
+| Match 3 | $74 × (1/74.6) | **$0.99** |
+| **Total** | | **$2.38** |
+
+### 🎯 **Player Edge (Rolldown): +58.7%**
 
 ```
-Target Volume: 50,000 tickets/day
+┌────────────────────────────────────────────────────────┐
+│                  THE QUICK PICK EXPLOIT                 │
+├────────────────────────────────────────────────────────┤
+│   Ticket Cost:        $1.50                            │
+│   Expected Return:    $2.38                            │
+│   ─────────────────────────────────                    │
+│   PROFIT PER TICKET:  +$0.88 (+58.7%)                  │
+│                                                        │
+│   Buy 100 tickets during rolldown:                     │
+│   ├── Cost: $150                                       │
+│   ├── Expected return: $238                            │
+│   └── Expected profit: $88                             │
+└────────────────────────────────────────────────────────┘
+```
 
-Daily Revenue:
-├── Tickets: 50,000 × $0.50 = $25,000
-├── House Fee (30%): $7,500/day
-├── Prize Pool (70%): $17,500/day
+### 5.12 Cycle Economics & Operator Profitability
 
-Monthly: $225,000 house fees
-Annual: $2.74M house fees
+#### Full Cycle Analysis (2.5 days, 15 draws)
+
+**Phase 1 — Normal Mode (11 draws, 4,000 tickets/draw):**
+```
+Revenue: 11 × 4,000 × $1.50 = $66,000
+House Fees (avg 33%): $21,780
+```
+
+**Phase 2 — Near-Cap (3 draws, 8,000 tickets/draw):**
+```
+Revenue: 3 × 8,000 × $1.50 = $36,000
+House Fees (37%): $13,320
+```
+
+**Phase 3 — Rolldown (1 draw, 12,000 tickets):**
+```
+Revenue: 12,000 × $1.50 = $18,000
+House Fees (28%): $5,040
+```
+
+#### Cycle Summary
+
+| Metric | Amount |
+|--------|--------|
+| **Total Tickets** | 68,000 |
+| **Total Revenue** | $102,000 |
+| **Total House Fees** | $40,140 |
+| **Jackpot Distributed** | $30,000 |
+| **New Seed Required** | $5,000 |
+| **Fixed Prizes Paid** | ~$19,000 |
+| **Net Cycle Profit** | **~$21,000** |
+
+#### Annual Projections
+
+```
+Cycles per year: ~146 (365 days / 2.5 days)
+Annual house fees: $40,140 × 146 = $5.86M
+Annual net profit: $21,000 × 146 = $3.07M
 
 Combined with Main Lottery:
-├── Main Lottery: $31M/year (target)
-├── Quick Pick Express: $2.74M/year
-├── Total: $33.74M/year (+8.8%)
+├── Main Lottery: $13M/year (target)
+├── Quick Pick Express: $3.07M/year
+├── Total: $16.07M/year (+23.6%)
 ```
 
----
-
-## 7. Mega Rolldown Events
-
-### 7.1 Overview
-
-Quarterly special events with larger jackpots, higher stakes, and guaranteed full rolldown.
-
-### 7.2 Event Parameters
-
-| Parameter | Value |
-|-----------|-------|
-| **Frequency** | Once per quarter (4x/year) |
-| **Duration** | 2 weeks (14 draws) |
-| **Matrix** | 6/49 (harder odds) |
-| **Ticket Price** | $10 USDC |
-| **Target Jackpot** | $5,000,000 |
-| **House Fee** | 32% |
-| **Guaranteed Rolldown** | Final draw of event |
-
-### 7.3 Odds Comparison
-
-| Metric | Main Lottery (6/46) | Mega Event (6/49) |
-|--------|---------------------|-------------------|
-| **Jackpot Odds** | 1 in 9,366,819 | 1 in 13,983,816 |
-| **Match 5 Odds** | 1 in 39,028 | 1 in 54,201 |
-| **Match 4 Odds** | 1 in 800 | 1 in 1,032 |
-| **Match 3 Odds** | 1 in 47 | 1 in 57 |
-
-### 7.4 Prize Structure
-
-**Normal Draws (Days 1-13):**
-
-| Match | Prize |
-|-------|-------|
-| 6 | Jackpot (growing) |
-| 5 | $15,000 |
-| 4 | $500 |
-| 3 | $20 |
-| 2 | Free Ticket ($10) |
-
-**Guaranteed Rolldown (Day 14):**
+### 5.13 Why This Works: The Rolldown Exploit Economics
 
 ```
-$5,000,000 Jackpot Distribution:
-
-Match 5 (20%): $1,000,000
-├── Expected winners: ~92 (at 500k tickets)
-├── Prize per winner: ~$10,870
-
-Match 4 (35%): $1,750,000
-├── Expected winners: ~485
-├── Prize per winner: ~$3,608
-
-Match 3 (45%): $2,250,000
-├── Expected winners: ~8,772
-├── Prize per winner: ~$257
+┌─────────────────────────────────────────────────────────┐
+│            QUICK PICK EXPRESS PROFIT MODEL              │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  NORMAL MODE (11-14 draws per cycle):                   │
+│  ├── House edge: 87-91% (no free tickets!)              │
+│  ├── Operator collects substantial fees                 │
+│  ├── Jackpot grows toward cap                           │
+│  └── Players lose money (standard lottery)              │
+│                                                         │
+│  ROLLDOWN MODE (1 draw per cycle):                      │
+│  ├── Player edge: +59%                                  │
+│  ├── Operator still collects 28% house fee              │
+│  ├── Full jackpot distributes to M4/M3 winners          │
+│  └── PLAYERS WIN — This is the exploit!                 │
+│                                                         │
+│  NET RESULT:                                            │
+│  ├── Normal mode profits > Rolldown mode costs          │
+│  ├── Operator profitable every cycle ✅                 │
+│  ├── Players have predictable +EV windows ✅            │
+│  └── Creates unique value proposition ✅                │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 7.5 Economic Analysis
+### 5.14 Comparison: Main Lottery vs Quick Pick Express
 
-```
-Mega Event Projections (per event):
+| Feature | Main Lottery (6/46) | Quick Pick Express (5/35) |
+|---------|---------------------|---------------------------|
+| **Ticket Price** | $2.50 | $1.50 |
+| **Draw Frequency** | Daily | Every 4 hours |
+| **Jackpot Odds** | 1 in 9.37M | 1 in 324,632 |
+| **Jackpot Seed** | $500,000 | $5,000 |
+| **Soft Cap** | $1,750,000 | $30,000 |
+| **Hard Cap** | $2,250,000 | $40,000 |
+| **Cycle Duration** | ~15-16 days | ~2-3 days |
+| **Rolldown Mechanics** | ✅ Probabilistic | ✅ Probabilistic |
+| **Dynamic Fees** | ✅ 28-40% | ✅ 28-38% |
+| **Access** | Open to all | $50 gate required |
+| **Free Ticket (Match 2)** | ✅ Yes | ❌ No |
+| **Normal Mode Edge** | -65% (house) | -89% (house) |
+| **🔥 Rolldown EV** | **+62% (player)** | **+59% (player)** |
+| **Rolldown Frequency** | ~Every 2-3 weeks | ~Every 2-3 days |
 
-Ticket Sales Target: 500,000 tickets × $10 = $5,000,000
+### 5.15 Strategy Guide for Players
 
-Revenue:
-├── House Fee (32%): $1,600,000
-├── Prize Pool (68%): $3,400,000
+#### The Quick Pick Exploit Strategy
 
-Costs:
-├── Jackpot Seed: $1,000,000
-├── Marketing: $200,000
-├── Operations: $50,000
+1. **Qualify First**: Spend $50+ in the main lottery to unlock Quick Pick Express
+2. **Monitor Jackpot**: Watch as it grows toward the $30,000 soft cap
+3. **Calculate Probability**: When jackpot ≥ $30,000, rolldown can trigger any draw
+4. **Buy During Rolldown Zone**: Probability = (Jackpot - $30k) / $10k
+5. **Maximum Volume at Hard Cap**: At $40,000+, rolldown is guaranteed — buy maximum tickets
+6. **Expected Profit**: ~$0.88 per ticket during rolldown (+59%)
 
-Net Profit per Event: $350,000
+#### Recommended Bankroll
 
-Annual (4 events): $1,400,000 additional profit
+| Risk Level | Bankroll | Tickets/Rolldown | Expected Profit |
+|------------|----------|------------------|-----------------|
+| Conservative | $150 | 100 | $88 |
+| Moderate | $450 | 300 | $264 |
+| Aggressive | $1,500 | 1,000 | $880 |
 
-Plus: Main lottery volume increase during event period
-├── Estimated +50% main lottery volume
-├── Additional $500,000 in fees per event quarter
-```
+⚠️ **Variance Warning**: Even with +59% edge, individual draws can lose. Recommended minimum 10+ rolldown participations to realize expected value.
 
-### 7.6 Marketing Integration
 
-```
-Pre-Event (2 weeks before):
-├── Countdown timer on site
-├── Email/push notification campaign
-├── Influencer partnerships
-├── Social media blitz
-├── "Mega Rolldown" branding
 
-During Event:
-├── Real-time jackpot tracker
-├── Leaderboard: "Top Ticket Buyers"
-├── Daily prize recaps
-├── Final day "Rolldown Party" live stream
+## 6. Syndicate Wars Competition
 
-Post-Event:
-├── Winner announcements
-├── Statistics dashboard
-├── Community celebration
-├── Teaser for next event
-```
-
----
-
-## 8. Syndicate Wars Competition
-
-### 8.1 Overview
+### 6.1 Overview
 
 Monthly competition where syndicates compete for the best win rate, creating tribal loyalty and recurring engagement.
 
-### 8.2 Competition Rules
+### 6.2 Competition Rules
 
 ```
 Eligibility:
@@ -1266,7 +1490,7 @@ Scoring Metric: Win Rate
 Duration: Monthly (calendar month)
 ```
 
-### 8.3 Prize Pool
+### 6.3 Prize Pool
 
 ```
 Monthly Prize Pool: 1% of monthly ticket sales
@@ -1281,7 +1505,7 @@ Distribution:
 ├── 4th-10th: Split 10% = $1,071 each
 ```
 
-### 8.4 Data Structures
+### 7.4 Data Structures
 
 ```rust
 /// Syndicate Wars competition state
@@ -1349,7 +1573,7 @@ pub struct LeaderboardEntry {
 }
 ```
 
-### 8.5 Leaderboard Logic
+### 7.5 Leaderboard Logic
 
 ```rust
 /// Calculate syndicate win rate
@@ -1453,7 +1677,7 @@ pub fn distribute_syndicate_wars_prizes(
 }
 ```
 
-### 8.6 UI/UX Design
+### 7.6 UI/UX Design
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -1498,9 +1722,9 @@ pub fn distribute_syndicate_wars_prizes(
 
 ---
 
-## 9. Implementation Priority
+## 7. Implementation Priority
 
-### 9.1 Priority Matrix
+### 7.1 Priority Matrix
 
 | Feature | Impact | Complexity | Priority |
 |---------|--------|------------|----------|
@@ -1511,27 +1735,25 @@ pub fn distribute_syndicate_wars_prizes(
 | **Second Chance Draws** | Medium | Medium | P2 - Month 3 |
 | **Quick Pick Express** | High | Medium | P2 - Month 4 |
 | **Lucky Numbers NFT** | Medium | High | P3 - Month 6 |
-| **Mega Rolldown Events** | High | High | P3 - Month 6 |
+
 | **MEV Protection (Threshold)** | Medium | High | P4 - Month 9 |
 
-### 9.2 Implementation Timeline
+### 7.2 Implementation Timeline
 
 ```
 PHASE 1: Security & Core (Months 1-2)
 ├── Jito MEV protection
 ├── Dynamic house fee system
 ├── Soft/hard rolldown caps
-├── Enhanced VRF integration
+├── Switchboard Randomness integration
 
 PHASE 2: Engagement (Months 3-5)
 ├── Syndicate Wars competition
-├── Second Chance draws
 ├── Quick Pick Express game
 ├── Enhanced dashboards
 
 PHASE 3: Premium Features (Months 6-9)
 ├── Lucky Numbers NFT system
-├── Mega Rolldown events
 ├── Advanced MEV protection
 ├── Cross-chain preparation
 
@@ -1542,7 +1764,7 @@ PHASE 4: Scale (Months 10-12)
 ├── DAO transition
 ```
 
-### 9.3 Resource Requirements
+### 8.3 Resource Requirements
 
 | Feature | Engineering | Design | Marketing |
 |---------|-------------|--------|-----------|
@@ -1550,19 +1772,17 @@ PHASE 4: Scale (Months 10-12)
 | Dynamic House Fee | 1 week | 2 days | - |
 | Soft/Hard Caps | 2 weeks | 3 days | - |
 | Syndicate Wars | 3 weeks | 1 week | 1 week |
-| Second Chance | 2 weeks | 3 days | 3 days |
 | Quick Pick Express | 3 weeks | 1 week | 1 week |
 | Lucky Numbers NFT | 4 weeks | 2 weeks | 2 weeks |
 | Mega Events | 4 weeks | 2 weeks | 3 weeks |
 
-### 9.4 Success Metrics
+### 7.5 Success Metrics
 
 | Feature | KPI | Target |
 |---------|-----|--------|
 | Dynamic Fee | Average fee collected | +7% vs fixed |
 | Soft/Hard Caps | Volume during soft cap | +15% vs baseline |
 | Syndicate Wars | Monthly active syndicates | 100+ |
-| Second Chance | Weekly active users | +20% retention |
 | Quick Pick | Daily tickets sold | 50k/day |
 | Lucky Numbers NFT | Secondary market volume | $50k/month |
 | Mega Events | Event ticket sales | 500k tickets |
@@ -1610,14 +1830,6 @@ pub struct LuckyNumbersBonusPaid {
 }
 
 #[event]
-pub struct SecondChanceDrawExecuted {
-    pub week_id: u64,
-    pub total_entries: u64,
-    pub total_distributed: u64,
-    pub grand_prize_winner: Pubkey,
-}
-
-#[event]
 pub struct DecryptionKeyAvailable {
     pub epoch: u64,
     pub draw_id: u64,
@@ -1637,15 +1849,6 @@ pub struct MegaEventStarted {
     pub start_timestamp: i64,
     pub end_timestamp: i64,
     pub target_jackpot: u64,
-}
-
-#[event]
-pub struct MegaRolldownExecuted {
-    pub event_id: u64,
-    pub jackpot_distributed: u64,
-    pub match_5_prize: u64,
-    pub match_4_prize: u64,
-    pub match_3_prize: u64,
 }
 
 #[event]

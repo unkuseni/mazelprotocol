@@ -441,17 +441,20 @@ mod tests {
 
         // After 10% manager fee: $9,000
         let after_fee = total_prize * (10_000 - 1_000) / 10_000;
+        println!("After fee: {}", after_fee);
 
         // Member 1 gets 60% of $9,000 = $5,400
         let share1 = syndicate
             .calculate_member_share(&member1, total_prize)
             .unwrap();
+        println!("Member 1 share: {}", share1);
         assert_eq!(share1, after_fee * 6_000 / 10_000);
 
         // Member 2 gets 40% of $9,000 = $3,600
         let share2 = syndicate
             .calculate_member_share(&member2, total_prize)
             .unwrap();
+        println!("Member 2 share: {}", share2);
         assert_eq!(share2, after_fee * 4_000 / 10_000);
 
         // Non-member gets None

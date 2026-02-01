@@ -44,7 +44,7 @@ This isn't a bug—**it's the feature**.
 
 | Feature | Description |
 |---------|-------------|
-| **🎲 Provably Fair** | Chainlink VRF ensures verifiable randomness for every draw |
+| **🎲 Provably Fair** | Switchboard Randomness with TEE ensures verifiable randomness for every draw |
 | **📈 Positive-EV Windows** | Rolldown events create guaranteed profit opportunities |
 | **💰 Dynamic House Fee** | 28-40% fee scales with jackpot level for optimal extraction |
 | **🔄 Soft + Hard Caps** | Two-tier rolldown system prevents calendar gaming |
@@ -52,8 +52,7 @@ This isn't a bug—**it's the feature**.
 | **👥 Syndicate System** | Built-in pool creation with automatic prize splitting |
 | **🔥 Streak Bonuses** | Rewards for consistent players |
 | **🎰 Lucky Numbers NFT** | Win NFTs that earn 1% of future jackpots |
-| **🎫 Second Chance Draws** | Weekly draws for non-winning tickets |
-| **⚡ Quick Pick Express** | 4/20 mini-lottery every 4 hours |
+| **⚡ Quick Pick Express** | 5/35 mini-lottery every 4 hours with +59% rolldown exploit (no free ticket) |
 | **🛡️ MEV Protection** | Jito integration prevents front-running |
 | **📊 Full Transparency** | All balances and draws verifiable on-chain |
 
@@ -309,63 +308,6 @@ Total Cycle House Fees: $1,278,000 (+7.4% vs fixed 34%)
 
 ---
 
-## 🪙 Tokenomics ($LOTTO)
-
-### Token Overview
-
-| Property | Value |
-|----------|-------|
-| **Token Name** | LOTTO |
-| **Total Supply** | 100,000,000 (fixed, deflationary) |
-| **Blockchain** | Solana (SPL Token) |
-| **Initial Distribution** | See below |
-
-### Distribution
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                 $LOTTO DISTRIBUTION                      │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│   Community Rewards ███████████████████████░░░░ 40%     │
-│   (Earned through gameplay)                              │
-│                                                          │
-│   Liquidity Mining  ██████████░░░░░░░░░░░░░░░░ 20%      │
-│   (DEX liquidity incentives)                             │
-│                                                          │
-│   Team & Advisors   ███████░░░░░░░░░░░░░░░░░░░ 15%      │
-│   (4-year vest, 1-year cliff)                            │
-│                                                          │
-│   Treasury (DAO)    ███████░░░░░░░░░░░░░░░░░░░ 15%      │
-│   (Governance-controlled)                                │
-│                                                          │
-│   Initial Liquidity █████░░░░░░░░░░░░░░░░░░░░░ 10%      │
-│   (DEX launch)                                           │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Token Utility
-
-| Utility | Description |
-|---------|-------------|
-| **🗳️ Governance** | Vote on prize structures, fees, new features |
-| **💎 Staking Rewards** | Earn share of house fees (up to 5%) |
-| **🎫 Ticket Discounts** | Pay with $LOTTO for up to 20% off |
-| **🔓 Exclusive Access** | Whale pools, early rolldown alerts |
-| **🔥 Buyback & Burn** | 10% of fees used for deflationary pressure |
-
-### Staking Tiers
-
-| Tier | Stake Required | Ticket Discount | Fee Share | Perks |
-|------|----------------|-----------------|-----------|-------|
-| 🥉 Bronze | 1,000 $LOTTO | 5% | 0.5% | Basic |
-| 🥈 Silver | 10,000 $LOTTO | 10% | 1.5% | Early alerts |
-| 🥇 Gold | 50,000 $LOTTO | 15% | 3% | Whale pools |
-| 💎 Diamond | 250,000 $LOTTO | 20% | 5% | 2x governance |
-
----
-
 ## 🔧 Technical Architecture
 
 ### Smart Contract Overview
@@ -387,9 +329,9 @@ Total Cycle House Fees: $1,278,000 (+7.4% vs fixed 34%)
 │         └────────────────┼────────────────┘             │
 │                          │                              │
 │                   ┌──────┴──────┐                       │
-│                   │  CHAINLINK  │                       │
-│                   │     VRF     │                       │
-│                   │ (Randomness)│                       │
+│                   │ SWITCHBOARD │                       │
+│                   │ RANDOMNESS  │                       │
+│                   │(TEE+Commit) │                       │
 │                   └─────────────┘                       │
 │                                                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
@@ -476,7 +418,7 @@ pub struct Ticket {
 pub struct DrawResult {
     pub draw_id: u64,
     pub winning_numbers: [u8; 6],
-    pub vrf_proof: [u8; 64],
+    pub randomness_proof: [u8; 32],
     pub timestamp: i64,
     pub total_tickets: u64,
     pub was_rolldown: bool,
@@ -489,32 +431,51 @@ pub struct DrawResult {
 }
 ```
 
-### Randomness (Chainlink VRF)
+### Randomness (Switchboard with TEE)
+
+SolanaLotto uses **Switchboard Randomness** with Trusted Execution Environments (TEEs) and a commit-reveal pattern for provably fair draws.
+
+**Why Switchboard?**
+- **TEE Security**: Randomness is generated inside protected hardware that cannot be altered or inspected
+- **Commit-Reveal Pattern**: Prevents selective revelation attacks
+- **Slashing Mechanism**: Oracle operators that misbehave lose their $SWTCH stake
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                    DRAW PROCESS                           │
+│              SWITCHBOARD COMMIT-REVEAL FLOW               │
 ├──────────────────────────────────────────────────────────┤
 │                                                           │
-│  T-1 Block    ┌─────────────────────────────────┐        │
-│     │         │  1. Request VRF randomness       │        │
-│     │         │  2. Commit hash published        │        │
+│  COMMIT PHASE ┌─────────────────────────────────┐        │
+│     │         │  1. Create randomness account    │        │
+│     │         │  2. Commit to current slothash   │        │
+│     │         │  3. Store commit slot on-chain   │        │
 │     ▼         └─────────────────────────────────┘        │
 │                                                           │
-│  T Block      ┌─────────────────────────────────┐        │
-│     │         │  3. VRF callback received        │        │
-│     │         │  4. Winning numbers generated    │        │
-│     │         │  5. Hash verified on-chain       │        │
+│  GENERATE     ┌─────────────────────────────────┐        │
+│     │         │  4. Oracle generates randomness  │        │
+│     │         │     inside TEE (secure enclave)  │        │
+│     │         │  5. Randomness based on commit   │        │
 │     ▼         └─────────────────────────────────┘        │
 │                                                           │
-│  T+1 Block    ┌─────────────────────────────────┐        │
-│     │         │  6. Winners calculated           │        │
-│     │         │  7. Prizes distributed           │        │
-│     │         │  8. Rolldown check executed      │        │
+│  REVEAL PHASE ┌─────────────────────────────────┐        │
+│     │         │  6. Reveal randomness on-chain   │        │
+│     │         │  7. Verify commit slot matches   │        │
+│     │         │  8. Convert to winning numbers   │        │
+│     ▼         └─────────────────────────────────┘        │
+│                                                           │
+│  SETTLEMENT   ┌─────────────────────────────────┐        │
+│     │         │  9. Calculate winners            │        │
+│     │         │  10. Distribute prizes           │        │
+│     │         │  11. Check rolldown conditions   │        │
 │     ▼         └─────────────────────────────────┘        │
 │                                                           │
 └──────────────────────────────────────────────────────────┘
 ```
+
+**Security Guarantees:**
+- Neither the protocol nor oracle operators can predict randomness before commit
+- Revealed randomness is cryptographically tied to the committed slot
+- All proofs are verifiable on-chain by anyone
 
 ---
 
@@ -540,10 +501,11 @@ pub struct DrawResult {
 
 #### Randomness Security
 
-- ✅ **Chainlink VRF v2** with multiple oracle nodes
-- ✅ **Commit-reveal backup** if primary VRF fails
-- ✅ **Hash pre-publication** for transparency
-- ✅ **MEV protection** via encrypted ticket submissions
+- ✅ **Switchboard Randomness** with Trusted Execution Environments (TEEs)
+- ✅ **Commit-reveal pattern** prevents selective revelation attacks
+- ✅ **On-chain verification** for full transparency
+- ✅ **Economic security** via $SWTCH slashing for misbehaving oracles
+- ✅ **MEV protection** via Jito integration and encrypted ticket submissions
 
 #### Operational Security
 
@@ -591,16 +553,14 @@ Report vulnerabilities to: `security@solanalotto.io`
 - [ ] Staking system activation
 - [ ] Syndicate feature release
 - [ ] Streak bonus implementation
-- [ ] **Second Chance Draws** (weekly)
 - [ ] **Syndicate Wars Competition** (monthly)
 - [ ] Mobile app (iOS/Android)
 - [ ] Target: 75,000 tickets/day
 
 ### Phase 4: Expansion (Q4 2025)
 
-- [ ] **Quick Pick Express** (4/20, every 4 hours)
+- [ ] **Quick Pick Express** (5/35, every 4 hours, +59% rolldown exploit, no free ticket)
 - [ ] **Lucky Numbers NFT** system launch
-- [ ] First **Mega Rolldown Event** ($5M jackpot)
 - [ ] API/SDK public release
 - [ ] White-label partnerships
 - [ ] Target: 125,000 tickets/day
@@ -617,32 +577,42 @@ Report vulnerabilities to: `security@solanalotto.io`
 
 ## 🎰 Additional Game Modes
 
-### Quick Pick Express (4/20)
+### Quick Pick Express (5/35)
 
-High-frequency mini-lottery for continuous engagement:
+High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** — exclusive to committed players:
+
+> ⚠️ **$50 Gate Requirement**: Must have spent $50+ lifetime in the main lottery to access Quick Pick Express.
 
 | Parameter | Value |
 |-----------|-------|
-| Matrix | 4/20 (Pick 4 from 20) |
-| Ticket Price | $0.50 USDC |
+| Matrix | 5/35 (Pick 5 from 35) |
+| Ticket Price | $1.50 USDC |
 | Draw Frequency | Every 4 hours (6x daily) |
-| Match 4 Prize | $500 (1 in 4,845 odds) |
-| Match 3 Prize | $10 (1 in 76 odds) |
-| Match 2 | Free ticket (1 in 6.7 odds) |
+| Jackpot Seed | $5,000 |
+| Soft Cap | $30,000 (probabilistic rolldown) |
+| Hard Cap | $40,000 (forced rolldown) |
+| Cycle Duration | ~2-3 days |
 
-### Mega Rolldown Events (Quarterly)
+#### Normal Mode Prizes
+| Match | Prize | Odds |
+|-------|-------|------|
+| **5 (Jackpot)** | $5,000 → $40,000 (growing) | 1 in 324,632 |
+| **4** | $100 (fixed) | 1 in 2,164 |
+| **3** | $4 (fixed) | 1 in 74.6 |
 
-Special events with guaranteed full rolldown:
+#### 🔥 Rolldown Mode (No Match 5 Winner) — THE EXPLOIT!
+| Match | Pool Share | Est. Prize | Expected Value |
+|-------|------------|------------|----------------|
+| **4** | 60% | ~$3,000 | $1.39 |
+| **3** | 40% | ~$74 | $0.99 |
 
-| Parameter | Value |
-|-----------|-------|
-| Frequency | Once per quarter |
-| Matrix | 6/49 (harder odds) |
-| Ticket Price | $10 USDC |
-| Target Jackpot | $5,000,000 |
-| Guaranteed | Full rolldown on final day |
+**🎯 Rolldown Player Edge: +58.7%** — Comparable to the main lottery's +62%!
 
-> 📚 **See [ADVANCED_FEATURES.md](./ADVANCED_FEATURES.md) for complete specifications.**
+- Ticket costs $1.50, expected return is $2.38
+- **Profit: +$0.88 per ticket during rolldown**
+- Operator still profitable over the full cycle (87-91% house edge in normal mode)
+- No free ticket prize — only Match 3+ wins
+
 
 ---
 
@@ -662,22 +632,7 @@ Example:
 ├── You automatically receive $18,000
 ```
 
----
 
-## 🎫 Second Chance Draws
-
-Every non-winning ticket automatically enters a **weekly Second Chance Draw**:
-
-| Prize Tier | Count | Prize |
-|------------|-------|-------|
-| Grand Prize | 1 | $10,000 |
-| Runner Up | 10 | $1,000 |
-| Consolation | 100 | $100 |
-| Free Tickets | 1,000 | $2.50 |
-
-**Prize Pool**: 5% of weekly reserve fund (~$35,000/week at target volume)
-
-> *"Even losing tickets have value"*
 
 ---
 
@@ -893,7 +848,7 @@ interface DrawResult {
     match2Winners: number;
     totalPrizesPaid: number;
   };
-  vrfProof: string;  // Verifiable randomness proof
+  randomnessProof: string;  // Switchboard randomness proof
 }
 ```
 
@@ -938,25 +893,6 @@ Join an existing syndicate.
 await lotto.joinSyndicate(wallet, syndicatePubkey, 500); // Contribute $500
 ```
 
-### Staking Methods
-
-#### `stakeLotto(wallet, amount)`
-
-Stake $LOTTO tokens for rewards and benefits.
-
-```typescript
-await lotto.stakeLotto(wallet, 10000); // Stake 10,000 $LOTTO
-```
-
-#### `getStakingTier(wallet)`
-
-Check current staking tier and benefits.
-
-```typescript
-const tier = await lotto.getStakingTier(wallet.publicKey);
-// { tier: 'Silver', discount: 0.10, feeShare: 0.015, ... }
-```
-
 ---
 
 ## ❓ FAQ
@@ -967,7 +903,7 @@ const tier = await lotto.getStakingTier(wallet.publicKey);
 A: SolanaLotto operates as a decentralized protocol. Users are responsible for ensuring compliance with their local laws. The protocol does not accept users from prohibited jurisdictions.
 
 **Q: How do I know the draws are fair?**  
-A: All randomness is generated using Chainlink VRF, which provides cryptographic proof that the numbers are random and unmanipulated. Every draw's VRF proof is published on-chain for verification.
+A: All randomness is generated using Switchboard Randomness with Trusted Execution Environments (TEEs). The commit-reveal pattern ensures neither the protocol nor oracle operators can predict or manipulate the outcome. All proofs are verifiable on-chain.
 
 **Q: What happens if the smart contract has a bug?**  
 A: The protocol undergoes multiple security audits. Additionally, there is an emergency pause function, insurance reserve, and bug bounty program. In extreme cases, the DAO can vote on remediation measures.

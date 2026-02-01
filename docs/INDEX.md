@@ -58,9 +58,6 @@
 **"I want to see the game theory analysis"**
 → Read [WHITEPAPER.md § Game Theory Analysis](./WHITEPAPER.md#5-game-theory-analysis)
 
-**"I want to understand tokenomics"**
-→ Read [WHITEPAPER.md § Tokenomics](./WHITEPAPER.md#8-tokenomics)
-
 ---
 
 ## 📋 Feature Implementation Status
@@ -71,11 +68,9 @@
 |---------|----------|----------------|--------|
 | 6/46 Lottery | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
 | Rolldown Mechanism | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
-| $LOTTO Token | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
-| Staking Tiers | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
 | Syndicate System | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
 | Streak Bonuses | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
-| Chainlink VRF | WHITEPAPER.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Switchboard Randomness | WHITEPAPER.md | TECHNICAL_SPEC.md | ✅ Complete |
 
 ### ✅ Advanced Features (v2.0 - Documented & Specified)
 
@@ -84,11 +79,9 @@
 | Dynamic House Fee | ADVANCED_FEATURES.md §1 | TECHNICAL_SPEC.md | ✅ Complete |
 | Soft/Hard Caps | ADVANCED_FEATURES.md §2 | TECHNICAL_SPEC.md | ✅ Complete |
 | Lucky Numbers NFT | ADVANCED_FEATURES.md §3 | TECHNICAL_SPEC.md | ✅ Complete |
-| Second Chance Draws | ADVANCED_FEATURES.md §4 | TECHNICAL_SPEC.md | ✅ Complete |
-| MEV Protection | ADVANCED_FEATURES.md §5 | TECHNICAL_SPEC.md | ✅ Complete |
-| Quick Pick Express | ADVANCED_FEATURES.md §6 | TECHNICAL_SPEC.md | ✅ Complete |
-| Mega Rolldown Events | ADVANCED_FEATURES.md §7 | TECHNICAL_SPEC.md | ✅ Complete |
-| Syndicate Wars | ADVANCED_FEATURES.md §8 | TECHNICAL_SPEC.md | ✅ Complete |
+| MEV Protection | ADVANCED_FEATURES.md §4 | TECHNICAL_SPEC.md | ✅ Complete |
+| Quick Pick Express | ADVANCED_FEATURES.md §5 | TECHNICAL_SPEC.md | ✅ Complete |
+| Syndicate Wars | ADVANCED_FEATURES.md §6 | TECHNICAL_SPEC.md | ✅ Complete |
 
 ---
 
@@ -114,22 +107,33 @@
 | > $1.5M | 40% | ADVANCED_FEATURES.md §1 |
 | Rolldown | 28% | ADVANCED_FEATURES.md §1 |
 
-### Quick Pick Express (4/20)
+### Quick Pick Express (5/35)
+
+> ⚠️ **$50 Gate Requirement**: Players must spend $50+ lifetime in main lottery to access.
 
 | Parameter | Value | Location |
 |-----------|-------|----------|
-| Ticket Price | $0.50 USDC | ADVANCED_FEATURES.md §6 |
-| Draw Frequency | Every 4 hours | ADVANCED_FEATURES.md §6 |
-| Match 4 Prize | $500 | ADVANCED_FEATURES.md §6 |
-| Match 3 Prize | $10 | ADVANCED_FEATURES.md §6 |
+| Matrix | 5/35 (Pick 5 from 35) | ADVANCED_FEATURES.md §5 |
+| Ticket Price | $1.50 USDC | ADVANCED_FEATURES.md §5 |
+| Draw Frequency | Every 4 hours | ADVANCED_FEATURES.md §5 |
+| Jackpot Odds | 1 in 324,632 | ADVANCED_FEATURES.md §5 |
+| Jackpot Seed | $5,000 | ADVANCED_FEATURES.md §5 |
+| Soft Cap | $30,000 | ADVANCED_FEATURES.md §5 |
+| Hard Cap | $40,000 | ADVANCED_FEATURES.md §5 |
+| Match 4 Prize | $100 fixed / ~$3,000 rolldown | ADVANCED_FEATURES.md §5 |
+| Match 3 Prize | $4 fixed / ~$74 rolldown | ADVANCED_FEATURES.md §5 |
+| Match 2 Prize | No prize (no free ticket) | ADVANCED_FEATURES.md §5 |
+| Rolldown Match 4 | 60% of jackpot | ADVANCED_FEATURES.md §5 |
+| Rolldown Match 3 | 40% of jackpot | ADVANCED_FEATURES.md §5 |
+| **🔥 Rolldown EV** | **+59% player edge!** | ADVANCED_FEATURES.md §5 |
 
 ### Mega Events (Quarterly)
 
 | Parameter | Value | Location |
 |-----------|-------|----------|
-| Ticket Price | $10 USDC | ADVANCED_FEATURES.md §7 |
-| Matrix | 6/49 | ADVANCED_FEATURES.md §7 |
-| Target Jackpot | $5,000,000 | ADVANCED_FEATURES.md §7 |
+| Ticket Price | $10 USDC | ADVANCED_FEATURES.md §6 |
+| Matrix | 6/49 | ADVANCED_FEATURES.md §6 |
+| Target Jackpot | $5,000,000 | ADVANCED_FEATURES.md §6 |
 
 ---
 
@@ -143,17 +147,16 @@
 | **Expected Value** | WHITEPAPER §3.3 | ADVANCED_FEATURES §1-2 | - |
 | **Prize Structure** | SOLANA_LOTTO §Prize Structure | WHITEPAPER §3 | TECHNICAL_SPEC |
 | **Rolldown Mechanics** | SOLANA_LOTTO §Rolldown | ADVANCED_FEATURES §2 | TECHNICAL_SPEC |
-| **Smart Contracts** | - | WHITEPAPER §6 | TECHNICAL_SPEC §4-6 |
-| **Tokenomics** | SOLANA_LOTTO §Tokenomics | WHITEPAPER §8 | TECHNICAL_SPEC |
-| **Security** | SOLANA_LOTTO §Security | WHITEPAPER §7 | ADVANCED_FEATURES §5 |
-| **MEV Protection** | - | ADVANCED_FEATURES §5 | TECHNICAL_SPEC |
+| **Smart Contracts** | - | WHITEPAPER.md §6 | TECHNICAL_SPEC §4-6 |
+| **Security** | SOLANA_LOTTO §Security | WHITEPAPER §7 | ADVANCED_FEATURES §4 |
+| **MEV Protection** | - | ADVANCED_FEATURES §4 | TECHNICAL_SPEC |
 | **SDK/API** | SOLANA_LOTTO §API | - | TECHNICAL_SPEC §9 |
 
 ---
 
 ## 📈 Implementation Roadmap
 
-From [ADVANCED_FEATURES.md §9](./ADVANCED_FEATURES.md#9-implementation-priority):
+From [ADVANCED_FEATURES.md §8](./ADVANCED_FEATURES.md#8-implementation-priority):
 
 ### Phase 1: Security & Core (Months 1-2)
 - Jito MEV protection
@@ -162,13 +165,12 @@ From [ADVANCED_FEATURES.md §9](./ADVANCED_FEATURES.md#9-implementation-priority
 
 ### Phase 2: Engagement (Months 3-5)
 - Syndicate Wars competition
-- Second Chance draws
 - Quick Pick Express game
+- Enhanced dashboards
 
 ### Phase 3: Premium Features (Months 6-9)
 - Lucky Numbers NFT system
-- Mega Rolldown events
-- Advanced MEV protection
+- Advanced MEV protection (Threshold Encryption)
 
 ### Phase 4: Scale (Months 10-12)
 - White-label platform
@@ -181,10 +183,14 @@ From [ADVANCED_FEATURES.md §9](./ADVANCED_FEATURES.md#9-implementation-priority
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v2.4 | 2025 | Updated Quick Pick Express: 5/35 matrix, $1.50 tickets, **+59% rolldown exploit**, no free ticket, $50 gate |
+| v2.3 | 2025 | Removed $LOTTO token and staking features |
+| v2.2 | 2025 | Migrated from Chainlink VRF to Switchboard Randomness |
+| v2.2 | 2025 | Removed Second Chance Draws feature |
 | v2.1 | 2025 | Updated TECHNICAL_SPEC.md error codes (98 variants) to match implementation |
 | v2.1 | 2025 | Updated TECHNICAL_SPEC.md data structures to match actual implementation |
 | v2.1 | 2025 | Added comprehensive error handling documentation |
-| v2.0 | 2025 | Added ADVANCED_FEATURES.md with 8 new feature specifications |
+| v2.0 | 2025 | Added ADVANCED_FEATURES.md with 7 new feature specifications |
 | v2.0 | 2025 | Updated SOLANA_LOTTO.md with dynamic fees, soft/hard caps |
 | v2.0 | 2025 | Updated TECHNICAL_SPEC.md with all v2.0 data structures |
 | v2.0 | 2025 | Updated QUICK_START.md with complete feature overview |
@@ -204,16 +210,15 @@ From [ADVANCED_FEATURES.md §9](./ADVANCED_FEATURES.md#9-implementation-priority
 
 **Technical Terms:**
 - PDA (Program Derived Address)
-- VRF (Verifiable Random Function)
+- TEE (Trusted Execution Environment)
+- Commit-Reveal Pattern
 - MEV (Miner Extractable Value)
 - Threshold Encryption
 - SPL Token
 
 **Features:**
 - Lucky Numbers NFT
-- Second Chance Draw
 - Quick Pick Express
-- Mega Rolldown Event
 - Syndicate Wars
 - Streak Bonus
 
@@ -233,10 +238,10 @@ From [ADVANCED_FEATURES.md §9](./ADVANCED_FEATURES.md#9-implementation-priority
 
 <div align="center">
 
-**SolanaLotto Protocol v2.0**
+**SolanaLotto Protocol v2.2**
 
 *Complete documentation for the world's first intentionally exploitable lottery*
 
-📚 **5 Documents** | 🎰 **8 Advanced Features** | 💰 **$13M+ Annual Profit Target**
+📚 **5 Documents** | 🎰 **7 Advanced Features** | 💰 **$13M+ Annual Profit Target**
 
 </div>
