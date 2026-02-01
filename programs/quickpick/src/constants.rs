@@ -54,8 +54,8 @@ pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000;
 pub const QUICK_PICK_SEED_AMOUNT: u64 = 5_000_000_000;
 /// Quick Pick soft cap: $30,000 (probabilistic rolldown begins)
 pub const QUICK_PICK_SOFT_CAP: u64 = 30_000_000_000;
-/// Quick Pick hard cap: $40,000 (forced rolldown)
-pub const QUICK_PICK_HARD_CAP: u64 = 40_000_000_000;
+/// Quick Pick hard cap: $50,000 (forced rolldown)
+pub const QUICK_PICK_HARD_CAP: u64 = 50_000_000_000;
 
 // ============================================================================
 // DYNAMIC FEE TIERS

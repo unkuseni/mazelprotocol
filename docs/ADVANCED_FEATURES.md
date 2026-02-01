@@ -856,7 +856,7 @@ pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000; // $50 in USDC lamports
 | **Draw Frequency** | Every 4 hours (6x daily) | Continuous engagement |
 | **Jackpot Seed** | $5,000 | Attractive starting point |
 | **Soft Cap** | $30,000 | Probabilistic rolldown begins |
-| **Hard Cap** | $40,000 | Forced rolldown guaranteed |
+| **Hard Cap** | $50,000 | Forced rolldown guaranteed |
 | **Cycle Duration** | ~2-3 days (12-18 draws) | Fast-paced excitement |
 
 ### 5.4 Odds Calculation
@@ -897,7 +897,7 @@ During normal operation (Jackpot < $30,000), prizes are **FIXED amounts**:
 
 | Match | Prize Type | Prize Amount | Odds | Expected Value |
 |-------|------------|--------------|------|----------------|
-| **5 (Jackpot)** | Variable Pool | $5,000 → $40,000 (growing) | 1 in 324,632 | $0.015 - $0.12 |
+| **5 (Jackpot)** | Variable Pool | $5,000 → $50,000 (growing) | 1 in 324,632 | $0.015 - $0.15 |
 | **4** | **FIXED** | $100 | 1 in 2,164 | $0.046 |
 | **3** | **FIXED** | $4 | 1 in 74.6 | $0.054 |
 | **Total EV** | | | | **$0.12 - $0.22** |
@@ -908,7 +908,7 @@ During normal operation (Jackpot < $30,000), prizes are **FIXED amounts**:
 
 ### 5.7 🔥 Prize Structure - Rolldown Mode — PARI-MUTUEL (THE EXPLOIT)
 
-> **🔒 CRITICAL TRANSITION:** During rolldown, ALL prizes transition from FIXED to **PARI-MUTUEL**. Operator liability is CAPPED at exactly the jackpot amount ($30,000-$40,000), regardless of ticket volume or winner count.
+> **🔒 CRITICAL TRANSITION:** During rolldown, ALL prizes transition from FIXED to **PARI-MUTUEL**. Operator liability is CAPPED at exactly the jackpot amount ($30,000-$50,000), regardless of ticket volume or winner count.
 
 When jackpot caps and no Match 5 winner, the **full jackpot distributes down using PARI-MUTUEL**:
 
@@ -947,11 +947,11 @@ Quick Pick Express uses the same probabilistic rolldown system as the main lotte
 |-----------|-------|----------|------------|
 | **Below Soft Cap** | < $30,000 | Normal operation | **FIXED** |
 | **Soft Cap** | $30,000 | Rolldown can trigger randomly each draw | **→ PARI-MUTUEL** |
-| **Hard Cap** | $40,000 | Rolldown forced (100% of jackpot distributes) | **PARI-MUTUEL** |
+| **Hard Cap** | $50,000 | Rolldown forced (100% of jackpot distributes) | **PARI-MUTUEL** |
 
 #### Probabilistic Trigger
 
-When jackpot exceeds $30,000 but is below $40,000:
+When jackpot exceeds $30,000 but is below $50,000:
 
 ```
 P(rolldown) = (jackpot - soft_cap) / (hard_cap - soft_cap)
@@ -1039,7 +1039,7 @@ pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000;      // $50 gate requirem
 // Quick Pick Jackpot Parameters
 pub const QUICK_PICK_SEED_AMOUNT: u64 = 5_000_000_000;      // $5,000 seed
 pub const QUICK_PICK_SOFT_CAP: u64 = 30_000_000_000;        // $30,000 soft cap
-pub const QUICK_PICK_HARD_CAP: u64 = 40_000_000_000;        // $40,000 hard cap
+pub const QUICK_PICK_HARD_CAP: u64 = 50_000_000_000;        // $50,000 hard cap
 
 // Quick Pick Dynamic Fees
 pub const QUICK_PICK_FEE_TIER_1_THRESHOLD: u64 = 10_000_000_000;  // $10,000
@@ -1095,7 +1095,7 @@ pub struct QuickPickState {
     
     /// Jackpot caps
     pub soft_cap: u64,       // $30,000
-    pub hard_cap: u64,       // $40,000
+    pub hard_cap: u64,       // $50,000
     
     /// Seed amount for jackpot reset
     pub seed_amount: u64,    // $5,000
@@ -1472,7 +1472,7 @@ Combined with Main Lottery (Corrected):
 | **Jackpot Odds** | 1 in 9.37M | 1 in 324,632 |
 | **Jackpot Seed** | $500,000 | $5,000 |
 | **Soft Cap** | $1,750,000 | $30,000 |
-| **Hard Cap** | $2,250,000 | $40,000 |
+| **Hard Cap** | $2,250,000 | $50,000 |
 | **Cycle Duration** | ~15-16 days | ~2-3 days |
 | **Rolldown Mechanics** | ✅ Probabilistic | ✅ Probabilistic |
 | **Dynamic Fees** | ✅ 28-40% | ✅ 28-38% |
@@ -1490,7 +1490,7 @@ Combined with Main Lottery (Corrected):
 2. **Monitor Jackpot**: Watch as it grows toward the $30,000 soft cap
 3. **Calculate Probability**: When jackpot ≥ $30,000, rolldown can trigger any draw
 4. **Buy During Rolldown Zone**: Probability = (Jackpot - $30k) / $10k
-5. **Maximum Volume at Hard Cap**: At $40,000+, rolldown is guaranteed — buy maximum tickets
+5. **Maximum Volume at Hard Cap**: At $50,000+, rolldown is guaranteed — buy maximum tickets
 6. **Expected Profit**: ~$0.88 per ticket during rolldown (+59%)
 
 #### Recommended Bankroll

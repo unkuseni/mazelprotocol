@@ -421,7 +421,7 @@ mod tests {
     #[test]
     fn test_get_quick_pick_rolldown_probability_bps() {
         let soft_cap = 30_000_000_000u64; // $30,000
-        let hard_cap = 40_000_000_000u64; // $40,000
+        let hard_cap = 50_000_000_000u64; // $50,000
 
         // Below soft cap
         assert_eq!(
@@ -437,13 +437,13 @@ mod tests {
 
         // Midway between soft and hard cap
         assert_eq!(
-            get_quick_pick_rolldown_probability_bps(35_000_000_000, soft_cap, hard_cap),
+            get_quick_pick_rolldown_probability_bps(40_000_000_000, soft_cap, hard_cap),
             5000
         );
 
         // At hard cap
         assert_eq!(
-            get_quick_pick_rolldown_probability_bps(40_000_000_000, soft_cap, hard_cap),
+            get_quick_pick_rolldown_probability_bps(50_000_000_000, soft_cap, hard_cap),
             10000
         );
 

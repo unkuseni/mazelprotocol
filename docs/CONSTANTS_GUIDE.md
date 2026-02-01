@@ -319,7 +319,7 @@ let match_3_prize = match_3_pool / match_3_winners as u64; // ~$35 each
 |----------|-------|-------------|
 | `QUICK_PICK_SEED_AMOUNT` | `5,000,000,000` lamports | Jackpot seed ($5,000) |
 | `QUICK_PICK_SOFT_CAP` | `30,000,000,000` lamports | Soft cap ($30,000) - probabilistic rolldown |
-| `QUICK_PICK_HARD_CAP` | `40,000,000,000` lamports | Hard cap ($40,000) - forced rolldown |
+| `QUICK_PICK_HARD_CAP` | `50,000,000,000` lamports | Hard cap ($50,000) - forced rolldown |
 
 ### Dynamic Fee Tiers
 | Constant | Value | Description |
@@ -343,7 +343,7 @@ let match_3_prize = match_3_pool / match_3_winners as u64; // ~$35 each
 | — | — | No Match 2 prize in Quick Pick Express | — |
 
 ### Rolldown Allocation (THE EXPLOIT: +59% Player Edge!) — PARI-MUTUEL
-> **🔒 PRIZE MODE: PARI-MUTUEL** — During rolldown, prizes are calculated as Pool ÷ Winners. Operator liability is CAPPED at exactly the jackpot amount ($30,000-$40,000).
+> **🔒 PRIZE MODE: PARI-MUTUEL** — During rolldown, prizes are calculated as Pool ÷ Winners. Operator liability is CAPPED at exactly the jackpot amount ($30,000-$50,000).
 
 | Constant | Value | Description | Prize Mode |
 |----------|-------|-------------|------------|
@@ -427,12 +427,12 @@ pub fn should_quick_pick_rolldown(jackpot_balance: u64, random_value: u64) -> bo
     if jackpot_balance < QUICK_PICK_SOFT_CAP {  // < $30,000
         return false;
     }
-    if jackpot_balance >= QUICK_PICK_HARD_CAP {  // >= $40,000
+    if jackpot_balance >= QUICK_PICK_HARD_CAP {  // >= $50,000
         return true;  // Forced rolldown!
     }
     
-    // Linear probability between $30k and $40k
-    // At $35k: 50% chance, at $38k: 80% chance, etc.
+    // Linear probability between $30k and $50k
+    // At $40k: 50% chance, at $45k: 75% chance, etc.
     let probability_bps = ((jackpot_balance - QUICK_PICK_SOFT_CAP) as u128 * 10000
         / (QUICK_PICK_HARD_CAP - QUICK_PICK_SOFT_CAP) as u128) as u64;
     
@@ -489,7 +489,7 @@ System limits and validation parameters.
 | **Jackpot Odds** | 1 in 9.37M | 1 in 324,632 |
 | **Jackpot Seed** | $500,000 | $5,000 |
 | **Soft Cap** | $1,750,000 | $30,000 |
-| **Hard Cap** | $2,250,000 | $40,000 |
+| **Hard Cap** | $2,250,000 | $50,000 |
 | **Cycle Duration** | ~15-16 days | ~2-3 days |
 | **Rolldown Mechanics** | ✅ Probabilistic | ✅ Probabilistic |
 | **Dynamic Fees** | ✅ 28-40% | ✅ 28-38% |
@@ -504,6 +504,6 @@ System limits and validation parameters.
 
 > **🔒 CRITICAL OPERATOR PROTECTION:** Both games use the Fixed → Pari-Mutuel prize transition system. During rolldown events:
 > - **Main Lottery:** Operator liability CAPPED at $1,750,000-$2,250,000 (the jackpot)
-> - **Quick Pick:** Operator liability CAPPED at $30,000-$40,000 (the jackpot)
+> - **Quick Pick:** Operator liability CAPPED at $30,000-$50,000 (the jackpot)
 >
 > Regardless of ticket volume or winner count, operators pay EXACTLY the jackpot amount during rolldown. The pari-mutuel system absorbs all volume risk while preserving player +EV.

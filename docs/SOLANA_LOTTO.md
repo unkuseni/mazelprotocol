@@ -646,13 +646,13 @@ High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** —
 | Draw Frequency | Every 4 hours (6x daily) |
 | Jackpot Seed | $5,000 |
 | Soft Cap | $30,000 (probabilistic rolldown) |
-| Hard Cap | $40,000 (forced rolldown) |
+| Hard Cap | $50,000 (forced rolldown) |
 | Cycle Duration | ~2-3 days |
 
 #### Normal Mode Prizes — FIXED
 | Match | Prize Type | Prize | Odds |
 |-------|------------|-------|------|
-| **5 (Jackpot)** | Variable Pool | $5,000 → $40,000 (growing) | 1 in 324,632 |
+| **5 (Jackpot)** | Variable Pool | $5,000 → $50,000 (growing) | 1 in 324,632 |
 | **4** | **Fixed** | $100 | 1 in 2,164 |
 | **3** | **Fixed** | $4 | 1 in 74.6 |
 

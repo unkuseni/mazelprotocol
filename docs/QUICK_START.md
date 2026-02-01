@@ -233,7 +233,7 @@ lotto.joinSyndicate(wallet, syndicatePubkey, amount)
 | **Jackpot Odds** | 1 in 324,632 | — |
 | **Jackpot Seed** | $5,000 | — |
 | **Soft Cap** | $30,000 (probabilistic rolldown) | → PARI-MUTUEL |
-| **Hard Cap** | $40,000 (forced rolldown) | PARI-MUTUEL |
+| **Hard Cap** | $50,000 (forced rolldown) | PARI-MUTUEL |
 | **Match 4 Prize** | $100 fixed / ~$3,000* rolldown | FIXED → PARI-MUTUEL |
 | **Match 3 Prize** | $4 fixed / ~$74* rolldown | FIXED → PARI-MUTUEL |
 | **Match 2 Prize** | No prize (no free ticket) | — |
@@ -242,7 +242,7 @@ lotto.joinSyndicate(wallet, syndicatePubkey, amount)
 
 *\*Rolldown prizes are pari-mutuel estimates at ~12k tickets. Actual = Pool ÷ Winners.*
 
-> **🔒 OPERATOR PROTECTION:** During Quick Pick rolldown, prizes transition to pari-mutuel. Total operator liability is CAPPED at exactly $30,000-$40,000 (the jackpot), regardless of ticket volume or winner count.
+> **🔒 OPERATOR PROTECTION:** During Quick Pick rolldown, prizes transition to pari-mutuel. Total operator liability is CAPPED at exactly $30,000-$50,000 (the jackpot), regardless of ticket volume or winner count.
 
 ### Mega Events (Quarterly)
 

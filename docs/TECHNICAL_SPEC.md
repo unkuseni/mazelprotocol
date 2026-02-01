@@ -367,7 +367,7 @@ pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000;  // $50 lifetime main lot
 // Quick Pick Jackpot System (scaled for 2-3 day cycles)
 pub const QUICK_PICK_SEED_AMOUNT: u64 = 5_000_000_000;    // $5,000 seed
 pub const QUICK_PICK_SOFT_CAP: u64 = 30_000_000_000;      // $30,000 (probabilistic rolldown)
-pub const QUICK_PICK_HARD_CAP: u64 = 40_000_000_000;      // $40,000 (forced rolldown)
+pub const QUICK_PICK_HARD_CAP: u64 = 50_000_000_000;      // $50,000 (forced rolldown)
 
 // Quick Pick Dynamic Fee Tiers
 pub const QUICK_PICK_FEE_TIER_1_THRESHOLD: u64 = 10_000_000_000;  // $10,000
@@ -882,7 +882,7 @@ pub struct QuickPickState {
     /// Jackpot soft cap ($30,000 - probabilistic rolldown begins)
     pub soft_cap: u64,
     
-    /// Jackpot hard cap ($40,000 - forced rolldown)
+    /// Jackpot hard cap ($50,000 - forced rolldown)
     pub hard_cap: u64,
     
     /// Seed amount for jackpot reset after rolldown ($5,000)

@@ -45,7 +45,7 @@ pub struct QuickPickState {
     /// Jackpot soft cap in USDC lamports ($30,000 - probabilistic rolldown begins)
     pub soft_cap: u64,
 
-    /// Jackpot hard cap in USDC lamports ($40,000 - forced rolldown)
+    /// Jackpot hard cap in USDC lamports ($50,000 - forced rolldown)
     pub hard_cap: u64,
 
     /// Seed amount for jackpot reset after rolldown ($5,000)
@@ -285,12 +285,12 @@ impl QuickPickDrawResult {
 
     /// Get total prizes to be distributed
     pub fn get_total_prizes(&self) -> u64 {
-        let match_5_total = (self.match_5_winners as u64)
-            .saturating_mul(self.match_5_prize_per_winner);
-        let match_4_total = (self.match_4_winners as u64)
-            .saturating_mul(self.match_4_prize_per_winner);
-        let match_3_total = (self.match_3_winners as u64)
-            .saturating_mul(self.match_3_prize_per_winner);
+        let match_5_total =
+            (self.match_5_winners as u64).saturating_mul(self.match_5_prize_per_winner);
+        let match_4_total =
+            (self.match_4_winners as u64).saturating_mul(self.match_4_prize_per_winner);
+        let match_3_total =
+            (self.match_3_winners as u64).saturating_mul(self.match_3_prize_per_winner);
 
         match_5_total
             .saturating_add(match_4_total)
@@ -393,7 +393,7 @@ impl UserStats {
         8 +     // tickets_this_draw
         8 +     // free_tickets_available
         1 +     // bump
-        16;     // padding
+        16; // padding
 
     /// Check if user meets the Quick Pick spend gate
     pub fn meets_quick_pick_gate(&self) -> bool {
@@ -524,7 +524,7 @@ mod tests {
     fn test_quick_pick_state_rolldown_probability() {
         let mut state = QuickPickState {
             soft_cap: 30_000_000_000,
-            hard_cap: 40_000_000_000,
+            hard_cap: 50_000_000_000,
             ..Default::default()
         };
 
@@ -537,11 +537,11 @@ mod tests {
         assert_eq!(state.get_rolldown_probability_bps(), 0);
 
         // Midway
-        state.jackpot_balance = 35_000_000_000;
+        state.jackpot_balance = 40_000_000_000;
         assert_eq!(state.get_rolldown_probability_bps(), 5000);
 
         // At hard cap
-        state.jackpot_balance = 40_000_000_000;
+        state.jackpot_balance = 50_000_000_000;
         assert_eq!(state.get_rolldown_probability_bps(), 10000);
     }
 

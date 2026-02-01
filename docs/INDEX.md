@@ -145,7 +145,7 @@
 | Jackpot Odds | 1 in 324,632 | — | ADVANCED_FEATURES.md §5 |
 | Jackpot Seed | $5,000 | — | ADVANCED_FEATURES.md §5 |
 | Soft Cap | $30,000 | → PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
-| Hard Cap | $40,000 | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
+| Hard Cap | $50,000 | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
 | **Match 4 Prize** | $100 fixed / ~$3,000* rolldown | **FIXED → PM** | ADVANCED_FEATURES.md §5 |
 | **Match 3 Prize** | $4 fixed / ~$74* rolldown | **FIXED → PM** | ADVANCED_FEATURES.md §5 |
 | Match 2 Prize | No prize (no free ticket) | — | ADVANCED_FEATURES.md §5 |
@@ -155,7 +155,7 @@
 
 *\*Rolldown prizes are pari-mutuel estimates. Actual = Pool ÷ Winners. Operator liability CAPPED at jackpot amount.*
 
-> **🔒 OPERATOR PROTECTION:** During Quick Pick rolldown, all prizes transition from FIXED to PARI-MUTUEL. Total operator liability is EXACTLY $30,000-$40,000 (the jackpot), regardless of ticket volume or winner count.
+> **🔒 OPERATOR PROTECTION:** During Quick Pick rolldown, all prizes transition from FIXED to PARI-MUTUEL. Total operator liability is EXACTLY $30,000-$50,000 (the jackpot), regardless of ticket volume or winner count.
 
 ### Mega Events (Quarterly)
 
