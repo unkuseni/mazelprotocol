@@ -1,37 +1,36 @@
-//! Buy Ticket Instruction
+//! Buy Bulk Tickets Instruction
 //!
-//! This instruction allows players to purchase lottery tickets.
+//! This instruction allows players to purchase multiple lottery tickets in a single transaction.
 //! It handles:
-//! - Number validation
+//! - Number validation for all tickets
 //! - Per-user ticket limits enforcement
-//! - Free ticket redemption (Match 2 credits)
 //! - USDC transfer (player -> prize pool + house fee)
-//! - Ticket account creation
+//! - Unified ticket account creation for efficient storage
 //! - User stats updates
 //! - Fee calculation based on jackpot level
+//!
+//! Maximum 50 tickets per bulk purchase for individual users.
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::*;
 use crate::errors::LottoError;
-use crate::events::TicketPurchased;
-use crate::state::{LotteryState, TicketData, UserStats};
+use crate::events::BulkTicketsPurchased;
+use crate::state::{LotteryState, UnifiedTicket, UserStats};
 
-/// Parameters for buying a ticket
+/// Parameters for buying multiple tickets
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct BuyTicketParams {
-    /// 6 numbers, each between 1 and 46
-    pub numbers: [u8; 6],
-    /// Whether to use a free ticket credit (if available)
-    pub use_free_ticket: bool,
+pub struct BuyBulkParams {
+    /// Array of ticket number sets, each containing 6 numbers between 1 and 46
+    pub tickets: Vec<[u8; 6]>,
 }
 
-/// Accounts required for buying a ticket
+/// Accounts required for buying multiple tickets
 #[derive(Accounts)]
-#[instruction(params: BuyTicketParams)]
-pub struct BuyTicket<'info> {
-    /// The player purchasing the ticket
+#[instruction(params: BuyBulkParams)]
+pub struct BuyBulk<'info> {
+    /// The player purchasing the tickets
     #[account(mut)]
     pub player: Signer<'info>,
 
@@ -46,19 +45,20 @@ pub struct BuyTicket<'info> {
     )]
     pub lottery_state: Account<'info, LotteryState>,
 
-    /// The ticket account to be created
+    /// The unified ticket account to be created for storing all tickets
     #[account(
         init,
         payer = player,
-        space = TICKET_SIZE,
+        space = UnifiedTicket::size_for_count(params.tickets.len()),
         seeds = [
-            TICKET_SEED,
+            UNIFIED_TICKET_SEED,
+            player.key().as_ref(),
             &lottery_state.current_draw_id.to_le_bytes(),
             &lottery_state.current_draw_tickets.to_le_bytes()
         ],
         bump
     )]
-    pub ticket: Account<'info, TicketData>,
+    pub unified_ticket: Account<'info, UnifiedTicket>,
 
     /// Player's USDC token account
     #[account(
@@ -104,7 +104,7 @@ pub struct BuyTicket<'info> {
     pub system_program: Program<'info, System>,
 }
 
-impl<'info> BuyTicket<'info> {
+impl<'info> BuyBulk<'info> {
     /// Transfer USDC from player to prize pool
     pub fn transfer_to_prize_pool(&self, amount: u64) -> Result<()> {
         let cpi_accounts = Transfer {
@@ -139,34 +139,44 @@ impl<'info> BuyTicket<'info> {
     }
 }
 
-/// Buy a single lottery ticket
+/// Buy multiple lottery tickets in one transaction
 ///
 /// This instruction:
-/// 1. Validates the selected numbers (1-46, unique, 6 numbers)
+/// 1. Validates all selected numbers (1-46, unique, 6 numbers per ticket)
 /// 2. Enforces per-user ticket limits for the current draw
-/// 3. Checks for and optionally uses free ticket credits (Match 2 wins)
+/// 3. Enforces bulk purchase limits (max 50 tickets)
 /// 4. Calculates the dynamic house fee based on jackpot level
-/// 5. Verifies player has sufficient balance for full transaction (if not using free ticket)
-/// 6. Transfers USDC from player to prize pool and house fee accounts (if not using free ticket)
-/// 7. Creates the ticket account with the selected numbers
-/// 8. Updates user statistics (tickets, spending, streak, free tickets)
+/// 5. Verifies player has sufficient balance for full transaction
+/// 6. Transfers USDC from player to prize pool and house fee accounts
+/// 7. Creates a unified ticket account with all selected numbers
+/// 8. Updates user statistics (tickets, spending, streak)
 /// 9. Updates lottery state (jackpot contribution, ticket count)
 ///
 /// # Arguments
 /// * `ctx` - The context containing all required accounts
-/// * `params` - The ticket purchase parameters (numbers)
+/// * `params` - The bulk ticket purchase parameters (array of number sets)
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
-pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
+pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     let clock = Clock::get()?;
+    let ticket_count = params.tickets.len();
 
-    // Validate numbers first (before any borrows)
-    validate_numbers(&params.numbers)?;
+    // Validate ticket count
+    require!(ticket_count > 0, LottoError::EmptyTicketArray);
+    require!(
+        ticket_count <= MAX_BULK_TICKETS,
+        LottoError::BulkPurchaseLimitExceeded
+    );
 
-    // Sort numbers for consistent storage
-    let mut sorted_numbers = params.numbers;
-    sorted_numbers.sort();
+    // Validate all ticket numbers and sort them
+    let mut sorted_tickets: Vec<[u8; 6]> = Vec::with_capacity(ticket_count);
+    for ticket in &params.tickets {
+        validate_numbers(ticket)?;
+        let mut sorted = *ticket;
+        sorted.sort();
+        sorted_tickets.push(sorted);
+    }
 
     // Get values needed for validation and calculation before mutable borrows
     let ticket_price = ctx.accounts.lottery_state.ticket_price;
@@ -175,6 +185,7 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
     let is_funded = ctx.accounts.lottery_state.is_funded;
     let is_draw_in_progress = ctx.accounts.lottery_state.is_draw_in_progress;
     let current_draw_id = ctx.accounts.lottery_state.current_draw_id;
+    let current_draw_tickets = ctx.accounts.lottery_state.current_draw_tickets;
     let soft_cap = ctx.accounts.lottery_state.soft_cap;
     let house_fee_bps = ctx.accounts.lottery_state.get_current_house_fee_bps();
 
@@ -185,74 +196,55 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         && clock.unix_timestamp < next_draw_timestamp - TICKET_SALE_CUTOFF;
     require!(is_sale_open, LottoError::TicketSaleEnded);
 
-    // FIXED: Enforce per-user ticket limit
+    // Enforce per-user ticket limit
     let user_tickets_this_draw = ctx.accounts.get_user_tickets_this_draw(current_draw_id);
+    let new_total_tickets = user_tickets_this_draw
+        .checked_add(ticket_count as u64)
+        .ok_or(LottoError::Overflow)?;
     require!(
-        user_tickets_this_draw < MAX_TICKETS_PER_DRAW_PER_USER,
+        new_total_tickets <= MAX_TICKETS_PER_DRAW_PER_USER,
         LottoError::MaxTicketsPerDrawExceeded
     );
 
-    // Check if user wants to use a free ticket and has one available
-    let free_tickets_available = ctx.accounts.user_stats.free_tickets_available;
-    let using_free_ticket = params.use_free_ticket && free_tickets_available > 0;
+    // Calculate total price and fees
+    let total_price = ticket_price
+        .checked_mul(ticket_count as u64)
+        .ok_or(LottoError::Overflow)?;
+    let total_house_fee =
+        (total_price as u128 * house_fee_bps as u128 / BPS_DENOMINATOR as u128) as u64;
+    let total_prize_pool = total_price.saturating_sub(total_house_fee);
+    let total_jackpot_contribution = (total_prize_pool as u128 * JACKPOT_ALLOCATION_BPS as u128
+        / BPS_DENOMINATOR as u128) as u64;
+    let total_reserve_contribution = (total_prize_pool as u128 * RESERVE_ALLOCATION_BPS as u128
+        / BPS_DENOMINATOR as u128) as u64;
 
-    // Calculate price and fees (0 if using free ticket)
-    let (house_fee, prize_pool_amount, jackpot_contribution, reserve_contribution, actual_price) =
-        if using_free_ticket {
-            // Free ticket - no USDC transfer needed
-            (0u64, 0u64, 0u64, 0u64, 0u64)
-        } else {
-            let house_fee =
-                (ticket_price as u128 * house_fee_bps as u128 / BPS_DENOMINATOR as u128) as u64;
-            let prize_pool_amount = ticket_price.saturating_sub(house_fee);
-            let jackpot_contribution = (prize_pool_amount as u128 * JACKPOT_ALLOCATION_BPS as u128
-                / BPS_DENOMINATOR as u128) as u64;
-            let reserve_contribution = (prize_pool_amount as u128 * RESERVE_ALLOCATION_BPS as u128
-                / BPS_DENOMINATOR as u128) as u64;
-            (
-                house_fee,
-                prize_pool_amount,
-                jackpot_contribution,
-                reserve_contribution,
-                ticket_price,
-            )
-        };
+    // Check player has sufficient balance
+    require!(
+        ctx.accounts.player_usdc.amount >= total_price,
+        LottoError::InsufficientFunds
+    );
 
-    // Only perform USDC transfers if not using free ticket
-    if !using_free_ticket {
-        // FIXED: Check player has sufficient balance for TOTAL amount (both transfers)
-        require!(
-            ctx.accounts.player_usdc.amount >= ticket_price,
-            LottoError::InsufficientFunds
-        );
-
-        // Transfer USDC - do house fee first (smaller amount)
-        // If either fails, the transaction is atomic and will revert
-        ctx.accounts.transfer_to_house_fee(house_fee)?;
-        ctx.accounts.transfer_to_prize_pool(prize_pool_amount)?;
-    }
+    // Transfer USDC - do house fee first (smaller amount)
+    ctx.accounts.transfer_to_house_fee(total_house_fee)?;
+    ctx.accounts.transfer_to_prize_pool(total_prize_pool)?;
 
     // Update lottery state
     let lottery_state = &mut ctx.accounts.lottery_state;
-    if jackpot_contribution > 0 {
-        lottery_state.jackpot_balance = lottery_state
-            .jackpot_balance
-            .checked_add(jackpot_contribution)
-            .ok_or(LottoError::Overflow)?;
-    }
-    if reserve_contribution > 0 {
-        lottery_state.reserve_balance = lottery_state
-            .reserve_balance
-            .checked_add(reserve_contribution)
-            .ok_or(LottoError::Overflow)?;
-    }
+    lottery_state.jackpot_balance = lottery_state
+        .jackpot_balance
+        .checked_add(total_jackpot_contribution)
+        .ok_or(LottoError::Overflow)?;
+    lottery_state.reserve_balance = lottery_state
+        .reserve_balance
+        .checked_add(total_reserve_contribution)
+        .ok_or(LottoError::Overflow)?;
     lottery_state.current_draw_tickets = lottery_state
         .current_draw_tickets
-        .checked_add(1)
+        .checked_add(ticket_count as u64)
         .ok_or(LottoError::Overflow)?;
     lottery_state.total_tickets_sold = lottery_state
         .total_tickets_sold
-        .checked_add(1)
+        .checked_add(ticket_count as u64)
         .ok_or(LottoError::Overflow)?;
 
     // Update house fee based on new jackpot level
@@ -265,17 +257,18 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
 
     let new_jackpot_balance = lottery_state.jackpot_balance;
 
-    // Create ticket
-    let ticket = &mut ctx.accounts.ticket;
-    ticket.owner = ctx.accounts.player.key();
-    ticket.draw_id = current_draw_id;
-    ticket.numbers = sorted_numbers;
-    ticket.purchase_timestamp = clock.unix_timestamp;
-    ticket.is_claimed = false;
-    ticket.match_count = 0;
-    ticket.prize_amount = 0;
-    ticket.syndicate = None;
-    ticket.bump = ctx.bumps.ticket;
+    // Create unified ticket account
+    let unified_ticket = &mut ctx.accounts.unified_ticket;
+    unified_ticket.owner = ctx.accounts.player.key();
+    unified_ticket.draw_id = current_draw_id;
+    unified_ticket.start_ticket_id = current_draw_tickets;
+    unified_ticket.ticket_count = ticket_count as u32;
+    unified_ticket.numbers = sorted_tickets;
+    unified_ticket.purchase_timestamp = clock.unix_timestamp;
+    unified_ticket.syndicate = None;
+    // Initialize claimed bitmap (1 bit per ticket, rounded up to bytes)
+    unified_ticket.claimed_bitmap = vec![0u8; (ticket_count + 7) / 8];
+    unified_ticket.bump = ctx.bumps.unified_ticket;
 
     // Update user stats
     let user_stats = &mut ctx.accounts.user_stats;
@@ -288,62 +281,48 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         user_stats.last_draw_participated = 0;
     }
 
-    // FIXED: Track tickets per draw for limit enforcement
+    // Track tickets per draw for limit enforcement
     if user_stats.last_draw_participated != current_draw_id {
         // New draw, reset counter
-        user_stats.tickets_this_draw = 1;
+        user_stats.tickets_this_draw = ticket_count as u64;
     } else {
         // Same draw, increment counter
         user_stats.tickets_this_draw = user_stats
             .tickets_this_draw
-            .checked_add(1)
+            .checked_add(ticket_count as u64)
             .ok_or(LottoError::Overflow)?;
     }
 
     user_stats.total_tickets = user_stats
         .total_tickets
-        .checked_add(1)
+        .checked_add(ticket_count as u64)
         .ok_or(LottoError::Overflow)?;
     user_stats.total_spent = user_stats
         .total_spent
-        .checked_add(actual_price)
+        .checked_add(total_price)
         .ok_or(LottoError::Overflow)?;
     user_stats.update_streak(current_draw_id);
 
-    // FIXED: Decrement free tickets if one was used
-    if using_free_ticket {
-        user_stats.free_tickets_available = user_stats.free_tickets_available.saturating_sub(1);
-    }
-
     // Emit event
-    emit!(TicketPurchased {
-        ticket: ctx.accounts.ticket.key(),
+    emit!(BulkTicketsPurchased {
         player: ctx.accounts.player.key(),
         draw_id: current_draw_id,
-        numbers: sorted_numbers,
-        price: actual_price,
+        ticket_count: ticket_count as u32,
+        total_price,
         syndicate: None,
         timestamp: clock.unix_timestamp,
     });
 
-    msg!("Ticket purchased successfully!");
+    msg!("Bulk tickets purchased successfully!");
     msg!("  Player: {}", ctx.accounts.player.key());
     msg!("  Draw ID: {}", current_draw_id);
-    msg!("  Numbers: {:?}", sorted_numbers);
-    if using_free_ticket {
-        msg!("  FREE TICKET USED!");
-        msg!(
-            "  Remaining free tickets: {}",
-            user_stats.free_tickets_available
-        );
-    } else {
-        msg!("  Price: {} USDC lamports", ticket_price);
-        msg!("  House fee: {} USDC lamports", house_fee);
-        msg!(
-            "  Jackpot contribution: {} USDC lamports",
-            jackpot_contribution
-        );
-    }
+    msg!("  Ticket count: {}", ticket_count);
+    msg!("  Total price: {} USDC lamports", total_price);
+    msg!("  Total house fee: {} USDC lamports", total_house_fee);
+    msg!(
+        "  Total jackpot contribution: {} USDC lamports",
+        total_jackpot_contribution
+    );
     msg!("  Current jackpot: {} USDC lamports", new_jackpot_balance);
     msg!(
         "  User tickets this draw: {}/{}",
@@ -385,15 +364,6 @@ mod tests {
     }
 
     #[test]
-    fn test_buy_ticket_params_with_free_ticket() {
-        let params = BuyTicketParams {
-            numbers: [1, 2, 3, 4, 5, 6],
-            use_free_ticket: true,
-        };
-        assert!(params.use_free_ticket);
-    }
-
-    #[test]
     fn test_validate_numbers_valid_unsorted() {
         let numbers = [46, 1, 30, 10, 40, 20];
         assert!(validate_numbers(&numbers).is_ok());
@@ -421,5 +391,13 @@ mod tests {
     fn test_validate_numbers_all_same() {
         let numbers = [25, 25, 25, 25, 25, 25];
         assert!(validate_numbers(&numbers).is_err());
+    }
+
+    #[test]
+    fn test_bulk_params() {
+        let params = BuyBulkParams {
+            tickets: vec![[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]],
+        };
+        assert_eq!(params.tickets.len(), 2);
     }
 }

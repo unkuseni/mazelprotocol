@@ -476,3 +476,35 @@ pub struct InsurancePoolFunded {
     /// Timestamp
     pub timestamp: i64,
 }
+
+// ============================================================================
+// DRAW RECOVERY EVENTS
+// ============================================================================
+
+/// Emitted when a draw is cancelled due to timeout
+#[event]
+pub struct DrawCancelled {
+    /// Draw ID that was cancelled
+    pub draw_id: u64,
+    /// Number of tickets affected (remain valid for rescheduled draw)
+    pub tickets_affected: u64,
+    /// Timestamp when cancelled
+    pub timestamp: i64,
+    /// Reason for cancellation
+    pub reason: String,
+}
+
+/// Emitted when a draw is force finalized (emergency)
+#[event]
+pub struct DrawForceFinalized {
+    /// Draw ID that was force finalized
+    pub draw_id: u64,
+    /// Number of tickets affected (will NOT receive prizes)
+    pub tickets_affected: u64,
+    /// Authority who force finalized
+    pub authority: Pubkey,
+    /// Reason for force finalization
+    pub reason: String,
+    /// Timestamp when force finalized
+    pub timestamp: i64,
+}
