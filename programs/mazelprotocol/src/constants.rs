@@ -103,12 +103,14 @@ pub const SEED_AMOUNT: u64 = 500_000_000_000;
 // PRIZE ALLOCATION (Basis Points - 10000 = 100%)
 // ============================================================================
 
-/// Jackpot allocation: 57.6%
-pub const JACKPOT_ALLOCATION_BPS: u16 = 5760;
+/// Jackpot allocation: 55.6%
+pub const JACKPOT_ALLOCATION_BPS: u16 = 5560;
 /// Fixed prize allocation: 39.4%
 pub const FIXED_PRIZE_ALLOCATION_BPS: u16 = 3940;
 /// Reserve allocation: 3%
 pub const RESERVE_ALLOCATION_BPS: u16 = 300;
+/// Insurance pool allocation: 2%
+pub const INSURANCE_ALLOCATION_BPS: u16 = 200;
 
 // ============================================================================
 // FIXED PRIZES (Normal Mode)

@@ -219,9 +219,11 @@ impl LotteryState {
         true
     }
 
-    /// Get available prize pool balance (jackpot + reserve)
+    /// Get available prize pool balance (jackpot + reserve + insurance)
     pub fn get_available_prize_pool(&self) -> u64 {
-        self.jackpot_balance.saturating_add(self.reserve_balance)
+        self.jackpot_balance
+            .saturating_add(self.reserve_balance)
+            .saturating_add(self.insurance_balance)
     }
 
     /// Check if lottery can pay out prizes for given winner counts

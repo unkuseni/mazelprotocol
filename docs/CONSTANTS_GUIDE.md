@@ -197,9 +197,10 @@ Prize pool distribution percentages.
 
 | Constant | Value | Description | Allocation |
 |----------|-------|-------------|------------|
-| `JACKPOT_ALLOCATION_BPS` | `5,760` BPS (57.6%) | Jackpot allocation | 57.6% of prize pool |
+| `JACKPOT_ALLOCATION_BPS` | `5,560` BPS (55.6%) | Jackpot allocation | 55.6% of prize pool |
 | `FIXED_PRIZE_ALLOCATION_BPS` | `3,940` BPS (39.4%) | Fixed prize allocation | 39.4% of prize pool |
 | `RESERVE_ALLOCATION_BPS` | `300` BPS (3%) | Reserve fund allocation | 3% of prize pool |
+| `INSURANCE_ALLOCATION_BPS` | `200` BPS (2%) | Insurance pool allocation | 2% of prize pool |
 
 ### Allocation Formula
 ```rust
@@ -207,6 +208,10 @@ let ticket_price = TICKET_PRICE;
 let house_fee_bps = calculate_house_fee_bps(jackpot_balance, false);
 let house_fee = ticket_price * house_fee_bps as u64 / 10000;
 let prize_pool = ticket_price - house_fee;
+
+// Note: The sum of all allocations equals 100% (10,000 BPS)
+// 5,560 + 3,940 + 300 + 200 = 10,000 BPS
+let insurance_contribution = prize_pool * INSURANCE_ALLOCATION_BPS as u64 / 10000;
 
 let jackpot_contribution = prize_pool * JACKPOT_ALLOCATION_BPS as u64 / 10000;
 let fixed_prize_contribution = prize_pool * FIXED_PRIZE_ALLOCATION_BPS as u64 / 10000;

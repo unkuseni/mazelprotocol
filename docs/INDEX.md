@@ -71,6 +71,8 @@
 | Syndicate System | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
 | Streak Bonuses | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
 | Switchboard Randomness | WHITEPAPER.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Insurance Pool System | WHITEPAPER.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Emergency Fund Transfer | TECHNICAL_SPEC.md | TECHNICAL_SPEC.md | ✅ Complete |
 
 ### ✅ Advanced Features (v2.0 - Documented & Specified)
 
@@ -79,12 +81,16 @@
 | **🔒 Prize Transition System** | **Fixed → Pari-Mutuel** | **TECHNICAL_SPEC.md §12.4** | **✅ Complete** |
 | Dynamic House Fee | ADVANCED_FEATURES.md §1 | TECHNICAL_SPEC.md | ✅ Complete |
 | Soft/Hard Caps | ADVANCED_FEATURES.md §2 | TECHNICAL_SPEC.md | ✅ Complete |
+| Insurance Pool System | WHITEPAPER.md §8 | TECHNICAL_SPEC.md | ✅ Complete |
+| Emergency Fund Transfer | TECHNICAL_SPEC.md §6.1.12 | TECHNICAL_SPEC.md | ✅ Complete |
 | Lucky Numbers NFT | ADVANCED_FEATURES.md §3 | TECHNICAL_SPEC.md | ✅ Complete |
 | MEV Protection | ADVANCED_FEATURES.md §4 | TECHNICAL_SPEC.md | ✅ Complete |
 | Quick Pick Express | ADVANCED_FEATURES.md §5 | TECHNICAL_SPEC.md | ✅ Complete |
 | Syndicate Wars | ADVANCED_FEATURES.md §6 | TECHNICAL_SPEC.md | ✅ Complete |
 
 > **🔒 CRITICAL DESIGN FEATURE:** All prizes START as FIXED amounts during normal operation, then TRANSITION to PARI-MUTUEL (shared pool) during rolldown events and high-volume draws. This hybrid system ensures **operator liability is ALWAYS CAPPED** while maintaining attractive +EV windows for players.
+
+> **🛡️ INSURANCE SYSTEM:** 2% of every ticket sale goes to an insurance pool that can be used during insolvency emergencies. Combined with the 3% reserve fund, this provides **5% total buffer** for prize pool shortfalls. Emergency fund transfers require authority approval with audit logging.
 
 ---
 
@@ -99,6 +105,11 @@
 | Hard Cap | $2,250,000 | PARI-MUTUEL | ADVANCED_FEATURES.md |
 | Jackpot Seed | $500,000 | — | TECHNICAL_SPEC.md |
 | Dynamic Fee Range | 28% - 40% | — | ADVANCED_FEATURES.md |
+| **Prize Pool Allocation** | **100% of ticket price (after fees)** | **—** | **CONSTANTS_GUIDE.md** |
+| **Jackpot Allocation** | **55.6%** | **—** | **CONSTANTS_GUIDE.md** |
+| **Fixed Prize Allocation** | **39.4%** | **—** | **CONSTANTS_GUIDE.md** |
+| **Reserve Fund Allocation** | **3.0%** | **—** | **CONSTANTS_GUIDE.md** |
+| **Insurance Pool Allocation** | **2.0%** | **—** | **CONSTANTS_GUIDE.md** |
 | **Normal Mode Prizes** | **Fixed amounts** | **FIXED** | TECHNICAL_SPEC.md |
 | **Rolldown Prizes** | **Pool ÷ Winners** | **PARI-MUTUEL** | WHITEPAPER.md §3.3 |
 
@@ -111,6 +122,16 @@
 | $1M - $1.5M | 36% | ADVANCED_FEATURES.md §1 |
 | > $1.5M | 40% | ADVANCED_FEATURES.md §1 |
 | Rolldown | 28% | ADVANCED_FEATURES.md §1 |
+
+### Fund Protection System
+
+| Fund Type | Allocation | Purpose | Emergency Access |
+|-----------|------------|---------|------------------|
+| **Jackpot** | 55.6% | Main prize pool | Automatic during draws |
+| **Fixed Prizes** | 39.4% | Match 5/4/3 prizes | Automatic during draws |
+| **Reserve Fund** | 3.0% | Jackpot seeding, shortfalls | ✅ Emergency transfer |
+| **Insurance Pool** | 2.0% | Insolvency protection | ✅ Emergency transfer |
+| **Total Buffer** | **5.0%** | **Combined safety net** | **Multi-sig required** |
 
 ### Quick Pick Express (5/35) — FIXED → PARI-MUTUEL
 
@@ -156,6 +177,8 @@
 | **Expected Value** | WHITEPAPER §3.3 | ADVANCED_FEATURES §1-2 | - |
 | **Prize Structure** | SOLANA_LOTTO §Prize Structure | WHITEPAPER §3 | TECHNICAL_SPEC |
 | **Rolldown Mechanics** | SOLANA_LOTTO §Rolldown | ADVANCED_FEATURES §2 | TECHNICAL_SPEC |
+| **Insurance System** | WHITEPAPER §8 | CONSTANTS_GUIDE §5 | TECHNICAL_SPEC §6.1.12 |
+| **Emergency Procedures** | TECHNICAL_SPEC §6.1.12 | - | TECHNICAL_SPEC §12.5 |
 | **Smart Contracts** | - | WHITEPAPER.md §6 | TECHNICAL_SPEC §4-6 |
 | **Security** | SOLANA_LOTTO §Security | WHITEPAPER §7 | ADVANCED_FEATURES §4 |
 | **MEV Protection** | - | ADVANCED_FEATURES §4 | TECHNICAL_SPEC |
@@ -171,6 +194,8 @@ From [ADVANCED_FEATURES.md §8](./ADVANCED_FEATURES.md#8-implementation-priority
 - Jito MEV protection
 - Dynamic house fee system
 - Soft/hard rolldown caps
+- Insurance pool system ✅ **COMPLETE**
+- Emergency fund transfer ✅ **COMPLETE**
 
 ### Phase 2: Engagement (Months 3-5)
 - Syndicate Wars competition
@@ -196,6 +221,10 @@ From [ADVANCED_FEATURES.md §8](./ADVANCED_FEATURES.md#8-implementation-priority
 | v2.3 | 2025 | Removed $LOTTO token and staking features |
 | v2.2 | 2025 | Migrated from Chainlink VRF to Switchboard Randomness |
 | v2.2 | 2025 | Removed Second Chance Draws feature |
+| v2.2 | 2025 | Added insurance pool system (2% allocation) |
+| v2.2 | 2025 | Added emergency fund transfer instruction |
+| v2.2 | 2025 | Updated prize pool allocation: 55.6% jackpot, 39.4% fixed, 3% reserve, 2% insurance |
+| v2.2 | 2025 | Updated solvency checks to include insurance pool |
 | v2.1 | 2025 | Updated TECHNICAL_SPEC.md error codes (98 variants) to match implementation |
 | v2.1 | 2025 | Updated TECHNICAL_SPEC.md data structures to match actual implementation |
 | v2.1 | 2025 | Added comprehensive error handling documentation |
@@ -230,6 +259,8 @@ From [ADVANCED_FEATURES.md §8](./ADVANCED_FEATURES.md#8-implementation-priority
 - Quick Pick Express
 - Syndicate Wars
 - Streak Bonus
+- Insurance Pool
+- Emergency Fund Transfer
 
 ---
 
@@ -251,8 +282,10 @@ From [ADVANCED_FEATURES.md §8](./ADVANCED_FEATURES.md#8-implementation-priority
 
 *Complete documentation for the world's first intentionally exploitable lottery*
 
-📚 **5 Documents** | 🎰 **7 Advanced Features** | 💰 **$12.3M Annual Profit Target**
+📚 **5 Documents** | 🎰 **9 Advanced Features** | 💰 **$12.3M Annual Profit Target**
 
 > **🔒 CORE PROTECTION:** All prizes START as FIXED amounts, then TRANSITION to PARI-MUTUEL during rolldown events. Operator liability is ALWAYS CAPPED while players enjoy +EV windows.
+
+> **🛡️ FUND PROTECTION:** 5% safety buffer (3% reserve + 2% insurance) protects against insolvency. Emergency transfers require multi-sig approval with full audit trail.
 
 </div>

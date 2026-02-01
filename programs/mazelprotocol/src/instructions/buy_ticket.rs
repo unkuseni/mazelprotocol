@@ -84,6 +84,14 @@ pub struct BuyTicket<'info> {
     )]
     pub house_fee_usdc: Account<'info, TokenAccount>,
 
+    /// Insurance pool USDC token account
+    #[account(
+        mut,
+        seeds = [INSURANCE_POOL_USDC_SEED],
+        bump
+    )]
+    pub insurance_pool_usdc: Account<'info, TokenAccount>,
+
     /// USDC mint
     pub usdc_mint: Account<'info, Mint>,
 
@@ -122,6 +130,18 @@ impl<'info> BuyTicket<'info> {
         let cpi_accounts = Transfer {
             from: self.player_usdc.to_account_info(),
             to: self.house_fee_usdc.to_account_info(),
+            authority: self.player.to_account_info(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, amount)
+    }
+
+    /// Transfer USDC from player to insurance pool account
+    pub fn transfer_to_insurance_pool(&self, amount: u64) -> Result<()> {
+        let cpi_accounts = Transfer {
+            from: self.player_usdc.to_account_info(),
+            to: self.insurance_pool_usdc.to_account_info(),
             authority: self.player.to_account_info(),
         };
         let cpi_program = self.token_program.to_account_info();
@@ -206,26 +226,35 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
     }
 
     // Calculate price and fees (0 if using free ticket)
-    let (house_fee, prize_pool_amount, jackpot_contribution, reserve_contribution, actual_price) =
-        if using_free_ticket {
-            // Free ticket - no USDC transfer needed
-            (0u64, 0u64, 0u64, 0u64, 0u64)
-        } else {
-            let house_fee =
-                (ticket_price as u128 * house_fee_bps as u128 / BPS_DENOMINATOR as u128) as u64;
-            let prize_pool_amount = ticket_price.saturating_sub(house_fee);
-            let jackpot_contribution = (prize_pool_amount as u128 * JACKPOT_ALLOCATION_BPS as u128
-                / BPS_DENOMINATOR as u128) as u64;
-            let reserve_contribution = (prize_pool_amount as u128 * RESERVE_ALLOCATION_BPS as u128
-                / BPS_DENOMINATOR as u128) as u64;
-            (
-                house_fee,
-                prize_pool_amount,
-                jackpot_contribution,
-                reserve_contribution,
-                ticket_price,
-            )
-        };
+    let (
+        house_fee,
+        prize_pool_amount,
+        jackpot_contribution,
+        reserve_contribution,
+        insurance_contribution,
+        actual_price,
+    ) = if using_free_ticket {
+        // Free ticket - no USDC transfer needed
+        (0u64, 0u64, 0u64, 0u64, 0u64, 0u64)
+    } else {
+        let house_fee =
+            (ticket_price as u128 * house_fee_bps as u128 / BPS_DENOMINATOR as u128) as u64;
+        let prize_pool_amount = ticket_price.saturating_sub(house_fee);
+        let jackpot_contribution = (prize_pool_amount as u128 * JACKPOT_ALLOCATION_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+        let reserve_contribution = (prize_pool_amount as u128 * RESERVE_ALLOCATION_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+        let insurance_contribution = (prize_pool_amount as u128 * INSURANCE_ALLOCATION_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+        (
+            house_fee,
+            prize_pool_amount,
+            jackpot_contribution,
+            reserve_contribution,
+            insurance_contribution,
+            ticket_price,
+        )
+    };
 
     // Only perform USDC transfers if not using free ticket
     if !using_free_ticket {
@@ -239,6 +268,12 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         // This ensures if prize pool transfer fails, user doesn't lose house fee
         ctx.accounts.transfer_to_prize_pool(prize_pool_amount)?;
         ctx.accounts.transfer_to_house_fee(house_fee)?;
+
+        // Transfer insurance contribution if any
+        if insurance_contribution > 0 {
+            ctx.accounts
+                .transfer_to_insurance_pool(insurance_contribution)?;
+        }
     }
 
     // Update lottery state
@@ -253,6 +288,12 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         lottery_state.reserve_balance = lottery_state
             .reserve_balance
             .checked_add(reserve_contribution)
+            .ok_or(LottoError::Overflow)?;
+    }
+    if insurance_contribution > 0 {
+        lottery_state.insurance_balance = lottery_state
+            .insurance_balance
+            .checked_add(insurance_contribution)
             .ok_or(LottoError::Overflow)?;
     }
     lottery_state.current_draw_tickets = lottery_state

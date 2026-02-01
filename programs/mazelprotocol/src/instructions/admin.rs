@@ -16,7 +16,7 @@ use crate::constants::*;
 use crate::errors::LottoError;
 use crate::events::{
     ConfigUpdated, DrawCancelled, DrawForceFinalized, EmergencyPause, EmergencyUnpause,
-    HouseFeesWithdrawn,
+    HouseFeesWithdrawn, InsurancePoolFunded,
 };
 use crate::state::LotteryState;
 
@@ -855,6 +855,152 @@ pub fn handler_transfer_authority(ctx: Context<TransferAuthority>) -> Result<()>
     msg!("  Current authority: {}", lottery_state.authority);
     msg!("  Pending authority: {}", new_authority);
     msg!("  IMPORTANT: The new authority must call accept_authority to complete transfer.");
+
+    Ok(())
+}
+
+// ============================================================================
+// EMERGENCY FUND TRANSFER INSTRUCTION
+// ============================================================================
+
+/// Source of funds for emergency transfer
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub enum FundSource {
+    /// Transfer from reserve pool
+    Reserve,
+    /// Transfer from insurance pool
+    Insurance,
+}
+
+/// Accounts required for emergency fund transfer
+#[derive(Accounts)]
+pub struct EmergencyFundTransfer<'info> {
+    /// The authority initiating the transfer
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    /// The main lottery state account
+    #[account(
+        mut,
+        seeds = [LOTTERY_SEED],
+        bump = lottery_state.bump,
+        constraint = lottery_state.authority == authority.key() @ LottoError::Unauthorized
+    )]
+    pub lottery_state: Account<'info, LotteryState>,
+
+    /// Source USDC token account (reserve or insurance pool)
+    #[account(mut)]
+    pub source_usdc: Account<'info, TokenAccount>,
+
+    /// Destination USDC token account (prize pool)
+    #[account(
+        mut,
+        seeds = [PRIZE_POOL_USDC_SEED],
+        bump
+    )]
+    pub destination_usdc: Account<'info, TokenAccount>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+}
+
+/// Emergency transfer funds from reserve or insurance pool to prize pool
+///
+/// This instruction allows the authority to transfer funds from reserve
+/// or insurance pools to the prize pool during insolvency emergencies.
+///
+/// # Security Requirements:
+/// - Only callable by authority
+/// - Requires multi-sig in production (not enforced in code)
+/// - Should have timelock in production (not enforced in code)
+/// - Emits detailed audit event
+///
+/// # Arguments
+/// * `ctx` - The context containing required accounts
+/// * `source` - Source of funds (Reserve or Insurance)
+/// * `amount` - Amount to transfer in USDC lamports
+/// * `reason` - Reason for emergency transfer (logged)
+///
+/// # Returns
+/// * `Result<()>` - Success or error
+pub fn handler_emergency_fund_transfer(
+    ctx: Context<EmergencyFundTransfer>,
+    source: FundSource,
+    amount: u64,
+    reason: String,
+) -> Result<()> {
+    let clock = Clock::get()?;
+
+    // Validate source account matches the requested source
+    let expected_source_pubkey = match source {
+        FundSource::Reserve => {
+            Pubkey::find_program_address(&[PRIZE_POOL_USDC_SEED], &ctx.program_id).0
+        }
+        FundSource::Insurance => {
+            Pubkey::find_program_address(&[INSURANCE_POOL_USDC_SEED], &ctx.program_id).0
+        }
+    };
+    require!(
+        ctx.accounts.source_usdc.key() == expected_source_pubkey,
+        LottoError::InvalidTokenAccount
+    );
+
+    // Validate amount
+    require!(amount > 0, LottoError::InsufficientFunds);
+    require!(
+        amount <= ctx.accounts.source_usdc.amount,
+        LottoError::InsufficientFunds
+    );
+
+    // Transfer from source to destination
+    let seeds = &[LOTTERY_SEED, &[ctx.accounts.lottery_state.bump]];
+    let signer_seeds = &[&seeds[..]];
+
+    let cpi_accounts = Transfer {
+        from: ctx.accounts.source_usdc.to_account_info(),
+        to: ctx.accounts.destination_usdc.to_account_info(),
+        authority: ctx.accounts.lottery_state.to_account_info(),
+    };
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+
+    token::transfer(cpi_ctx, amount)?;
+
+    // Update lottery state balances
+    let lottery_state = &mut ctx.accounts.lottery_state;
+    match source {
+        FundSource::Reserve => {
+            lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(amount);
+        }
+        FundSource::Insurance => {
+            lottery_state.insurance_balance =
+                lottery_state.insurance_balance.saturating_sub(amount);
+        }
+    }
+
+    // Emit insurance pool funded event (reusing existing event for audit trail)
+    emit!(InsurancePoolFunded {
+        amount,
+        new_balance: match source {
+            FundSource::Reserve => lottery_state.reserve_balance,
+            FundSource::Insurance => lottery_state.insurance_balance,
+        },
+        source: format!("emergency_transfer_{:?}", source),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!("⚠️  EMERGENCY FUND TRANSFER executed!");
+    msg!("  Source: {:?}", source);
+    msg!("  Amount: {} USDC lamports", amount);
+    msg!("  Reason: {}", reason);
+    msg!(
+        "  Source balance after: {} USDC lamports",
+        match source {
+            FundSource::Reserve => lottery_state.reserve_balance,
+            FundSource::Insurance => lottery_state.insurance_balance,
+        }
+    );
+    msg!("  Funds transferred to prize pool for prize distribution");
 
     Ok(())
 }

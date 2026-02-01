@@ -247,6 +247,34 @@ pub mod solana_lotto {
         instructions::admin::handler_transfer_authority(ctx)
     }
 
+    /// Emergency transfer funds from reserve or insurance pool to prize pool
+    ///
+    /// Transfers funds from reserve or insurance pools to the prize pool
+    /// during insolvency emergencies. This should only be used when:
+    /// - Prize pool is insufficient to pay winners
+    /// - Reserve/insurance funds are needed to cover shortfalls
+    /// - Emergency intervention is required
+    ///
+    /// # Security Requirements:
+    /// - Only callable by authority
+    /// - Requires multi-sig in production
+    /// - Should have timelock in production
+    /// - Emits detailed audit event
+    ///
+    /// # Arguments
+    /// * `ctx` - EmergencyFundTransfer accounts context
+    /// * `source` - Source of funds (Reserve or Insurance)
+    /// * `amount` - Amount to transfer in USDC lamports
+    /// * `reason` - Reason for emergency transfer (logged)
+    pub fn emergency_fund_transfer(
+        ctx: Context<EmergencyFundTransfer>,
+        source: FundSource,
+        amount: u64,
+        reason: String,
+    ) -> Result<()> {
+        instructions::admin::handler_emergency_fund_transfer(ctx, source, amount, reason)
+    }
+
     // =========================================================================
     // TICKET INSTRUCTIONS
     // =========================================================================
