@@ -28,6 +28,9 @@
 //! - Prize pool solvency verification
 //! - Per-user ticket limits
 //! - Mandatory seed funding before operation
+//!
+//! # Related Programs
+//! - Quick Pick Express: Separate high-frequency 5/35 lottery program (quickpick)
 
 use anchor_lang::prelude::*;
 

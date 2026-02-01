@@ -1548,6 +1548,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quickpick"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "sha2 0.10.9",
+ "switchboard-on-demand",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
