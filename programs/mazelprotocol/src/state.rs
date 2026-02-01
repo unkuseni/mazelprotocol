@@ -831,6 +831,84 @@ impl QuickPickTicket {
     pub const LEN: usize = QUICK_PICK_TICKET_SIZE;
 }
 
+/// Quick Pick Draw Result size
+pub const QUICK_PICK_DRAW_RESULT_SIZE: usize = 8 +  // discriminator
+    8 +   // draw_id
+    5 +   // winning_numbers (5 numbers for 5/35)
+    32 +  // randomness_proof
+    8 +   // timestamp
+    8 +   // total_tickets
+    1 +   // was_rolldown
+    4 +   // match_5_winners
+    4 +   // match_4_winners
+    4 +   // match_3_winners
+    8 +   // match_5_prize_per_winner (jackpot)
+    8 +   // match_4_prize_per_winner
+    8 +   // match_3_prize_per_winner
+    1 +   // is_explicitly_finalized
+    1 +   // bump
+    16; // padding
+
+/// Quick Pick Express draw result (5/35 Matrix)
+#[account]
+#[derive(Default)]
+pub struct QuickPickDrawResult {
+    /// Draw identifier
+    pub draw_id: u64,
+
+    /// Winning numbers (5 numbers, sorted ascending)
+    pub winning_numbers: [u8; 5],
+
+    /// Switchboard randomness proof for verification
+    pub randomness_proof: [u8; 32],
+
+    /// Draw execution timestamp
+    pub timestamp: i64,
+
+    /// Total tickets sold for this draw
+    pub total_tickets: u64,
+
+    /// Whether this was a rolldown draw
+    pub was_rolldown: bool,
+
+    /// Winner counts by tier (no Match 2 in Quick Pick)
+    pub match_5_winners: u32, // Jackpot winners
+    pub match_4_winners: u32,
+    pub match_3_winners: u32,
+
+    /// Prize amounts per winner by tier (set during finalization)
+    pub match_5_prize_per_winner: u64, // Jackpot
+    pub match_4_prize_per_winner: u64,
+    pub match_3_prize_per_winner: u64,
+
+    /// Explicit flag set when draw is finalized
+    pub is_explicitly_finalized: bool,
+
+    /// PDA bump seed
+    pub bump: u8,
+}
+
+impl QuickPickDrawResult {
+    pub const LEN: usize = QUICK_PICK_DRAW_RESULT_SIZE;
+
+    pub fn get_prize_for_matches(&self, match_count: u8) -> u64 {
+        match match_count {
+            5 => self.match_5_prize_per_winner,
+            4 => self.match_4_prize_per_winner,
+            3 => self.match_3_prize_per_winner,
+            _ => 0,
+        }
+    }
+
+    /// Check if the draw has been finalized (prizes calculated)
+    pub fn is_finalized(&self) -> bool {
+        self.is_explicitly_finalized
+            || self.match_5_prize_per_winner > 0
+            || self.match_4_prize_per_winner > 0
+            || self.match_3_prize_per_winner > 0
+    }
+}
+
 // ============================================================================
 // ADVANCED FEATURE STRUCTURES
 // ============================================================================

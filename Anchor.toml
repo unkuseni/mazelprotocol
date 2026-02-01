@@ -7,6 +7,7 @@ skip-lint = false
 
 [programs.localnet]
 mazelprotocol = "3zi12qNicsbBazvKxGqFp8cirL1dFXCijsZzRCPrAGT4"
+quickpick = "QPick111111111111111111111111111111111111111"
 
 [registry]
 url = "https://api.apr.dev"
