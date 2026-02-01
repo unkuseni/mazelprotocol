@@ -48,15 +48,25 @@ pub use events::*;
 pub use state::*;
 
 // Re-export all instruction account structs at crate root (required by Anchor)
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::admin::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::buy_bulk::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::buy_ticket::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::claim_bulk_prize::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::claim_prize::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::commit_randomness::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::execute_draw::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::finalize_draw::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::initialize::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::syndicate::*;
 
 // Program ID - Update this after deployment

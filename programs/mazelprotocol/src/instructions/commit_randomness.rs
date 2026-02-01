@@ -119,7 +119,10 @@ pub fn handler(ctx: Context<CommitRandomness>) -> Result<()> {
 
     // Verify draw time has arrived (within the sale cutoff window)
     require!(
-        clock.unix_timestamp >= next_draw_timestamp - TICKET_SALE_CUTOFF,
+        clock.unix_timestamp
+            >= next_draw_timestamp
+                .checked_sub(TICKET_SALE_CUTOFF)
+                .unwrap_or(i64::MIN),
         LottoError::DrawNotReady
     );
 

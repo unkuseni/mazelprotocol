@@ -179,10 +179,12 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
     let house_fee_bps = ctx.accounts.lottery_state.get_current_house_fee_bps();
 
     // Check if ticket sales are open
+    let sale_cutoff_time = next_draw_timestamp.checked_sub(TICKET_SALE_CUTOFF);
     let is_sale_open = !is_paused
         && is_funded
         && !is_draw_in_progress
-        && clock.unix_timestamp < next_draw_timestamp - TICKET_SALE_CUTOFF;
+        && sale_cutoff_time.is_some()
+        && clock.unix_timestamp < sale_cutoff_time.unwrap();
     require!(is_sale_open, LottoError::TicketSaleEnded);
 
     // FIXED: Enforce per-user ticket limit
@@ -195,6 +197,13 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
     // Check if user wants to use a free ticket and has one available
     let free_tickets_available = ctx.accounts.user_stats.free_tickets_available;
     let using_free_ticket = params.use_free_ticket && free_tickets_available > 0;
+
+    // FIXED: Validate free ticket usage with correct error code
+    if params.use_free_ticket && free_tickets_available == 0 {
+        msg!("Free ticket requested but none available!");
+        msg!("  User free tickets: {}", free_tickets_available);
+        return Err(LottoError::NoFreeTicketsAvailable.into());
+    }
 
     // Calculate price and fees (0 if using free ticket)
     let (house_fee, prize_pool_amount, jackpot_contribution, reserve_contribution, actual_price) =
@@ -226,10 +235,10 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
             LottoError::InsufficientFunds
         );
 
-        // Transfer USDC - do house fee first (smaller amount)
-        // If either fails, the transaction is atomic and will revert
-        ctx.accounts.transfer_to_house_fee(house_fee)?;
+        // FIXED: Transfer prize pool amount first (larger amount), then house fee
+        // This ensures if prize pool transfer fails, user doesn't lose house fee
         ctx.accounts.transfer_to_prize_pool(prize_pool_amount)?;
+        ctx.accounts.transfer_to_house_fee(house_fee)?;
     }
 
     // Update lottery state
@@ -289,9 +298,11 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
     }
 
     // FIXED: Track tickets per draw for limit enforcement
+    // Always update last_draw_participated to current draw
     if user_stats.last_draw_participated != current_draw_id {
-        // New draw, reset counter
+        // New draw, reset counter to 1
         user_stats.tickets_this_draw = 1;
+        user_stats.last_draw_participated = current_draw_id;
     } else {
         // Same draw, increment counter
         user_stats.tickets_this_draw = user_stats

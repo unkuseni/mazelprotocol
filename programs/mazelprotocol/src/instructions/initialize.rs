@@ -108,6 +108,8 @@ impl<'info> Initialize<'info> {
         require!(params.house_fee_bps <= 5000, LottoError::InvalidHouseFee);
 
         // Validate caps (soft cap < hard cap)
+        require!(params.soft_cap > 0, LottoError::InvalidCapConfig);
+        require!(params.hard_cap > 0, LottoError::InvalidCapConfig);
         require!(
             params.soft_cap < params.hard_cap,
             LottoError::InvalidCapConfig
@@ -120,6 +122,7 @@ impl<'info> Initialize<'info> {
         );
 
         // Validate seed amount (should be less than soft cap)
+        require!(params.seed_amount > 0, LottoError::InvalidSeedAmount);
         require!(
             params.seed_amount < params.soft_cap,
             LottoError::InvalidSeedAmount

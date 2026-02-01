@@ -210,6 +210,8 @@ pub const MAX_SYNDICATE_NAME_LENGTH: usize = 32;
 pub const MAX_MANAGER_FEE_BPS: u16 = 500;
 /// Maximum tickets per draw per user
 pub const MAX_TICKETS_PER_DRAW_PER_USER: u64 = 5000;
+/// Maximum free tickets a user can accumulate
+pub const MAX_FREE_TICKETS: u64 = 1000;
 /// Basis points denominator
 pub const BPS_DENOMINATOR: u64 = 10000;
 
@@ -391,12 +393,24 @@ pub fn calculate_quick_pick_house_fee_bps(jackpot_balance: u64, is_rolldown: boo
 
 /// Calculate rolldown probability (basis points) based on jackpot level
 /// Returns value between 0 and 10000 (0% to 100%)
+///
+/// # Edge Cases Handled:
+/// - SOFT_CAP == HARD_CAP: Returns 100% probability
+/// - range == 0: Returns 100% probability
+/// - jackpot_balance between SOFT_CAP and HARD_CAP: Linear interpolation
+/// - Overflow protection with u128 arithmetic
 pub fn calculate_rolldown_probability_bps(jackpot_balance: u64) -> u16 {
+    // Safety check: validate caps configuration
+    if SOFT_CAP > HARD_CAP {
+        // Invalid configuration: soft cap exceeds hard cap
+        return 0;
+    }
+
     if jackpot_balance < SOFT_CAP {
         return 0;
     }
 
-    if jackpot_balance >= HARD_CAP {
+    if jackpot_balance >= HARD_CAP || SOFT_CAP == HARD_CAP {
         return BPS_DENOMINATOR as u16; // 100%
     }
 
@@ -405,15 +419,34 @@ pub fn calculate_rolldown_probability_bps(jackpot_balance: u64) -> u16 {
     let range = HARD_CAP.saturating_sub(SOFT_CAP);
 
     if range == 0 {
+        // No range between caps, use 100% probability
         return BPS_DENOMINATOR as u16;
     }
 
-    ((excess * BPS_DENOMINATOR) / range) as u16
+    // Use u128 arithmetic to prevent overflow with detailed calculation
+    let numerator = excess as u128 * BPS_DENOMINATOR as u128;
+    let denominator = range as u128;
+
+    // Safety check: denominator should never be 0 here due to earlier checks
+    if denominator == 0 {
+        // Denominator should never be zero due to earlier checks
+        return BPS_DENOMINATOR as u16;
+    }
+
+    let probability = (numerator / denominator) as u16;
+
+    // Clamp to valid range [0, 10000]
+    probability.min(BPS_DENOMINATOR as u16)
 }
 
 /// Validate lottery numbers (6/46 matrix)
 pub fn validate_lottery_numbers(numbers: &[u8; 6]) -> bool {
-    // Check range
+    // Check array length
+    if numbers.len() != 6 {
+        return false;
+    }
+
+    // Check range for each number
     for &num in numbers.iter() {
         if num < MIN_NUMBER || num > MAX_NUMBER {
             return false;
@@ -423,10 +456,19 @@ pub fn validate_lottery_numbers(numbers: &[u8; 6]) -> bool {
     // Check uniqueness (assumes sorted or will sort)
     let mut sorted = *numbers;
     sorted.sort();
+
+    // Verify sorting worked correctly (should be ascending)
     for i in 0..5 {
-        if sorted[i] == sorted[i + 1] {
-            return false;
+        if sorted[i] >= sorted[i + 1] {
+            return false; // Duplicate or not properly sorted
         }
+    }
+
+    // Additional check: ensure all numbers are distinct using HashSet
+    use std::collections::HashSet;
+    let unique_numbers: HashSet<u8> = numbers.iter().cloned().collect();
+    if unique_numbers.len() != 6 {
+        return false;
     }
 
     true
@@ -434,7 +476,12 @@ pub fn validate_lottery_numbers(numbers: &[u8; 6]) -> bool {
 
 /// Validate Quick Pick numbers (5/35 matrix)
 pub fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> bool {
-    // Check range
+    // Check array length
+    if numbers.len() != 5 {
+        return false;
+    }
+
+    // Check range for each number
     for &num in numbers.iter() {
         if num < MIN_NUMBER || num > QUICK_PICK_RANGE {
             return false;
@@ -444,23 +491,56 @@ pub fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> bool {
     // Check uniqueness
     let mut sorted = *numbers;
     sorted.sort();
+
+    // Verify sorting worked correctly (should be ascending)
     for i in 0..4 {
-        if sorted[i] == sorted[i + 1] {
-            return false;
+        if sorted[i] >= sorted[i + 1] {
+            return false; // Duplicate or not properly sorted
         }
+    }
+
+    // Additional check: ensure all numbers are distinct using HashSet
+    use std::collections::HashSet;
+    let unique_numbers: HashSet<u8> = numbers.iter().cloned().collect();
+    if unique_numbers.len() != 5 {
+        return false;
     }
 
     true
 }
 
 /// Calculate match count between ticket numbers and winning numbers
+///
+/// # Assumptions:
+/// - Both arrays are sorted in ascending order
+/// - Both arrays contain unique numbers
+/// - Arrays are of valid length (6 for lottery, 5 for quick pick)
+///
+/// # Returns:
+/// - Number of matching numbers (0-6 for lottery, 0-5 for quick pick)
 pub fn calculate_match_count(ticket_numbers: &[u8], winning_numbers: &[u8]) -> u8 {
-    let mut matches = 0;
-    for &num in ticket_numbers.iter() {
-        if winning_numbers.contains(&num) {
-            matches += 1;
+    // Safety check: ensure arrays are not empty
+    if ticket_numbers.is_empty() || winning_numbers.is_empty() {
+        return 0;
+    }
+
+    // Use two-pointer technique for O(n) complexity since arrays are sorted
+    let mut matches = 0u8;
+    let mut i = 0usize;
+    let mut j = 0usize;
+
+    while i < ticket_numbers.len() && j < winning_numbers.len() {
+        match ticket_numbers[i].cmp(&winning_numbers[j]) {
+            std::cmp::Ordering::Less => i += 1,
+            std::cmp::Ordering::Greater => j += 1,
+            std::cmp::Ordering::Equal => {
+                matches += 1;
+                i += 1;
+                j += 1;
+            }
         }
     }
+
     matches
 }
 

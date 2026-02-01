@@ -95,6 +95,12 @@ impl<'info> CreateSyndicate<'info> {
             LottoError::InvalidSyndicateConfig
         );
 
+        // Validate name length
+        require!(
+            params.name.len() <= MAX_SYNDICATE_NAME_LENGTH,
+            LottoError::SyndicateNameTooLong
+        );
+
         Ok(())
     }
 }
@@ -290,6 +296,16 @@ pub fn handler_join_syndicate(
         .iter()
         .any(|m| m.wallet == member_key);
 
+    // FIXED: Validate minimum contribution for new members
+    // New members must contribute at least 1 USDC (1_000_000 lamports) to prevent
+    // zero-share members that dilute existing members' shares without contributing
+    if !is_existing_member {
+        require!(
+            params.contribution >= 1_000_000, // 1 USDC minimum for new members
+            LottoError::InsufficientContribution
+        );
+    }
+
     // FIXED: Only reallocate if this is a new member
     // Existing members adding contribution don't need more space
     if !is_existing_member {
@@ -317,12 +333,8 @@ pub fn handler_join_syndicate(
             }
 
             // Reallocate account data using resize (realloc is deprecated)
-            ctx.accounts
-                .syndicate
-                .to_account_info()
-                .realloc(new_size, false)?;
-            // Note: resize() is the recommended method but realloc() still works
-            // In newer Anchor versions, use: .resize(new_size, false)?;
+            ctx.accounts.syndicate.to_account_info().resize(new_size)?;
+            // Note: resize() is the recommended method
         }
     }
 
@@ -347,6 +359,11 @@ pub fn handler_join_syndicate(
         }
     } else {
         // New member (space already reallocated above)
+        // Check syndicate member limit
+        require!(
+            (syndicate.member_count as usize) < MAX_SYNDICATE_MEMBERS,
+            LottoError::SyndicateFull
+        );
         syndicate.members.push(SyndicateMember {
             wallet: member_key,
             contribution: params.contribution,
@@ -952,7 +969,10 @@ pub fn handler_buy_syndicate_tickets(
 
     // Check if ticket sales are open
     require!(
-        clock.unix_timestamp < next_draw_timestamp - TICKET_SALE_CUTOFF,
+        clock.unix_timestamp
+            < next_draw_timestamp
+                .checked_sub(TICKET_SALE_CUTOFF)
+                .unwrap_or(i64::MIN),
         LottoError::TicketSaleEnded
     );
 

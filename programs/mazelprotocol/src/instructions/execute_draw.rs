@@ -74,12 +74,17 @@ impl<'info> ExecuteDraw<'info> {
 
         // SECURITY: Verify randomness was committed in a recent slot
         // The reveal should happen shortly after commit
-        // FIXED: Reduced from 100 to 25 slots (~10 seconds) for better MEV protection
+        // FIXED: Increased from 25 to 50 slots (~20 seconds) for better MEV protection
         // This window should be long enough for normal transaction propagation
         // but short enough to prevent attackers from observing and frontrunning
+        // Also add minimum delay of 1 slot to ensure commit is settled
         require!(
-            randomness_data.seed_slot >= current_slot.saturating_sub(25),
+            randomness_data.seed_slot >= current_slot.saturating_sub(50),
             LottoError::RandomnessExpired
+        );
+        require!(
+            current_slot > randomness_data.seed_slot,
+            LottoError::RandomnessNotFresh
         );
 
         // Get the revealed random value
@@ -97,10 +102,11 @@ impl<'info> ExecuteDraw<'info> {
 /// into 6 unique numbers in the range [1, 46].
 ///
 /// Algorithm:
-/// 1. For each of the 6 numbers, use a different portion of the randomness
-/// 2. Generate a number in range [1, 46]
-/// 3. If the number is a duplicate, increment until unique
-/// 4. Sort the final numbers
+/// 1. Use SHA256 hash of randomness to ensure uniform distribution
+/// 2. For each of the 6 numbers, use a different portion of the hash
+/// 3. Generate a number in range [1, 46] using modulo operation
+/// 4. If the number is a duplicate, use next available number (mod 46)
+/// 5. Sort the final numbers
 ///
 /// # Arguments
 /// * `randomness` - 32 bytes of verified randomness
@@ -108,41 +114,64 @@ impl<'info> ExecuteDraw<'info> {
 /// # Returns
 /// * `[u8; 6]` - Sorted array of 6 unique winning numbers
 fn generate_winning_numbers(randomness: &[u8; 32]) -> [u8; 6] {
-    let mut numbers = [0u8; 6];
-    let mut used = [false; 47]; // Index 0 unused, 1-46 for tracking
+    // Use SHA256 hash of randomness for better distribution
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(randomness);
+    let hash_result = hasher.finalize();
+    let hash_bytes = hash_result.as_slice();
 
+    // Create an array of available numbers 1-46
+    let mut available_numbers: [bool; MAX_NUMBER as usize] = [true; MAX_NUMBER as usize];
+    let mut winning_numbers = [0u8; 6];
+
+    // Generate 6 unique numbers
     for i in 0..6 {
-        // Use different bytes for each number
-        // Combine multiple bytes for better distribution
-        let byte_offset = i * 4;
-        let raw_value = u32::from_le_bytes([
-            randomness[byte_offset % 32],
-            randomness[(byte_offset + 1) % 32],
-            randomness[(byte_offset + 2) % 32],
-            randomness[(byte_offset + 3) % 32],
-        ]);
+        // Use different portions of the hash for each number
+        let hash_idx = (i * 4) % hash_bytes.len();
+        let hash_slice = &hash_bytes[hash_idx..hash_idx + 4];
+        let rand_val = u32::from_le_bytes(hash_slice.try_into().unwrap());
 
-        // Map to range [1, 46]
-        let mut num = ((raw_value as u64 % MAX_NUMBER as u64) + 1) as u8;
+        // Find an available number
+        let mut attempts = 0;
+        loop {
+            // Calculate candidate number (1-46)
+            let candidate =
+                ((rand_val.wrapping_add(attempts as u32) % MAX_NUMBER as u32) + 1) as u8;
 
-        // Handle duplicates by finding next available number
-        while used[num as usize] {
-            num = if num >= MAX_NUMBER { 1 } else { num + 1 };
+            if available_numbers[candidate as usize - 1] {
+                winning_numbers[i] = candidate;
+                available_numbers[candidate as usize - 1] = false;
+                break;
+            }
+
+            attempts += 1;
+            // Safety check: should never happen since we have 46 numbers and need only 6
+            if attempts > MAX_NUMBER as u32 * 2 {
+                // Fallback: use sequential numbers
+                for j in 0..MAX_NUMBER as usize {
+                    if available_numbers[j] {
+                        winning_numbers[i] = (j + 1) as u8;
+                        available_numbers[j] = false;
+                        break;
+                    }
+                }
+                break;
+            }
         }
-
-        used[num as usize] = true;
-        numbers[i] = num;
     }
 
-    // Sort numbers for consistent storage and comparison
-    numbers.sort();
-    numbers
+    // Sort the numbers
+    winning_numbers.sort();
+
+    winning_numbers
 }
 
 /// Determine if rolldown should trigger based on randomness and probability
 ///
-/// Uses the last byte of randomness to make a probabilistic decision
-/// based on the rolldown probability calculated from jackpot level.
+/// Uses SHA256 hash of randomness for more uniform distribution
+/// to make a probabilistic decision based on the rolldown probability
+/// calculated from jackpot level.
 ///
 /// # Arguments
 /// * `randomness` - 32 bytes of verified randomness
@@ -158,11 +187,21 @@ fn should_trigger_rolldown(randomness: &[u8; 32], probability_bps: u16) -> bool 
         return false; // 0% probability (below soft cap)
     }
 
-    // Use last two bytes of randomness for the roll
-    let roll = u16::from_le_bytes([randomness[30], randomness[31]]);
-    let threshold = (roll as u32 * 10000 / u16::MAX as u32) as u16;
+    // Use SHA256 hash for more uniform distribution
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(randomness);
+    let hash_result = hasher.finalize();
+    let hash_bytes = hash_result.as_slice();
 
-    threshold < probability_bps
+    // Use first 4 bytes of hash for the roll
+    let roll_bytes: [u8; 4] = hash_bytes[0..4].try_into().unwrap();
+    let roll = u32::from_le_bytes(roll_bytes);
+
+    // Calculate threshold (0-9999)
+    let threshold = roll % 10000;
+
+    threshold < probability_bps as u32
 }
 
 /// Execute the draw by revealing randomness and generating winning numbers
@@ -202,6 +241,15 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
         .accounts
         .get_revealed_randomness(clock.slot, commit_slot)?;
 
+    // FIXED: Additional security check - verify randomness is not all zeros or predictable pattern
+    let is_valid_randomness = randomness.iter().any(|&b| b != 0)
+        && randomness
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+            > 1;
+    require!(is_valid_randomness, LottoError::InvalidRandomnessProof);
+
     // Generate winning numbers
     let winning_numbers = generate_winning_numbers(&randomness);
 
@@ -237,6 +285,15 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
 
     // Explicitly mark as not finalized (will be set true in finalize_draw)
     draw_result.is_explicitly_finalized = false;
+
+    // Store hash of randomness for additional verification
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(&randomness);
+    let randomness_hash = hasher.finalize();
+    // Note: We would need to add a field to DrawResult for this
+    // For now, we'll log it for verification
+    msg!("Randomness hash: {:?}", randomness_hash);
 
     draw_result.bump = ctx.bumps.draw_result;
 

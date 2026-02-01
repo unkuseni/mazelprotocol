@@ -6,10 +6,11 @@
 //! - Ticket claim expiration check (configurable, default 90 days)
 //! - Match count calculation against winning numbers
 //! - Prize amount determination (fixed or rolldown)
-//! - Prize pool solvency verification
+//! - Prize pool solvency verification (with detailed error reporting)
 //! - USDC transfer from prize pool to player
 //! - User stats updates
 //! - Free ticket credit for Match 2
+//! - Edge case handling for insufficient funds and expired claims
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
@@ -20,6 +21,7 @@ use crate::events::PrizeClaimed;
 use crate::state::{DrawResult, LotteryState, TicketData, UserStats};
 
 /// Transfer prize from prize pool to player (standalone function)
+/// Includes comprehensive solvency check before transfer
 fn transfer_prize_internal<'info>(
     prize_pool_usdc: &Account<'info, TokenAccount>,
     player_usdc: &Account<'info, TokenAccount>,
@@ -31,6 +33,12 @@ fn transfer_prize_internal<'info>(
     if amount == 0 {
         return Ok(());
     }
+
+    // FIXED: Detailed solvency check with error reporting
+    require!(
+        prize_pool_usdc.amount >= amount,
+        LottoError::InsufficientPrizePool
+    );
 
     let seeds = &[LOTTERY_SEED, &[lottery_bump]];
     let signer_seeds = &[&seeds[..]];
@@ -194,12 +202,23 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
 
     // FIXED: Check ticket claim expiration (if enabled)
     // Tickets must be claimed within TICKET_CLAIM_EXPIRATION seconds of draw execution
+    // Provide detailed error message with deadline information
     if TICKET_CLAIM_EXPIRATION > 0 {
-        let claim_deadline = draw_timestamp + TICKET_CLAIM_EXPIRATION;
-        require!(
-            clock.unix_timestamp <= claim_deadline,
-            LottoError::TicketExpired
-        );
+        let claim_deadline = draw_timestamp
+            .checked_add(TICKET_CLAIM_EXPIRATION)
+            .ok_or(LottoError::ArithmeticError)?;
+
+        if clock.unix_timestamp > claim_deadline {
+            msg!("Ticket claim expired!");
+            msg!("  Draw timestamp: {}", draw_timestamp);
+            msg!("  Claim deadline: {}", claim_deadline);
+            msg!("  Current time: {}", clock.unix_timestamp);
+            msg!(
+                "  Time expired by: {} seconds",
+                clock.unix_timestamp - claim_deadline
+            );
+            return Err(LottoError::TicketExpired.into());
+        }
     }
 
     // Calculate match count
@@ -228,11 +247,17 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
         free_ticket_credited = true;
         msg!("Free ticket credited for Match 2!");
     } else if prize_amount > 0 {
-        // FIXED: Verify prize pool solvency before transfer
-        require!(
-            prize_pool_balance >= prize_amount,
-            LottoError::InsufficientPrizePool
-        );
+        // FIXED: Detailed solvency check with error reporting
+        if prize_pool_balance < prize_amount {
+            msg!("Prize pool insufficient for prize payment!");
+            msg!("  Required prize: {} USDC lamports", prize_amount);
+            msg!("  Available in pool: {} USDC lamports", prize_pool_balance);
+            msg!(
+                "  Shortfall: {} USDC lamports",
+                prize_amount - prize_pool_balance
+            );
+            return Err(LottoError::InsufficientPrizePool.into());
+        }
 
         // Transfer USDC prize
         transfer_prize_internal(
@@ -264,12 +289,27 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
             .ok_or(LottoError::Overflow)?;
     }
 
-    // FIXED: Credit free ticket for Match 2
+    // FIXED: Credit free ticket for Match 2 with limit check and correct error code
     if free_ticket_credited {
+        if user_stats.free_tickets_available >= MAX_FREE_TICKETS as u32 {
+            msg!("Free ticket limit reached!");
+            msg!(
+                "  Current free tickets: {}",
+                user_stats.free_tickets_available
+            );
+            msg!("  Maximum allowed: {}", MAX_FREE_TICKETS);
+            return Err(LottoError::MaxFreeTicketsReached.into());
+        }
+
         user_stats.free_tickets_available = user_stats
             .free_tickets_available
             .checked_add(1)
             .ok_or(LottoError::Overflow)?;
+
+        msg!(
+            "Free ticket added. Total available: {}",
+            user_stats.free_tickets_available
+        );
     }
 
     // Track jackpot wins
@@ -308,12 +348,26 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
             );
         } else {
             msg!("  USDC transferred: {} lamports", actual_transfer_amount);
+            msg!(
+                "  Prize pool balance after transfer: {} lamports",
+                ctx.accounts
+                    .prize_pool_usdc
+                    .amount
+                    .saturating_sub(actual_transfer_amount)
+            );
         }
     } else {
         msg!("No prize for this ticket.");
         msg!("  Ticket numbers: {:?}", ticket_numbers);
         msg!("  Winning numbers: {:?}", winning_numbers);
         msg!("  Match count: {}", match_count);
+        msg!("  Minimum match for prize: 2 (free ticket)");
+        msg!(
+            "  Prize tiers: Match 3 = ${}, Match 4 = ${}, Match 5 = ${}, Match 6 = Jackpot",
+            MATCH_3_PRIZE / 1_000_000,
+            MATCH_4_PRIZE / 1_000_000,
+            MATCH_5_PRIZE / 1_000_000
+        );
     }
 
     Ok(())

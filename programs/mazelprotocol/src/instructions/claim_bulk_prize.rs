@@ -218,12 +218,23 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
 
     // Check ticket claim expiration (if enabled)
     // Tickets must be claimed within TICKET_CLAIM_EXPIRATION seconds of draw execution
+    // FIXED: Use checked_add to prevent potential overflow
     if TICKET_CLAIM_EXPIRATION > 0 {
-        let claim_deadline = draw_timestamp + TICKET_CLAIM_EXPIRATION;
-        require!(
-            clock.unix_timestamp <= claim_deadline,
-            LottoError::TicketExpired
-        );
+        let claim_deadline = draw_timestamp
+            .checked_add(TICKET_CLAIM_EXPIRATION)
+            .ok_or(LottoError::ArithmeticError)?;
+
+        if clock.unix_timestamp > claim_deadline {
+            msg!("Ticket claim expired!");
+            msg!("  Draw timestamp: {}", draw_timestamp);
+            msg!("  Claim deadline: {}", claim_deadline);
+            msg!("  Current time: {}", clock.unix_timestamp);
+            msg!(
+                "  Time expired by: {} seconds",
+                clock.unix_timestamp - claim_deadline
+            );
+            return Err(LottoError::TicketExpired.into());
+        }
     }
 
     // Calculate match count
@@ -286,12 +297,25 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
             .ok_or(LottoError::Overflow)?;
     }
 
-    // Credit free ticket for Match 2
+    // FIXED: Credit free ticket for Match 2 with correct error code
     if free_ticket_credited {
+        if user_stats.free_tickets_available >= MAX_FREE_TICKETS as u32 {
+            msg!("Free ticket limit reached!");
+            msg!(
+                "  Current free tickets: {}",
+                user_stats.free_tickets_available
+            );
+            msg!("  Maximum allowed: {}", MAX_FREE_TICKETS);
+            return Err(LottoError::MaxFreeTicketsReached.into());
+        }
         user_stats.free_tickets_available = user_stats
             .free_tickets_available
             .checked_add(1)
             .ok_or(LottoError::Overflow)?;
+        msg!(
+            "Free ticket added. Total available: {}",
+            user_stats.free_tickets_available
+        );
     }
 
     // Track jackpot wins
@@ -441,13 +465,19 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
         LottoError::DrawNotInProgress
     );
 
-    // Check ticket claim expiration (if enabled)
+    // FIXED: Check ticket claim expiration (if enabled) with checked arithmetic
     if TICKET_CLAIM_EXPIRATION > 0 {
-        let claim_deadline = draw_timestamp + TICKET_CLAIM_EXPIRATION;
-        require!(
-            clock.unix_timestamp <= claim_deadline,
-            LottoError::TicketExpired
-        );
+        let claim_deadline = draw_timestamp
+            .checked_add(TICKET_CLAIM_EXPIRATION)
+            .ok_or(LottoError::ArithmeticError)?;
+
+        if clock.unix_timestamp > claim_deadline {
+            msg!("Ticket claim expired!");
+            msg!("  Draw timestamp: {}", draw_timestamp);
+            msg!("  Claim deadline: {}", claim_deadline);
+            msg!("  Current time: {}", clock.unix_timestamp);
+            return Err(LottoError::TicketExpired.into());
+        }
     }
 
     // Track totals
@@ -527,11 +557,28 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
             .ok_or(LottoError::Overflow)?;
     }
 
+    // FIXED: Apply MAX_FREE_TICKETS limit when crediting free tickets
     if total_free_tickets > 0 {
-        user_stats.free_tickets_available = user_stats
-            .free_tickets_available
-            .checked_add(total_free_tickets)
-            .ok_or(LottoError::Overflow)?;
+        let current_free = user_stats.free_tickets_available;
+        let max_addable = (MAX_FREE_TICKETS as u32).saturating_sub(current_free);
+        let actual_added = total_free_tickets.min(max_addable);
+
+        if actual_added < total_free_tickets {
+            msg!(
+                "WARNING: Free ticket limit reached. Only {} of {} free tickets credited.",
+                actual_added,
+                total_free_tickets
+            );
+            msg!("  Current free tickets: {}", current_free);
+            msg!("  Maximum allowed: {}", MAX_FREE_TICKETS);
+        }
+
+        if actual_added > 0 {
+            user_stats.free_tickets_available = user_stats
+                .free_tickets_available
+                .checked_add(actual_added)
+                .ok_or(LottoError::Overflow)?;
+        }
     }
 
     if jackpot_wins > 0 {
