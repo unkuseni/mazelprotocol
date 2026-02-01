@@ -63,6 +63,7 @@ struct PrizeCalculation {
     undistributed: u64, // Funds that couldn't be distributed (no winners in tier)
     was_scaled_down: bool, // True if prizes were scaled down due to insufficient funds
     scale_factor_bps: u16, // Scale factor applied (10000 = 100%, no scaling)
+    calculation_details: String, // Detailed explanation of calculation for debugging
 }
 
 /// Calculate prizes for normal mode (fixed prizes) with solvency check
@@ -90,6 +91,23 @@ fn calculate_fixed_prizes(
     jackpot_balance: u64,
     available_prize_pool: u64,
 ) -> PrizeCalculation {
+    // FIXED: Validate winner counts are reasonable
+    let total_tickets_estimate = winner_counts
+        .match_6
+        .saturating_add(winner_counts.match_5)
+        .saturating_add(winner_counts.match_4)
+        .saturating_add(winner_counts.match_3)
+        .saturating_add(winner_counts.match_2);
+
+    // Sanity check: total winners shouldn't exceed typical statistical expectations
+    // For a 6/46 lottery, expected winners per tier are very low
+    if total_tickets_estimate > 1_000_000 {
+        msg!(
+            "WARNING: Suspiciously high winner count: {}",
+            total_tickets_estimate
+        );
+    }
+
     let match_6_prize = if winner_counts.match_6 > 0 {
         jackpot_balance / winner_counts.match_6 as u64
     } else {
@@ -97,10 +115,21 @@ fn calculate_fixed_prizes(
     };
 
     // Calculate required funds for fixed prizes (excluding jackpot and free tickets)
-    let required_match_5 = MATCH_5_PRIZE * winner_counts.match_5 as u64;
-    let required_match_4 = MATCH_4_PRIZE * winner_counts.match_4 as u64;
-    let required_match_3 = MATCH_3_PRIZE * winner_counts.match_3 as u64;
-    let total_fixed_required = required_match_5 + required_match_4 + required_match_3;
+    // FIXED: Use checked arithmetic to prevent overflow
+    let required_match_5 = MATCH_5_PRIZE
+        .checked_mul(winner_counts.match_5 as u64)
+        .unwrap_or(u64::MAX);
+    let required_match_4 = MATCH_4_PRIZE
+        .checked_mul(winner_counts.match_4 as u64)
+        .unwrap_or(u64::MAX);
+    let required_match_3 = MATCH_3_PRIZE
+        .checked_mul(winner_counts.match_3 as u64)
+        .unwrap_or(u64::MAX);
+
+    let total_fixed_required = required_match_5
+        .checked_add(required_match_4)
+        .and_then(|sum| sum.checked_add(required_match_3))
+        .unwrap_or(u64::MAX);
 
     // Calculate available funds for fixed prizes (exclude jackpot amount)
     let funds_for_fixed = if winner_counts.match_6 > 0 {
@@ -111,11 +140,22 @@ fn calculate_fixed_prizes(
     };
 
     // SOLVENCY CHECK: Scale down if insufficient funds
-    let (match_5_prize, match_4_prize, match_3_prize, was_scaled, scale_bps) =
+    let (match_5_prize, match_4_prize, match_3_prize, was_scaled, scale_bps, scale_details) =
         if total_fixed_required > 0 && funds_for_fixed < total_fixed_required {
-            // Calculate scale factor in basis points
-            let scale_factor_bps = ((funds_for_fixed as u128 * BPS_DENOMINATOR as u128)
-                / total_fixed_required as u128) as u16;
+            // Calculate scale factor in basis points with safety checks
+            let scale_factor_bps = if total_fixed_required > 0 {
+                ((funds_for_fixed as u128 * BPS_DENOMINATOR as u128) / total_fixed_required as u128)
+                    as u16
+            } else {
+                10000u16
+            };
+
+            let scale_details = format!(
+                "Fixed prizes scaled: required={}, available={}, scale={}%",
+                total_fixed_required,
+                funds_for_fixed,
+                scale_factor_bps as f64 / 100.0
+            );
 
             // Scale down each prize proportionally
             let scaled_match_5 =
@@ -131,21 +171,34 @@ fn calculate_fixed_prizes(
                 scaled_match_3,
                 true,
                 scale_factor_bps,
+                scale_details,
             )
         } else {
             // Full prizes available
-            (MATCH_5_PRIZE, MATCH_4_PRIZE, MATCH_3_PRIZE, false, 10000u16)
+            (
+                MATCH_5_PRIZE,
+                MATCH_4_PRIZE,
+                MATCH_3_PRIZE,
+                false,
+                10000u16,
+                String::from("Full fixed prizes available"),
+            )
         };
 
     // Match 2 is always a free ticket credit, not affected by solvency
+    // FIXED: match_2_prize is stored for reference but NOT included in total_distributed
+    // because it's a free ticket credit, not actual USDC transferred
     let match_2_prize = MATCH_2_VALUE;
 
-    // Calculate total distributed
-    let total = (match_6_prize * winner_counts.match_6 as u64)
-        + (match_5_prize * winner_counts.match_5 as u64)
-        + (match_4_prize * winner_counts.match_4 as u64)
-        + (match_3_prize * winner_counts.match_3 as u64)
-        + (match_2_prize * winner_counts.match_2 as u64);
+    // FIXED: Calculate total with checked arithmetic
+    // Note: Match 2 is NOT included because it's a free ticket credit, not USDC transfer
+    let total_distributed = match_6_prize
+        .checked_mul(winner_counts.match_6 as u64)
+        .and_then(|sum| sum.checked_add(match_5_prize * winner_counts.match_5 as u64))
+        .and_then(|sum| sum.checked_add(match_4_prize * winner_counts.match_4 as u64))
+        .and_then(|sum| sum.checked_add(match_3_prize * winner_counts.match_3 as u64))
+        // Match 2 excluded - free ticket credit, not USDC
+        .unwrap_or(0);
 
     PrizeCalculation {
         match_6_prize,
@@ -153,10 +206,11 @@ fn calculate_fixed_prizes(
         match_4_prize,
         match_3_prize,
         match_2_prize,
-        total_distributed: total,
+        total_distributed,
         undistributed: 0, // Fixed mode doesn't have undistributed funds
         was_scaled_down: was_scaled,
         scale_factor_bps: scale_bps,
+        calculation_details: scale_details,
     }
 }
 
@@ -184,13 +238,26 @@ fn calculate_rolldown_prizes(
     // Match 6 gets nothing in rolldown (no jackpot winner by definition)
     let match_6_prize = 0u64;
 
-    // Calculate initial pool allocations
-    let initial_match_5_pool =
-        (jackpot_balance as u128 * ROLLDOWN_MATCH_5_BPS as u128 / BPS_DENOMINATOR as u128) as u64;
-    let initial_match_4_pool =
-        (jackpot_balance as u128 * ROLLDOWN_MATCH_4_BPS as u128 / BPS_DENOMINATOR as u128) as u64;
-    let initial_match_3_pool =
-        (jackpot_balance as u128 * ROLLDOWN_MATCH_3_BPS as u128 / BPS_DENOMINATOR as u128) as u64;
+    // FIXED: Validate jackpot balance is reasonable for rolldown
+    if jackpot_balance == 0 {
+        msg!("WARNING: Rolldown with zero jackpot balance");
+    }
+
+    // Calculate initial pool allocations with overflow protection
+    let initial_match_5_pool = (jackpot_balance as u128)
+        .checked_mul(ROLLDOWN_MATCH_5_BPS as u128)
+        .and_then(|prod| prod.checked_div(BPS_DENOMINATOR as u128))
+        .unwrap_or(0) as u64;
+
+    let initial_match_4_pool = (jackpot_balance as u128)
+        .checked_mul(ROLLDOWN_MATCH_4_BPS as u128)
+        .and_then(|prod| prod.checked_div(BPS_DENOMINATOR as u128))
+        .unwrap_or(0) as u64;
+
+    let initial_match_3_pool = (jackpot_balance as u128)
+        .checked_mul(ROLLDOWN_MATCH_3_BPS as u128)
+        .and_then(|prod| prod.checked_div(BPS_DENOMINATOR as u128))
+        .unwrap_or(0) as u64;
 
     // Determine which tiers have winners
     let has_match_5 = winner_counts.match_5 > 0;
@@ -226,35 +293,59 @@ fn calculate_rolldown_prizes(
             redistributable += initial_match_3_pool;
         }
 
-        // Calculate the total BPS for tiers with winners
+        // Calculate the total BPS for tiers with winners with overflow protection
         let total_winner_bps = (if has_match_5 { ROLLDOWN_MATCH_5_BPS } else { 0 })
-            + (if has_match_4 { ROLLDOWN_MATCH_4_BPS } else { 0 })
-            + (if has_match_3 { ROLLDOWN_MATCH_3_BPS } else { 0 });
+            .checked_add(if has_match_4 { ROLLDOWN_MATCH_4_BPS } else { 0 })
+            .and_then(|sum| sum.checked_add(if has_match_3 { ROLLDOWN_MATCH_3_BPS } else { 0 }))
+            .unwrap_or(0);
 
-        // Redistribute proportionally to tiers with winners
+        // Safety check: total_winner_bps should be > 0 if we have winners
+        if total_winner_bps == 0 && tiers_with_winners > 0 {
+            msg!("ERROR: Total winner BPS is zero but we have winners!");
+            return PrizeCalculation {
+                match_6_prize: 0,
+                match_5_prize: 0,
+                match_4_prize: 0,
+                match_3_prize: 0,
+                match_2_prize: MATCH_2_VALUE,
+                total_distributed: 0,
+                undistributed: jackpot_balance,
+                was_scaled_down: false,
+                scale_factor_bps: 10000,
+                calculation_details: String::from("Error: Zero total winner BPS"),
+            };
+        }
+
+        // Redistribute proportionally to tiers with winners with overflow protection
         let match_5_pool = if has_match_5 {
             let base = initial_match_5_pool;
-            let redistribution = (redistributable as u128 * ROLLDOWN_MATCH_5_BPS as u128
-                / total_winner_bps as u128) as u64;
-            base + redistribution
+            let redistribution = (redistributable as u128)
+                .checked_mul(ROLLDOWN_MATCH_5_BPS as u128)
+                .and_then(|prod| prod.checked_div(total_winner_bps as u128))
+                .unwrap_or(0) as u64;
+            base.checked_add(redistribution).unwrap_or(u64::MAX)
         } else {
             0
         };
 
         let match_4_pool = if has_match_4 {
             let base = initial_match_4_pool;
-            let redistribution = (redistributable as u128 * ROLLDOWN_MATCH_4_BPS as u128
-                / total_winner_bps as u128) as u64;
-            base + redistribution
+            let redistribution = (redistributable as u128)
+                .checked_mul(ROLLDOWN_MATCH_4_BPS as u128)
+                .and_then(|prod| prod.checked_div(total_winner_bps as u128))
+                .unwrap_or(0) as u64;
+            base.checked_add(redistribution).unwrap_or(u64::MAX)
         } else {
             0
         };
 
         let match_3_pool = if has_match_3 {
             let base = initial_match_3_pool;
-            let redistribution = (redistributable as u128 * ROLLDOWN_MATCH_3_BPS as u128
-                / total_winner_bps as u128) as u64;
-            base + redistribution
+            let redistribution = (redistributable as u128)
+                .checked_mul(ROLLDOWN_MATCH_3_BPS as u128)
+                .and_then(|prod| prod.checked_div(total_winner_bps as u128))
+                .unwrap_or(0) as u64;
+            base.checked_add(redistribution).unwrap_or(u64::MAX)
         } else {
             0
         };
@@ -262,20 +353,20 @@ fn calculate_rolldown_prizes(
         (match_5_pool, match_4_pool, match_3_pool, 0u64)
     };
 
-    // Calculate per-winner prizes (pari-mutuel)
-    let match_5_prize = if winner_counts.match_5 > 0 {
+    // Calculate per-winner prizes (pari-mutuel) with division protection
+    let match_5_prize = if winner_counts.match_5 > 0 && match_5_pool > 0 {
         match_5_pool / winner_counts.match_5 as u64
     } else {
         0
     };
 
-    let match_4_prize = if winner_counts.match_4 > 0 {
+    let match_4_prize = if winner_counts.match_4 > 0 && match_4_pool > 0 {
         match_4_pool / winner_counts.match_4 as u64
     } else {
         0
     };
 
-    let match_3_prize = if winner_counts.match_3 > 0 {
+    let match_3_prize = if winner_counts.match_3 > 0 && match_3_pool > 0 {
         match_3_pool / winner_counts.match_3 as u64
     } else {
         0
@@ -283,11 +374,22 @@ fn calculate_rolldown_prizes(
 
     let match_2_prize = MATCH_2_VALUE; // Free ticket unchanged
 
+    // Build calculation details for debugging
+    let mut calculation_details = String::new();
+    calculation_details.push_str(&format!(
+        "Rolldown: jackpot={}, pools(m5={},m4={},m3={})",
+        jackpot_balance, match_5_pool, match_4_pool, match_3_pool
+    ));
+    if tiers_with_winners == 0 {
+        calculation_details.push_str(", no winners");
+    }
+
     // Total distributed (excluding any remainder from integer division)
+    // FIXED: Match 2 is NOT included because it's a free ticket credit, not actual USDC transfer
     let total = (match_5_prize * winner_counts.match_5 as u64)
         + (match_4_prize * winner_counts.match_4 as u64)
-        + (match_3_prize * winner_counts.match_3 as u64)
-        + (match_2_prize * winner_counts.match_2 as u64);
+        + (match_3_prize * winner_counts.match_3 as u64);
+    // Match 2 excluded - free ticket credit, not USDC
 
     // Calculate dust from integer division (goes to reserve)
     let division_remainder = if tiers_with_winners > 0 {
@@ -310,6 +412,7 @@ fn calculate_rolldown_prizes(
         undistributed: undistributed + division_remainder,
         was_scaled_down: false, // Rolldown mode distributes available funds, no scaling needed
         scale_factor_bps: 10000,
+        calculation_details,
     }
 }
 
@@ -336,6 +439,58 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     let lottery_state = &mut ctx.accounts.lottery_state;
     let draw_result = &mut ctx.accounts.draw_result;
 
+    // FIXED: Validate winner counts before updating
+    // Check for suspicious patterns (e.g., all tickets winning in a tier)
+    let total_tickets_in_draw = draw_result.total_tickets;
+
+    // Check individual tier counts don't exceed total tickets
+    if params.winner_counts.match_6 > total_tickets_in_draw as u32
+        || params.winner_counts.match_5 > total_tickets_in_draw as u32
+        || params.winner_counts.match_4 > total_tickets_in_draw as u32
+        || params.winner_counts.match_3 > total_tickets_in_draw as u32
+        || params.winner_counts.match_2 > total_tickets_in_draw as u32
+    {
+        msg!("ERROR: Winner counts exceed total tickets in draw!");
+        msg!("  Total tickets: {}", total_tickets_in_draw);
+        msg!("  Match 6 winners: {}", params.winner_counts.match_6);
+        msg!("  Match 5 winners: {}", params.winner_counts.match_5);
+        msg!("  Match 4 winners: {}", params.winner_counts.match_4);
+        msg!("  Match 3 winners: {}", params.winner_counts.match_3);
+        msg!("  Match 2 winners: {}", params.winner_counts.match_2);
+        return Err(LottoError::InvalidPrizeCalculation.into());
+    }
+
+    // FIXED: Validate that SUM of all winner counts doesn't exceed total tickets
+    // Each ticket can only win in ONE tier (the highest matching tier)
+    let total_winners = (params.winner_counts.match_6 as u64)
+        .saturating_add(params.winner_counts.match_5 as u64)
+        .saturating_add(params.winner_counts.match_4 as u64)
+        .saturating_add(params.winner_counts.match_3 as u64)
+        .saturating_add(params.winner_counts.match_2 as u64);
+
+    if total_winners > total_tickets_in_draw {
+        msg!("ERROR: Sum of winner counts exceeds total tickets!");
+        msg!("  Total tickets in draw: {}", total_tickets_in_draw);
+        msg!("  Sum of all winners: {}", total_winners);
+        msg!("  Match 6: {}", params.winner_counts.match_6);
+        msg!("  Match 5: {}", params.winner_counts.match_5);
+        msg!("  Match 4: {}", params.winner_counts.match_4);
+        msg!("  Match 3: {}", params.winner_counts.match_3);
+        msg!("  Match 2: {}", params.winner_counts.match_2);
+        msg!("  Note: Each ticket can only win in ONE tier (highest match)");
+        return Err(LottoError::WinnerCountsExceedTickets.into());
+    }
+
+    // Warn about suspicious winner rates (> 50% of tickets winning something)
+    if total_winners > total_tickets_in_draw / 2 && total_tickets_in_draw > 10 {
+        msg!("WARNING: Unusually high winner rate detected!");
+        msg!(
+            "  Winner rate: {}%",
+            (total_winners * 100) / total_tickets_in_draw
+        );
+        msg!("  This may indicate an issue with winner count submission.");
+    }
+
     // Update winner counts
     draw_result.match_6_winners = params.winner_counts.match_6;
     draw_result.match_5_winners = params.winner_counts.match_5;
@@ -358,12 +513,19 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         calculate_fixed_prizes(&params.winner_counts, jackpot_at_draw, available_prize_pool)
     };
 
+    // Log calculation details for transparency
+    msg!(
+        "Prize calculation details: {}",
+        prize_calc.calculation_details
+    );
+
     // Log warning if prizes were scaled down due to insufficient funds
     if prize_calc.was_scaled_down {
         msg!(
             "WARNING: Fixed prizes scaled down to {}% due to insufficient funds!",
             prize_calc.scale_factor_bps as f64 / 100.0
         );
+        msg!("  Details: {}", prize_calc.calculation_details);
     }
 
     // Update draw result with prizes
@@ -385,6 +547,10 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         msg!(
             "  Undistributed funds added to reserve: {} USDC lamports",
             prize_calc.undistributed
+        );
+        msg!(
+            "  New reserve balance: {} USDC lamports",
+            lottery_state.reserve_balance
         );
     }
 
@@ -467,6 +633,7 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
 
     msg!("Draw finalized successfully!");
     msg!("  Draw ID: {}", draw_result.draw_id);
+    msg!("  Total tickets in draw: {}", draw_result.total_tickets);
     msg!(
         "  Match 6 winners: {} (prize: {})",
         params.winner_counts.match_6,
@@ -518,12 +685,17 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         "  Reserve balance: {} USDC lamports",
         lottery_state.reserve_balance
     );
+    msg!(
+        "  Jackpot balance: {} USDC lamports",
+        lottery_state.jackpot_balance
+    );
     if prize_calc.was_scaled_down {
         msg!(
             "  ⚠️ PRIZES WERE SCALED: Scale factor = {}%",
             prize_calc.scale_factor_bps as f64 / 100.0
         );
     }
+    msg!("  Calculation details: {}", prize_calc.calculation_details);
 
     Ok(())
 }

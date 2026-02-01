@@ -98,44 +98,149 @@ pub struct LotteryState {
 impl LotteryState {
     pub const LEN: usize = LOTTERY_STATE_SIZE;
 
-    /// Check if ticket sales are open for the current draw
+    /// Check if ticket sales are open for the current draw with safety checks
     pub fn is_ticket_sale_open(&self, current_timestamp: i64) -> bool {
-        !self.is_paused
-            && self.is_funded
-            && !self.is_draw_in_progress
-            && current_timestamp < self.next_draw_timestamp - TICKET_SALE_CUTOFF
+        // Check basic state conditions
+        if self.is_paused || !self.is_funded || self.is_draw_in_progress {
+            return false;
+        }
+
+        // Check if next draw timestamp is valid
+        if self.next_draw_timestamp <= 0 {
+            return false;
+        }
+
+        // Calculate sale cutoff time with overflow protection
+        match self.next_draw_timestamp.checked_sub(TICKET_SALE_CUTOFF) {
+            Some(cutoff_time) => current_timestamp < cutoff_time,
+            None => {
+                // Underflow occurred - sale cutoff would be in the past
+                // This means we're too close to draw time
+                false
+            }
+        }
     }
 
-    /// Calculate current house fee based on jackpot level
+    /// Calculate current house fee based on jackpot level with validation
     pub fn get_current_house_fee_bps(&self) -> u16 {
+        // Validate state before calculation
+        if !self.is_funded {
+            return 0;
+        }
+
         calculate_house_fee_bps(self.jackpot_balance, self.is_rolldown_active)
     }
 
-    /// Check if rolldown should be triggered
+    /// Check if rolldown should be triggered with validation
     pub fn should_trigger_rolldown(&self) -> bool {
+        // Validate caps configuration
+        if self.soft_cap > self.hard_cap {
+            return false; // Invalid configuration
+        }
+
         self.jackpot_balance >= self.hard_cap
     }
 
-    /// Calculate rolldown probability
+    /// Calculate rolldown probability with state validation
     pub fn get_rolldown_probability_bps(&self) -> u16 {
+        // Validate state before calculation
+        if !self.is_funded || self.is_paused {
+            return 0;
+        }
+
+        // Validate caps configuration
+        if self.soft_cap > self.hard_cap {
+            return 0; // Invalid configuration
+        }
+
         calculate_rolldown_probability_bps(self.jackpot_balance)
     }
 
-    /// Check if the draw commit has timed out
+    /// Check if the draw commit has timed out with safety checks
     /// Timeout is 1 hour (3600 seconds) after commit
     pub fn is_commit_timed_out(&self, current_timestamp: i64) -> bool {
-        self.is_draw_in_progress
-            && self.commit_timestamp > 0
-            && current_timestamp > self.commit_timestamp + DRAW_COMMIT_TIMEOUT
+        if !self.is_draw_in_progress || self.commit_timestamp <= 0 {
+            return false;
+        }
+
+        // Calculate timeout with overflow protection
+        match self.commit_timestamp.checked_add(DRAW_COMMIT_TIMEOUT) {
+            Some(timeout_timestamp) => current_timestamp > timeout_timestamp,
+            None => {
+                // Overflow occurred - treat as timed out for safety
+                true
+            }
+        }
     }
 
     /// Reset draw state (used for timeout recovery or after finalization)
+    /// Includes comprehensive state cleanup
+    ///
+    /// FIXED: Does NOT reset pending_authority - authority transfer is independent
+    /// of draw state and should persist across draw resets.
     pub fn reset_draw_state(&mut self) {
         self.is_draw_in_progress = false;
         self.is_rolldown_active = false;
         self.commit_slot = 0;
         self.commit_timestamp = 0;
         self.current_randomness_account = Pubkey::default();
+        // Note: current_draw_tickets is reset separately in finalize_draw
+        // to allow cancel_draw to preserve tickets for rescheduled draws
+    }
+
+    /// Validate lottery state configuration
+    pub fn validate_configuration(&self) -> bool {
+        // Check caps configuration
+        if self.soft_cap > self.hard_cap {
+            return false;
+        }
+
+        // Check ticket price is reasonable
+        if self.ticket_price == 0 || self.ticket_price > 100_000_000 {
+            // Max 100 USDC
+            return false;
+        }
+
+        // Check house fee is reasonable (0-50%)
+        if self.house_fee_bps > 5000 {
+            return false;
+        }
+
+        // Check draw interval is reasonable (1 hour to 1 week)
+        if self.draw_interval < 3600 || self.draw_interval > 604800 {
+            return false;
+        }
+
+        // Check seed amount is reasonable
+        if self.seed_amount > self.hard_cap {
+            return false;
+        }
+
+        true
+    }
+
+    /// Get available prize pool balance (jackpot + reserve)
+    pub fn get_available_prize_pool(&self) -> u64 {
+        self.jackpot_balance.saturating_add(self.reserve_balance)
+    }
+
+    /// Check if lottery can pay out prizes for given winner counts
+    pub fn can_pay_prizes(&self, winner_counts: &WinnerCounts) -> bool {
+        // Simple check: ensure we have at least some funds
+        let total_winners = winner_counts.match_6 as u64
+            + winner_counts.match_5 as u64
+            + winner_counts.match_4 as u64
+            + winner_counts.match_3 as u64
+            + winner_counts.match_2 as u64;
+
+        if total_winners == 0 {
+            return true; // No winners to pay
+        }
+
+        // Check if we have at least minimum funds per winner
+        let min_funds_needed = total_winners * 1000; // 0.001 USDC per winner minimum
+
+        self.get_available_prize_pool() >= min_funds_needed
     }
 }
 

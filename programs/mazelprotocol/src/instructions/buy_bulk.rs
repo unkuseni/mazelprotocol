@@ -190,10 +190,12 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     let house_fee_bps = ctx.accounts.lottery_state.get_current_house_fee_bps();
 
     // Check if ticket sales are open
+    let sale_cutoff_time = next_draw_timestamp.checked_sub(TICKET_SALE_CUTOFF);
     let is_sale_open = !is_paused
         && is_funded
         && !is_draw_in_progress
-        && clock.unix_timestamp < next_draw_timestamp - TICKET_SALE_CUTOFF;
+        && sale_cutoff_time.is_some()
+        && clock.unix_timestamp < sale_cutoff_time.unwrap();
     require!(is_sale_open, LottoError::TicketSaleEnded);
 
     // Enforce per-user ticket limit
@@ -224,9 +226,10 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
         LottoError::InsufficientFunds
     );
 
-    // Transfer USDC - do house fee first (smaller amount)
-    ctx.accounts.transfer_to_house_fee(total_house_fee)?;
+    // FIXED: Transfer prize pool amount first (larger amount), then house fee
+    // This ensures if prize pool transfer fails, user doesn't lose house fee
     ctx.accounts.transfer_to_prize_pool(total_prize_pool)?;
+    ctx.accounts.transfer_to_house_fee(total_house_fee)?;
 
     // Update lottery state
     let lottery_state = &mut ctx.accounts.lottery_state;
@@ -281,10 +284,12 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
         user_stats.last_draw_participated = 0;
     }
 
-    // Track tickets per draw for limit enforcement
+    // FIXED: Track tickets per draw for limit enforcement
+    // Always update last_draw_participated to current draw
     if user_stats.last_draw_participated != current_draw_id {
-        // New draw, reset counter
+        // New draw, reset counter to ticket count
         user_stats.tickets_this_draw = ticket_count as u64;
+        user_stats.last_draw_participated = current_draw_id;
     } else {
         // Same draw, increment counter
         user_stats.tickets_this_draw = user_stats
@@ -328,6 +333,10 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
         "  User tickets this draw: {}/{}",
         user_stats.tickets_this_draw,
         MAX_TICKETS_PER_DRAW_PER_USER
+    );
+    msg!(
+        "  Last draw participated: {}",
+        user_stats.last_draw_participated
     );
 
     Ok(())

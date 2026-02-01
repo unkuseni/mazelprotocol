@@ -88,9 +88,25 @@ pub enum LottoError {
     #[msg("Numbers out of valid range.")]
     NumbersOutOfRange,
 
+    /// Ticket array is wrong size (must be exactly 6 numbers)
+    #[msg("Invalid ticket array size.")]
+    InvalidTicketArraySize,
+
+    /// Ticket numbers are not sorted in ascending order
+    #[msg("Ticket numbers must be sorted in ascending order.")]
+    NumbersNotSorted,
+
     /// User doesn't have enough funds to purchase the requested tickets
     #[msg("Not enough funds to purchase ticket.")]
     InsufficientFunds,
+
+    /// User attempted to use free ticket but has none available
+    #[msg("No free tickets available.")]
+    NoFreeTicketsAvailable,
+
+    /// User has reached maximum free ticket limit
+    #[msg("Maximum free ticket limit reached.")]
+    MaxFreeTicketsReached,
 
     /// User exceeded their personal ticket purchase limit
     #[msg("Exceeded maximum ticket purchase limit.")]
@@ -103,6 +119,14 @@ pub enum LottoError {
     /// Ticket price doesn't match the current lottery configuration
     #[msg("Invalid ticket price.")]
     InvalidTicketPrice,
+
+    /// Ticket sale has not started yet
+    #[msg("Ticket sale has not started yet.")]
+    TicketSaleNotStarted,
+
+    /// Ticket sale cutoff calculation underflow
+    #[msg("Ticket sale cutoff calculation error.")]
+    TicketSaleCutoffError,
 
     /// Bulk ticket purchase exceeds the allowed batch size
     #[msg("Bulk purchase size exceeds limit.")]
@@ -142,6 +166,14 @@ pub enum LottoError {
     /// Randomness value is too old and cannot be used
     #[msg("Randomness has expired.")]
     RandomnessExpired,
+
+    /// Randomness value is all zeros or predictable pattern
+    #[msg("Invalid randomness pattern detected.")]
+    InvalidRandomnessPattern,
+
+    /// Randomness reveal attempted too soon after commit
+    #[msg("Randomness reveal too soon after commit.")]
+    RandomnessRevealTooSoon,
 
     /// Randomness account is malformed or invalid
     #[msg("Invalid randomness account.")]
@@ -186,6 +218,18 @@ pub enum LottoError {
     #[msg("Invalid prize calculation.")]
     InvalidPrizeCalculation,
 
+    /// Winner counts exceed total tickets in draw
+    #[msg("Winner counts exceed total tickets.")]
+    WinnerCountsExceedTickets,
+
+    /// Suspiciously high winner count detected
+    #[msg("Suspicious winner count detected.")]
+    SuspiciousWinnerCount,
+
+    /// Prize calculation overflow occurred
+    #[msg("Prize calculation overflow.")]
+    PrizeCalculationOverflow,
+
     /// Failed to distribute prize to winner(s)
     #[msg("Prize distribution failed.")]
     PrizeDistributionFailed,
@@ -201,6 +245,14 @@ pub enum LottoError {
     /// Insufficient funds in prize pool to pay out
     #[msg("Insufficient prize pool balance.")]
     InsufficientPrizePool,
+
+    /// Prize pool solvency check failed with details
+    #[msg("Prize pool solvency check failed.")]
+    PrizePoolSolvencyFailed,
+
+    /// Prize distribution would leave dust amounts
+    #[msg("Prize distribution would create dust amounts.")]
+    PrizeDistributionDust,
 
     /// Error calculating rolldown prizes
     #[msg("Rolldown calculation error.")]
@@ -232,6 +284,14 @@ pub enum LottoError {
     /// Manager fee exceeds maximum allowed (5%)
     #[msg("Manager fee too high.")]
     ManagerFeeTooHigh,
+
+    /// Syndicate configuration validation failed
+    #[msg("Syndicate configuration invalid.")]
+    SyndicateConfigInvalid,
+
+    /// Syndicate member share calculation error
+    #[msg("Syndicate member share calculation error.")]
+    SyndicateShareCalculationError,
 
     /// Syndicate is private and user was not invited
     #[msg("Syndicate is private.")]
@@ -311,6 +371,18 @@ pub enum LottoError {
     #[msg("Invalid basis points value.")]
     InvalidBasisPoints,
 
+    /// Cap configuration invalid (soft cap > hard cap)
+    #[msg("Invalid cap configuration.")]
+    InvalidCapConfiguration,
+
+    /// Probability calculation error
+    #[msg("Probability calculation error.")]
+    ProbabilityCalculationError,
+
+    /// Arithmetic operation would overflow
+    #[msg("Arithmetic overflow would occur.")]
+    ArithmeticOverflow,
+
     // ============================================================================
     // Arithmetic & Computation Errors (6150-6169)
     // ============================================================================
@@ -340,6 +412,14 @@ pub enum LottoError {
     /// Account is not rent exempt
     #[msg("Account not rent exempt.")]
     NotRentExempt,
+
+    /// Account size calculation error
+    #[msg("Account size calculation error.")]
+    AccountSizeError,
+
+    /// Dynamic account size exceeds limits
+    #[msg("Dynamic account size exceeds limits.")]
+    AccountSizeExceeded,
 
     /// Account owner doesn't match expected program
     #[msg("Invalid account owner.")]
@@ -384,6 +464,18 @@ pub enum LottoError {
     #[msg("Operation timed out.")]
     Timeout,
 
+    /// State validation failed
+    #[msg("State validation failed.")]
+    StateValidationFailed,
+
+    /// Configuration validation failed
+    #[msg("Configuration validation failed.")]
+    ConfigValidationFailed,
+
+    /// Safety check failed
+    #[msg("Safety check failed.")]
+    SafetyCheckFailed,
+
     /// Maximum retry attempts exceeded
     #[msg("Retry limit exceeded.")]
     RetryLimitExceeded,
@@ -427,6 +519,14 @@ pub enum LottoError {
     #[msg("Streak bonus error.")]
     StreakBonusError,
 
+    /// User statistics validation error
+    #[msg("User statistics validation error.")]
+    UserStatsValidationError,
+
+    /// Draw state transition invalid
+    #[msg("Invalid draw state transition.")]
+    InvalidDrawStateTransition,
+
     /// Mega Event not active
     #[msg("Mega Event not active.")]
     MegaEventNotActive,
@@ -460,6 +560,18 @@ pub enum LottoError {
     /// Generic validation failure
     #[msg("Validation failed.")]
     ValidationFailed,
+
+    /// Detailed validation error with context
+    #[msg("Detailed validation failed.")]
+    DetailedValidationFailed,
+
+    /// Recovery operation required
+    #[msg("Recovery operation required.")]
+    RecoveryRequired,
+
+    /// Emergency state detected
+    #[msg("Emergency state detected.")]
+    EmergencyState,
 
     /// Constraint violation
     #[msg("Constraint violation.")]

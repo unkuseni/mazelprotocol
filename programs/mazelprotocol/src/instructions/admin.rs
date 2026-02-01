@@ -315,14 +315,18 @@ pub fn handler_update_config(ctx: Context<UpdateConfig>, params: UpdateConfigPar
     }
 
     // Validate relationships after updates
+    require!(lottery_state.soft_cap > 0, LottoError::InvalidCapConfig);
+    require!(lottery_state.hard_cap > 0, LottoError::InvalidCapConfig);
     require!(
         lottery_state.soft_cap < lottery_state.hard_cap,
         LottoError::InvalidCapConfig
     );
+    require!(lottery_state.seed_amount > 0, LottoError::InvalidSeedAmount);
     require!(
         lottery_state.seed_amount < lottery_state.soft_cap,
         LottoError::InvalidSeedAmount
     );
+    require!(lottery_state.jackpot_cap > 0, LottoError::InvalidJackpotCap);
     require!(
         lottery_state.jackpot_cap <= lottery_state.hard_cap,
         LottoError::InvalidJackpotCap
