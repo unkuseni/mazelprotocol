@@ -421,19 +421,19 @@ mod tests {
             match_3: 100,
         };
 
-        let jackpot = 40_000_000_000u64; // $40,000
+        let jackpot = 50_000_000_000u64; // $50,000
         let result = calculate_quick_pick_rolldown_prizes(&winner_counts, jackpot);
 
         // No Match 5 prize in rolldown
         assert_eq!(result.match_5_prize, 0);
 
         // Match 4 gets 60% of jackpot split among 10 winners
-        // 60% of $40k = $24k / 10 = $2,400
+        // 60% of $50k = $30k / 10 = $3,000
         let expected_match_4 = (jackpot * 6000 / 10000) / 10;
         assert_eq!(result.match_4_prize, expected_match_4);
 
         // Match 3 gets 40% of jackpot split among 100 winners
-        // 40% of $40k = $16k / 100 = $160
+        // 40% of $50k = $20k / 100 = $200
         let expected_match_3 = (jackpot * 4000 / 10000) / 100;
         assert_eq!(result.match_3_prize, expected_match_3);
     }
@@ -446,7 +446,7 @@ mod tests {
             match_3: 100,
         };
 
-        let jackpot = 40_000_000_000u64; // $40,000
+        let jackpot = 50_000_000_000u64; // $50,000
         let result = calculate_quick_pick_rolldown_prizes(&winner_counts, jackpot);
 
         // No Match 4 winners - Match 3 gets everything
@@ -462,7 +462,7 @@ mod tests {
             match_3: 0,
         };
 
-        let jackpot = 40_000_000_000u64;
+        let jackpot = 50_000_000_000u64;
         let result = calculate_quick_pick_rolldown_prizes(&winner_counts, jackpot);
 
         // No winners - all prizes are 0 (jackpot would roll over)

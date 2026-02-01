@@ -760,7 +760,7 @@ pub struct QuickPickState {
     /// Jackpot soft cap ($30,000 - probabilistic rolldown begins)
     pub soft_cap: u64,
 
-    /// Jackpot hard cap ($40,000 - forced rolldown)
+    /// Jackpot hard cap ($50,000 - forced rolldown)
     pub hard_cap: u64,
 
     /// Seed amount for jackpot reset after rolldown ($5,000)

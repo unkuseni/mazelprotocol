@@ -10,7 +10,7 @@
 //! - Pari-mutuel prizes (Rolldown Mode): 60% to Match 4, 40% to Match 3
 //! - Dynamic house fees: 30-38% based on jackpot level
 //! - Soft cap: $30,000 (probabilistic rolldown)
-//! - Hard cap: $40,000 (forced rolldown)
+//! - Hard cap: $50,000 (forced rolldown)
 
 // Initialize Quick Pick Express
 pub mod initialize;
