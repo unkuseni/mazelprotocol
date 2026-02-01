@@ -504,8 +504,10 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
 
     // Get the actual prize pool balance for solvency check
     // Note: In production, this should be passed as an account to verify on-chain
-    // For now, we use jackpot + reserve as available funds
-    let available_prize_pool = jackpot_at_draw.saturating_add(lottery_state.reserve_balance);
+    // For now, we use jackpot + reserve + insurance as available funds
+    let available_prize_pool = jackpot_at_draw
+        .saturating_add(lottery_state.reserve_balance)
+        .saturating_add(lottery_state.insurance_balance);
 
     let prize_calc = if was_rolldown {
         calculate_rolldown_prizes(&params.winner_counts, jackpot_at_draw)
@@ -726,10 +728,8 @@ mod tests {
         assert_eq!(result.match_2_prize, MATCH_2_VALUE);
         assert!(!result.was_scaled_down); // No scaling needed
 
-        let expected_total = (MATCH_5_PRIZE * 2)
-            + (MATCH_4_PRIZE * 10)
-            + (MATCH_3_PRIZE * 100)
-            + (MATCH_2_VALUE * 500);
+        let expected_total = (MATCH_5_PRIZE * 2) + (MATCH_4_PRIZE * 10) + (MATCH_3_PRIZE * 100);
+        // Note: MATCH_2_VALUE is a free ticket credit, not included in total_distributed
         assert_eq!(result.total_distributed, expected_total);
         assert_eq!(result.undistributed, 0);
     }
@@ -852,7 +852,8 @@ mod tests {
         assert_eq!(result.undistributed, jackpot);
 
         // Only Match 2 (free tickets) in total distributed
-        assert_eq!(result.total_distributed, MATCH_2_VALUE * 1000);
+        // Note: Match 2 is a free ticket credit, not actual USDC transfer
+        assert_eq!(result.total_distributed, 0);
     }
 
     #[test]

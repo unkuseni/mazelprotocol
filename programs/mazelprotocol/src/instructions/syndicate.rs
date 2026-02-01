@@ -893,6 +893,14 @@ pub struct BuySyndicateTickets<'info> {
     )]
     pub house_fee_usdc: Account<'info, TokenAccount>,
 
+    /// Insurance pool USDC token account
+    #[account(
+        mut,
+        seeds = [INSURANCE_POOL_USDC_SEED],
+        bump
+    )]
+    pub insurance_pool_usdc: Account<'info, TokenAccount>,
+
     /// USDC mint
     pub usdc_mint: Account<'info, Mint>,
 
@@ -1033,10 +1041,12 @@ pub fn handler_buy_syndicate_tickets(
     let syndicate = &mut ctx.accounts.syndicate;
     syndicate.total_contribution = syndicate.total_contribution.saturating_sub(total_cost);
 
-    // Calculate jackpot and reserve contributions
+    // Calculate jackpot, reserve, and insurance contributions
     let jackpot_contribution = (total_prize_pool as u128 * JACKPOT_ALLOCATION_BPS as u128
         / BPS_DENOMINATOR as u128) as u64;
     let reserve_contribution = (total_prize_pool as u128 * RESERVE_ALLOCATION_BPS as u128
+        / BPS_DENOMINATOR as u128) as u64;
+    let insurance_contribution = (total_prize_pool as u128 * INSURANCE_ALLOCATION_BPS as u128
         / BPS_DENOMINATOR as u128) as u64;
 
     // Update lottery state
@@ -1048,6 +1058,10 @@ pub fn handler_buy_syndicate_tickets(
     lottery_state.reserve_balance = lottery_state
         .reserve_balance
         .checked_add(reserve_contribution)
+        .ok_or(LottoError::Overflow)?;
+    lottery_state.insurance_balance = lottery_state
+        .insurance_balance
+        .checked_add(insurance_contribution)
         .ok_or(LottoError::Overflow)?;
     lottery_state.current_draw_tickets = lottery_state
         .current_draw_tickets

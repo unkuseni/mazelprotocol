@@ -84,6 +84,14 @@ pub struct BuyBulk<'info> {
     )]
     pub house_fee_usdc: Account<'info, TokenAccount>,
 
+    /// Insurance pool USDC token account
+    #[account(
+        mut,
+        seeds = [INSURANCE_POOL_USDC_SEED],
+        bump
+    )]
+    pub insurance_pool_usdc: Account<'info, TokenAccount>,
+
     /// USDC mint
     pub usdc_mint: Account<'info, Mint>,
 
@@ -122,6 +130,18 @@ impl<'info> BuyBulk<'info> {
         let cpi_accounts = Transfer {
             from: self.player_usdc.to_account_info(),
             to: self.house_fee_usdc.to_account_info(),
+            authority: self.player.to_account_info(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, amount)
+    }
+
+    /// Transfer USDC from player to insurance pool account
+    pub fn transfer_to_insurance_pool(&self, amount: u64) -> Result<()> {
+        let cpi_accounts = Transfer {
+            from: self.player_usdc.to_account_info(),
+            to: self.insurance_pool_usdc.to_account_info(),
             authority: self.player.to_account_info(),
         };
         let cpi_program = self.token_program.to_account_info();
@@ -219,6 +239,8 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
         / BPS_DENOMINATOR as u128) as u64;
     let total_reserve_contribution = (total_prize_pool as u128 * RESERVE_ALLOCATION_BPS as u128
         / BPS_DENOMINATOR as u128) as u64;
+    let total_insurance_contribution = (total_prize_pool as u128 * INSURANCE_ALLOCATION_BPS as u128
+        / BPS_DENOMINATOR as u128) as u64;
 
     // Check player has sufficient balance
     require!(
@@ -231,6 +253,12 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     ctx.accounts.transfer_to_prize_pool(total_prize_pool)?;
     ctx.accounts.transfer_to_house_fee(total_house_fee)?;
 
+    // Transfer insurance contribution if any
+    if total_insurance_contribution > 0 {
+        ctx.accounts
+            .transfer_to_insurance_pool(total_insurance_contribution)?;
+    }
+
     // Update lottery state
     let lottery_state = &mut ctx.accounts.lottery_state;
     lottery_state.jackpot_balance = lottery_state
@@ -240,6 +268,10 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     lottery_state.reserve_balance = lottery_state
         .reserve_balance
         .checked_add(total_reserve_contribution)
+        .ok_or(LottoError::Overflow)?;
+    lottery_state.insurance_balance = lottery_state
+        .insurance_balance
+        .checked_add(total_insurance_contribution)
         .ok_or(LottoError::Overflow)?;
     lottery_state.current_draw_tickets = lottery_state
         .current_draw_tickets
