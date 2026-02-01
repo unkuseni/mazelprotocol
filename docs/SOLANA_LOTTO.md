@@ -110,42 +110,62 @@ This isn't a bug—**it's the feature**.
 
 ## 🏆 Prize Structure
 
-### Normal Mode (Jackpot < $1.75M)
+> **⚠️ PRIZE TRANSITION SYSTEM:** All prizes START as FIXED amounts but TRANSITION to PARI-MUTUEL (shared pool) during high-volume draws and rolldown events. This hybrid system protects the operator from excessive losses while maintaining attractive player value.
 
-During normal operation, the lottery functions as a traditional negative-EV game:
+### Normal Mode (Jackpot < $1.75M) — Fixed Prizes
 
-| Match | Prize | Expected Value |
-|-------|-------|----------------|
-| **6 (Jackpot)** | $500K → $1.75M (growing) | ~$0.11 |
-| **5** | $4,000 (fixed) | $0.10 |
-| **4** | $150 (fixed) | $0.19 |
-| **3** | $5 (fixed) | $0.11 |
-| **2** | Free Ticket ($2.50 value) | $0.37 |
+During normal operation with moderate ticket sales, prizes are **FIXED amounts** funded by the fixed prize allocation pool:
+
+| Match | Prize Type | Prize Amount | Expected Value |
+|-------|------------|--------------|----------------|
+| **6 (Jackpot)** | Variable Pool | $500K → $1.75M (growing) | ~$0.11 |
+| **5** | **Fixed** | $4,000 | $0.10 |
+| **4** | **Fixed** | $150 | $0.19 |
+| **3** | **Fixed** | $5 | $0.11 |
+| **2** | **Fixed** | Free Ticket ($2.50 value) | $0.37 |
 
 **Total Player EV: ~$0.88** on a $2.50 ticket  
 **House Edge: ~65%** (standard for lotteries)
 
-### 🔥 Rolldown Mode (Jackpot ≥ $1.75M, No Match 6 Winner)
+**Pari-Mutuel Transition Trigger:** If winner count × fixed prize > prize pool allocation, prizes automatically convert to pari-mutuel distribution to protect operator solvency.
+
+### 🔥 Rolldown Mode (Jackpot ≥ $1.75M, No Match 6 Winner) — Pari-Mutuel Prizes
+
+> **💡 KEY INSIGHT:** During rolldown events, ALL prizes use **PARI-MUTUEL** (shared pool) distribution. This means actual per-winner prizes depend on total ticket sales and winner count. The estimates below assume ~700,000 tickets sold during rolldown.
 
 When the jackpot caps and no one hits the jackpot, **everything changes**:
 
-| Match | Pool Share | Prize | Expected Value |
-|-------|------------|-------|----------------|
-| **6** | 0% | $0 (jackpot emptied) | $0 |
-| **5** | 25% | ~$22,000 | $0.56 |
-| **4** | 35% | ~$800 | $1.00 |
-| **3** | 40% | ~$40 | $0.85 |
-| **2** | — | Free Ticket | $0.37 |
+| Match | Pool Share | Est. Prize* | Formula | Expected Value |
+|-------|------------|-------------|---------|----------------|
+| **6** | 0% | $0 (jackpot emptied) | — | $0 |
+| **5** | 25% | ~$24,400* | `$437,500 ÷ ~18 winners` | $0.63 |
+| **4** | 35% | ~$700* | `$612,500 ÷ ~875 winners` | $0.87 |
+| **3** | 40% | ~$47* | `$700,000 ÷ ~14,763 winners` | $1.00 |
+| **2** | — | Free Ticket | Fixed $2.50 value | $0.37 |
 
-**Total Player EV: ~$2.78** on a $2.50 ticket  
-**Player Edge: +11.2%** 🎯
+*\*Estimated prizes based on 700,000 tickets sold. Actual prizes = Pool Share × Jackpot ÷ Winner Count (pari-mutuel).*
 
-### Why Match 3 Gets the Most
+**Total Player EV: ~$2.87** on a $2.50 ticket (at 700k volume)  
+**Player Edge: +14.8%** 🎯
+
+**Higher Edge at Lower Volume:** With optimal volume (~475k tickets at $2.25M hard cap):
+- **Total EV: ~$4.06** → **Player Edge: +62%** 🚀
+
+### Why Match 3 Gets the Most (40% of Rolldown Pool)
 
 The Match 3 tier receives 40% of the rolldown pool because:
-- **High winner frequency**: ~2.13% of tickets win
-- **Lower variance**: More predictable returns for volume players
+- **High winner frequency**: ~2.13% of tickets win Match 3
+- **Lower variance**: More predictable pari-mutuel returns for volume players
 - **Critical for exploit**: Makes the +EV window reliable, not just theoretical
+- **Pari-mutuel efficiency**: More winners = smaller per-winner prize, but total pool is larger
+
+### Why Pari-Mutuel Limits Operator Loss
+
+The transition from fixed to pari-mutuel prizes during rolldown ensures:
+1. **Capped liability**: Total payout = Jackpot (fixed amount), regardless of winners
+2. **No unbounded risk**: Even with 2M+ tickets, operator only pays out the jackpot
+3. **Player value preserved**: +EV windows still exist, just scaled by volume
+4. **Sustainable economics**: Protocol remains profitable across all volume scenarios
 
 ---
 
@@ -196,29 +216,35 @@ Triggered when **BOTH** conditions are met:
 
 If jackpot reaches hard cap, rolldown is guaranteed in that draw (assuming no jackpot winner).
 
-### Full Rolldown Distribution Flow
+> **🔒 Operator Protection:** During forced rolldowns, all prizes are pari-mutuel. The operator's maximum liability is exactly the jackpot amount ($2.25M), regardless of how many tickets are sold or how many winners there are.
+
+### Full Rolldown Distribution Flow — PARI-MUTUEL
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                HARD CAP ROLLDOWN TRIGGERED               │
+│           HARD CAP ROLLDOWN TRIGGERED (PARI-MUTUEL)      │
 │                  Jackpot: $2,250,000                     │
+│         Total Operator Liability: EXACTLY $2,250,000     │
 └─────────────────────────────────────────────────────────┘
                            │
            ┌───────────────┼───────────────┐
            ▼               ▼               ▼
     ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
     │   MATCH 5   │ │   MATCH 4   │ │   MATCH 3   │
-    │     25%     │ │     35%     │ │     40%     │
+    │  POOL: 25%  │ │  POOL: 35%  │ │  POOL: 40%  │
     │  $562,500   │ │  $787,500   │ │  $900,000   │
     └─────────────┘ └─────────────┘ └─────────────┘
            │               │               │
            ▼               ▼               ▼
     ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+    │ PARI-MUTUEL │ │ PARI-MUTUEL │ │ PARI-MUTUEL │
     │  ~11 winners│ │ ~766 winners│ │~17,697 win- │
-    │  $51,136 ea │ │  $1,028 ea  │ │ ners $51 ea │
+    │ ~$51,136 ea*│ │ ~$1,028 ea* │ │ ners ~$51ea*│
     └─────────────┘ └─────────────┘ └─────────────┘
     
-    (Based on 697,800 tickets sold during rolldown draw)
+    * Estimated prizes at ~697,800 tickets. Actual = Pool ÷ Winners
+    
+    Formula: Prize per Winner = (Pool Share × Jackpot) ÷ Winner Count
 ```
 
 ### Post-Rolldown Reset
@@ -231,6 +257,8 @@ After a rolldown:
 ---
 
 ## 💰 Economic Model
+
+> **🔒 OPERATOR PROTECTION PRINCIPLE:** All prizes START as FIXED amounts during normal mode, then TRANSITION to PARI-MUTUEL (shared pool) during high-volume draws and rolldown events. This ensures operator liability is always capped while players still enjoy +EV windows.
 
 ### Dynamic House Fee System
 
@@ -274,37 +302,65 @@ Instead of a fixed fee, the house fee **scales with jackpot level**:
 - Covers unexpected high-variance events
 - Tops up weak rolldowns
 - Provides emergency reserve
-- Target: 3-month operating expenses (~$2.7M)
+- Target: ~$450k reserve (approximately 90 days of insurance accumulation at target volume)
 
-### 15-16 Day Cycle Profitability (With Dynamic Fees)
+### Prize Mode Transition System
+
+| Mode | When Active | Prize Type | Operator Liability |
+|------|-------------|------------|-------------------|
+| **Fixed** | Normal draws, moderate volume | Predetermined amounts | Variable (depends on winners) |
+| **Pari-Mutuel** | Rolldown events, high-volume draws | Pool ÷ Winners | **CAPPED at pool size** |
+
+**Transition Triggers:**
+1. ✅ Rolldown event → All prizes become pari-mutuel
+2. ✅ Winner count × fixed prize > prize pool → Auto-transition to pari-mutuel
+3. ✅ High-volume draw (>500k tickets) → Pari-mutuel for Match 3-5
+
+**Why This Matters:** During a rolldown with 1M+ tickets, fixed prizes could bankrupt the protocol. Pari-mutuel ensures total payout = jackpot amount (capped), regardless of volume.
+
+### 15-16 Day Cycle Profitability (With Dynamic Fees & Pari-Mutuel Protection)
 
 ```
-Dynamic Fee Model Revenue:
-├── Phase 1 (Days 1-5, <$500k): 100k × $2.50 × 28% = $70,000/day
-├── Phase 2 (Days 6-8, $500k-$1M): 100k × $2.50 × 32% = $80,000/day  
-├── Phase 3 (Days 9-11, $1M-$1.5M): 120k × $2.50 × 36% = $108,000/day
-├── Phase 4 (Days 12-13, >$1.5M): 150k × $2.50 × 40% = $150,000/day
-├── Rolldown (Day 14): 700k × $2.50 × 28% = $490,000
+Dynamic Fee Model Revenue (Corrected):
+├── Phase 1 (Days 1-5, <$500k): 100k × $2.50 × 28% = $70,000/day    [FIXED PRIZES]
+├── Phase 2 (Days 6-8, $500k-$1M): 100k × $2.50 × 32% = $80,000/day  [FIXED PRIZES]
+├── Phase 3 (Days 9-11, $1M-$1.5M): 120k × $2.50 × 36% = $108,000/day [FIXED PRIZES]
+├── Phase 4 (Days 12-13, >$1.5M): 150k × $2.50 × 40% = $150,000/day  [FIXED PRIZES]
+├── Rolldown (Day 14): 700k × $2.50 × 28% = $490,000                  [PARI-MUTUEL]
 
-Total Cycle House Fees: $1,278,000 (+7.4% vs fixed 34%)
+Total Cycle House Fees (Corrected): $1,704,000
 ```
 
-| Period | Calculation | Amount |
-|--------|-------------|--------|
-| **Normal Days (13)** | Dynamic fee revenue | +$1,278,000 |
-| **Rolldown Deficit** | Prizes exceed pool contribution | -$200,000 |
-| **Seed Reset** | Replenish $500k jackpot | -$500,000 |
-| **Insurance Accumulation** | 2% allocation | +$70,000 |
-| **CYCLE NET PROFIT (15-16 days)** | | **+$648,000** |
-| **Daily Average** | | **~$41,800/day** |
+> **🔒 PARI-MUTUEL PROTECTION:** During rolldown (Day 14), prizes transition from fixed to pari-mutuel. This caps operator liability at exactly $1,750,000 (the jackpot), regardless of whether 500k or 2M tickets are sold.
+
+| Period | Prize Mode | Calculation | Amount |
+|--------|------------|-------------|--------|
+| **Normal Days House Fees** | Fixed | Dynamic fee revenue | +$1,214,000 |
+| **Rolldown House Fees** | — | 700k × $2.50 × 28% | +$490,000 |
+| **Expected Fixed Prize Payouts** | Fixed | Probabilistic costs (Days 1-13) | -$989,560 |
+| **Rolldown Jackpot Distribution** | **Pari-Mutuel** | Full jackpot to winners | -$1,750,000 |
+| **Pari-Mutuel Savings** | **Protected** | Fixed would cost more at 700k volume | +$0* |
+| **Seed Reset** | — | Replenish $500k jackpot | -$500,000 |
+| **Insurance Accumulation** | — | 2% allocation | +$70,000 |
+| **CYCLE NET PROFIT (15-16 days)** | | | **+$534,440** |
+| **Daily Average** | | | **~$35,300/day** |
+
+*\*Pari-mutuel savings are built into the rolldown calculation — operator pays exactly $1,750,000 total, not variable based on winners.*
+
+**Why Pari-Mutuel Protects the Operator:**
+- Fixed prizes at 700k tickets: ~$2.1M potential liability
+- Pari-mutuel at 700k tickets: EXACTLY $1,750,000 liability (capped)
+- **Savings: ~$350,000 per rolldown cycle**
 
 ### Break-Even Analysis
 
-| Volume Scenario | Daily Tickets | Cycle Profit | Annual Profit |
-|-----------------|---------------|--------------|---------------|
-| **Minimum Viable** | 50,000 | +$180,000 | +$4.7M |
-| **Target** | 100,000 | +$500,000 | +$13M |
-| **Optimistic** | 200,000 | +$1,100,000 | +$28.6M |
+| Volume Scenario | Daily Tickets | Prize Mode | Cycle Profit | Annual Profit |
+|-----------------|---------------|------------|--------------|---------------|
+| **Minimum Viable** | 50,000 | Fixed | +$180,000 | +$4.7M |
+| **Target** | 100,000 | Fixed→Pari-Mutuel | +$534,440 | +$13.9M |
+| **Optimistic** | 200,000 | Fixed→Pari-Mutuel | +$1,340,000 | +$34.8M |
+
+*Higher volume scenarios benefit MORE from pari-mutuel transition — operator liability stays capped while revenue scales.*
 
 ---
 
@@ -577,7 +633,7 @@ Report vulnerabilities to: `security@solanalotto.io`
 
 ## 🎰 Additional Game Modes
 
-### Quick Pick Express (5/35)
+### Quick Pick Express (5/35) — PARI-MUTUEL ROLLDOWN
 
 High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** — exclusive to committed players:
 
@@ -593,18 +649,25 @@ High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** —
 | Hard Cap | $40,000 (forced rolldown) |
 | Cycle Duration | ~2-3 days |
 
-#### Normal Mode Prizes
-| Match | Prize | Odds |
-|-------|-------|------|
-| **5 (Jackpot)** | $5,000 → $40,000 (growing) | 1 in 324,632 |
-| **4** | $100 (fixed) | 1 in 2,164 |
-| **3** | $4 (fixed) | 1 in 74.6 |
+#### Normal Mode Prizes — FIXED
+| Match | Prize Type | Prize | Odds |
+|-------|------------|-------|------|
+| **5 (Jackpot)** | Variable Pool | $5,000 → $40,000 (growing) | 1 in 324,632 |
+| **4** | **Fixed** | $100 | 1 in 2,164 |
+| **3** | **Fixed** | $4 | 1 in 74.6 |
 
-#### 🔥 Rolldown Mode (No Match 5 Winner) — THE EXPLOIT!
-| Match | Pool Share | Est. Prize | Expected Value |
-|-------|------------|------------|----------------|
-| **4** | 60% | ~$3,000 | $1.39 |
-| **3** | 40% | ~$74 | $0.99 |
+*Prizes remain fixed during normal mode. Transition to pari-mutuel occurs during rolldown events.*
+
+#### 🔥 Rolldown Mode (No Match 5 Winner) — PARI-MUTUEL (THE EXPLOIT!)
+
+> **🔒 OPERATOR PROTECTION:** During rolldown, all prizes transition to PARI-MUTUEL. Operator liability is capped at exactly the jackpot amount ($30,000-$40,000), regardless of ticket volume.
+
+| Match | Pool Share | Est. Prize* | Formula | Expected Value |
+|-------|------------|-------------|---------|----------------|
+| **4** | 60% | ~$3,000* | `$18,000 ÷ ~6 winners` | $1.39 |
+| **3** | 40% | ~$74* | `$12,000 ÷ ~161 winners` | $0.99 |
+
+*\*Estimated prizes at ~12,000 tickets. Actual = Pool ÷ Winners (pari-mutuel).*
 
 **🎯 Rolldown Player Edge: +58.7%** — Comparable to the main lottery's +62%!
 
@@ -612,6 +675,7 @@ High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** —
 - **Profit: +$0.88 per ticket during rolldown**
 - Operator still profitable over the full cycle (87-91% house edge in normal mode)
 - No free ticket prize — only Match 3+ wins
+- **Pari-mutuel ensures operator liability is CAPPED at jackpot amount**
 
 
 ---

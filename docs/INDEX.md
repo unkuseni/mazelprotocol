@@ -76,6 +76,7 @@
 
 | Feature | Specification | Technical Spec | Status |
 |---------|---------------|----------------|--------|
+| **🔒 Prize Transition System** | **Fixed → Pari-Mutuel** | **TECHNICAL_SPEC.md §12.4** | **✅ Complete** |
 | Dynamic House Fee | ADVANCED_FEATURES.md §1 | TECHNICAL_SPEC.md | ✅ Complete |
 | Soft/Hard Caps | ADVANCED_FEATURES.md §2 | TECHNICAL_SPEC.md | ✅ Complete |
 | Lucky Numbers NFT | ADVANCED_FEATURES.md §3 | TECHNICAL_SPEC.md | ✅ Complete |
@@ -83,19 +84,23 @@
 | Quick Pick Express | ADVANCED_FEATURES.md §5 | TECHNICAL_SPEC.md | ✅ Complete |
 | Syndicate Wars | ADVANCED_FEATURES.md §6 | TECHNICAL_SPEC.md | ✅ Complete |
 
+> **🔒 CRITICAL DESIGN FEATURE:** All prizes START as FIXED amounts during normal operation, then TRANSITION to PARI-MUTUEL (shared pool) during rolldown events and high-volume draws. This hybrid system ensures **operator liability is ALWAYS CAPPED** while maintaining attractive +EV windows for players.
+
 ---
 
 ## 📊 Key Parameters Reference
 
-### Main Lottery (6/46)
+### Main Lottery (6/46) — FIXED → PARI-MUTUEL
 
-| Parameter | Value | Location |
-|-----------|-------|----------|
-| Ticket Price | $2.50 USDC | TECHNICAL_SPEC.md |
-| Soft Cap | $1,750,000 | ADVANCED_FEATURES.md |
-| Hard Cap | $2,250,000 | ADVANCED_FEATURES.md |
-| Jackpot Seed | $500,000 | TECHNICAL_SPEC.md |
-| Dynamic Fee Range | 28% - 40% | ADVANCED_FEATURES.md |
+| Parameter | Value | Prize Mode | Location |
+|-----------|-------|------------|----------|
+| Ticket Price | $2.50 USDC | — | TECHNICAL_SPEC.md |
+| Soft Cap | $1,750,000 | → PARI-MUTUEL | ADVANCED_FEATURES.md |
+| Hard Cap | $2,250,000 | PARI-MUTUEL | ADVANCED_FEATURES.md |
+| Jackpot Seed | $500,000 | — | TECHNICAL_SPEC.md |
+| Dynamic Fee Range | 28% - 40% | — | ADVANCED_FEATURES.md |
+| **Normal Mode Prizes** | **Fixed amounts** | **FIXED** | TECHNICAL_SPEC.md |
+| **Rolldown Prizes** | **Pool ÷ Winners** | **PARI-MUTUEL** | WHITEPAPER.md §3.3 |
 
 ### Dynamic Fee Tiers
 
@@ -107,25 +112,29 @@
 | > $1.5M | 40% | ADVANCED_FEATURES.md §1 |
 | Rolldown | 28% | ADVANCED_FEATURES.md §1 |
 
-### Quick Pick Express (5/35)
+### Quick Pick Express (5/35) — FIXED → PARI-MUTUEL
 
 > ⚠️ **$50 Gate Requirement**: Players must spend $50+ lifetime in main lottery to access.
 
-| Parameter | Value | Location |
-|-----------|-------|----------|
-| Matrix | 5/35 (Pick 5 from 35) | ADVANCED_FEATURES.md §5 |
-| Ticket Price | $1.50 USDC | ADVANCED_FEATURES.md §5 |
-| Draw Frequency | Every 4 hours | ADVANCED_FEATURES.md §5 |
-| Jackpot Odds | 1 in 324,632 | ADVANCED_FEATURES.md §5 |
-| Jackpot Seed | $5,000 | ADVANCED_FEATURES.md §5 |
-| Soft Cap | $30,000 | ADVANCED_FEATURES.md §5 |
-| Hard Cap | $40,000 | ADVANCED_FEATURES.md §5 |
-| Match 4 Prize | $100 fixed / ~$3,000 rolldown | ADVANCED_FEATURES.md §5 |
-| Match 3 Prize | $4 fixed / ~$74 rolldown | ADVANCED_FEATURES.md §5 |
-| Match 2 Prize | No prize (no free ticket) | ADVANCED_FEATURES.md §5 |
-| Rolldown Match 4 | 60% of jackpot | ADVANCED_FEATURES.md §5 |
-| Rolldown Match 3 | 40% of jackpot | ADVANCED_FEATURES.md §5 |
-| **🔥 Rolldown EV** | **+59% player edge!** | ADVANCED_FEATURES.md §5 |
+| Parameter | Value | Prize Mode | Location |
+|-----------|-------|------------|----------|
+| Matrix | 5/35 (Pick 5 from 35) | — | ADVANCED_FEATURES.md §5 |
+| Ticket Price | $1.50 USDC | — | ADVANCED_FEATURES.md §5 |
+| Draw Frequency | Every 4 hours | — | ADVANCED_FEATURES.md §5 |
+| Jackpot Odds | 1 in 324,632 | — | ADVANCED_FEATURES.md §5 |
+| Jackpot Seed | $5,000 | — | ADVANCED_FEATURES.md §5 |
+| Soft Cap | $30,000 | → PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
+| Hard Cap | $40,000 | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
+| **Match 4 Prize** | $100 fixed / ~$3,000* rolldown | **FIXED → PM** | ADVANCED_FEATURES.md §5 |
+| **Match 3 Prize** | $4 fixed / ~$74* rolldown | **FIXED → PM** | ADVANCED_FEATURES.md §5 |
+| Match 2 Prize | No prize (no free ticket) | — | ADVANCED_FEATURES.md §5 |
+| Rolldown Match 4 | 60% of jackpot pool | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
+| Rolldown Match 3 | 40% of jackpot pool | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
+| **🔥 Rolldown EV** | **+58.7% player edge!** | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
+
+*\*Rolldown prizes are pari-mutuel estimates. Actual = Pool ÷ Winners. Operator liability CAPPED at jackpot amount.*
+
+> **🔒 OPERATOR PROTECTION:** During Quick Pick rolldown, all prizes transition from FIXED to PARI-MUTUEL. Total operator liability is EXACTLY $30,000-$40,000 (the jackpot), regardless of ticket volume or winner count.
 
 ### Mega Events (Quarterly)
 
@@ -238,10 +247,12 @@ From [ADVANCED_FEATURES.md §8](./ADVANCED_FEATURES.md#8-implementation-priority
 
 <div align="center">
 
-**SolanaLotto Protocol v2.2**
+**SolanaLotto Protocol v2.4**
 
 *Complete documentation for the world's first intentionally exploitable lottery*
 
-📚 **5 Documents** | 🎰 **7 Advanced Features** | 💰 **$13M+ Annual Profit Target**
+📚 **5 Documents** | 🎰 **7 Advanced Features** | 💰 **$12.3M Annual Profit Target**
+
+> **🔒 CORE PROTECTION:** All prizes START as FIXED amounts, then TRANSITION to PARI-MUTUEL during rolldown events. Operator liability is ALWAYS CAPPED while players enjoy +EV windows.
 
 </div>

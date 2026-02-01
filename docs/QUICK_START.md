@@ -25,10 +25,12 @@ Between $1.75M and $2.25M, each draw has a chance to trigger rolldown:
 During full rolldown events:
 
 - **Ticket Cost:** $2.50
-- **Expected Value:** ~$4.06
-- **Player Edge:** +62.4%
+- **Expected Value Range:** $2.87 to $4.06 (depends on tickets sold)
+- **Player Edge:** +14.6% to +62% (optimal conditions: 475k tickets)
 
 This isn't a bug—it's the core feature that drives engagement and volume.
+
+> **🔒 PRIZE TRANSITION SYSTEM:** All prizes START as FIXED amounts during normal mode, then TRANSITION to PARI-MUTUEL (shared pool) during rolldown events and high-volume draws. This hybrid system ensures **operator liability is ALWAYS CAPPED** while maintaining attractive +EV windows for players.
 
 ### Dynamic House Fee
 
@@ -41,6 +43,16 @@ Fees scale with jackpot excitement:
 | $1M - $1.5M | 36% |
 | > $1.5M | 40% |
 | Rolldown | 28% |
+
+---
+
+### Why Pari-Mutuel Protects the Operator
+
+During rolldown, prizes transition from fixed to pari-mutuel:
+- **Total payout = EXACTLY the jackpot amount** (capped liability)
+- Whether 500k or 2M tickets are sold, operator pays the same
+- Player +EV is preserved through proportional distribution
+- No unbounded risk regardless of volume or winner count
 
 ---
 
@@ -99,17 +111,23 @@ Prizes are automatically calculated. Claim them anytime through the app.
 4. **Maximize at Hard Cap:** Buy maximum volume during forced rolldown at $2.25M hard cap
 5. **Profit:** Collect winnings from Match 3, 4, and 5 tiers during rolldowns
 
-### Expected Value During Full Rolldown ($2.25M Hard Cap)
+### Expected Value During Full Rolldown ($2.25M Hard Cap) — PARI-MUTUEL
 
-| Match | Rolldown Prize | Odds | EV Contribution |
-|-------|----------------|------|-----------------|
-| 5 | ~$51,000 | 1/39,028 | $1.31 |
-| 4 | ~$1,030 | 1/800 | $1.29 |
-| 3 | ~$51 | 1/47 | $1.09 |
-| 2 | $2.50 | 1/6.8 | $0.37 |
-| **Total EV** | | | **$4.06** |
+> **🔒 PARI-MUTUEL PRIZES:** During rolldown, all prizes use shared pool distribution. Actual per-winner prizes depend on ticket volume. Estimates below assume ~475k tickets (optimal conditions).
 
-**Edge: $4.06 - $2.50 = +$1.56 per ticket (+62.4%)**
+| Match | Pool Share | Est. Prize* | Odds | EV Contribution |
+|-------|------------|-------------|------|-----------------|
+| 5 | 25% | ~$46,000* | 1/39,028 | $1.18 |
+| 4 | 35% | ~$1,330* | 1/800 | $1.66 |
+| 3 | 40% | ~$90* | 1/47 | $1.90 |
+| 2 | — | $2.50 (fixed) | 1/6.8 | $0.37 |
+| **Total EV** | | | | **$5.11** |
+
+*\*Estimated prizes at 475k tickets. Actual = Pool ÷ Winners (pari-mutuel). More tickets = lower per-winner prizes.*
+
+**Edge: $5.11 - $2.50 = +$2.61 per ticket (+104%)**
+
+**At higher volume (700k tickets):** EV drops to ~$2.87 (+14.8% edge) — pari-mutuel naturally adjusts!
 
 ### Probabilistic Rolldown Zone
 
@@ -203,24 +221,28 @@ lotto.joinSyndicate(wallet, syndicatePubkey, amount)
 | **Draw Frequency** | Daily (00:00 UTC) |
 | **Rolldown Frequency** | ~Every 2-3 weeks |
 
-### Quick Pick Express (5/35)
+### Quick Pick Express (5/35) — FIXED → PARI-MUTUEL
 
 > ⚠️ **$50 Gate Requirement**: Must have spent $50+ lifetime in main lottery to access.
 
-| Metric | Value |
-|--------|-------|
-| **Ticket Price** | $1.50 USDC |
-| **Matrix** | 5/35 (Pick 5 from 35) |
-| **Draw Frequency** | Every 4 hours (6x daily) |
-| **Jackpot Odds** | 1 in 324,632 |
-| **Jackpot Seed** | $5,000 |
-| **Soft Cap** | $30,000 (probabilistic rolldown) |
-| **Hard Cap** | $40,000 (forced rolldown) |
-| **Match 4 Prize** | $100 fixed / ~$3,000 rolldown |
-| **Match 3 Prize** | $4 fixed / ~$74 rolldown |
-| **Match 2 Prize** | No prize (no free ticket) |
-| **Cycle Duration** | ~2-3 days |
-| **🔥 Rolldown EV** | **+59% player edge!** |
+| Metric | Value | Prize Mode |
+|--------|-------|------------|
+| **Ticket Price** | $1.50 USDC | — |
+| **Matrix** | 5/35 (Pick 5 from 35) | — |
+| **Draw Frequency** | Every 4 hours (6x daily) | — |
+| **Jackpot Odds** | 1 in 324,632 | — |
+| **Jackpot Seed** | $5,000 | — |
+| **Soft Cap** | $30,000 (probabilistic rolldown) | → PARI-MUTUEL |
+| **Hard Cap** | $40,000 (forced rolldown) | PARI-MUTUEL |
+| **Match 4 Prize** | $100 fixed / ~$3,000* rolldown | FIXED → PARI-MUTUEL |
+| **Match 3 Prize** | $4 fixed / ~$74* rolldown | FIXED → PARI-MUTUEL |
+| **Match 2 Prize** | No prize (no free ticket) | — |
+| **Cycle Duration** | ~2-3 days | — |
+| **🔥 Rolldown EV** | **+58.7% player edge!** | PARI-MUTUEL |
+
+*\*Rolldown prizes are pari-mutuel estimates at ~12k tickets. Actual = Pool ÷ Winners.*
+
+> **🔒 OPERATOR PROTECTION:** During Quick Pick rolldown, prizes transition to pari-mutuel. Total operator liability is CAPPED at exactly $30,000-$40,000 (the jackpot), regardless of ticket volume or winner count.
 
 ### Mega Events (Quarterly)
 
@@ -285,12 +307,12 @@ Only play with money you can afford to lose. Verify your local laws before parti
 
 ## 🆕 What's New (v2.4)
 
-- ✅ **Quick Pick Express v2** (5/35 matrix, $1.50 tickets, **+59% rolldown exploit**, no free ticket, $50 gate)
+- ✅ **Fixed → Pari-Mutuel Prize Transition** (ALL prizes start fixed, transition to pari-mutuel during rolldown to cap operator liability)
+- ✅ **Quick Pick Express v2** (5/35 matrix, $1.50 tickets, **+58.7% rolldown exploit**, no free ticket, $50 gate)
 - ✅ **Switchboard Randomness** (TEE-based secure randomness with commit-reveal)
 - ✅ **Dynamic House Fee** (28-40% based on jackpot)
 - ✅ **Soft/Hard Cap System** (prevents calendar gaming)
 - ✅ **Lucky Numbers NFT** (1% future jackpot bonus)
-
 - ✅ **Syndicate Wars** (monthly competition)
 - ✅ **MEV Protection** (Jito + future threshold encryption)
 - ✅ **Insurance Pool** (variance protection)

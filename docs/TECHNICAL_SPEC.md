@@ -2955,7 +2955,170 @@ export const DEVNET_CONFIG = {
 | Jackpot Cap | $1,750,000 | Rolldown trigger |
 | Seed Amount | $500,000 | Post-rolldown reset |
 
-### 12.4 Contact & Resources
+### 12.4 Prize Transition System — FIXED → PARI-MUTUEL
+
+> **🔒 CRITICAL OPERATOR PROTECTION:** All prizes START as FIXED amounts during normal operation, then TRANSITION to PARI-MUTUEL (shared pool) during rolldown events and high-volume draws. This hybrid system ensures **operator liability is ALWAYS CAPPED** while maintaining attractive +EV windows for players.
+
+To ensure protocol sustainability while maintaining player value, SolanaLotto implements a hybrid prize system where prizes transition from fixed amounts to pari-mutuel (shared pool) distribution based on draw volume and conditions.
+
+#### Fixed Prize Mode (Default) — NORMAL OPERATION
+
+During normal operation with moderate ticket sales, prizes are **FIXED predetermined amounts**:
+
+| Match Tier | Fixed Prize | Prize Mode | Operator Liability |
+|------------|-------------|------------|-------------------|
+| Match 5 | $4,000 | **FIXED** | Variable (depends on winners) |
+| Match 4 | $150 | **FIXED** | Variable (depends on winners) |
+| Match 3 | $5 | **FIXED** | Variable (depends on winners) |
+| Match 2 | $2.50 free ticket | **FIXED** | Variable (depends on winners) |
+
+Fixed prizes provide predictable player value and are funded by the fixed prize allocation (39.4% of prize pool).
+
+**⚠️ Risk:** With fixed prizes, high winner count = high liability. Example: 10,000 Match 4 winners × $150 = $1,500,000 liability.
+
+#### Pari-Mutuel Transition Triggers
+
+Prizes **automatically transition** to pari-mutuel distribution when:
+
+| Trigger | Condition | Effect |
+|---------|-----------|--------|
+| **Rolldown Event** | Jackpot ≥ $1.75M soft cap, no Match 6 winner | ALL prizes become pari-mutuel |
+| **High-Volume Draw** | (Winners × Fixed Prize) > Prize Pool Allocation | Affected tiers become pari-mutuel |
+| **Multiple Winners** | Winner count would exhaust fixed prize pool | Automatic pool sharing |
+
+#### Pari-Mutuel Prize Calculation — ROLLDOWN MODE
+
+For match tier $k$ with total pool $P_k$ and $W_k$ winners:
+
+$$PrizePerWinner_k = \frac{P_k}{W_k} = \frac{PoolShare_k \times Jackpot}{WinnerCount_k}$$
+
+**Rolldown Pool Allocation:**
+
+| Tier | Pool Share | Pool at $1.75M | Pool at $2.25M |
+|------|------------|----------------|----------------|
+| Match 5 | 25% | $437,500 | $562,500 |
+| Match 4 | 35% | $612,500 | $787,500 |
+| Match 3 | 40% | $700,000 | $900,000 |
+| **TOTAL** | **100%** | **$1,750,000** | **$2,250,000** |
+
+**🔒 OPERATOR PROTECTION:** Total payout = EXACTLY the jackpot amount. Operator liability is mathematically CAPPED regardless of ticket volume or winner count.
+
+#### Example: Why Pari-Mutuel Protects the Operator
+
+**Scenario: 700,000 tickets sold during rolldown**
+
+| Calculation | Fixed Prizes (Hypothetical) | Pari-Mutuel (Actual) |
+|-------------|----------------------------|---------------------|
+| Match 5 (~18 winners) | 18 × $4,000 = $72,000 | $437,500 ÷ 18 = ~$24,306/winner |
+| Match 4 (~875 winners) | 875 × $150 = $131,250 | $612,500 ÷ 875 = ~$700/winner |
+| Match 3 (~14,763 winners) | 14,763 × $5 = $73,815 | $700,000 ÷ 14,763 = ~$47/winner |
+| **TOTAL LIABILITY** | **$277,065 + jackpot** | **$1,750,000 (CAPPED)** |
+
+**Scenario: 2,000,000 tickets sold during rolldown (extreme volume)**
+
+| Calculation | Fixed Prizes (Hypothetical) | Pari-Mutuel (Actual) |
+|-------------|----------------------------|---------------------|
+| Match 5 (~51 winners) | 51 × $4,000 = $204,000 | $437,500 ÷ 51 = ~$8,578/winner |
+| Match 4 (~2,498 winners) | 2,498 × $150 = $374,700 | $612,500 ÷ 2,498 = ~$245/winner |
+| Match 3 (~42,180 winners) | 42,180 × $5 = $210,900 | $700,000 ÷ 42,180 = ~$17/winner |
+| **TOTAL LIABILITY** | **$789,600 + jackpot = UNBOUNDED** | **$1,750,000 (CAPPED)** |
+
+**🔒 KEY INSIGHT:** With pari-mutuel, higher volume = lower per-winner prizes, but operator liability STAYS CAPPED. This is the fundamental protection that makes the protocol sustainable at any scale.
+
+#### Implementation Benefits
+
+1. **🔒 Operator Loss Limitation**: Maximum liability = jackpot amount (CAPPED)
+2. **📈 Player Value Preservation**: +EV windows maintained during rolldown exploits
+3. **🏛️ Protocol Sustainability**: Viable regardless of volume spikes
+4. **⚖️ Fair Distribution**: All winners share pool proportionally
+5. **📊 Predictable Economics**: Operator can model worst-case scenarios precisely
+
+#### Smart Contract Implementation
+
+```rust
+/// Prize calculation mode
+pub enum PrizeMode {
+    Fixed,      // Fixed amount prizes (normal mode)
+    PariMutuel, // Shared pool distribution (rolldown mode)
+}
+
+/// Determine prize mode based on conditions
+pub fn determine_prize_mode(
+    is_rolldown: bool,
+    winner_count: u64,
+    fixed_prize: u64,
+    available_pool: u64,
+) -> PrizeMode {
+    // Rolldown always uses pari-mutuel
+    if is_rolldown {
+        return PrizeMode::PariMutuel;
+    }
+    
+    // Transition to pari-mutuel if fixed prizes exceed pool
+    if winner_count * fixed_prize > available_pool {
+        return PrizeMode::PariMutuel;
+    }
+    
+    PrizeMode::Fixed
+}
+
+/// Calculate prize based on mode
+pub fn calculate_prize(
+    match_tier: u8,
+    winner_count: u64,
+    total_pool: u64,
+    mode: PrizeMode
+) -> Result<u64> {
+    match mode {
+        PrizeMode::Fixed => match match_tier {
+            5 => Ok(MATCH_5_PRIZE),      // $4,000
+            4 => Ok(MATCH_4_PRIZE),      // $150
+            3 => Ok(MATCH_3_PRIZE),      // $5
+            2 => Ok(TICKET_PRICE),       // $2.50 free ticket
+            _ => Err(ErrorCode::InvalidMatchTier.into()),
+        },
+        PrizeMode::PariMutuel => {
+            if winner_count == 0 {
+                return Ok(0);
+            }
+            // 🔒 CAPPED LIABILITY: Prize = Pool ÷ Winners
+            Ok(total_pool / winner_count)
+        }
+    }
+}
+
+/// Calculate rolldown distribution (always pari-mutuel)
+pub fn calculate_rolldown_prizes(
+    jackpot: u64,
+    match_5_winners: u64,
+    match_4_winners: u64,
+    match_3_winners: u64,
+) -> RolldownPrizes {
+    let match_5_pool = jackpot * ROLLDOWN_MATCH_5_BPS as u64 / 10000; // 25%
+    let match_4_pool = jackpot * ROLLDOWN_MATCH_4_BPS as u64 / 10000; // 35%
+    let match_3_pool = jackpot * ROLLDOWN_MATCH_3_BPS as u64 / 10000; // 40%
+    
+    RolldownPrizes {
+        match_5_per_winner: if match_5_winners > 0 { match_5_pool / match_5_winners } else { 0 },
+        match_4_per_winner: if match_4_winners > 0 { match_4_pool / match_4_winners } else { 0 },
+        match_3_per_winner: if match_3_winners > 0 { match_3_pool / match_3_winners } else { 0 },
+        // 🔒 TOTAL = match_5_pool + match_4_pool + match_3_pool = jackpot (CAPPED)
+    }
+}
+```
+
+#### Quick Pick Express — Same Transition System
+
+Quick Pick Express (5/35) uses the identical Fixed → Pari-Mutuel transition:
+
+| Mode | Match 4 Prize | Match 3 Prize | Operator Liability |
+|------|---------------|---------------|-------------------|
+| **Normal (FIXED)** | $100 | $4 | Variable |
+| **Rolldown (PARI-MUTUEL)** | Pool ÷ Winners (~$3,000*) | Pool ÷ Winners (~$74*) | **CAPPED at $30k-$40k** |
+
+*Estimated at ~12,000 tickets. Actual = 60% or 40% of jackpot ÷ winner count.
+
+### 12.5 Contact & Resources
 
 | Resource | Link |
 |----------|------|
