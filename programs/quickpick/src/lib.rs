@@ -38,6 +38,9 @@ pub mod instructions;
 pub mod state;
 
 // Re-export everything needed by the program and clients
+// Note: Using glob exports as required by Anchor framework
+// Warnings about ambiguous re-exports are expected and acceptable
+#[allow(ambiguous_glob_reexports)]
 pub use constants::*;
 pub use errors::*;
 pub use events::*;
@@ -45,7 +48,17 @@ pub use state::*;
 
 // Re-export all instruction account structs at crate root (required by Anchor)
 #[allow(ambiguous_glob_reexports)]
-pub use instructions::*;
+pub use instructions::buy_ticket::*;
+#[allow(ambiguous_glob_reexports)]
+pub use instructions::claim_prize::*;
+#[allow(ambiguous_glob_reexports)]
+pub use instructions::commit_randomness::*;
+#[allow(ambiguous_glob_reexports)]
+pub use instructions::execute_draw::*;
+#[allow(ambiguous_glob_reexports)]
+pub use instructions::finalize_draw::*;
+#[allow(ambiguous_glob_reexports)]
+pub use instructions::initialize::*;
 
 // Program ID - Update this after deployment
 declare_id!("QPickExpressProgram111111111111111111111111");
