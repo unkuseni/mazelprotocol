@@ -1,0 +1,536 @@
+//! SolanaLotto Protocol - Constants
+//!
+//! This module contains all the configuration constants for the lottery protocol,
+//! including game parameters, fee tiers, prize structures, and system limits.
+
+// ============================================================================
+// PROGRAM SEEDS
+// ============================================================================
+
+/// PDA seed for the lottery state account
+pub const LOTTERY_SEED: &[u8] = b"lottery";
+/// PDA seed for individual tickets
+pub const TICKET_SEED: &[u8] = b"ticket";
+/// PDA seed for draw results
+pub const DRAW_SEED: &[u8] = b"draw";
+/// PDA seed for user statistics
+pub const USER_SEED: &[u8] = b"user";
+/// PDA seed for staking accounts (future feature)
+pub const STAKE_SEED: &[u8] = b"stake";
+/// PDA seed for syndicates
+pub const SYNDICATE_SEED: &[u8] = b"syndicate";
+/// PDA seed for lucky numbers NFTs
+pub const LUCKY_NUMBERS_SEED: &[u8] = b"lucky_numbers";
+/// PDA seed for quick pick express
+pub const QUICK_PICK_SEED: &[u8] = b"quick_pick";
+/// PDA seed for syndicate wars
+pub const SYNDICATE_WARS_SEED: &[u8] = b"syndicate_wars";
+/// PDA seed for prize pool USDC token account
+pub const PRIZE_POOL_USDC_SEED: &[u8] = b"prize_pool_usdc";
+/// PDA seed for house fee USDC token account
+pub const HOUSE_FEE_USDC_SEED: &[u8] = b"house_fee_usdc";
+/// PDA seed for insurance pool USDC token account
+pub const INSURANCE_POOL_USDC_SEED: &[u8] = b"insurance_pool_usdc";
+
+// ============================================================================
+// GAME PARAMETERS (Main 6/46 Lottery)
+// ============================================================================
+
+/// Ticket price in USDC lamports ($2.50 = 2,500,000 lamports with 6 decimals)
+pub const TICKET_PRICE: u64 = 2_500_000;
+
+/// Number of numbers to pick per ticket
+pub const NUMBERS_PER_TICKET: usize = 6;
+
+/// Minimum valid lottery number
+pub const MIN_NUMBER: u8 = 1;
+
+/// Maximum valid lottery number (6/46 matrix)
+pub const MAX_NUMBER: u8 = 46;
+
+/// Draw interval in seconds (24 hours)
+pub const DRAW_INTERVAL: i64 = 86400;
+
+/// Time before draw when ticket sales close (1 hour before draw)
+pub const TICKET_SALE_CUTOFF: i64 = 3600;
+
+// ============================================================================
+// DYNAMIC FEE TIERS
+// ============================================================================
+
+/// Fee tier 1 threshold: $500,000
+pub const FEE_TIER_1_THRESHOLD: u64 = 500_000_000_000;
+/// Fee tier 2 threshold: $1,000,000
+pub const FEE_TIER_2_THRESHOLD: u64 = 1_000_000_000_000;
+/// Fee tier 3 threshold: $1,500,000
+pub const FEE_TIER_3_THRESHOLD: u64 = 1_500_000_000_000;
+
+/// Fee tier 1: 28% (jackpot < $500k)
+pub const FEE_TIER_1_BPS: u16 = 2800;
+/// Fee tier 2: 32% ($500k - $1M)
+pub const FEE_TIER_2_BPS: u16 = 3200;
+/// Fee tier 3: 36% ($1M - $1.5M)
+pub const FEE_TIER_3_BPS: u16 = 3600;
+/// Fee tier 4: 40% (> $1.5M)
+pub const FEE_TIER_4_BPS: u16 = 4000;
+/// Fee during rolldown: 28%
+pub const FEE_ROLLDOWN_BPS: u16 = 2800;
+
+// ============================================================================
+// JACKPOT CAPS (Rolldown System)
+// ============================================================================
+
+/// Soft cap: $1,750,000 - Probabilistic rolldown begins
+pub const SOFT_CAP: u64 = 1_750_000_000_000;
+/// Hard cap: $2,250,000 - Forced rolldown
+pub const HARD_CAP: u64 = 2_250_000_000_000;
+/// Jackpot cap (same as soft cap for display purposes)
+pub const JACKPOT_CAP: u64 = 1_750_000_000_000;
+/// Initial seed amount: $500,000
+pub const SEED_AMOUNT: u64 = 500_000_000_000;
+
+// ============================================================================
+// PRIZE ALLOCATION (Basis Points - 10000 = 100%)
+// ============================================================================
+
+/// Jackpot allocation: 57.6%
+pub const JACKPOT_ALLOCATION_BPS: u16 = 5760;
+/// Fixed prize allocation: 39.4%
+pub const FIXED_PRIZE_ALLOCATION_BPS: u16 = 3940;
+/// Reserve allocation: 3%
+pub const RESERVE_ALLOCATION_BPS: u16 = 300;
+
+// ============================================================================
+// FIXED PRIZES (Normal Mode)
+// ============================================================================
+
+/// Match 5 prize: $4,000
+pub const MATCH_5_PRIZE: u64 = 4_000_000_000;
+/// Match 4 prize: $150
+pub const MATCH_4_PRIZE: u64 = 150_000_000;
+/// Match 3 prize: $5
+pub const MATCH_3_PRIZE: u64 = 5_000_000;
+/// Match 2 value: $2.50 (free ticket)
+pub const MATCH_2_VALUE: u64 = 2_500_000;
+
+// ============================================================================
+// ROLLDOWN ALLOCATION (Basis Points - Percentage of Jackpot)
+// ============================================================================
+
+/// Match 5 rolldown allocation: 25%
+pub const ROLLDOWN_MATCH_5_BPS: u16 = 2500;
+/// Match 4 rolldown allocation: 35%
+pub const ROLLDOWN_MATCH_4_BPS: u16 = 3500;
+/// Match 3 rolldown allocation: 40%
+pub const ROLLDOWN_MATCH_3_BPS: u16 = 4000;
+
+// ============================================================================
+// QUICK PICK EXPRESS PARAMETERS (5/35 Matrix)
+// ============================================================================
+
+/// Quick Pick ticket price: $1.50
+pub const QUICK_PICK_TICKET_PRICE: u64 = 1_500_000;
+/// Quick Pick: Pick 5 numbers
+pub const QUICK_PICK_NUMBERS: u8 = 5;
+/// Quick Pick: Range 1-35
+pub const QUICK_PICK_RANGE: u8 = 35;
+/// Quick Pick draw interval: 4 hours (14400 seconds)
+pub const QUICK_PICK_INTERVAL: i64 = 14400;
+
+/// Quick Pick minimum spend gate: $50 lifetime main lottery spend required
+pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000;
+
+/// Quick Pick seed amount: $5,000
+pub const QUICK_PICK_SEED_AMOUNT: u64 = 5_000_000_000;
+/// Quick Pick soft cap: $30,000
+pub const QUICK_PICK_SOFT_CAP: u64 = 30_000_000_000;
+/// Quick Pick hard cap: $40,000
+pub const QUICK_PICK_HARD_CAP: u64 = 40_000_000_000;
+
+// Quick Pick Fee Tiers
+pub const QUICK_PICK_FEE_TIER_1_THRESHOLD: u64 = 10_000_000_000; // $10,000
+pub const QUICK_PICK_FEE_TIER_2_THRESHOLD: u64 = 20_000_000_000; // $20,000
+pub const QUICK_PICK_FEE_TIER_3_THRESHOLD: u64 = 30_000_000_000; // $30,000
+pub const QUICK_PICK_FEE_TIER_1_BPS: u16 = 3000; // 30%
+pub const QUICK_PICK_FEE_TIER_2_BPS: u16 = 3300; // 33%
+pub const QUICK_PICK_FEE_TIER_3_BPS: u16 = 3600; // 36%
+pub const QUICK_PICK_FEE_TIER_4_BPS: u16 = 3800; // 38%
+pub const QUICK_PICK_FEE_ROLLDOWN_BPS: u16 = 2800; // 28%
+
+// Quick Pick Fixed Prizes (Normal Mode)
+pub const QUICK_PICK_MATCH_4_PRIZE: u64 = 100_000_000; // $100
+pub const QUICK_PICK_MATCH_3_PRIZE: u64 = 4_000_000; // $4
+
+// Quick Pick Rolldown Allocation
+pub const QUICK_PICK_ROLLDOWN_MATCH_4_BPS: u16 = 6000; // 60%
+pub const QUICK_PICK_ROLLDOWN_MATCH_3_BPS: u16 = 4000; // 40%
+
+// Quick Pick Prize Pool Allocation
+pub const QUICK_PICK_JACKPOT_ALLOCATION_BPS: u16 = 6000; // 60%
+pub const QUICK_PICK_FIXED_PRIZE_ALLOCATION_BPS: u16 = 3700; // 37%
+pub const QUICK_PICK_INSURANCE_ALLOCATION_BPS: u16 = 300; // 3%
+
+// ============================================================================
+// ADVANCED FEATURES
+// ============================================================================
+
+/// Lucky Numbers NFT bonus: 1% of jackpot
+pub const LUCKY_NUMBERS_BONUS_BPS: u16 = 100;
+/// Minimum match tier to receive Lucky Numbers NFT
+pub const LUCKY_NUMBERS_MIN_MATCH: u8 = 4;
+
+/// Syndicate Wars prize pool allocation: 1% of monthly sales
+pub const SYNDICATE_WARS_POOL_BPS: u16 = 100;
+/// Minimum tickets to qualify for Syndicate Wars
+pub const SYNDICATE_WARS_MIN_TICKETS: u64 = 1000;
+
+// ============================================================================
+// SYSTEM LIMITS
+// ============================================================================
+
+/// Maximum tickets per bulk purchase
+pub const MAX_BULK_TICKETS: usize = 10;
+/// Maximum members per syndicate
+pub const MAX_SYNDICATE_MEMBERS: usize = 100;
+/// Maximum syndicate name length (UTF-8 bytes)
+pub const MAX_SYNDICATE_NAME_LENGTH: usize = 32;
+/// Maximum manager fee for syndicates: 5%
+pub const MAX_MANAGER_FEE_BPS: u16 = 500;
+/// Maximum tickets per draw per user
+pub const MAX_TICKETS_PER_DRAW_PER_USER: u64 = 1000;
+/// Basis points denominator
+pub const BPS_DENOMINATOR: u64 = 10000;
+
+// ============================================================================
+// ACCOUNT SIZES
+// ============================================================================
+
+/// LotteryState account size
+pub const LOTTERY_STATE_SIZE: usize = 8 + // discriminator
+    32 + // authority
+    32 + // switchboard_queue
+    32 + // current_randomness_account
+    8 +  // current_draw_id
+    8 +  // jackpot_balance
+    8 +  // reserve_balance
+    8 +  // insurance_balance
+    8 +  // ticket_price
+    2 +  // house_fee_bps
+    8 +  // jackpot_cap
+    8 +  // seed_amount
+    8 +  // soft_cap
+    8 +  // hard_cap
+    8 +  // next_draw_timestamp
+    8 +  // commit_slot
+    8 +  // current_draw_tickets
+    8 +  // total_tickets_sold
+    8 +  // total_prizes_paid
+    1 +  // is_draw_in_progress
+    1 +  // is_rolldown_active
+    1 +  // is_paused
+    1 +  // bump
+    64; // padding for future use
+
+/// DrawResult account size
+pub const DRAW_RESULT_SIZE: usize = 8 + // discriminator
+    8 +  // draw_id
+    6 +  // winning_numbers
+    64 + // randomness_proof (32 bytes for signature + 32 padding)
+    8 +  // timestamp
+    8 +  // total_tickets
+    1 +  // was_rolldown
+    4 +  // match_6_winners
+    4 +  // match_5_winners
+    4 +  // match_4_winners
+    4 +  // match_3_winners
+    4 +  // match_2_winners
+    8 +  // match_6_prize_per_winner
+    8 +  // match_5_prize_per_winner
+    8 +  // match_4_prize_per_winner
+    8 +  // match_3_prize_per_winner
+    8 +  // match_2_prize_per_winner
+    1 +  // bump
+    32; // padding
+
+/// Ticket account size
+pub const TICKET_SIZE: usize = 8 + // discriminator
+    32 + // owner
+    8 +  // draw_id
+    6 +  // numbers
+    8 +  // purchase_timestamp
+    1 +  // is_claimed
+    1 +  // match_count
+    8 +  // prize_amount
+    33 + // syndicate (Option<Pubkey>)
+    1 +  // bump
+    8; // padding
+
+/// UserStats account size
+pub const USER_STATS_SIZE: usize = 8 + // discriminator
+    32 + // wallet
+    8 +  // total_tickets
+    8 +  // total_spent
+    8 +  // total_won
+    4 +  // current_streak
+    4 +  // best_streak
+    4 +  // jackpot_wins
+    8 +  // last_draw_participated
+    1 +  // bump
+    16; // padding
+
+/// Syndicate base account size (without members)
+pub const SYNDICATE_BASE_SIZE: usize = 8 + // discriminator
+    32 + // creator
+    8 +  // syndicate_id
+    32 + // name
+    1 +  // is_public
+    4 +  // member_count
+    8 +  // total_contribution
+    2 +  // manager_fee_bps
+    4 +  // members vec length
+    1 +  // bump
+    16; // padding
+
+/// Size per syndicate member
+pub const SYNDICATE_MEMBER_SIZE: usize = 32 + // wallet
+    8 +  // contribution
+    2; // share_percentage_bps
+
+/// Quick Pick state account size
+pub const QUICK_PICK_STATE_SIZE: usize = 8 + // discriminator
+    8 +  // current_draw
+    8 +  // ticket_price
+    1 +  // pick_count
+    1 +  // number_range
+    2 +  // house_fee_bps
+    8 +  // draw_interval
+    8 +  // next_draw_timestamp
+    8 +  // jackpot_balance
+    8 +  // soft_cap
+    8 +  // hard_cap
+    8 +  // seed_amount
+    8 +  // match_4_prize
+    8 +  // match_3_prize
+    8 +  // current_draw_tickets
+    8 +  // prize_pool_balance
+    8 +  // insurance_balance
+    1 +  // is_rolldown_pending
+    1 +  // is_paused
+    1 +  // bump
+    32; // padding
+
+/// Quick Pick ticket size
+pub const QUICK_PICK_TICKET_SIZE: usize = 8 + // discriminator
+    32 + // owner
+    8 +  // draw_id
+    5 +  // numbers (5 numbers for 5/35)
+    8 +  // purchase_timestamp
+    1 +  // is_claimed
+    1 +  // match_count
+    8 +  // prize_amount
+    1 +  // bump
+    8; // padding
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/// Calculate dynamic house fee based on jackpot level
+pub fn calculate_house_fee_bps(jackpot_balance: u64, is_rolldown: bool) -> u16 {
+    if is_rolldown {
+        return FEE_ROLLDOWN_BPS;
+    }
+
+    if jackpot_balance < FEE_TIER_1_THRESHOLD {
+        FEE_TIER_1_BPS
+    } else if jackpot_balance < FEE_TIER_2_THRESHOLD {
+        FEE_TIER_2_BPS
+    } else if jackpot_balance < FEE_TIER_3_THRESHOLD {
+        FEE_TIER_3_BPS
+    } else {
+        FEE_TIER_4_BPS
+    }
+}
+
+/// Calculate Quick Pick dynamic house fee based on jackpot level
+pub fn calculate_quick_pick_house_fee_bps(jackpot_balance: u64, is_rolldown: bool) -> u16 {
+    if is_rolldown {
+        return QUICK_PICK_FEE_ROLLDOWN_BPS;
+    }
+
+    if jackpot_balance < QUICK_PICK_FEE_TIER_1_THRESHOLD {
+        QUICK_PICK_FEE_TIER_1_BPS
+    } else if jackpot_balance < QUICK_PICK_FEE_TIER_2_THRESHOLD {
+        QUICK_PICK_FEE_TIER_2_BPS
+    } else if jackpot_balance < QUICK_PICK_FEE_TIER_3_THRESHOLD {
+        QUICK_PICK_FEE_TIER_3_BPS
+    } else {
+        QUICK_PICK_FEE_TIER_4_BPS
+    }
+}
+
+/// Calculate rolldown probability (basis points) based on jackpot level
+/// Returns value between 0 and 10000 (0% to 100%)
+pub fn calculate_rolldown_probability_bps(jackpot_balance: u64) -> u16 {
+    if jackpot_balance < SOFT_CAP {
+        return 0;
+    }
+
+    if jackpot_balance >= HARD_CAP {
+        return BPS_DENOMINATOR as u16; // 100%
+    }
+
+    // Linear interpolation between soft cap and hard cap
+    let excess = jackpot_balance.saturating_sub(SOFT_CAP);
+    let range = HARD_CAP.saturating_sub(SOFT_CAP);
+
+    if range == 0 {
+        return BPS_DENOMINATOR as u16;
+    }
+
+    ((excess * BPS_DENOMINATOR) / range) as u16
+}
+
+/// Validate lottery numbers (6/46 matrix)
+pub fn validate_lottery_numbers(numbers: &[u8; 6]) -> bool {
+    // Check range
+    for &num in numbers.iter() {
+        if num < MIN_NUMBER || num > MAX_NUMBER {
+            return false;
+        }
+    }
+
+    // Check uniqueness (assumes sorted or will sort)
+    let mut sorted = *numbers;
+    sorted.sort();
+    for i in 0..5 {
+        if sorted[i] == sorted[i + 1] {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Validate Quick Pick numbers (5/35 matrix)
+pub fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> bool {
+    // Check range
+    for &num in numbers.iter() {
+        if num < MIN_NUMBER || num > QUICK_PICK_RANGE {
+            return false;
+        }
+    }
+
+    // Check uniqueness
+    let mut sorted = *numbers;
+    sorted.sort();
+    for i in 0..4 {
+        if sorted[i] == sorted[i + 1] {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Calculate match count between ticket numbers and winning numbers
+pub fn calculate_match_count(ticket_numbers: &[u8], winning_numbers: &[u8]) -> u8 {
+    let mut matches = 0;
+    for &num in ticket_numbers.iter() {
+        if winning_numbers.contains(&num) {
+            matches += 1;
+        }
+    }
+    matches
+}
+
+/// Calculate fixed prize amount based on match count (Normal Mode)
+pub fn calculate_fixed_prize(match_count: u8) -> u64 {
+    match match_count {
+        5 => MATCH_5_PRIZE,
+        4 => MATCH_4_PRIZE,
+        3 => MATCH_3_PRIZE,
+        2 => MATCH_2_VALUE, // Free ticket
+        _ => 0,
+    }
+}
+
+/// Calculate Quick Pick fixed prize based on match count
+pub fn calculate_quick_pick_fixed_prize(match_count: u8) -> u64 {
+    match match_count {
+        4 => QUICK_PICK_MATCH_4_PRIZE,
+        3 => QUICK_PICK_MATCH_3_PRIZE,
+        _ => 0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_lottery_numbers_valid() {
+        let valid_numbers = [1, 10, 20, 30, 40, 46];
+        assert!(validate_lottery_numbers(&valid_numbers));
+    }
+
+    #[test]
+    fn test_validate_lottery_numbers_out_of_range() {
+        let invalid_numbers = [0, 10, 20, 30, 40, 46]; // 0 is invalid
+        assert!(!validate_lottery_numbers(&invalid_numbers));
+
+        let invalid_numbers = [1, 10, 20, 30, 40, 47]; // 47 is invalid
+        assert!(!validate_lottery_numbers(&invalid_numbers));
+    }
+
+    #[test]
+    fn test_validate_lottery_numbers_duplicates() {
+        let duplicate_numbers = [1, 10, 10, 30, 40, 46];
+        assert!(!validate_lottery_numbers(&duplicate_numbers));
+    }
+
+    #[test]
+    fn test_calculate_match_count() {
+        let ticket = [1, 2, 3, 4, 5, 6];
+        let winning = [1, 2, 3, 7, 8, 9];
+        assert_eq!(calculate_match_count(&ticket, &winning), 3);
+
+        let winning_all = [1, 2, 3, 4, 5, 6];
+        assert_eq!(calculate_match_count(&ticket, &winning_all), 6);
+
+        let winning_none = [7, 8, 9, 10, 11, 12];
+        assert_eq!(calculate_match_count(&ticket, &winning_none), 0);
+    }
+
+    #[test]
+    fn test_calculate_house_fee_bps() {
+        assert_eq!(calculate_house_fee_bps(0, false), FEE_TIER_1_BPS);
+        assert_eq!(
+            calculate_house_fee_bps(500_000_000_000, false),
+            FEE_TIER_2_BPS
+        );
+        assert_eq!(
+            calculate_house_fee_bps(1_000_000_000_000, false),
+            FEE_TIER_3_BPS
+        );
+        assert_eq!(
+            calculate_house_fee_bps(2_000_000_000_000, false),
+            FEE_TIER_4_BPS
+        );
+        assert_eq!(
+            calculate_house_fee_bps(2_000_000_000_000, true),
+            FEE_ROLLDOWN_BPS
+        );
+    }
+
+    #[test]
+    fn test_calculate_rolldown_probability_bps() {
+        assert_eq!(calculate_rolldown_probability_bps(0), 0);
+        assert_eq!(calculate_rolldown_probability_bps(SOFT_CAP), 0);
+        assert_eq!(calculate_rolldown_probability_bps(HARD_CAP), 10000);
+
+        // At midpoint between soft and hard cap, probability should be 50%
+        let midpoint = SOFT_CAP + (HARD_CAP - SOFT_CAP) / 2;
+        assert_eq!(calculate_rolldown_probability_bps(midpoint), 5000);
+    }
+}
