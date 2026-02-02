@@ -1035,8 +1035,9 @@ mod tests {
         assert_eq!(result.match_3_prize, 0);
         assert_eq!(result.match_2_prize, MATCH_2_VALUE);
 
-        // All funds should go to undistributed (reserve)
-        assert_eq!(result.undistributed, jackpot);
+        // FIXED: When no winners in any tier, jackpot is PRESERVED (not moved to undistributed)
+        // This prevents the jackpot from being lost to reserve when rolldown triggers but no one wins
+        assert_eq!(result.undistributed, 0);
 
         // Only Match 2 (free tickets) in total distributed
         // Note: Match 2 is a free ticket credit, not actual USDC transfer
