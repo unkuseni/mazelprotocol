@@ -443,11 +443,6 @@ pub fn calculate_rolldown_probability_bps(jackpot_balance: u64) -> u16 {
 
 /// Validate lottery numbers (6/46 matrix)
 pub fn validate_lottery_numbers(numbers: &[u8; 6]) -> bool {
-    // Check array length
-    if numbers.len() != 6 {
-        return false;
-    }
-
     // Check range for each number
     for &num in numbers.iter() {
         if num < MIN_NUMBER || num > MAX_NUMBER {
@@ -455,22 +450,15 @@ pub fn validate_lottery_numbers(numbers: &[u8; 6]) -> bool {
         }
     }
 
-    // Check uniqueness (assumes sorted or will sort)
+    // Check uniqueness by sorting and comparing adjacent elements
     let mut sorted = *numbers;
     sorted.sort();
 
-    // Verify sorting worked correctly (should be ascending)
+    // Verify all numbers are unique and sorted
     for i in 0..5 {
         if sorted[i] >= sorted[i + 1] {
             return false; // Duplicate or not properly sorted
         }
-    }
-
-    // Additional check: ensure all numbers are distinct using HashSet
-    use std::collections::HashSet;
-    let unique_numbers: HashSet<u8> = numbers.iter().cloned().collect();
-    if unique_numbers.len() != 6 {
-        return false;
     }
 
     true
@@ -478,11 +466,6 @@ pub fn validate_lottery_numbers(numbers: &[u8; 6]) -> bool {
 
 /// Validate Quick Pick numbers (5/35 matrix)
 pub fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> bool {
-    // Check array length
-    if numbers.len() != 5 {
-        return false;
-    }
-
     // Check range for each number
     for &num in numbers.iter() {
         if num < MIN_NUMBER || num > QUICK_PICK_RANGE {
@@ -490,22 +473,15 @@ pub fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> bool {
         }
     }
 
-    // Check uniqueness
+    // Check uniqueness by sorting and comparing adjacent elements
     let mut sorted = *numbers;
     sorted.sort();
 
-    // Verify sorting worked correctly (should be ascending)
+    // Verify all numbers are unique and sorted
     for i in 0..4 {
         if sorted[i] >= sorted[i + 1] {
             return false; // Duplicate or not properly sorted
         }
-    }
-
-    // Additional check: ensure all numbers are distinct using HashSet
-    use std::collections::HashSet;
-    let unique_numbers: HashSet<u8> = numbers.iter().cloned().collect();
-    if unique_numbers.len() != 5 {
-        return false;
     }
 
     true

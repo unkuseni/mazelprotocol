@@ -135,8 +135,21 @@ fn generate_winning_numbers(randomness: &[u8; 32]) -> [u8; 6] {
     for i in 0..6 {
         // Use different portions of the hash for each number
         let hash_idx = (i * 4) % hash_bytes.len();
-        let hash_slice = &hash_bytes[hash_idx..hash_idx + 4];
-        let rand_val = u32::from_le_bytes(hash_slice.try_into().unwrap());
+
+        // Ensure we have at least 4 bytes available for the slice
+        let rand_val = if hash_idx + 4 <= hash_bytes.len() {
+            let hash_slice = &hash_bytes[hash_idx..hash_idx + 4];
+            // Safe to unwrap because we know slice length is exactly 4
+            u32::from_le_bytes(hash_slice.try_into().expect("Hash slice should be 4 bytes"))
+        } else {
+            // Fallback: use a deterministic value based on hash_idx
+            // Combine remaining bytes with zeros if needed
+            let mut bytes = [0u8; 4];
+            let remaining = hash_bytes.len() - hash_idx;
+            bytes[..remaining.min(4)]
+                .copy_from_slice(&hash_bytes[hash_idx..hash_idx + remaining.min(4)]);
+            u32::from_le_bytes(bytes)
+        };
 
         // Find an available number
         let mut attempts = 0;
@@ -145,7 +158,10 @@ fn generate_winning_numbers(randomness: &[u8; 32]) -> [u8; 6] {
             let candidate =
                 ((rand_val.wrapping_add(attempts as u32) % MAX_NUMBER as u32) + 1) as u8;
 
-            if available_numbers[candidate as usize - 1] {
+            if candidate >= 1
+                && candidate <= MAX_NUMBER
+                && available_numbers[candidate as usize - 1]
+            {
                 winning_numbers[i] = candidate;
                 available_numbers[candidate as usize - 1] = false;
                 break;
@@ -167,8 +183,26 @@ fn generate_winning_numbers(randomness: &[u8; 32]) -> [u8; 6] {
         }
     }
 
-    // Sort the numbers
+    // Sort the numbers and ensure no zeros
     winning_numbers.sort();
+
+    // Final validation: ensure all numbers are valid (1-46) and unique
+    for &num in &winning_numbers {
+        if num < 1 || num > MAX_NUMBER {
+            // This should never happen, but if it does, use safe defaults
+            return [1, 2, 3, 4, 5, 6];
+        }
+    }
+
+    // Check for duplicates (shouldn't happen with our algorithm)
+    let mut seen = [false; MAX_NUMBER as usize];
+    for &num in &winning_numbers {
+        if seen[num as usize - 1] {
+            // Duplicate found, use safe defaults
+            return [1, 2, 3, 4, 5, 6];
+        }
+        seen[num as usize - 1] = true;
+    }
 
     winning_numbers
 }
@@ -200,9 +234,18 @@ fn should_trigger_rolldown(randomness: &[u8; 32], probability_bps: u16) -> bool 
     let hash_result = hasher.finalize();
     let hash_bytes = hash_result.as_slice();
 
-    // Use first 4 bytes of hash for the roll
-    let roll_bytes: [u8; 4] = hash_bytes[0..4].try_into().unwrap();
-    let roll = u32::from_le_bytes(roll_bytes);
+    // Use first 4 bytes of hash for the roll, with bounds checking
+    let roll = if hash_bytes.len() >= 4 {
+        let roll_bytes: [u8; 4] = hash_bytes[0..4]
+            .try_into()
+            .expect("Hash slice should be 4 bytes");
+        u32::from_le_bytes(roll_bytes)
+    } else {
+        // Fallback: pad with zeros if hash is too short
+        let mut bytes = [0u8; 4];
+        bytes[..hash_bytes.len()].copy_from_slice(hash_bytes);
+        u32::from_le_bytes(bytes)
+    };
 
     // Calculate threshold (0-9999)
     let threshold = roll % 10000;
