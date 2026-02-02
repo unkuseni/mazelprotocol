@@ -866,10 +866,12 @@ pub fn handler_transfer_authority(ctx: Context<TransferAuthority>) -> Result<()>
 /// Source of funds for emergency transfer
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub enum FundSource {
-    /// Transfer from reserve pool
+    /// Transfer from reserve pool (accounting adjustment only - reserve funds are in prize pool)
     Reserve,
-    /// Transfer from insurance pool
+    /// Transfer from insurance pool (actual USDC transfer from insurance account)
     Insurance,
+    /// Transfer from prize pool directly
+    PrizePool,
 }
 
 /// Accounts required for emergency fund transfer
@@ -889,26 +891,38 @@ pub struct EmergencyFundTransfer<'info> {
     )]
     pub lottery_state: Account<'info, LotteryState>,
 
-    /// Source USDC token account (reserve or insurance pool)
-    #[account(mut)]
-    pub source_usdc: Account<'info, TokenAccount>,
+    /// Insurance pool USDC token account (source for Insurance transfers)
+    #[account(
+        mut,
+        seeds = [INSURANCE_POOL_USDC_SEED],
+        bump
+    )]
+    pub insurance_pool_usdc: Account<'info, TokenAccount>,
 
-    /// Destination USDC token account (prize pool)
+    /// Prize pool USDC token account (source for PrizePool transfers, destination for Insurance)
     #[account(
         mut,
         seeds = [PRIZE_POOL_USDC_SEED],
         bump
     )]
+    pub prize_pool_usdc: Account<'info, TokenAccount>,
+
+    /// External destination USDC token account (for emergency withdrawals)
+    #[account(mut)]
     pub destination_usdc: Account<'info, TokenAccount>,
 
     /// Token program
     pub token_program: Program<'info, Token>,
 }
 
-/// Emergency transfer funds from reserve or insurance pool to prize pool
+/// Emergency transfer funds between pools or to external destination
 ///
-/// This instruction allows the authority to transfer funds from reserve
-/// or insurance pools to the prize pool during insolvency emergencies.
+/// This instruction allows the authority to transfer funds during emergencies:
+/// - Reserve: Accounting adjustment only (reserve funds are tracked in lottery_state
+///   but the actual USDC is in the prize pool). Moves funds from reserve accounting
+///   to jackpot accounting within the prize pool.
+/// - Insurance: Transfers actual USDC from insurance pool to prize pool.
+/// - PrizePool: Transfers USDC from prize pool to external destination (emergency withdrawal).
 ///
 /// # Security Requirements:
 /// - Only callable by authority
@@ -919,7 +933,7 @@ pub struct EmergencyFundTransfer<'info> {
 ///
 /// # Arguments
 /// * `ctx` - The context containing required accounts
-/// * `source` - Source of funds (Reserve or Insurance)
+/// * `source` - Source of funds (Reserve, Insurance, or PrizePool)
 /// * `amount` - Amount to transfer in USDC lamports
 /// * `reason` - Reason for emergency transfer (logged)
 ///
@@ -939,61 +953,100 @@ pub fn handler_emergency_fund_transfer(
         LottoError::InvalidDrawState
     );
 
-    // Validate source account matches the requested source
-    let expected_source_pubkey = match source {
-        FundSource::Reserve => {
-            Pubkey::find_program_address(&[PRIZE_POOL_USDC_SEED], &ctx.program_id).0
-        }
-        FundSource::Insurance => {
-            Pubkey::find_program_address(&[INSURANCE_POOL_USDC_SEED], &ctx.program_id).0
-        }
-    };
-    require!(
-        ctx.accounts.source_usdc.key() == expected_source_pubkey,
-        LottoError::InvalidTokenAccount
-    );
-
     // Validate amount
     require!(amount > 0, LottoError::InsufficientFunds);
-    require!(
-        amount <= ctx.accounts.source_usdc.amount,
-        LottoError::InsufficientFunds
-    );
 
-    // Transfer from source to destination
-    let seeds = &[LOTTERY_SEED, &[ctx.accounts.lottery_state.bump]];
+    let lottery_state = &mut ctx.accounts.lottery_state;
+    let seeds = &[LOTTERY_SEED, &[lottery_state.bump]];
     let signer_seeds = &[&seeds[..]];
 
-    let cpi_accounts = Transfer {
-        from: ctx.accounts.source_usdc.to_account_info(),
-        to: ctx.accounts.destination_usdc.to_account_info(),
-        authority: ctx.accounts.lottery_state.to_account_info(),
-    };
-    let cpi_program = ctx.accounts.token_program.to_account_info();
-    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-
-    token::transfer(cpi_ctx, amount)?;
-
-    // Update lottery state balances
-    let lottery_state = &mut ctx.accounts.lottery_state;
-    let balance_before = match source {
-        FundSource::Reserve => lottery_state.reserve_balance,
-        FundSource::Insurance => lottery_state.insurance_balance,
-    };
-
-    match source {
+    let (balance_before, balance_after, transfer_description) = match source {
         FundSource::Reserve => {
+            // Reserve is just accounting - the USDC is already in the prize pool
+            // This moves funds from reserve accounting to jackpot accounting
+            let before = lottery_state.reserve_balance;
+            require!(
+                amount <= lottery_state.reserve_balance,
+                LottoError::InsufficientFunds
+            );
+
+            // Move from reserve accounting to jackpot accounting
             lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(amount);
+            lottery_state.jackpot_balance = lottery_state
+                .jackpot_balance
+                .checked_add(amount)
+                .ok_or(LottoError::Overflow)?;
+
+            let after = lottery_state.reserve_balance;
+            (before, after, "reserve_to_jackpot_accounting".to_string())
         }
         FundSource::Insurance => {
+            // Insurance has its own token account - transfer actual USDC to prize pool
+            let before = lottery_state.insurance_balance;
+            require!(
+                amount <= ctx.accounts.insurance_pool_usdc.amount,
+                LottoError::InsufficientFunds
+            );
+            require!(
+                amount <= lottery_state.insurance_balance,
+                LottoError::InsufficientFunds
+            );
+
+            // Transfer USDC from insurance to prize pool
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.insurance_pool_usdc.to_account_info(),
+                to: ctx.accounts.prize_pool_usdc.to_account_info(),
+                authority: lottery_state.to_account_info(),
+            };
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+            token::transfer(cpi_ctx, amount)?;
+
+            // Update accounting
             lottery_state.insurance_balance =
                 lottery_state.insurance_balance.saturating_sub(amount);
-        }
-    }
+            // Add to jackpot to make it available for prizes
+            lottery_state.jackpot_balance = lottery_state
+                .jackpot_balance
+                .checked_add(amount)
+                .ok_or(LottoError::Overflow)?;
 
-    let balance_after = match source {
-        FundSource::Reserve => lottery_state.reserve_balance,
-        FundSource::Insurance => lottery_state.insurance_balance,
+            let after = lottery_state.insurance_balance;
+            (before, after, "insurance_to_prize_pool".to_string())
+        }
+        FundSource::PrizePool => {
+            // Emergency withdrawal from prize pool to external destination
+            let before = ctx.accounts.prize_pool_usdc.amount;
+            require!(
+                amount <= ctx.accounts.prize_pool_usdc.amount,
+                LottoError::InsufficientFunds
+            );
+
+            // Transfer USDC from prize pool to external destination
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.prize_pool_usdc.to_account_info(),
+                to: ctx.accounts.destination_usdc.to_account_info(),
+                authority: lottery_state.to_account_info(),
+            };
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+            token::transfer(cpi_ctx, amount)?;
+
+            // Reduce jackpot balance (or reserve if jackpot insufficient)
+            if lottery_state.jackpot_balance >= amount {
+                lottery_state.jackpot_balance =
+                    lottery_state.jackpot_balance.saturating_sub(amount);
+            } else {
+                let from_jackpot = lottery_state.jackpot_balance;
+                let from_reserve = amount.saturating_sub(from_jackpot);
+                lottery_state.jackpot_balance = 0;
+                lottery_state.reserve_balance =
+                    lottery_state.reserve_balance.saturating_sub(from_reserve);
+            }
+
+            let after = ctx.accounts.prize_pool_usdc.amount.saturating_sub(amount);
+            (before, after, "prize_pool_to_external".to_string())
+        }
     };
 
     // Emit dedicated emergency fund transfer event for comprehensive audit trail
@@ -1001,31 +1054,37 @@ pub fn handler_emergency_fund_transfer(
         draw_id: lottery_state.current_draw_id,
         source: format!("{:?}", source),
         amount,
-        destination: "prize_pool".to_string(),
+        destination: transfer_description.clone(),
         reason: reason.clone(),
         authority: ctx.accounts.authority.key(),
         timestamp: clock.unix_timestamp,
     });
 
-    // Also emit insurance pool funded event for backward compatibility
-    emit!(InsurancePoolFunded {
-        amount,
-        new_balance: balance_after,
-        source: format!("emergency_transfer_{:?}", source),
-        timestamp: clock.unix_timestamp,
-    });
+    // Also emit insurance pool funded event for backward compatibility (when applicable)
+    if matches!(source, FundSource::Insurance) {
+        emit!(InsurancePoolFunded {
+            amount,
+            new_balance: balance_after,
+            source: format!("emergency_transfer_{:?}", source),
+            timestamp: clock.unix_timestamp,
+        });
+    }
 
     msg!("⚠️  EMERGENCY FUND TRANSFER executed!");
     msg!("  Authority: {}", ctx.accounts.authority.key());
     msg!("  Draw ID: {}", lottery_state.current_draw_id);
     msg!("  Source: {:?}", source);
+    msg!("  Transfer type: {}", transfer_description);
     msg!("  Amount: {} USDC lamports", amount);
     msg!("  Reason: {}", reason);
     msg!("  Balance before: {} USDC lamports", balance_before);
     msg!("  Balance after: {} USDC lamports", balance_after);
-    msg!("  Funds transferred to prize pool for prize distribution");
     msg!("");
     msg!("  📊 Current Fund Status:");
+    msg!(
+        "    Jackpot balance: {} USDC lamports",
+        lottery_state.jackpot_balance
+    );
     msg!(
         "    Reserve balance: {} USDC lamports",
         lottery_state.reserve_balance

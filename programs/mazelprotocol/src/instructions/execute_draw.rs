@@ -303,14 +303,26 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
         .accounts
         .get_revealed_randomness(clock.slot, commit_slot)?;
 
-    // FIXED: Additional security check - verify randomness is not all zeros or predictable pattern
-    let is_valid_randomness = randomness.iter().any(|&b| b != 0)
-        && randomness
-            .iter()
-            .collect::<std::collections::HashSet<_>>()
-            .len()
-            > 1;
-    require!(is_valid_randomness, LottoError::InvalidRandomnessProof);
+    // FIXED: Stronger security check - verify randomness has sufficient entropy
+    // Require at least 8 unique bytes out of 32 (25% uniqueness minimum)
+    // This protects against:
+    // 1. All zeros pattern
+    // 2. Repeating single byte patterns
+    // 3. Low entropy patterns that could be predictable
+    let unique_bytes: std::collections::HashSet<_> = randomness.iter().collect();
+    let unique_count = unique_bytes.len();
+
+    // Also check that randomness is not mostly zeros (at least 4 non-zero bytes)
+    let non_zero_count = randomness.iter().filter(|&&b| b != 0).count();
+
+    let is_valid_randomness = unique_count >= 8 && non_zero_count >= 4;
+
+    if !is_valid_randomness {
+        msg!("Invalid randomness detected!");
+        msg!("  Unique bytes: {} (minimum 8 required)", unique_count);
+        msg!("  Non-zero bytes: {} (minimum 4 required)", non_zero_count);
+        return Err(LottoError::InvalidRandomnessProof.into());
+    }
 
     // Generate winning numbers
     let winning_numbers = generate_winning_numbers(&randomness);

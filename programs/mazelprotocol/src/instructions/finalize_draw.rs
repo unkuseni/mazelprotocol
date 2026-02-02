@@ -274,90 +274,94 @@ fn calculate_rolldown_prizes(
     let tiers_with_winners = (has_match_5 as u8) + (has_match_4 as u8) + (has_match_3 as u8);
 
     // FIXED: Redistribute funds from empty tiers to tiers with winners
-    let (match_5_pool, match_4_pool, match_3_pool, undistributed) = if tiers_with_winners == 0 {
-        // No winners in any tier - all funds go to reserve/undistributed
-        (0u64, 0u64, 0u64, jackpot_balance)
-    } else if tiers_with_winners == 3 {
-        // All tiers have winners - use initial allocations
-        (
-            initial_match_5_pool,
-            initial_match_4_pool,
-            initial_match_3_pool,
-            0u64,
-        )
-    } else {
-        // Some tiers empty - redistribute their allocations
-        let mut redistributable = 0u64;
+    // If NO winners at all, jackpot stays in jackpot (not moved to reserve)
+    let (match_5_pool, match_4_pool, match_3_pool, undistributed, keep_jackpot) =
+        if tiers_with_winners == 0 {
+            // No winners in any tier - jackpot stays as jackpot for next draw
+            // This prevents the jackpot from being moved to reserve and lost
+            (0u64, 0u64, 0u64, 0u64, true)
+        } else if tiers_with_winners == 3 {
+            // All tiers have winners - use initial allocations
+            (
+                initial_match_5_pool,
+                initial_match_4_pool,
+                initial_match_3_pool,
+                0u64,
+                false,
+            )
+        } else {
+            // Some tiers empty - redistribute their allocations
+            let mut redistributable = 0u64;
 
-        if !has_match_5 {
-            redistributable += initial_match_5_pool;
-        }
-        if !has_match_4 {
-            redistributable += initial_match_4_pool;
-        }
-        if !has_match_3 {
-            redistributable += initial_match_3_pool;
-        }
+            if !has_match_5 {
+                redistributable += initial_match_5_pool;
+            }
+            if !has_match_4 {
+                redistributable += initial_match_4_pool;
+            }
+            if !has_match_3 {
+                redistributable += initial_match_3_pool;
+            }
 
-        // Calculate the total BPS for tiers with winners with overflow protection
-        let total_winner_bps = (if has_match_5 { ROLLDOWN_MATCH_5_BPS } else { 0 })
-            .checked_add(if has_match_4 { ROLLDOWN_MATCH_4_BPS } else { 0 })
-            .and_then(|sum| sum.checked_add(if has_match_3 { ROLLDOWN_MATCH_3_BPS } else { 0 }))
-            .unwrap_or(0);
+            // Calculate the total BPS for tiers with winners with overflow protection
+            let total_winner_bps = (if has_match_5 { ROLLDOWN_MATCH_5_BPS } else { 0 })
+                .checked_add(if has_match_4 { ROLLDOWN_MATCH_4_BPS } else { 0 })
+                .and_then(|sum| sum.checked_add(if has_match_3 { ROLLDOWN_MATCH_3_BPS } else { 0 }))
+                .unwrap_or(0);
 
-        // Safety check: total_winner_bps should be > 0 if we have winners
-        if total_winner_bps == 0 && tiers_with_winners > 0 {
-            msg!("ERROR: Total winner BPS is zero but we have winners!");
-            return PrizeCalculation {
-                match_6_prize: 0,
-                match_5_prize: 0,
-                match_4_prize: 0,
-                match_3_prize: 0,
-                match_2_prize: MATCH_2_VALUE,
-                total_distributed: 0,
-                undistributed: jackpot_balance,
-                was_scaled_down: false,
-                scale_factor_bps: 10000,
-                calculation_details: String::from("Error: Zero total winner BPS"),
+            // Safety check: total_winner_bps should be > 0 if we have winners
+            if total_winner_bps == 0 && tiers_with_winners > 0 {
+                msg!("ERROR: Total winner BPS is zero but we have winners!");
+                return PrizeCalculation {
+                    match_6_prize: 0,
+                    match_5_prize: 0,
+                    match_4_prize: 0,
+                    match_3_prize: 0,
+                    match_2_prize: MATCH_2_VALUE,
+                    total_distributed: 0,
+                    undistributed: jackpot_balance,
+                    was_scaled_down: false,
+                    scale_factor_bps: 10000,
+                    calculation_details: String::from("Error: Zero total winner BPS"),
+                };
+            }
+
+            // Redistribute proportionally to tiers with winners with overflow protection
+            let match_5_pool = if has_match_5 {
+                let base = initial_match_5_pool;
+                let redistribution = (redistributable as u128)
+                    .checked_mul(ROLLDOWN_MATCH_5_BPS as u128)
+                    .and_then(|prod| prod.checked_div(total_winner_bps as u128))
+                    .unwrap_or(0) as u64;
+                base.checked_add(redistribution).unwrap_or(u64::MAX)
+            } else {
+                0
             };
-        }
 
-        // Redistribute proportionally to tiers with winners with overflow protection
-        let match_5_pool = if has_match_5 {
-            let base = initial_match_5_pool;
-            let redistribution = (redistributable as u128)
-                .checked_mul(ROLLDOWN_MATCH_5_BPS as u128)
-                .and_then(|prod| prod.checked_div(total_winner_bps as u128))
-                .unwrap_or(0) as u64;
-            base.checked_add(redistribution).unwrap_or(u64::MAX)
-        } else {
-            0
+            let match_4_pool = if has_match_4 {
+                let base = initial_match_4_pool;
+                let redistribution = (redistributable as u128)
+                    .checked_mul(ROLLDOWN_MATCH_4_BPS as u128)
+                    .and_then(|prod| prod.checked_div(total_winner_bps as u128))
+                    .unwrap_or(0) as u64;
+                base.checked_add(redistribution).unwrap_or(u64::MAX)
+            } else {
+                0
+            };
+
+            let match_3_pool = if has_match_3 {
+                let base = initial_match_3_pool;
+                let redistribution = (redistributable as u128)
+                    .checked_mul(ROLLDOWN_MATCH_3_BPS as u128)
+                    .and_then(|prod| prod.checked_div(total_winner_bps as u128))
+                    .unwrap_or(0) as u64;
+                base.checked_add(redistribution).unwrap_or(u64::MAX)
+            } else {
+                0
+            };
+
+            (match_5_pool, match_4_pool, match_3_pool, 0u64, false)
         };
-
-        let match_4_pool = if has_match_4 {
-            let base = initial_match_4_pool;
-            let redistribution = (redistributable as u128)
-                .checked_mul(ROLLDOWN_MATCH_4_BPS as u128)
-                .and_then(|prod| prod.checked_div(total_winner_bps as u128))
-                .unwrap_or(0) as u64;
-            base.checked_add(redistribution).unwrap_or(u64::MAX)
-        } else {
-            0
-        };
-
-        let match_3_pool = if has_match_3 {
-            let base = initial_match_3_pool;
-            let redistribution = (redistributable as u128)
-                .checked_mul(ROLLDOWN_MATCH_3_BPS as u128)
-                .and_then(|prod| prod.checked_div(total_winner_bps as u128))
-                .unwrap_or(0) as u64;
-            base.checked_add(redistribution).unwrap_or(u64::MAX)
-        } else {
-            0
-        };
-
-        (match_5_pool, match_4_pool, match_3_pool, 0u64)
-    };
 
     // Calculate per-winner prizes (pari-mutuel) with division protection
     let match_5_prize = if winner_counts.match_5 > 0 && match_5_pool > 0 {
@@ -387,7 +391,7 @@ fn calculate_rolldown_prizes(
         jackpot_balance, match_5_pool, match_4_pool, match_3_pool
     ));
     if tiers_with_winners == 0 {
-        calculation_details.push_str(", no winners");
+        calculation_details.push_str(", no winners - jackpot preserved for next draw");
     }
 
     // Total distributed (excluding any remainder from integer division)
@@ -415,7 +419,13 @@ fn calculate_rolldown_prizes(
         match_3_prize,
         match_2_prize,
         total_distributed: total,
-        undistributed: undistributed + division_remainder,
+        // If keep_jackpot is true (no winners), don't mark anything as undistributed
+        // The jackpot will remain in place for the next draw
+        undistributed: if keep_jackpot {
+            0
+        } else {
+            undistributed + division_remainder
+        },
         was_scaled_down: false, // Rolldown mode distributes available funds, no scaling needed
         scale_factor_bps: 10000,
         calculation_details,
@@ -639,33 +649,50 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
 
     // Update jackpot balance
     if was_rolldown {
-        // Rolldown occurred - jackpot distributed, seed new jackpot from reserve
-        let seed_from_reserve = lottery_state.seed_amount.min(lottery_state.reserve_balance);
-        lottery_state.jackpot_balance = seed_from_reserve;
-        lottery_state.reserve_balance = lottery_state
-            .reserve_balance
-            .saturating_sub(seed_from_reserve);
+        // Check if jackpot was actually distributed (had winners)
+        let had_rolldown_winners = params.winner_counts.match_5 > 0
+            || params.winner_counts.match_4 > 0
+            || params.winner_counts.match_3 > 0;
 
-        // Emit rolldown event
-        emit!(RolldownExecuted {
-            draw_id: lottery_state.current_draw_id,
-            jackpot_distributed: jackpot_at_draw,
-            match_5_prize: prize_calc.match_5_prize,
-            match_4_prize: prize_calc.match_4_prize,
-            match_3_prize: prize_calc.match_3_prize,
-            timestamp: clock.unix_timestamp,
-        });
+        if had_rolldown_winners {
+            // Rolldown occurred with winners - jackpot was distributed, seed new jackpot from reserve
+            let seed_from_reserve = lottery_state.seed_amount.min(lottery_state.reserve_balance);
+            lottery_state.jackpot_balance = seed_from_reserve;
+            lottery_state.reserve_balance = lottery_state
+                .reserve_balance
+                .saturating_sub(seed_from_reserve);
 
-        msg!("Rolldown executed!");
-        msg!("  Jackpot distributed: {} USDC lamports", jackpot_at_draw);
-        msg!(
-            "  Total to winners: {} USDC lamports",
-            prize_calc.total_distributed
-        );
-        msg!(
-            "  New jackpot seeded: {} USDC lamports",
-            lottery_state.jackpot_balance
-        );
+            // Emit rolldown event
+            emit!(RolldownExecuted {
+                draw_id: lottery_state.current_draw_id,
+                jackpot_distributed: jackpot_at_draw,
+                match_5_prize: prize_calc.match_5_prize,
+                match_4_prize: prize_calc.match_4_prize,
+                match_3_prize: prize_calc.match_3_prize,
+                timestamp: clock.unix_timestamp,
+            });
+
+            msg!("Rolldown executed with winners!");
+            msg!("  Jackpot distributed: {} USDC lamports", jackpot_at_draw);
+            msg!(
+                "  Total to winners: {} USDC lamports",
+                prize_calc.total_distributed
+            );
+            msg!(
+                "  New jackpot seeded: {} USDC lamports",
+                lottery_state.jackpot_balance
+            );
+        } else {
+            // Rolldown triggered but NO winners in any tier
+            // Jackpot remains for next draw (not moved to reserve)
+            msg!("⚠️  Rolldown triggered but NO WINNERS in any tier!");
+            msg!("  Jackpot preserved: {} USDC lamports", jackpot_at_draw);
+            msg!("  Jackpot will carry over to next draw.");
+
+            // Disable rolldown flag since jackpot wasn't distributed
+            // It will be re-evaluated based on caps
+            lottery_state.is_rolldown_active = false;
+        }
     } else if params.winner_counts.match_6 > 0 {
         // Jackpot won - reset jackpot, seed from reserve
         let seed_from_reserve = lottery_state.seed_amount.min(lottery_state.reserve_balance);

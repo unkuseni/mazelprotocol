@@ -597,6 +597,22 @@ pub mod solana_lotto {
         instructions::syndicate::handler_remove_syndicate_member(ctx, params)
     }
 
+    /// Transfer syndicate creator role to another member
+    ///
+    /// Allows the current creator to transfer management responsibility
+    /// to another existing syndicate member. This enables the creator to
+    /// leave the syndicate after transferring the role.
+    ///
+    /// # Arguments
+    /// * `ctx` - TransferSyndicateCreator accounts context
+    /// * `params` - Transfer parameters including new creator's wallet
+    pub fn transfer_syndicate_creator(
+        ctx: Context<TransferSyndicateCreator>,
+        params: TransferSyndicateCreatorParams,
+    ) -> Result<()> {
+        instructions::syndicate::handler_transfer_syndicate_creator(ctx, params)
+    }
+
     // =========================================================================
     // SYNDICATE WARS COMPETITION INSTRUCTIONS
     // =========================================================================

@@ -1291,14 +1291,23 @@ impl UnifiedTicket {
     }
 
     /// Check if a specific ticket is claimed
+    ///
+    /// # Returns
+    /// - `true` if the ticket is claimed OR if the index is out of bounds
+    /// - `false` only if the ticket exists and is unclaimed
+    ///
+    /// This ensures consistency: any invalid/malformed state is treated as "claimed"
+    /// to prevent double-claiming in edge cases.
     pub fn is_ticket_claimed(&self, index: usize) -> bool {
         if index >= self.ticket_count as usize {
-            return true; // Out of bounds considered claimed
+            return true; // Out of bounds considered claimed (prevents access)
         }
         let byte_index = index / 8;
         let bit_index = index % 8;
         if byte_index >= self.claimed_bitmap.len() {
-            return false;
+            // Bitmap is shorter than expected - treat as claimed for safety
+            // This prevents claiming tickets if the bitmap is corrupted/truncated
+            return true;
         }
         (self.claimed_bitmap[byte_index] & (1 << bit_index)) != 0
     }

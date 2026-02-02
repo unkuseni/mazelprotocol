@@ -289,27 +289,29 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
             .ok_or(LottoError::Overflow)?;
     }
 
-    // FIXED: Credit free ticket for Match 2 with limit check and correct error code
+    // FIXED: Credit free ticket for Match 2 - skip if at limit instead of blocking claim
+    // This ensures users can always claim their prizes, even if they can't get the bonus
     if free_ticket_credited {
         if user_stats.free_tickets_available >= MAX_FREE_TICKETS as u32 {
-            msg!("Free ticket limit reached!");
+            msg!("Free ticket limit reached - bonus skipped but claim proceeds!");
             msg!(
-                "  Current free tickets: {}",
+                "  Current free tickets: {} (maximum)",
                 user_stats.free_tickets_available
             );
-            msg!("  Maximum allowed: {}", MAX_FREE_TICKETS);
-            return Err(LottoError::MaxFreeTicketsReached.into());
+            msg!("  Match 2 prize acknowledged but free ticket not added.");
+            // Don't return error - just skip the free ticket credit
+            // The user still gets credit for the Match 2 win
+        } else {
+            user_stats.free_tickets_available = user_stats
+                .free_tickets_available
+                .checked_add(1)
+                .ok_or(LottoError::Overflow)?;
+
+            msg!(
+                "Free ticket added. Total available: {}",
+                user_stats.free_tickets_available
+            );
         }
-
-        user_stats.free_tickets_available = user_stats
-            .free_tickets_available
-            .checked_add(1)
-            .ok_or(LottoError::Overflow)?;
-
-        msg!(
-            "Free ticket added. Total available: {}",
-            user_stats.free_tickets_available
-        );
     }
 
     // Track jackpot wins

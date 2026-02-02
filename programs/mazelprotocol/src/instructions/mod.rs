@@ -62,7 +62,8 @@ pub use syndicate::{
     ClaimSyndicateMemberPrizeParams, CloseSyndicate, CreateSyndicate, CreateSyndicateParams,
     CreateSyndicateTicket, DistributeSyndicatePrize, DistributeSyndicatePrizeParams, JoinSyndicate,
     JoinSyndicateParams, LeaveSyndicate, RemoveSyndicateMember, RemoveSyndicateMemberParams,
-    UpdateSyndicateConfig, UpdateSyndicateConfigParams, WithdrawCreatorContribution,
+    TransferSyndicateCreator, TransferSyndicateCreatorParams, UpdateSyndicateConfig,
+    UpdateSyndicateConfigParams, WithdrawCreatorContribution,
 };
 
 // Re-export account structs and params from syndicate wars operations
