@@ -207,6 +207,13 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         && clock.unix_timestamp < sale_cutoff_time.expect("Sale cutoff time should be valid");
     require!(is_sale_open, LottoError::TicketSaleEnded);
 
+    // Check if jackpot is properly funded (minimum 100% of seed amount)
+    let minimum_jackpot = ctx.accounts.lottery_state.seed_amount;
+    require!(
+        ctx.accounts.lottery_state.jackpot_balance >= minimum_jackpot,
+        LottoError::InsufficientJackpotFunding
+    );
+
     // FIXED: Enforce per-user ticket limit
     let user_tickets_this_draw = ctx.accounts.get_user_tickets_this_draw(current_draw_id);
     require!(
@@ -442,6 +449,15 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
     msg!("  Player: {}", ctx.accounts.player.key());
     msg!("  Draw ID: {}", current_draw_id);
     msg!("  Numbers: {:?}", sorted_numbers);
+
+    // Log jackpot funding status
+    let minimum_jackpot = ctx.accounts.lottery_state.seed_amount;
+    msg!(
+        "  Minimum jackpot required: {} USDC lamports",
+        minimum_jackpot
+    );
+    msg!("  Current jackpot: {} USDC lamports", new_jackpot_balance);
+
     if using_free_ticket {
         msg!("  FREE TICKET USED!");
         msg!(
@@ -472,7 +488,6 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
             insurance_contribution
         );
     }
-    msg!("  Current jackpot: {} USDC lamports", new_jackpot_balance);
     msg!(
         "  Insurance pool: {} USDC lamports",
         ctx.accounts.lottery_state.insurance_balance

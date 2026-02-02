@@ -19,8 +19,8 @@ use anchor_lang::prelude::*;
 use crate::constants::*;
 use crate::errors::LottoError;
 use crate::events::{
-    DrawFinalized, DynamicFeeTierChanged, HardCapReached, InsurancePoolUsed, RolldownExecuted,
-    SoftCapReached, SolvencyCheckPerformed,
+    DrawFinalized, DynamicFeeTierChanged, EmergencyPause, HardCapReached, InsurancePoolUsed,
+    RolldownExecuted, SoftCapReached, SolvencyCheckPerformed,
 };
 use crate::state::{DrawResult, LotteryState, WinnerCounts};
 
@@ -727,6 +727,49 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     lottery_state.next_draw_timestamp = clock.unix_timestamp + lottery_state.draw_interval;
 
     // ==========================================================================
+    // JACKPOT FUNDING SAFETY CHECK
+    // ==========================================================================
+    // Check if jackpot is properly funded after reseeding
+    // Minimum jackpot should be at least 100% of seed amount
+    let minimum_jackpot = lottery_state.seed_amount;
+    let is_jackpot_properly_funded = lottery_state.jackpot_balance >= minimum_jackpot;
+
+    if !is_jackpot_properly_funded {
+        // Jackpot is below minimum - pause the lottery for safety
+        lottery_state.is_paused = true;
+
+        msg!("⚠️  ⚠️  ⚠️  CRITICAL: Jackpot funding insufficient!");
+        msg!(
+            "  Current jackpot: {} USDC lamports",
+            lottery_state.jackpot_balance
+        );
+        msg!("  Minimum required: {} USDC lamports", minimum_jackpot);
+        msg!(
+            "  Deficit: {} USDC lamports",
+            minimum_jackpot.saturating_sub(lottery_state.jackpot_balance)
+        );
+        msg!("  Lottery has been PAUSED for safety.");
+        msg!("  Admin must add funds to reserve and unpause.");
+
+        // Emit emergency pause event
+        emit!(EmergencyPause {
+            authority: ctx.accounts.authority.key(),
+            reason: format!(
+                "Jackpot funding insufficient: {} < {} (minimum)",
+                lottery_state.jackpot_balance, minimum_jackpot
+            ),
+            timestamp: clock.unix_timestamp,
+        });
+    } else {
+        msg!("✅ Jackpot funding check: OK");
+        msg!(
+            "  Current jackpot: {} USDC lamports",
+            lottery_state.jackpot_balance
+        );
+        msg!("  Minimum required: {} USDC lamports", minimum_jackpot);
+    }
+
+    // ==========================================================================
     // DYNAMIC HOUSE FEE UPDATE
     // ==========================================================================
     // Update house fee based on new jackpot level after draw finalization
@@ -757,39 +800,38 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     // ==========================================================================
     // SOFT/HARD CAP CHECK FOR NEXT DRAW
     // ==========================================================================
-    // Check if rolldown should be active for the next draw based on new jackpot level
-    if lottery_state.jackpot_balance >= lottery_state.hard_cap {
-        lottery_state.is_rolldown_active = true;
-        msg!(
-            "⚠️  HARD CAP REACHED for next draw! Jackpot {} >= Hard Cap {}",
-            lottery_state.jackpot_balance,
-            lottery_state.hard_cap
-        );
-        msg!("  Next draw WILL be a forced rolldown.");
+    // Only check caps if lottery is not paused due to insufficient funding
+    if !lottery_state.is_paused {
+        if lottery_state.jackpot_balance >= lottery_state.hard_cap {
+            lottery_state.is_rolldown_active = true;
+            msg!(
+                "⚠️  HARD CAP REACHED for next draw! Jackpot {} >= Hard Cap {}",
+                lottery_state.jackpot_balance,
+                lottery_state.hard_cap
+            );
+            msg!("  Next draw WILL be a forced rolldown.");
+        } else if lottery_state.jackpot_balance >= lottery_state.soft_cap {
+            lottery_state.is_rolldown_active = true;
+            msg!(
+                "🎰 Soft cap active for next draw! Jackpot {} >= Soft Cap {}",
+                lottery_state.jackpot_balance,
+                lottery_state.soft_cap
+            );
+            msg!("  Next draw may trigger probabilistic rolldown.");
 
-        emit!(HardCapReached {
-            draw_id: lottery_state.current_draw_id,
-            jackpot_balance: lottery_state.jackpot_balance,
-            hard_cap: lottery_state.hard_cap,
-            timestamp: clock.unix_timestamp,
-        });
-    } else if lottery_state.jackpot_balance >= lottery_state.soft_cap {
-        lottery_state.is_rolldown_active = true;
-        let rolldown_prob = lottery_state.get_rolldown_probability_bps();
-        msg!(
-            "🎰 SOFT CAP REACHED for next draw! Jackpot {} >= Soft Cap {}",
-            lottery_state.jackpot_balance,
-            lottery_state.soft_cap
-        );
-        msg!("  Rolldown probability: {}%", rolldown_prob as f64 / 100.0);
-
-        emit!(SoftCapReached {
-            draw_id: lottery_state.current_draw_id,
-            jackpot_balance: lottery_state.jackpot_balance,
-            soft_cap: lottery_state.soft_cap,
-            rolldown_probability_bps: rolldown_prob,
-            timestamp: clock.unix_timestamp,
-        });
+            emit!(SoftCapReached {
+                draw_id: lottery_state.current_draw_id,
+                jackpot_balance: lottery_state.jackpot_balance,
+                soft_cap: lottery_state.soft_cap,
+                rolldown_probability_bps: lottery_state.get_rolldown_probability_bps(),
+                timestamp: clock.unix_timestamp,
+            });
+        } else {
+            lottery_state.is_rolldown_active = false;
+        }
+    } else {
+        msg!("⚠️  Lottery is PAUSED - cap checks skipped.");
+        lottery_state.is_rolldown_active = false;
     }
 
     // Emit finalization event

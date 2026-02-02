@@ -149,6 +149,38 @@ impl QuickPickState {
         current_timestamp < sale_cutoff
     }
 
+    /// Check if jackpot is properly funded (meets minimum seed amount)
+    /// Returns true if jackpot >= minimum required amount
+    /// Minimum is either seed_amount or a reasonable fraction of it
+    pub fn is_jackpot_properly_funded(&self) -> bool {
+        // Minimum jackpot should be at least 100% of seed amount
+        // This prevents the lottery from operating with dangerously low jackpot
+        let minimum_jackpot = self.seed_amount; // 100% of seed amount
+
+        self.jackpot_balance >= minimum_jackpot
+    }
+
+    /// Check if lottery should be paused due to insufficient jackpot funding
+    /// Returns true if jackpot is below minimum and lottery should be paused
+    pub fn should_pause_due_to_insufficient_funding(&self) -> bool {
+        !self.is_jackpot_properly_funded()
+    }
+
+    /// Get the minimum required jackpot amount
+    pub fn get_minimum_jackpot_amount(&self) -> u64 {
+        self.seed_amount // 100% of seed amount
+    }
+
+    /// Get the funding deficit (how much more is needed to reach minimum)
+    pub fn get_jackpot_funding_deficit(&self) -> u64 {
+        let minimum = self.get_minimum_jackpot_amount();
+        if self.jackpot_balance >= minimum {
+            0
+        } else {
+            minimum - self.jackpot_balance
+        }
+    }
+
     /// Check if draw is ready to execute
     pub fn is_draw_ready(&self, current_timestamp: i64) -> bool {
         current_timestamp >= self.next_draw_timestamp && !self.is_paused

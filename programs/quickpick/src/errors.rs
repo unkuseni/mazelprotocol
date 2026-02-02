@@ -49,6 +49,10 @@ pub enum QuickPickError {
     #[msg("Draw is not in progress")]
     DrawNotInProgress,
 
+    /// Jackpot is below minimum required amount
+    #[msg("Jackpot is below minimum required amount")]
+    InsufficientJackpotFunding,
+
     /// Draw already completed
     #[msg("Draw has already been completed")]
     DrawAlreadyCompleted,

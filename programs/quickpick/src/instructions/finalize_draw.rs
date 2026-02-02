@@ -334,6 +334,39 @@ pub fn handler(
     }
     // If no jackpot winner and no rolldown, jackpot carries over (no change)
 
+    // ==========================================================================
+    // JACKPOT FUNDING SAFETY CHECK
+    // ==========================================================================
+    // Check if jackpot is properly funded after reseeding
+    // Minimum jackpot should be at least 100% of seed amount
+    let minimum_jackpot = seed_amount;
+    let is_jackpot_properly_funded = quick_pick_state.jackpot_balance >= minimum_jackpot;
+
+    if !is_jackpot_properly_funded {
+        // Jackpot is below minimum - pause the lottery for safety
+        quick_pick_state.is_paused = true;
+
+        msg!("⚠️  ⚠️  ⚠️  CRITICAL: Jackpot funding insufficient!");
+        msg!(
+            "  Current jackpot: {} USDC lamports",
+            quick_pick_state.jackpot_balance
+        );
+        msg!("  Minimum required: {} USDC lamports", minimum_jackpot);
+        msg!(
+            "  Deficit: {} USDC lamports",
+            minimum_jackpot.saturating_sub(quick_pick_state.jackpot_balance)
+        );
+        msg!("  Quick Pick has been PAUSED for safety.");
+        msg!("  Admin must add funds to reserve and unpause.");
+    } else {
+        msg!("✅ Jackpot funding check: OK");
+        msg!(
+            "  Current jackpot: {} USDC lamports",
+            quick_pick_state.jackpot_balance
+        );
+        msg!("  Minimum required: {} USDC lamports", minimum_jackpot);
+    }
+
     // Update total prizes paid
     quick_pick_state.total_prizes_paid = quick_pick_state
         .total_prizes_paid
@@ -351,6 +384,35 @@ pub fn handler(
     quick_pick_state.next_draw_timestamp = quick_pick_state
         .next_draw_timestamp
         .saturating_add(draw_interval);
+
+    // ==========================================================================
+    // SOFT/HARD CAP CHECK FOR NEXT DRAW
+    // ==========================================================================
+    // Only check caps if Quick Pick is not paused due to insufficient funding
+    if !quick_pick_state.is_paused {
+        if quick_pick_state.jackpot_balance >= quick_pick_state.hard_cap {
+            quick_pick_state.is_rolldown_pending = true;
+            msg!(
+                "⚠️  HARD CAP REACHED for next draw! Jackpot {} >= Hard Cap {}",
+                quick_pick_state.jackpot_balance,
+                quick_pick_state.hard_cap
+            );
+            msg!("  Next draw WILL be a forced rolldown.");
+        } else if quick_pick_state.jackpot_balance >= quick_pick_state.soft_cap {
+            quick_pick_state.is_rolldown_pending = true;
+            msg!(
+                "🎰 Soft cap active for next draw! Jackpot {} >= Soft Cap {}",
+                quick_pick_state.jackpot_balance,
+                quick_pick_state.soft_cap
+            );
+            msg!("  Next draw may trigger probabilistic rolldown.");
+        } else {
+            quick_pick_state.is_rolldown_pending = false;
+        }
+    } else {
+        msg!("⚠️  Quick Pick is PAUSED - cap checks skipped.");
+        quick_pick_state.is_rolldown_pending = false;
+    }
 
     // Emit event
     emit!(QuickPickDrawFinalized {
