@@ -139,9 +139,14 @@ impl QuickPickState {
 
     /// Check if ticket sales are open for the current draw
     pub fn is_ticket_sale_open(&self, current_timestamp: i64) -> bool {
+        // Must be funded and not paused
+        if !self.is_funded || self.is_paused || self.is_draw_in_progress {
+            return false;
+        }
+
         // Sales close 5 minutes before draw
         let sale_cutoff = self.next_draw_timestamp.saturating_sub(TICKET_SALE_CUTOFF);
-        current_timestamp < sale_cutoff && !self.is_paused
+        current_timestamp < sale_cutoff
     }
 
     /// Check if draw is ready to execute

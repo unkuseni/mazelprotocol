@@ -10,6 +10,7 @@
 //! - claim_syndicate_member_prize: Claim individual member's share of prize
 //! - update_syndicate_config: Update syndicate configuration
 //! - remove_syndicate_member: Remove a member from syndicate (creator only)
+//! - transfer_creator: Transfer creator role to another member
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
@@ -438,10 +439,9 @@ pub struct LeaveSyndicate<'info> {
     pub member: Signer<'info>,
 
     /// The syndicate to leave
-    #[account(
-        mut,
-        constraint = syndicate.creator != member.key() @ LottoError::Unauthorized // Creator can't leave
-    )]
+    /// Note: Creator CAN leave if they have transferred creator role or have 0 contribution
+    /// and there are other members with contributions
+    #[account(mut)]
     pub syndicate: Account<'info, Syndicate>,
 
     /// Member's USDC token account (to receive refund)
@@ -495,6 +495,48 @@ pub fn handler_leave_syndicate(ctx: Context<LeaveSyndicate>) -> Result<()> {
     let syndicate_creator = ctx.accounts.syndicate.creator;
     let syndicate_id = ctx.accounts.syndicate.syndicate_id;
     let syndicate_bump = ctx.accounts.syndicate.bump;
+
+    // Check if this is the creator trying to leave
+    if member_key == syndicate_creator {
+        // Creator can only leave if:
+        // 1. They have 0 contribution, AND
+        // 2. There is at least one other member with contribution who can take over
+        let creator_member = ctx.accounts.syndicate.find_member(&member_key);
+        let creator_contribution = creator_member.map(|m| m.contribution).unwrap_or(0);
+
+        require!(
+            creator_contribution == 0,
+            LottoError::Unauthorized // Creator with contribution must transfer role first
+        );
+
+        // Check there's at least one other member with contribution
+        let has_other_contributing_member = ctx
+            .accounts
+            .syndicate
+            .members
+            .iter()
+            .any(|m| m.wallet != member_key && m.contribution > 0);
+
+        require!(
+            has_other_contributing_member,
+            LottoError::Unauthorized // Need another member to take over
+        );
+
+        // Auto-transfer creator role to the member with highest contribution
+        let new_creator = ctx
+            .accounts
+            .syndicate
+            .members
+            .iter()
+            .filter(|m| m.wallet != member_key)
+            .max_by_key(|m| m.contribution)
+            .map(|m| m.wallet);
+
+        if let Some(new_creator_key) = new_creator {
+            ctx.accounts.syndicate.creator = new_creator_key;
+            msg!("Creator role auto-transferred to: {}", new_creator_key);
+        }
+    }
 
     // Use the remove_member helper to get contribution and update state
     let contribution = ctx.accounts.syndicate.remove_member(&member_key)?;
@@ -1766,6 +1808,83 @@ pub fn handler_remove_syndicate_member(
         "  Remaining members: {}",
         ctx.accounts.syndicate.member_count
     );
+
+    Ok(())
+}
+
+// ============================================================================
+// TRANSFER CREATOR INSTRUCTION
+// ============================================================================
+
+/// Parameters for transferring creator role
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct TransferSyndicateCreatorParams {
+    /// New creator's wallet address (must be existing member)
+    pub new_creator: Pubkey,
+}
+
+/// Accounts required for transferring syndicate creator role
+#[derive(Accounts)]
+#[instruction(params: TransferSyndicateCreatorParams)]
+pub struct TransferSyndicateCreator<'info> {
+    /// The current creator transferring the role
+    #[account(mut)]
+    pub creator: Signer<'info>,
+
+    /// The syndicate account
+    #[account(
+        mut,
+        constraint = syndicate.creator == creator.key() @ LottoError::Unauthorized
+    )]
+    pub syndicate: Account<'info, Syndicate>,
+}
+
+/// Transfer creator role to another syndicate member
+///
+/// This instruction:
+/// 1. Validates the caller is the current syndicate creator
+/// 2. Validates the new creator is an existing member
+/// 3. Transfers the creator role to the new member
+///
+/// Use this to transfer management responsibility before leaving
+/// a syndicate as creator.
+///
+/// # Arguments
+/// * `ctx` - The context containing required accounts
+/// * `params` - Transfer parameters including new creator's wallet
+///
+/// # Returns
+/// * `Result<()>` - Success or error
+pub fn handler_transfer_syndicate_creator(
+    ctx: Context<TransferSyndicateCreator>,
+    params: TransferSyndicateCreatorParams,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let syndicate_key = ctx.accounts.syndicate.key();
+    let old_creator = ctx.accounts.creator.key();
+    let new_creator = params.new_creator;
+
+    // Cannot transfer to self
+    require!(new_creator != old_creator, LottoError::InvalidAuthority);
+
+    // New creator must be an existing member
+    let is_member = ctx
+        .accounts
+        .syndicate
+        .members
+        .iter()
+        .any(|m| m.wallet == new_creator);
+
+    require!(is_member, LottoError::NotSyndicateMember);
+
+    // Transfer creator role
+    ctx.accounts.syndicate.creator = new_creator;
+
+    msg!("Syndicate creator role transferred!");
+    msg!("  Syndicate: {}", syndicate_key);
+    msg!("  Old creator: {}", old_creator);
+    msg!("  New creator: {}", new_creator);
+    msg!("  Timestamp: {}", clock.unix_timestamp);
 
     Ok(())
 }
