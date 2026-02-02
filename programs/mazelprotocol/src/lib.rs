@@ -71,6 +71,8 @@ pub use instructions::finalize_draw::*;
 pub use instructions::initialize::*;
 #[allow(ambiguous_glob_reexports)]
 pub use instructions::syndicate::*;
+#[allow(ambiguous_glob_reexports)]
+pub use instructions::syndicate_wars::*;
 
 // Program ID - Update this after deployment
 declare_id!("11111111111111111111111111111111");
@@ -531,5 +533,157 @@ pub mod solana_lotto {
         numbers: [u8; 6],
     ) -> Result<()> {
         instructions::syndicate::handler_create_syndicate_ticket(ctx, numbers)
+    }
+
+    /// Distribute prize to syndicate members
+    ///
+    /// Transfers prize from prize pool to syndicate account and calculates
+    /// manager fee. Individual members must claim their shares separately.
+    ///
+    /// # Arguments
+    /// * `ctx` - DistributeSyndicatePrize accounts context
+    /// * `params` - Prize distribution parameters
+    pub fn distribute_syndicate_prize(
+        ctx: Context<DistributeSyndicatePrize>,
+        params: DistributeSyndicatePrizeParams,
+    ) -> Result<()> {
+        instructions::syndicate::handler_distribute_syndicate_prize(ctx, params)
+    }
+
+    /// Claim a member's share of syndicate prize
+    ///
+    /// Transfers the claimed amount from syndicate to member's wallet.
+    /// Updates member's contribution and recalculates shares.
+    ///
+    /// # Arguments
+    /// * `ctx` - ClaimSyndicateMemberPrize accounts context
+    /// * `params` - Claim parameters
+    pub fn claim_syndicate_member_prize(
+        ctx: Context<ClaimSyndicateMemberPrize>,
+        params: ClaimSyndicateMemberPrizeParams,
+    ) -> Result<()> {
+        instructions::syndicate::handler_claim_syndicate_member_prize(ctx, params)
+    }
+
+    /// Update syndicate configuration
+    ///
+    /// Allows the syndicate creator to update:
+    /// - Syndicate name
+    /// - Public/private status
+    /// - Manager fee (within 5% limit)
+    ///
+    /// # Arguments
+    /// * `ctx` - UpdateSyndicateConfig accounts context
+    /// * `params` - Configuration update parameters
+    pub fn update_syndicate_config(
+        ctx: Context<UpdateSyndicateConfig>,
+        params: UpdateSyndicateConfigParams,
+    ) -> Result<()> {
+        instructions::syndicate::handler_update_syndicate_config(ctx, params)
+    }
+
+    /// Remove a member from syndicate (creator only)
+    ///
+    /// Allows the syndicate creator to remove a member and refund their contribution.
+    /// Members can also leave voluntarily via `leave_syndicate`.
+    ///
+    /// # Arguments
+    /// * `ctx` - RemoveSyndicateMember accounts context
+    /// * `params` - Member removal parameters
+    pub fn remove_syndicate_member(
+        ctx: Context<RemoveSyndicateMember>,
+        params: RemoveSyndicateMemberParams,
+    ) -> Result<()> {
+        instructions::syndicate::handler_remove_syndicate_member(ctx, params)
+    }
+
+    // =========================================================================
+    // SYNDICATE WARS COMPETITION INSTRUCTIONS
+    // =========================================================================
+
+    /// Initialize Syndicate Wars competition for a month
+    ///
+    /// Creates competition state and transfers 1% of prize pool to competition.
+    /// Only lottery authority can initialize.
+    ///
+    /// # Arguments
+    /// * `ctx` - InitializeSyndicateWars accounts context
+    /// * `params` - Competition initialization parameters
+    pub fn initialize_syndicate_wars(
+        ctx: Context<InitializeSyndicateWars>,
+        params: InitializeSyndicateWarsParams,
+    ) -> Result<()> {
+        instructions::syndicate_wars::handler_initialize_syndicate_wars(ctx, params)
+    }
+
+    /// Register syndicate for Syndicate Wars competition
+    ///
+    /// Syndicate must have at least 5 members to register.
+    /// Competition must be active and within registration period.
+    ///
+    /// # Arguments
+    /// * `ctx` - RegisterForSyndicateWars accounts context
+    pub fn register_for_syndicate_wars(ctx: Context<RegisterForSyndicateWars>) -> Result<()> {
+        instructions::syndicate_wars::handler_register_for_syndicate_wars(ctx)
+    }
+
+    /// Update syndicate statistics during Syndicate Wars
+    ///
+    /// Updates tickets purchased, prizes won, and win count for a syndicate.
+    /// Calculates win rate automatically.
+    /// Only lottery authority can update stats.
+    ///
+    /// # Arguments
+    /// * `ctx` - UpdateSyndicateWarsStats accounts context
+    /// * `params` - Statistics update parameters
+    pub fn update_syndicate_wars_stats(
+        ctx: Context<UpdateSyndicateWarsStats>,
+        params: UpdateSyndicateWarsStatsParams,
+    ) -> Result<()> {
+        instructions::syndicate_wars::handler_update_syndicate_wars_stats(ctx, params)
+    }
+
+    /// Finalize Syndicate Wars competition
+    ///
+    /// Marks competition as inactive after it has ended.
+    /// Must be called before prize distribution.
+    /// Only lottery authority can finalize.
+    ///
+    /// # Arguments
+    /// * `ctx` - FinalizeSyndicateWars accounts context
+    pub fn finalize_syndicate_wars(ctx: Context<FinalizeSyndicateWars>) -> Result<()> {
+        instructions::syndicate_wars::handler_finalize_syndicate_wars(ctx)
+    }
+
+    /// Distribute Syndicate Wars prizes to top syndicates
+    ///
+    /// Sets ranks for top 10 syndicates and prepares for prize claims.
+    /// Individual syndicates must claim prizes separately.
+    /// Only lottery authority can distribute prizes.
+    ///
+    /// # Arguments
+    /// * `ctx` - DistributeSyndicateWarsPrizes accounts context
+    /// * `params` - Distribution parameters with ranked syndicates
+    pub fn distribute_syndicate_wars_prizes<'info>(
+        ctx: Context<'_, '_, 'info, 'info, DistributeSyndicateWarsPrizes<'info>>,
+        params: DistributeSyndicateWarsPrizesParams,
+    ) -> Result<()> {
+        instructions::syndicate_wars::handler_distribute_syndicate_wars_prizes(ctx, params)
+    }
+
+    /// Claim Syndicate Wars prize for syndicate
+    ///
+    /// Transfers prize from competition pool to syndicate account.
+    /// Syndicate must have a valid rank (1-10) and prize must not be claimed.
+    /// Only syndicate manager can claim.
+    ///
+    /// # Arguments
+    /// * `ctx` - ClaimSyndicateWarsPrize accounts context
+    /// * `params` - Claim parameters with rank
+    pub fn claim_syndicate_wars_prize(
+        ctx: Context<ClaimSyndicateWarsPrize>,
+        params: ClaimSyndicateWarsPrizeParams,
+    ) -> Result<()> {
+        instructions::syndicate_wars::handler_claim_syndicate_wars_prize(ctx, params)
     }
 }

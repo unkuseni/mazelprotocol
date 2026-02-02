@@ -884,7 +884,8 @@ pub struct EmergencyFundTransfer<'info> {
         mut,
         seeds = [LOTTERY_SEED],
         bump = lottery_state.bump,
-        constraint = lottery_state.authority == authority.key() @ LottoError::Unauthorized
+        constraint = lottery_state.authority == authority.key() @ LottoError::Unauthorized,
+        constraint = lottery_state.is_paused @ LottoError::InvalidDrawState
     )]
     pub lottery_state: Account<'info, LotteryState>,
 
@@ -911,6 +912,7 @@ pub struct EmergencyFundTransfer<'info> {
 ///
 /// # Security Requirements:
 /// - Only callable by authority
+/// - Lottery must be paused
 /// - Requires multi-sig in production (not enforced in code)
 /// - Should have timelock in production (not enforced in code)
 /// - Emits detailed audit event
@@ -930,6 +932,12 @@ pub fn handler_emergency_fund_transfer(
     reason: String,
 ) -> Result<()> {
     let clock = Clock::get()?;
+
+    // Validate lottery is paused for emergency operations
+    require!(
+        ctx.accounts.lottery_state.is_paused,
+        LottoError::InvalidDrawState
+    );
 
     // Validate source account matches the requested source
     let expected_source_pubkey = match source {

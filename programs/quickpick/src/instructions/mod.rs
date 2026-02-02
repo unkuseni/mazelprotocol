@@ -12,6 +12,9 @@
 //! - Soft cap: $30,000 (probabilistic rolldown)
 //! - Hard cap: $50,000 (forced rolldown)
 
+// Admin instructions (config, fees, emergency operations)
+pub mod admin;
+
 // Initialize Quick Pick Express
 pub mod initialize;
 
@@ -49,3 +52,10 @@ pub use finalize_draw::{FinalizeQuickPickDraw, FinalizeQuickPickDrawParams};
 
 // Re-export account structs from claim_prize
 pub use claim_prize::ClaimQuickPickPrize;
+
+// Re-export account structs and params from admin
+pub use admin::{
+    AddQuickPickReserveFunds, CancelQuickPickDraw, EmergencyQuickPickFundTransfer,
+    ForceFinalizequickPickDraw, QuickPickFundSource, UpdateQuickPickConfig,
+    UpdateQuickPickConfigParams, WithdrawQuickPickHouseFees,
+};

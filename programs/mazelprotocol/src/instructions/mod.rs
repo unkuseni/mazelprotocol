@@ -32,6 +32,9 @@ pub mod claim_prize;
 // Syndicate management
 pub mod syndicate;
 
+// Syndicate Wars competition
+pub mod syndicate_wars;
+
 // Re-export account structs and params from admin
 pub use admin::{
     AcceptAuthority, CancelAuthorityTransfer, CancelDraw, EmergencyFundTransfer, ForceFinalizeDraw,
@@ -55,7 +58,17 @@ pub use finalize_draw::{FinalizeDraw, FinalizeDrawParams};
 
 // Re-export account structs and params from syndicate operations
 pub use syndicate::{
-    BuySyndicateTickets, BuySyndicateTicketsParams, CloseSyndicate, CreateSyndicate,
-    CreateSyndicateParams, CreateSyndicateTicket, JoinSyndicate, JoinSyndicateParams,
-    LeaveSyndicate, WithdrawCreatorContribution,
+    BuySyndicateTickets, BuySyndicateTicketsParams, ClaimSyndicateMemberPrize,
+    ClaimSyndicateMemberPrizeParams, CloseSyndicate, CreateSyndicate, CreateSyndicateParams,
+    CreateSyndicateTicket, DistributeSyndicatePrize, DistributeSyndicatePrizeParams, JoinSyndicate,
+    JoinSyndicateParams, LeaveSyndicate, RemoveSyndicateMember, RemoveSyndicateMemberParams,
+    UpdateSyndicateConfig, UpdateSyndicateConfigParams, WithdrawCreatorContribution,
+};
+
+// Re-export account structs and params from syndicate wars operations
+pub use syndicate_wars::{
+    ClaimSyndicateWarsPrize, ClaimSyndicateWarsPrizeParams, DistributeSyndicateWarsPrizes,
+    DistributeSyndicateWarsPrizesParams, FinalizeSyndicateWars, InitializeSyndicateWars,
+    InitializeSyndicateWarsParams, RegisterForSyndicateWars, UpdateSyndicateWarsStats,
+    UpdateSyndicateWarsStatsParams,
 };
