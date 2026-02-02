@@ -611,8 +611,8 @@ With target $V_{normal} = 100,000$, the compatible region spans $100,000$ to $82
 │  └──────────────┘ └──────────────┘ └──────────────┘        │
 │                                                              │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
-│  │  GOVERNANCE  │ │   $LOTTO     │ │  SYNDICATE   │        │
-│  │     DAO      │ │   TOKEN      │ │   MANAGER    │        │
+│  │  GOVERNANCE  │ │              │ │  SYNDICATE   │        │
+│  │     DAO      │ │              │ │   MANAGER    │        │
 │  └──────────────┘ └──────────────┘ └──────────────┘        │
 │                                                              │
 └─────────────────────────────┬───────────────────────────────┘
@@ -1336,7 +1336,6 @@ SolanaLotto represents a paradigm shift in lottery design by embracing, rather t
 1. **For Casual Players:** Entertainment with transparent odds and the excitement of rolldown events
 2. **For Sophisticated Players:** Predictable +EV windows for strategic participation
 3. **For Operators:** Sustainable profitability through volume-based fees
-4. **For Token Holders:** Governance rights and economic participation
 
 ### 8.2 Key Innovations
 
@@ -1351,7 +1350,7 @@ SolanaLotto represents a paradigm shift in lottery design by embracing, rather t
 ### 8.3 Future Directions
 
 - Cross-chain expansion (Arbitrum, Base, other L2s)
-- Additional game modes (Quick Pick, Mega Events)
+- Additional game modes (Quick Pick)
 - Prediction market integration
 - Insurance products for players
 - White-label platform for other projects
@@ -1423,7 +1422,6 @@ SolanaLotto invites participation from:
 | TicketManager | `Ticket...TBD` | Mainnet |
 | DrawEngine | `Draw...TBD` | Mainnet |
 | PrizePool | `Prize...TBD` | Mainnet |
-| LOTTO Token | `LOTTO...TBD` | Mainnet |
 | Governance | `Gov...TBD` | Mainnet |
 
 ### Appendix D: Glossary

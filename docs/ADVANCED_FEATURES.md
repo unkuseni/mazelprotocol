@@ -1811,7 +1811,6 @@ PHASE 4: Scale (Months 10-12)
 | Syndicate Wars | 3 weeks | 1 week | 1 week |
 | Quick Pick Express | 3 weeks | 1 week | 1 week |
 | Lucky Numbers NFT | 4 weeks | 2 weeks | 2 weeks |
-| Mega Events | 4 weeks | 2 weeks | 3 weeks |
 
 ### 7.5 Success Metrics
 
@@ -1822,7 +1821,6 @@ PHASE 4: Scale (Months 10-12)
 | Syndicate Wars | Monthly active syndicates | 100+ |
 | Quick Pick | Daily tickets sold | 50k/day |
 | Lucky Numbers NFT | Secondary market volume | $50k/month |
-| Mega Events | Event ticket sales | 500k tickets |
 
 ---
 
@@ -1881,12 +1879,7 @@ pub struct QuickPickDrawExecuted {
 }
 
 #[event]
-pub struct MegaEventStarted {
-    pub event_id: u64,
-    pub start_timestamp: i64,
-    pub end_timestamp: i64,
-    pub target_jackpot: u64,
-}
+
 
 #[event]
 pub struct SyndicateWarsRegistered {

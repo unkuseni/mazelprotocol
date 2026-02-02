@@ -17,7 +17,7 @@
 - [Prize Structure](#-prize-structure)
 - [The Rolldown Mechanism](#-the-rolldown-mechanism)
 - [Economic Model](#-economic-model)
-- [Tokenomics ($LOTTO)](#-tokenomics-lotto)
+
 - [Technical Architecture](#-technical-architecture)
 - [Security](#-security)
 - [Roadmap](#-roadmap)
@@ -48,7 +48,7 @@ This isn't a bug—**it's the feature**.
 | **📈 Positive-EV Windows** | Rolldown events create guaranteed profit opportunities |
 | **💰 Dynamic House Fee** | 28-40% fee scales with jackpot level for optimal extraction |
 | **🔄 Soft + Hard Caps** | Two-tier rolldown system prevents calendar gaming |
-| **🏆 $LOTTO Token** | Governance, staking rewards, and ticket discounts |
+
 | **👥 Syndicate System** | Built-in pool creation with automatic prize splitting |
 | **🔥 Streak Bonuses** | Rewards for consistent players |
 | **🎰 Lucky Numbers NFT** | Win NFTs that earn 1% of future jackpots |
@@ -391,12 +391,12 @@ Total Cycle House Fees (Corrected): $1,704,000
 │                   └─────────────┘                       │
 │                                                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
-│  │ GOVERNANCE  │  │   $LOTTO    │  │  SYNDICATE  │     │
-│  │     DAO     │  │   TOKEN     │  │   MANAGER   │     │
+│  │ GOVERNANCE  │  │             │  │  SYNDICATE  │     │
+│  │     DAO     │  │             │  │   MANAGER   │     │
 │  │             │  │             │  │             │     │
-│  │ • propose() │  │ • stake()   │  │ • create()  │     │
-│  │ • vote()    │  │ • unstake() │  │ • join()    │     │
-│  │ • execute() │  │ • burn()    │  │ • split()   │     │
+│  │ • propose() │  │             │  │ • create()  │     │
+│  │ • vote()    │  │             │  │ • join()    │     │
+│  │ • execute() │  │             │  │ • split()   │     │
 │  └─────────────┘  └─────────────┘  └─────────────┘     │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
@@ -605,8 +605,7 @@ Report vulnerabilities to: `security@solanalotto.io`
 
 ### Phase 3: Growth (Q3 2025)
 
-- [ ] $LOTTO token launch
-- [ ] Staking system activation
+
 - [ ] Syndicate feature release
 - [ ] Streak bonus implementation
 - [ ] **Syndicate Wars Competition** (monthly)
@@ -1008,7 +1007,7 @@ SolanaLotto is a decentralized lottery protocol. By participating, you acknowled
 
 3. **Regulatory Risk**: Cryptocurrency lottery regulations vary by jurisdiction. Users are solely responsible for ensuring their participation is legal in their location.
 
-4. **Market Risk**: The value of $LOTTO tokens and USDC stablecoins may fluctuate.
+4. **Market Risk**: The value of USDC stablecoins may fluctuate.
 
 5. **No Guarantees**: Past performance (including rolldown profitability) does not guarantee future results.
 

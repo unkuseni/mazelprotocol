@@ -63,7 +63,7 @@ During rolldown, prizes transition from fixed to pari-mutuel:
 | [SOLANA_LOTTO.md](./SOLANA_LOTTO.md) | Main README with features, prizes, and API |
 | [WHITEPAPER.md](./WHITEPAPER.md) | Mathematical foundations and economic model |
 | [TECHNICAL_SPEC.md](./TECHNICAL_SPEC.md) | Smart contract specs for developers |
-| [ADVANCED_FEATURES.md](./ADVANCED_FEATURES.md) | Dynamic fees, Lucky Numbers NFT, MEV protection, Quick Pick Express, Mega Events, Syndicate Wars |
+| [ADVANCED_FEATURES.md](./ADVANCED_FEATURES.md) | Dynamic fees, Lucky Numbers NFT, MEV protection, Quick Pick Express, Syndicate Wars |
 
 ---
 
@@ -244,7 +244,7 @@ lotto.joinSyndicate(wallet, syndicatePubkey, amount)
 
 > **🔒 OPERATOR PROTECTION:** During Quick Pick rolldown, prizes transition to pari-mutuel. Total operator liability is CAPPED at exactly $30,000-$50,000 (the jackpot), regardless of ticket volume or winner count.
 
-### Mega Events (Quarterly)
+
 
 | Metric | Value |
 |--------|-------|

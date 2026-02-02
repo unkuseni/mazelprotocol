@@ -58,7 +58,6 @@ Types:
 Amounts:
 - All USDC amounts in lamports (6 decimals): $1.00 = 1,000,000
 - All SOL amounts in lamports (9 decimals): 1 SOL = 1,000,000,000
-- All $LOTTO amounts in lamports (9 decimals): 1 LOTTO = 1,000,000,000
 ```
 
 ---
@@ -999,45 +998,7 @@ pub struct SyndicateWarsEntry {
     pub bump: u8,
 }
 
-/// Mega Event state
-#[account]
-pub struct MegaEventState {
-    /// Event identifier
-    pub event_id: u64,
-    
-    /// Matrix (e.g., 6 for 6/49)
-    pub pick_count: u8,
-    
-    /// Number range (e.g., 49)
-    pub number_range: u8,
-    
-    /// Ticket price ($10)
-    pub ticket_price: u64,
-    
-    /// Target jackpot
-    pub target_jackpot: u64,
-    
-    /// Current jackpot
-    pub current_jackpot: u64,
-    
-    /// Event start timestamp
-    pub start_timestamp: i64,
-    
-    /// Event end timestamp (guaranteed rolldown)
-    pub end_timestamp: i64,
-    
-    /// Current draw within event
-    pub current_draw: u64,
-    
-    /// Total tickets sold
-    pub total_tickets: u64,
-    
-    /// Is event active
-    pub is_active: bool,
-    
-    /// PDA bump
-    pub bump: u8,
-}
+
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct WinnerCounts {
@@ -1265,14 +1226,8 @@ pub fn buy_ticket(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()
     // 1. Validate numbers
     validate_numbers(&params.numbers)?;
     
-    // 2. Calculate price (with staking discount)
-    let base_price = lottery_state.ticket_price;
-    let discount = if let Some(stake) = &ctx.accounts.stake_account {
-        stake.tier.discount_bps()
-    } else {
-        0
-    };
-    let price = base_price * (10000 - discount as u64) / 10000;
+    // 2. Calculate price
+    let price = lottery_state.ticket_price;
     
     // 3. Calculate allocations
     let house_fee = price * lottery_state.house_fee_bps as u64 / 10000;
@@ -2333,7 +2288,7 @@ Each error category occupies a specific range for easier debugging and monitorin
 | Mathematical & Parameter Validation | 700-799 | Arithmetic errors, basis points |
 | Account & PDA Validation | 800-899 | Account derivation, initialization |
 | System & Operational Errors | 900-999 | Clock access, timeouts, retries |
-| Game-Specific Errors | 1000-1099 | Rolldown, quick pick, mega events |
+| Game-Specific Errors | 1000-1099 | Rolldown, quick pick |
 | Compatibility & Version Errors | 1100-1199 | Version mismatches, deprecated features |
 | Generic & Catch-All Errors | 1200-1299 | Unknown errors, validation failures |
 

@@ -157,13 +157,6 @@
 
 > **🔒 OPERATOR PROTECTION:** During Quick Pick rolldown, all prizes transition from FIXED to PARI-MUTUEL. Total operator liability is EXACTLY $30,000-$50,000 (the jackpot), regardless of ticket volume or winner count.
 
-### Mega Events (Quarterly)
-
-| Parameter | Value | Location |
-|-----------|-------|----------|
-| Ticket Price | $10 USDC | ADVANCED_FEATURES.md §6 |
-| Matrix | 6/49 | ADVANCED_FEATURES.md §6 |
-| Target Jackpot | $5,000,000 | ADVANCED_FEATURES.md §6 |
 
 ---
 
@@ -217,6 +210,7 @@ From [ADVANCED_FEATURES.md §8](./ADVANCED_FEATURES.md#8-implementation-priority
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v2.5 | 2025 | Removed Mega Events feature from all documentation and code |
 | v2.4 | 2025 | Updated Quick Pick Express: 5/35 matrix, $1.50 tickets, **+59% rolldown exploit**, no free ticket, $50 gate |
 | v2.3 | 2025 | Removed $LOTTO token and staking features |
 | v2.2 | 2025 | Migrated from Chainlink VRF to Switchboard Randomness |
