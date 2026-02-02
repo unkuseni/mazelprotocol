@@ -30,6 +30,10 @@ pub enum LottoError {
     #[msg("Caller is not the ticket owner.")]
     NotTicketOwner,
 
+    /// Invalid amount provided
+    #[msg("Invalid amount.")]
+    InvalidAmount,
+
     // ============================================================================
     // Lottery State & Configuration (6010-6029)
     // ============================================================================
@@ -48,6 +52,10 @@ pub enum LottoError {
     /// Draw cannot be started yet (e.g., insufficient time has passed)
     #[msg("Draw not ready yet.")]
     DrawNotReady,
+
+    /// Invalid duration provided
+    #[msg("Invalid duration.")]
+    InvalidDuration,
 
     /// Attempted to complete a draw that has already been finalized
     #[msg("Draw has already been completed.")]
@@ -313,6 +321,10 @@ pub enum LottoError {
     #[msg("Already a syndicate member.")]
     AlreadySyndicateMember,
 
+    /// Invalid rank provided
+    #[msg("Invalid rank.")]
+    InvalidRank,
+
     // ============================================================================
     // Token & Account Errors (6110-6129)
     // ============================================================================
@@ -526,10 +538,6 @@ pub enum LottoError {
     /// Draw state transition invalid
     #[msg("Invalid draw state transition.")]
     InvalidDrawStateTransition,
-
-    /// Mega Event not active
-    #[msg("Mega Event not active.")]
-    MegaEventNotActive,
 
     /// Second Chance entry not eligible
     #[msg("Not eligible for Second Chance.")]

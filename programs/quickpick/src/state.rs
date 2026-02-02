@@ -66,11 +66,35 @@ pub struct QuickPickState {
     /// Insurance pool balance (USDC lamports)
     pub insurance_balance: u64,
 
+    /// Reserve balance for jackpot seeding (USDC lamports)
+    pub reserve_balance: u64,
+
+    /// Total tickets sold across all draws
+    pub total_tickets_sold: u64,
+
+    /// Total prizes paid out (USDC lamports)
+    pub total_prizes_paid: u64,
+
+    /// Current randomness account for commit-reveal pattern
+    pub current_randomness_account: Pubkey,
+
+    /// Commit slot for randomness verification
+    pub commit_slot: u64,
+
+    /// Commit timestamp for timeout verification
+    pub commit_timestamp: i64,
+
+    /// Is a draw currently in progress (between commit and finalize)
+    pub is_draw_in_progress: bool,
+
     /// Rolldown pending flag (set when jackpot >= soft_cap)
     pub is_rolldown_pending: bool,
 
     /// Is the lottery paused
     pub is_paused: bool,
+
+    /// Is the lottery funded (seed amount deposited)
+    pub is_funded: bool,
 
     /// PDA bump seed
     pub bump: u8,
@@ -78,7 +102,35 @@ pub struct QuickPickState {
 
 impl QuickPickState {
     /// Account size including discriminator
-    pub const LEN: usize = QUICK_PICK_STATE_SIZE;
+    pub const LEN: usize = 8 +    // discriminator
+        8 +    // current_draw
+        8 +    // ticket_price
+        1 +    // pick_count
+        1 +    // number_range
+        2 +    // house_fee_bps
+        8 +    // draw_interval
+        8 +    // next_draw_timestamp
+        8 +    // jackpot_balance
+        8 +    // soft_cap
+        8 +    // hard_cap
+        8 +    // seed_amount
+        8 +    // match_4_prize
+        8 +    // match_3_prize
+        8 +    // current_draw_tickets
+        8 +    // prize_pool_balance
+        8 +    // insurance_balance
+        8 +    // reserve_balance
+        8 +    // total_tickets_sold
+        8 +    // total_prizes_paid
+        32 +   // current_randomness_account
+        8 +    // commit_slot
+        8 +    // commit_timestamp
+        1 +    // is_draw_in_progress
+        1 +    // is_rolldown_pending
+        1 +    // is_paused
+        1 +    // is_funded
+        1 +    // bump
+        32; // padding for future use
 
     /// Get current house fee based on jackpot level
     pub fn get_current_house_fee_bps(&self) -> u16 {
@@ -122,12 +174,51 @@ impl QuickPickState {
         self.current_draw = self.current_draw.saturating_add(1);
         self.current_draw_tickets = 0;
         self.next_draw_timestamp = self.next_draw_timestamp.saturating_add(self.draw_interval);
+        self.is_draw_in_progress = false;
+        self.current_randomness_account = Pubkey::default();
+        self.commit_slot = 0;
+        self.commit_timestamp = 0;
     }
 
     /// Reset jackpot after rolldown
     pub fn reset_jackpot_after_rolldown(&mut self) {
         self.jackpot_balance = self.seed_amount;
         self.is_rolldown_pending = false;
+    }
+
+    /// Check if the commit has timed out (1 hour timeout)
+    pub fn is_commit_timed_out(&self, current_timestamp: i64) -> bool {
+        if self.commit_timestamp == 0 {
+            return false;
+        }
+        // 1 hour timeout for commit-reveal
+        const COMMIT_TIMEOUT: i64 = 3600;
+        current_timestamp > self.commit_timestamp + COMMIT_TIMEOUT
+    }
+
+    /// Reset draw state (for cancellation or timeout)
+    pub fn reset_draw_state(&mut self) {
+        self.is_draw_in_progress = false;
+        self.current_randomness_account = Pubkey::default();
+        self.commit_slot = 0;
+        self.commit_timestamp = 0;
+    }
+
+    /// Get available prize pool (prize pool + insurance as backup)
+    pub fn get_available_prize_pool(&self) -> u64 {
+        self.prize_pool_balance
+            .saturating_add(self.insurance_balance)
+            .saturating_add(self.reserve_balance)
+    }
+
+    /// Check if prizes can be paid with current balances
+    pub fn can_pay_prizes(&self, required_amount: u64) -> bool {
+        self.get_available_prize_pool() >= required_amount
+    }
+
+    /// Get the safety buffer (reserve + insurance)
+    pub fn get_safety_buffer(&self) -> u64 {
+        self.reserve_balance.saturating_add(self.insurance_balance)
     }
 }
 

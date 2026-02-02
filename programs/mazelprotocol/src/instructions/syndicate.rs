@@ -6,13 +6,19 @@
 //! - leave_syndicate: Leave a syndicate and receive refund
 //! - close_syndicate: Close an empty syndicate
 //! - buy_syndicate_tickets: Purchase tickets for the entire syndicate
+//! - distribute_syndicate_prize: Distribute prize to syndicate members
+//! - claim_syndicate_member_prize: Claim individual member's share of prize
+//! - update_syndicate_config: Update syndicate configuration
+//! - remove_syndicate_member: Remove a member from syndicate (creator only)
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::*;
 use crate::errors::LottoError;
-use crate::events::{BulkTicketsPurchased, SyndicateCreated, SyndicateMemberJoined};
+use crate::events::{
+    BulkTicketsPurchased, SyndicateCreated, SyndicateMemberJoined, SyndicatePrizeDistributed,
+};
 use crate::state::{LotteryState, Syndicate, SyndicateMember, TicketData, UserStats};
 
 // ============================================================================
@@ -1203,6 +1209,563 @@ pub fn handler_create_syndicate_ticket(
     msg!("  Ticket: {}", ctx.accounts.ticket.key());
     msg!("  Syndicate: {}", syndicate_key);
     msg!("  Numbers: {:?}", sorted_numbers);
+
+    Ok(())
+}
+
+// ============================================================================
+// DISTRIBUTE SYNDICATE PRIZE INSTRUCTION
+// ============================================================================
+
+/// Parameters for distributing a prize to syndicate members
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct DistributeSyndicatePrizeParams {
+    /// Draw ID for which the prize is being distributed
+    pub draw_id: u64,
+    /// Total prize amount to distribute (in USDC lamports)
+    pub total_prize: u64,
+}
+
+/// Accounts required for distributing a syndicate prize
+#[derive(Accounts)]
+#[instruction(params: DistributeSyndicatePrizeParams)]
+pub struct DistributeSyndicatePrize<'info> {
+    /// The syndicate creator/manager
+    #[account(mut)]
+    pub manager: Signer<'info>,
+
+    /// Lottery state (authority for prize pool)
+    #[account(
+        seeds = [LOTTERY_SEED],
+        bump = lottery_state.bump
+    )]
+    pub lottery_state: Account<'info, LotteryState>,
+
+    /// The syndicate account
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            syndicate.creator.as_ref(),
+            &syndicate.syndicate_id.to_le_bytes()
+        ],
+        bump = syndicate.bump,
+        constraint = syndicate.creator == manager.key() @ LottoError::Unauthorized
+    )]
+    pub syndicate: Account<'info, Syndicate>,
+
+    /// Syndicate's USDC token account (receives the prize)
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            b"usdc",
+            syndicate.key().as_ref()
+        ],
+        bump,
+        constraint = syndicate_usdc.key() == syndicate.usdc_account @ LottoError::InvalidTokenAccount
+    )]
+    pub syndicate_usdc: Account<'info, TokenAccount>,
+
+    /// Prize pool USDC token account (source of prize)
+    #[account(
+        mut,
+        seeds = [b"prize_pool_usdc"],
+        bump
+    )]
+    pub prize_pool_usdc: Account<'info, TokenAccount>,
+
+    /// USDC mint
+    pub usdc_mint: Account<'info, Mint>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+}
+
+/// Distribute prize to syndicate members
+///
+/// This instruction:
+/// 1. Transfers prize from prize pool to syndicate USDC account
+/// 2. Calculates manager fee (if any)
+/// 3. Updates syndicate statistics
+/// 4. Emits event for tracking
+///
+/// Note: Individual members must claim their shares separately via
+/// `claim_syndicate_member_prize` instruction.
+///
+/// # Arguments
+/// * `ctx` - The context containing required accounts
+/// * `params` - Prize distribution parameters
+///
+/// # Returns
+/// * `Result<()>` - Success or error
+pub fn handler_distribute_syndicate_prize(
+    ctx: Context<DistributeSyndicatePrize>,
+    params: DistributeSyndicatePrizeParams,
+) -> Result<()> {
+    let syndicate_key = ctx.accounts.syndicate.key();
+    let total_prize = params.total_prize;
+    let manager_fee_bps = ctx.accounts.syndicate.manager_fee_bps;
+
+    // Validate prize amount
+    require!(total_prize > 0, LottoError::InvalidAmount);
+    require!(
+        ctx.accounts.prize_pool_usdc.amount >= total_prize,
+        LottoError::InsufficientFunds
+    );
+
+    // Calculate manager fee
+    let manager_fee = if manager_fee_bps > 0 {
+        (total_prize as u128 * manager_fee_bps as u128 / BPS_DENOMINATOR as u128) as u64
+    } else {
+        0
+    };
+
+    // Amount to distribute to members (after manager fee)
+    let member_pool = total_prize.saturating_sub(manager_fee);
+
+    // Transfer prize from prize pool to syndicate using lottery_state as authority
+    let lottery_bump = ctx.accounts.lottery_state.bump;
+    let seeds = &[LOTTERY_SEED, &[lottery_bump]];
+    let signer_seeds = &[&seeds[..]];
+
+    let cpi_accounts = Transfer {
+        from: ctx.accounts.prize_pool_usdc.to_account_info(),
+        to: ctx.accounts.syndicate_usdc.to_account_info(),
+        authority: ctx.accounts.lottery_state.to_account_info(),
+    };
+
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+
+    token::transfer(cpi_ctx, total_prize)?;
+
+    // Update syndicate statistics
+    let syndicate = &mut ctx.accounts.syndicate;
+    syndicate.total_contribution = syndicate.total_contribution.saturating_add(member_pool);
+
+    // Emit event
+    emit!(SyndicatePrizeDistributed {
+        syndicate: syndicate_key,
+        draw_id: params.draw_id,
+        total_prize,
+        manager_fee,
+        members_paid: syndicate.member_count,
+        timestamp: Clock::get()?.unix_timestamp,
+    });
+
+    msg!("Syndicate prize distributed!");
+    msg!("  Syndicate: {}", syndicate_key);
+    msg!("  Draw ID: {}", params.draw_id);
+    msg!("  Total prize: {} USDC lamports", total_prize);
+    msg!("  Manager fee: {} USDC lamports", manager_fee);
+    msg!("  Member pool: {} USDC lamports", member_pool);
+    msg!("  Members to receive: {}", syndicate.member_count);
+
+    Ok(())
+}
+
+// ============================================================================
+// CLAIM SYNDICATE MEMBER PRIZE INSTRUCTION
+// ============================================================================
+
+/// Parameters for claiming a member's share of syndicate prize
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct ClaimSyndicateMemberPrizeParams {
+    /// Amount to claim (must be <= member's share)
+    pub amount: u64,
+}
+
+/// Accounts required for claiming a syndicate member prize
+#[derive(Accounts)]
+#[instruction(params: ClaimSyndicateMemberPrizeParams)]
+pub struct ClaimSyndicateMemberPrize<'info> {
+    /// The member claiming their prize
+    #[account(mut)]
+    pub member: Signer<'info>,
+
+    /// The syndicate account
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            syndicate.creator.as_ref(),
+            &syndicate.syndicate_id.to_le_bytes()
+        ],
+        bump = syndicate.bump
+    )]
+    pub syndicate: Account<'info, Syndicate>,
+
+    /// Member's USDC token account (receives the prize)
+    #[account(
+        mut,
+        constraint = member_usdc.owner == member.key(),
+        constraint = member_usdc.mint == usdc_mint.key()
+    )]
+    pub member_usdc: Account<'info, TokenAccount>,
+
+    /// Syndicate's USDC token account (source of prize)
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            b"usdc",
+            syndicate.creator.as_ref(),
+            &syndicate.syndicate_id.to_le_bytes()
+        ],
+        bump,
+        constraint = syndicate_usdc.key() == syndicate.usdc_account @ LottoError::InvalidTokenAccount
+    )]
+    pub syndicate_usdc: Account<'info, TokenAccount>,
+
+    /// USDC mint
+    pub usdc_mint: Account<'info, Mint>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+}
+
+/// Claim a member's share of syndicate prize
+///
+/// This instruction:
+/// 1. Validates the member is part of the syndicate
+/// 2. Calculates member's share based on contribution percentage
+/// 3. Transfers the claimed amount from syndicate to member
+/// 4. Updates member's contribution (reduces it by claimed amount)
+///
+/// # Arguments
+/// * `ctx` - The context containing required accounts
+/// * `params` - Claim parameters
+///
+/// # Returns
+/// * `Result<()>` - Success or error
+pub fn handler_claim_syndicate_member_prize(
+    ctx: Context<ClaimSyndicateMemberPrize>,
+    params: ClaimSyndicateMemberPrizeParams,
+) -> Result<()> {
+    let member_key = ctx.accounts.member.key();
+    let syndicate_key = ctx.accounts.syndicate.key();
+    let claim_amount = params.amount;
+
+    // Validate claim amount
+    require!(claim_amount > 0, LottoError::InvalidAmount);
+
+    // Find the member in the syndicate
+    let member_index = ctx
+        .accounts
+        .syndicate
+        .members
+        .iter()
+        .position(|m| m.wallet == member_key)
+        .ok_or(LottoError::NotSyndicateMember)?;
+
+    let member_share_bps = ctx.accounts.syndicate.members[member_index].share_percentage_bps;
+    let _member_contribution = ctx.accounts.syndicate.members[member_index].contribution;
+
+    // Calculate member's maximum claimable amount
+    // This is based on their share of the total syndicate funds
+    let total_syndicate_funds = ctx.accounts.syndicate_usdc.amount;
+    let member_max_claim =
+        (total_syndicate_funds as u128 * member_share_bps as u128 / BPS_DENOMINATOR as u128) as u64;
+
+    // Validate claim amount doesn't exceed member's share
+    require!(
+        claim_amount <= member_max_claim,
+        LottoError::InsufficientFunds
+    );
+
+    // Validate syndicate has enough funds
+    require!(
+        ctx.accounts.syndicate_usdc.amount >= claim_amount,
+        LottoError::InsufficientFunds
+    );
+
+    // Transfer prize from syndicate to member using syndicate as authority
+    let syndicate = &ctx.accounts.syndicate;
+    let creator_key = syndicate.creator;
+    let syndicate_id_bytes = syndicate.syndicate_id.to_le_bytes();
+    let syndicate_bump = syndicate.bump;
+    let seeds = &[
+        SYNDICATE_SEED,
+        creator_key.as_ref(),
+        syndicate_id_bytes.as_ref(),
+        &[syndicate_bump],
+    ];
+    let signer_seeds = &[&seeds[..]];
+
+    let cpi_accounts = Transfer {
+        from: ctx.accounts.syndicate_usdc.to_account_info(),
+        to: ctx.accounts.member_usdc.to_account_info(),
+        authority: ctx.accounts.syndicate.to_account_info(),
+    };
+
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+
+    token::transfer(cpi_ctx, claim_amount)?;
+
+    // Update member's contribution (reduce it by claimed amount)
+    // This ensures future share calculations are accurate
+    let syndicate = &mut ctx.accounts.syndicate;
+    let member = &mut syndicate.members[member_index];
+
+    // Reduce contribution by claimed amount (but not below zero)
+    member.contribution = member.contribution.saturating_sub(claim_amount);
+
+    // Reduce total syndicate contribution
+    syndicate.total_contribution = syndicate.total_contribution.saturating_sub(claim_amount);
+
+    // Recalculate shares since contributions have changed
+    syndicate.recalculate_shares();
+
+    msg!("Syndicate member prize claimed!");
+    msg!("  Member: {}", member_key);
+    msg!("  Syndicate: {}", syndicate_key);
+    msg!("  Amount claimed: {} USDC lamports", claim_amount);
+    msg!("  Member share: {} BPS", member_share_bps);
+    msg!("  Member max claim: {} USDC lamports", member_max_claim);
+    msg!(
+        "  Remaining syndicate funds: {} USDC lamports",
+        ctx.accounts
+            .syndicate_usdc
+            .amount
+            .saturating_sub(claim_amount)
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// UPDATE SYNDICATE CONFIG INSTRUCTION
+// ============================================================================
+
+/// Parameters for updating syndicate configuration
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct UpdateSyndicateConfigParams {
+    /// New syndicate name (max 32 bytes UTF-8, empty to keep current)
+    pub name: Option<[u8; 32]>,
+    /// New public/private status
+    pub is_public: Option<bool>,
+    /// New manager fee in basis points (max 500 = 5%)
+    pub manager_fee_bps: Option<u16>,
+}
+
+/// Accounts required for updating syndicate configuration
+#[derive(Accounts)]
+#[instruction(params: UpdateSyndicateConfigParams)]
+pub struct UpdateSyndicateConfig<'info> {
+    /// The syndicate creator/manager
+    #[account(mut)]
+    pub manager: Signer<'info>,
+
+    /// The syndicate account
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            manager.key().as_ref(),
+            &syndicate.syndicate_id.to_le_bytes()
+        ],
+        bump = syndicate.bump,
+        constraint = syndicate.creator == manager.key() @ LottoError::Unauthorized
+    )]
+    pub syndicate: Account<'info, Syndicate>,
+}
+
+/// Update syndicate configuration
+///
+/// This instruction allows the syndicate creator to update:
+/// - Syndicate name
+/// - Public/private status
+/// - Manager fee (within limits)
+///
+/// # Arguments
+/// * `ctx` - The context containing required accounts
+/// * `params` - Configuration update parameters
+///
+/// # Returns
+/// * `Result<()>` - Success or error
+pub fn handler_update_syndicate_config(
+    ctx: Context<UpdateSyndicateConfig>,
+    params: UpdateSyndicateConfigParams,
+) -> Result<()> {
+    let syndicate_key = ctx.accounts.syndicate.key();
+    let mut updated = false;
+
+    // Update name if provided
+    if let Some(name) = params.name {
+        // Validate name is not empty (all zeros)
+        let mut has_content = false;
+        for &byte in &name {
+            if byte != 0 {
+                has_content = true;
+                break;
+            }
+        }
+        require!(has_content, LottoError::InvalidSyndicateConfig);
+
+        ctx.accounts.syndicate.name = name;
+        updated = true;
+        msg!("Updated syndicate name");
+    }
+
+    // Update public/private status if provided
+    if let Some(is_public) = params.is_public {
+        ctx.accounts.syndicate.is_public = is_public;
+        updated = true;
+        msg!(
+            "Updated syndicate visibility: {}",
+            if is_public { "public" } else { "private" }
+        );
+    }
+
+    // Update manager fee if provided
+    if let Some(manager_fee_bps) = params.manager_fee_bps {
+        require!(
+            manager_fee_bps <= MAX_MANAGER_FEE_BPS,
+            LottoError::ManagerFeeTooHigh
+        );
+        ctx.accounts.syndicate.manager_fee_bps = manager_fee_bps;
+        updated = true;
+        msg!("Updated manager fee: {} BPS", manager_fee_bps);
+    }
+
+    require!(updated, LottoError::InvalidSyndicateConfig);
+
+    msg!("Syndicate configuration updated!");
+    msg!("  Syndicate: {}", syndicate_key);
+    msg!("  Creator: {}", ctx.accounts.manager.key());
+
+    Ok(())
+}
+
+// ============================================================================
+// REMOVE SYNDICATE MEMBER INSTRUCTION
+// ============================================================================
+
+/// Parameters for removing a syndicate member
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct RemoveSyndicateMemberParams {
+    /// Member wallet address to remove
+    pub member_wallet: Pubkey,
+}
+
+/// Accounts required for removing a syndicate member
+#[derive(Accounts)]
+#[instruction(params: RemoveSyndicateMemberParams)]
+pub struct RemoveSyndicateMember<'info> {
+    /// The syndicate creator/manager
+    #[account(mut)]
+    pub manager: Signer<'info>,
+
+    /// The syndicate account
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            manager.key().as_ref(),
+            &syndicate.syndicate_id.to_le_bytes()
+        ],
+        bump = syndicate.bump,
+        constraint = syndicate.creator == manager.key() @ LottoError::Unauthorized
+    )]
+    pub syndicate: Account<'info, Syndicate>,
+
+    /// Member's USDC token account (receives refund)
+    #[account(
+        mut,
+        constraint = member_usdc.owner == params.member_wallet,
+        constraint = member_usdc.mint == usdc_mint.key()
+    )]
+    pub member_usdc: Account<'info, TokenAccount>,
+
+    /// Syndicate's USDC token account (source of refund)
+    #[account(
+        mut,
+        seeds = [
+            SYNDICATE_SEED,
+            b"usdc",
+            manager.key().as_ref(),
+            &syndicate.syndicate_id.to_le_bytes()
+        ],
+        bump,
+        constraint = syndicate_usdc.key() == syndicate.usdc_account @ LottoError::InvalidTokenAccount
+    )]
+    pub syndicate_usdc: Account<'info, TokenAccount>,
+
+    /// USDC mint
+    pub usdc_mint: Account<'info, Mint>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+}
+
+/// Remove a member from syndicate (creator only)
+///
+/// This instruction:
+/// 1. Validates the caller is the syndicate creator
+/// 2. Finds the member to remove
+/// 3. Calculates refund amount (member's contribution)
+/// 4. Transfers refund from syndicate to member
+/// 5. Removes member from syndicate
+///
+/// Note: Members can also leave voluntarily via `leave_syndicate`.
+///
+/// # Arguments
+/// * `ctx` - The context containing required accounts
+/// * `params` - Member removal parameters
+///
+/// # Returns
+/// * `Result<()>` - Success or error
+pub fn handler_remove_syndicate_member(
+    ctx: Context<RemoveSyndicateMember>,
+    params: RemoveSyndicateMemberParams,
+) -> Result<()> {
+    let syndicate_key = ctx.accounts.syndicate.key();
+    let member_wallet = params.member_wallet;
+
+    // Cannot remove the creator
+    require!(
+        member_wallet != ctx.accounts.syndicate.creator,
+        LottoError::Unauthorized
+    );
+
+    // Find and remove the member, getting their contribution
+    let refund_amount = ctx
+        .accounts
+        .syndicate
+        .remove_member(&member_wallet)
+        .map_err(|_| LottoError::NotSyndicateMember)?;
+
+    // Validate syndicate has enough funds for refund
+    require!(
+        ctx.accounts.syndicate_usdc.amount >= refund_amount,
+        LottoError::InsufficientFunds
+    );
+
+    // Transfer refund from syndicate to member
+    let transfer_instruction = Transfer {
+        from: ctx.accounts.syndicate_usdc.to_account_info(),
+        to: ctx.accounts.member_usdc.to_account_info(),
+        authority: ctx.accounts.syndicate_usdc.to_account_info(),
+    };
+
+    let cpi_context = CpiContext::new(
+        ctx.accounts.token_program.to_account_info(),
+        transfer_instruction,
+    );
+
+    token::transfer(cpi_context, refund_amount)?;
+
+    msg!("Syndicate member removed!");
+    msg!("  Syndicate: {}", syndicate_key);
+    msg!("  Manager: {}", ctx.accounts.manager.key());
+    msg!("  Removed member: {}", member_wallet);
+    msg!("  Refund amount: {} USDC lamports", refund_amount);
+    msg!(
+        "  Remaining members: {}",
+        ctx.accounts.syndicate.member_count
+    );
 
     Ok(())
 }

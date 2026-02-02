@@ -114,6 +114,19 @@ pub fn handler(ctx: Context<CommitQuickPickRandomness>) -> Result<()> {
     let jackpot_balance = ctx.accounts.quick_pick_state.jackpot_balance;
     let randomness_account = ctx.accounts.randomness_account_data.key();
 
+    // Verify no draw is currently in progress
+    require!(
+        !ctx.accounts.quick_pick_state.is_draw_in_progress,
+        QuickPickError::InvalidDrawState
+    );
+
+    // Update state to mark draw as in progress
+    let quick_pick_state = &mut ctx.accounts.quick_pick_state;
+    quick_pick_state.current_randomness_account = randomness_account;
+    quick_pick_state.commit_slot = seed_slot;
+    quick_pick_state.commit_timestamp = clock.unix_timestamp;
+    quick_pick_state.is_draw_in_progress = true;
+
     // Emit event
     emit!(QuickPickRandomnessCommitted {
         draw_id,
@@ -130,12 +143,6 @@ pub fn handler(ctx: Context<CommitQuickPickRandomness>) -> Result<()> {
     msg!("  Commit timestamp: {}", clock.unix_timestamp);
     msg!("  Total tickets: {}", total_tickets);
     msg!("  Jackpot balance: {} USDC lamports", jackpot_balance);
-
-    // Note: In a full implementation with extended state, you would update:
-    // quick_pick_state.current_randomness_account = randomness_account;
-    // quick_pick_state.commit_slot = seed_slot;
-    // quick_pick_state.commit_timestamp = clock.unix_timestamp;
-    // quick_pick_state.is_draw_in_progress = true;
 
     Ok(())
 }

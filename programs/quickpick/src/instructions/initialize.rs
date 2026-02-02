@@ -98,6 +98,15 @@ pub fn handler(ctx: Context<InitializeQuickPick>, params: InitializeQuickPickPar
     quick_pick_state.current_draw_tickets = 0;
     quick_pick_state.prize_pool_balance = 0;
     quick_pick_state.insurance_balance = 0;
+    quick_pick_state.reserve_balance = 0;
+    quick_pick_state.total_tickets_sold = 0;
+    quick_pick_state.total_prizes_paid = 0;
+
+    // Initialize draw management state
+    quick_pick_state.current_randomness_account = Pubkey::default();
+    quick_pick_state.commit_slot = 0;
+    quick_pick_state.commit_timestamp = 0;
+    quick_pick_state.is_draw_in_progress = false;
 
     // Set initial house fee (will be dynamic based on jackpot)
     quick_pick_state.house_fee_bps = QUICK_PICK_FEE_TIER_1_BPS;
@@ -105,6 +114,7 @@ pub fn handler(ctx: Context<InitializeQuickPick>, params: InitializeQuickPickPar
     // Set flags
     quick_pick_state.is_rolldown_pending = false;
     quick_pick_state.is_paused = true; // Start paused, must be funded and unpaused
+    quick_pick_state.is_funded = false; // Will be set true after fund_seed
 
     // Store bump
     quick_pick_state.bump = ctx.bumps.quick_pick_state;
@@ -173,7 +183,8 @@ pub struct FundQuickPickSeed<'info> {
         mut,
         seeds = [QUICK_PICK_SEED],
         bump = quick_pick_state.bump,
-        constraint = quick_pick_state.is_paused @ QuickPickError::InvalidDrawState
+        constraint = quick_pick_state.is_paused @ QuickPickError::InvalidDrawState,
+        constraint = !quick_pick_state.is_funded @ QuickPickError::AlreadyInitialized
     )]
     pub quick_pick_state: Account<'info, QuickPickState>,
 
@@ -202,6 +213,12 @@ pub fn handler_fund_seed(ctx: Context<FundQuickPickSeed>) -> Result<()> {
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;
     let seed_amount = quick_pick_state.seed_amount;
 
+    // Verify not already funded
+    require!(
+        !quick_pick_state.is_funded,
+        QuickPickError::AlreadyInitialized
+    );
+
     // Transfer seed amount from authority to prize pool
     let cpi_accounts = Transfer {
         from: ctx.accounts.authority_usdc.to_account_info(),
@@ -215,7 +232,8 @@ pub fn handler_fund_seed(ctx: Context<FundQuickPickSeed>) -> Result<()> {
     // Set jackpot balance
     quick_pick_state.jackpot_balance = seed_amount;
 
-    // Unpause
+    // Mark as funded and unpause
+    quick_pick_state.is_funded = true;
     quick_pick_state.is_paused = false;
 
     // Emit event

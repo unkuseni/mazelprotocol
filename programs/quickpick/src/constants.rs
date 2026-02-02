@@ -140,10 +140,18 @@ pub const QUICK_PICK_STATE_SIZE: usize = 8 +   // discriminator
     8 +    // current_draw_tickets
     8 +    // prize_pool_balance
     8 +    // insurance_balance
+    8 +    // reserve_balance
+    8 +    // total_tickets_sold
+    8 +    // total_prizes_paid
+    32 +   // current_randomness_account
+    8 +    // commit_slot
+    8 +    // commit_timestamp
+    1 +    // is_draw_in_progress
     1 +    // is_rolldown_pending
     1 +    // is_paused
+    1 +    // is_funded
     1 +    // bump
-    32; // padding
+    32; // padding for future use
 
 /// Quick Pick Ticket account size
 pub const QUICK_PICK_TICKET_SIZE: usize = 8 +  // discriminator

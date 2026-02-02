@@ -434,6 +434,21 @@ pub struct SyndicateWarsFinalized {
     pub timestamp: i64,
 }
 
+/// Emitted when Syndicate Wars competition concludes with prize distribution
+#[event]
+pub struct SyndicateWarsConcluded {
+    /// Competition month
+    pub month: u64,
+    /// Total prize distributed
+    pub total_distributed: u64,
+    /// Winner syndicate (1st place)
+    pub winner: Pubkey,
+    /// Winner's win rate (fixed-point × 1,000,000)
+    pub winner_win_rate: u64,
+    /// Timestamp
+    pub timestamp: i64,
+}
+
 // ============================================================================
 // FUND MANAGEMENT EVENTS
 // ============================================================================

@@ -42,7 +42,9 @@ pub struct ExecuteQuickPickDraw<'info> {
         mut,
         seeds = [QUICK_PICK_SEED],
         bump = quick_pick_state.bump,
-        constraint = !quick_pick_state.is_paused @ QuickPickError::Paused
+        constraint = !quick_pick_state.is_paused @ QuickPickError::Paused,
+        constraint = quick_pick_state.is_draw_in_progress @ QuickPickError::DrawNotInProgress,
+        constraint = quick_pick_state.current_randomness_account == randomness_account_data.key() @ QuickPickError::InvalidRandomnessProof
     )]
     pub quick_pick_state: Account<'info, QuickPickState>,
 

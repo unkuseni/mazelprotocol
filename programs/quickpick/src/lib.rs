@@ -48,6 +48,8 @@ pub use state::*;
 
 // Re-export all instruction account structs at crate root (required by Anchor)
 #[allow(ambiguous_glob_reexports)]
+pub use instructions::admin::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::buy_ticket::*;
 #[allow(ambiguous_glob_reexports)]
 pub use instructions::claim_prize::*;
@@ -121,6 +123,102 @@ pub mod quickpick {
     /// * `ctx` - PauseQuickPick accounts context
     pub fn unpause(ctx: Context<PauseQuickPick>) -> Result<()> {
         instructions::initialize::handler_unpause(ctx)
+    }
+
+    // =========================================================================
+    // ADMIN INSTRUCTIONS
+    // =========================================================================
+
+    /// Update Quick Pick Express configuration
+    ///
+    /// Updates various configuration parameters such as ticket price,
+    /// caps, prizes, and draw interval. Can only be called when paused
+    /// or no draw is in progress.
+    ///
+    /// # Arguments
+    /// * `ctx` - UpdateQuickPickConfig accounts context
+    /// * `params` - Configuration parameters to update (None = no change)
+    pub fn update_config(
+        ctx: Context<UpdateQuickPickConfig>,
+        params: UpdateQuickPickConfigParams,
+    ) -> Result<()> {
+        instructions::admin::handler_update_config(ctx, params)
+    }
+
+    /// Withdraw accumulated house fees
+    ///
+    /// Transfers house fees to a destination account.
+    /// Only the lottery authority can withdraw.
+    ///
+    /// # Arguments
+    /// * `ctx` - WithdrawQuickPickHouseFees accounts context
+    /// * `amount` - Amount to withdraw (0 = withdraw all)
+    pub fn withdraw_house_fees(
+        ctx: Context<WithdrawQuickPickHouseFees>,
+        amount: u64,
+    ) -> Result<()> {
+        instructions::admin::handler_withdraw_house_fees(ctx, amount)
+    }
+
+    /// Add reserve funds
+    ///
+    /// Adds additional reserve funds for jackpot seeding or emergencies.
+    /// Only the lottery authority can add funds.
+    ///
+    /// # Arguments
+    /// * `ctx` - AddQuickPickReserveFunds accounts context
+    /// * `amount` - Amount of USDC lamports to add
+    pub fn add_reserve_funds(ctx: Context<AddQuickPickReserveFunds>, amount: u64) -> Result<()> {
+        instructions::admin::handler_add_reserve_funds(ctx, amount)
+    }
+
+    /// Cancel a Quick Pick draw
+    ///
+    /// Cancels the current draw in progress, resetting the state
+    /// so a new draw can be initiated. Used for stuck draws or issues.
+    /// Only the lottery authority can cancel.
+    ///
+    /// # Arguments
+    /// * `ctx` - CancelQuickPickDraw accounts context
+    /// * `reason` - Reason for cancellation
+    pub fn cancel_draw(ctx: Context<CancelQuickPickDraw>, reason: String) -> Result<()> {
+        instructions::admin::handler_cancel_draw(ctx, reason)
+    }
+
+    /// Force finalize a Quick Pick draw
+    ///
+    /// Force finalizes a stuck draw with zero winners, allowing the
+    /// system to proceed to the next draw. The jackpot carries over.
+    /// Only the lottery authority can force finalize.
+    ///
+    /// # Arguments
+    /// * `ctx` - ForceFinalizequickPickDraw accounts context
+    /// * `reason` - Reason for force finalization
+    pub fn force_finalize_draw(
+        ctx: Context<ForceFinalizequickPickDraw>,
+        reason: String,
+    ) -> Result<()> {
+        instructions::admin::handler_force_finalize_draw(ctx, reason)
+    }
+
+    /// Emergency fund transfer
+    ///
+    /// Allows emergency transfer of funds between pools.
+    /// Quick Pick must be paused. Only for emergencies.
+    /// Only the lottery authority can execute.
+    ///
+    /// # Arguments
+    /// * `ctx` - EmergencyQuickPickFundTransfer accounts context
+    /// * `source` - Source of funds (Reserve, Insurance, or PrizePool)
+    /// * `amount` - Amount to transfer
+    /// * `reason` - Reason for the emergency transfer
+    pub fn emergency_fund_transfer(
+        ctx: Context<EmergencyQuickPickFundTransfer>,
+        source: QuickPickFundSource,
+        amount: u64,
+        reason: String,
+    ) -> Result<()> {
+        instructions::admin::handler_emergency_fund_transfer(ctx, source, amount, reason)
     }
 
     // =========================================================================

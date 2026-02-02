@@ -725,6 +725,62 @@ impl Syndicate {
     pub fn find_member_mut(&mut self, wallet: &Pubkey) -> Option<&mut SyndicateMember> {
         self.members.iter_mut().find(|m| m.wallet == *wallet)
     }
+
+    /// Get total funds in syndicate (contribution + prizes)
+    pub fn get_total_funds(&self, syndicate_usdc_balance: u64) -> u64 {
+        self.total_contribution
+            .saturating_add(syndicate_usdc_balance)
+    }
+
+    /// Calculate member's share amount based on current syndicate funds
+    pub fn calculate_member_share(
+        &self,
+        member_wallet: &Pubkey,
+        syndicate_usdc_balance: u64,
+    ) -> Option<u64> {
+        let member = self.find_member(member_wallet)?;
+        let total_funds = self.get_total_funds(syndicate_usdc_balance);
+
+        Some(
+            (total_funds as u128 * member.share_percentage_bps as u128 / BPS_DENOMINATOR as u128)
+                as u64,
+        )
+    }
+
+    /// Check if syndicate meets minimum requirements for Syndicate Wars
+    pub fn meets_wars_requirements(&self) -> bool {
+        self.member_count >= 5 && self.total_contribution > 0
+    }
+
+    /// Get syndicate statistics for display
+    pub fn get_stats(&self) -> SyndicateStats {
+        SyndicateStats {
+            member_count: self.member_count,
+            total_contribution: self.total_contribution,
+            manager_fee_bps: self.manager_fee_bps,
+            is_public: self.is_public,
+        }
+    }
+
+    /// Validate syndicate configuration
+    pub fn validate_config(&self) -> Result<()> {
+        require!(
+            self.manager_fee_bps <= MAX_MANAGER_FEE_BPS,
+            LottoError::ManagerFeeTooHigh
+        );
+
+        // Check name is not empty
+        let mut has_content = false;
+        for &byte in &self.name {
+            if byte != 0 {
+                has_content = true;
+                break;
+            }
+        }
+        require!(has_content, LottoError::InvalidSyndicateConfig);
+
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -980,6 +1036,28 @@ pub struct SyndicateWarsState {
     pub bump: u8,
 }
 
+impl SyndicateWarsState {
+    /// Account size including discriminator
+    pub const LEN: usize = 8 + std::mem::size_of::<SyndicateWarsState>();
+
+    /// Check if competition is open for registration
+    pub fn is_registration_open(&self, current_timestamp: i64) -> bool {
+        self.is_active
+            && current_timestamp >= self.start_timestamp
+            && current_timestamp <= self.end_timestamp
+    }
+
+    /// Check if competition has ended
+    pub fn has_ended(&self, current_timestamp: i64) -> bool {
+        current_timestamp > self.end_timestamp
+    }
+
+    /// Calculate competition duration in seconds
+    pub fn duration(&self) -> i64 {
+        self.end_timestamp - self.start_timestamp
+    }
+}
+
 /// Syndicate Wars entry for a syndicate
 #[account]
 #[derive(Default)]
@@ -1010,6 +1088,67 @@ pub struct SyndicateWarsEntry {
 
     /// PDA bump
     pub bump: u8,
+}
+
+impl SyndicateWarsEntry {
+    /// Account size including discriminator
+    pub const LEN: usize = 8 + std::mem::size_of::<SyndicateWarsEntry>();
+
+    /// Calculate win rate (fixed-point × 1,000,000)
+    pub fn calculate_win_rate(&self) -> u64 {
+        if self.tickets_purchased == 0 {
+            return 0;
+        }
+        (self.win_count as u128 * 1_000_000 / self.tickets_purchased as u128) as u64
+    }
+
+    /// Update win rate based on current stats
+    pub fn update_win_rate(&mut self) {
+        self.win_rate = self.calculate_win_rate();
+    }
+
+    /// Check if entry meets minimum qualification requirements
+    pub fn meets_qualification(&self, min_tickets: u64) -> bool {
+        self.tickets_purchased >= min_tickets
+    }
+
+    /// Add stats from a draw
+    pub fn add_draw_stats(&mut self, tickets: u64, prizes: u64, wins: u32) {
+        self.tickets_purchased = self.tickets_purchased.saturating_add(tickets);
+        self.prizes_won = self.prizes_won.saturating_add(prizes);
+        self.win_count = self.win_count.saturating_add(wins);
+        self.update_win_rate();
+    }
+}
+
+// ============================================================================
+// HELPER STRUCTURES
+// ============================================================================
+
+/// Syndicate statistics for display
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Default)]
+pub struct SyndicateStats {
+    /// Number of members
+    pub member_count: u32,
+    /// Total USDC contributed
+    pub total_contribution: u64,
+    /// Manager fee in basis points
+    pub manager_fee_bps: u16,
+    /// Whether syndicate is public
+    pub is_public: bool,
+}
+
+/// Member statistics for display
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Default)]
+pub struct MemberStats {
+    /// USDC contributed
+    pub contribution: u64,
+    /// Share percentage in basis points
+    pub share_percentage_bps: u16,
+    /// Estimated current share value
+    pub estimated_share: u64,
+    /// Join timestamp
+    pub join_timestamp: i64,
 }
 
 // ============================================================================

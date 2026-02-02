@@ -42,7 +42,8 @@ pub struct BuyQuickPickTicket<'info> {
         mut,
         seeds = [QUICK_PICK_SEED],
         bump = quick_pick_state.bump,
-        constraint = !quick_pick_state.is_paused @ QuickPickError::Paused
+        constraint = !quick_pick_state.is_paused @ QuickPickError::Paused,
+        constraint = !quick_pick_state.is_draw_in_progress @ QuickPickError::InvalidDrawState
     )]
     pub quick_pick_state: Account<'info, QuickPickState>,
 
@@ -243,7 +244,8 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
     ctx.accounts.transfer_to_prize_pool(prize_pool_transfer)?;
     ctx.accounts.transfer_to_house_fee(house_fee)?;
     if insurance_contribution > 0 {
-        ctx.accounts.transfer_to_insurance_pool(insurance_contribution)?;
+        ctx.accounts
+            .transfer_to_insurance_pool(insurance_contribution)?;
     }
 
     // Verify allocation integrity
@@ -269,6 +271,10 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
         .ok_or(QuickPickError::Overflow)?;
     quick_pick_state.current_draw_tickets = quick_pick_state
         .current_draw_tickets
+        .checked_add(1)
+        .ok_or(QuickPickError::Overflow)?;
+    quick_pick_state.total_tickets_sold = quick_pick_state
+        .total_tickets_sold
         .checked_add(1)
         .ok_or(QuickPickError::Overflow)?;
 
@@ -305,9 +311,19 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
     msg!("  Draw ID: {}", current_draw);
     msg!("  Numbers: {:?}", sorted_numbers);
     msg!("  Price: {} USDC lamports", ticket_price);
-    msg!("  House fee: {} bps ({}%)", house_fee_bps, house_fee_bps as f64 / 100.0);
-    msg!("  Jackpot contribution: {} USDC lamports", jackpot_contribution);
-    msg!("  Current jackpot: {} USDC lamports", quick_pick_state.jackpot_balance);
+    msg!(
+        "  House fee: {} bps ({}%)",
+        house_fee_bps,
+        house_fee_bps as f64 / 100.0
+    );
+    msg!(
+        "  Jackpot contribution: {} USDC lamports",
+        jackpot_contribution
+    );
+    msg!(
+        "  Current jackpot: {} USDC lamports",
+        quick_pick_state.jackpot_balance
+    );
     if quick_pick_state.is_rolldown_pending {
         msg!("  ⚠️ ROLLDOWN PENDING: Jackpot exceeds soft cap!");
     }
