@@ -81,6 +81,10 @@ pub enum LottoError {
     #[msg("Draw ID mismatch.")]
     DrawIdMismatch,
 
+    /// Jackpot is below minimum required amount
+    #[msg("Jackpot is below minimum required amount.")]
+    InsufficientJackpotFunding,
+
     // ============================================================================
     // Ticket Purchase & Validation (6030-6049)
     // ============================================================================

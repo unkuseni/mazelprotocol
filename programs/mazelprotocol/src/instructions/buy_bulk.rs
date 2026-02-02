@@ -218,6 +218,13 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
         && clock.unix_timestamp < sale_cutoff_time.expect("Sale cutoff time should be valid");
     require!(is_sale_open, LottoError::TicketSaleEnded);
 
+    // Check if jackpot is properly funded (minimum 100% of seed amount)
+    let minimum_jackpot = ctx.accounts.lottery_state.seed_amount;
+    require!(
+        ctx.accounts.lottery_state.jackpot_balance >= minimum_jackpot,
+        LottoError::InsufficientJackpotFunding
+    );
+
     // Enforce per-user ticket limit
     let user_tickets_this_draw = ctx.accounts.get_user_tickets_this_draw(current_draw_id);
     let new_total_tickets = user_tickets_this_draw

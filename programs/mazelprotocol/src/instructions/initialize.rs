@@ -128,6 +128,14 @@ impl<'info> Initialize<'info> {
             LottoError::InvalidSeedAmount
         );
 
+        // Validate seed amount meets absolute minimum requirement ($50,000)
+        // This ensures the lottery starts with sufficient funding
+        let absolute_minimum_seed = 50_000_000_000; // $50,000 in USDC lamports
+        require!(
+            params.seed_amount >= absolute_minimum_seed,
+            LottoError::InvalidSeedAmount
+        );
+
         // Validate draw interval (minimum 1 hour, maximum 7 days)
         require!(
             params.draw_interval >= 3600 && params.draw_interval <= 604800,

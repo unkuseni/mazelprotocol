@@ -203,12 +203,20 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
     let current_draw = ctx.accounts.quick_pick_state.current_draw;
     let jackpot_balance = ctx.accounts.quick_pick_state.jackpot_balance;
     let is_rolldown_pending = ctx.accounts.quick_pick_state.is_rolldown_pending;
+    let seed_amount = ctx.accounts.quick_pick_state.seed_amount;
 
     // Check if ticket sales are open (4-hour window with 5-minute cutoff)
     let sale_cutoff_time = next_draw_timestamp.saturating_sub(TICKET_SALE_CUTOFF);
     require!(
         clock.unix_timestamp < sale_cutoff_time,
         QuickPickError::TicketSaleEnded
+    );
+
+    // Check if jackpot is properly funded (minimum 100% of seed amount)
+    let minimum_jackpot = seed_amount;
+    require!(
+        jackpot_balance >= minimum_jackpot,
+        QuickPickError::InsufficientJackpotFunding
     );
 
     // Verify player has sufficient USDC balance
@@ -308,9 +316,20 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
     });
 
     msg!("Quick Pick Express ticket purchased!");
-    msg!("  Draw ID: {}", current_draw);
+    msg!("  Draw: #{}", current_draw);
     msg!("  Numbers: {:?}", sorted_numbers);
     msg!("  Price: {} USDC lamports", ticket_price);
+
+    // Log jackpot funding status
+    let minimum_jackpot = seed_amount;
+    msg!(
+        "  Minimum jackpot required: {} USDC lamports",
+        minimum_jackpot
+    );
+    msg!(
+        "  Current jackpot: {} USDC lamports",
+        quick_pick_state.jackpot_balance
+    );
     msg!(
         "  House fee: {} bps ({}%)",
         house_fee_bps,
