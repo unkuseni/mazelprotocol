@@ -1052,9 +1052,9 @@ impl SyndicateWarsState {
         current_timestamp > self.end_timestamp
     }
 
-    /// Calculate competition duration in seconds
+    /// Calculate competition duration in seconds with overflow protection
     pub fn duration(&self) -> i64 {
-        self.end_timestamp - self.start_timestamp
+        self.end_timestamp.saturating_sub(self.start_timestamp)
     }
 }
 

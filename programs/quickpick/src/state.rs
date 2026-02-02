@@ -193,7 +193,14 @@ impl QuickPickState {
         }
         // 1 hour timeout for commit-reveal
         const COMMIT_TIMEOUT: i64 = 3600;
-        current_timestamp > self.commit_timestamp + COMMIT_TIMEOUT
+        // Use checked_add to prevent overflow
+        match self.commit_timestamp.checked_add(COMMIT_TIMEOUT) {
+            Some(timeout_timestamp) => current_timestamp > timeout_timestamp,
+            None => {
+                // Overflow occurred - treat as timed out for safety
+                true
+            }
+        }
     }
 
     /// Reset draw state (for cancellation or timeout)

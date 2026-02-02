@@ -215,7 +215,7 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
         && is_funded
         && !is_draw_in_progress
         && sale_cutoff_time.is_some()
-        && clock.unix_timestamp < sale_cutoff_time.unwrap();
+        && clock.unix_timestamp < sale_cutoff_time.expect("Sale cutoff time should be valid");
     require!(is_sale_open, LottoError::TicketSaleEnded);
 
     // Enforce per-user ticket limit
