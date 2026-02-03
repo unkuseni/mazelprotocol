@@ -1,0 +1,24 @@
+{
+  "projectName": "app",
+  "mode": "file-router",
+  "typescript": true,
+  "packageManager": "pnpm",
+  "tailwind": true,
+  "addOnOptions": {},
+  "git": true,
+  "version": 1,
+  "framework": "react-cra",
+  "chosenAddOns": [
+    "biome",
+    "cloudflare",
+    "start",
+    "tanstack-query",
+    "tRPC",
+    "table",
+    "shadcn",
+    "form",
+    "db",
+    "compiler",
+    "t3env"
+  ]
+}
