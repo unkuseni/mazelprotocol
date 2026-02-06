@@ -35,6 +35,9 @@ pub struct BuyBulk<'info> {
     pub player: Signer<'info>,
 
     /// The main lottery state account
+    /// NOTE: Boxed to reduce stack frame size below SBF's 4096-byte limit.
+    /// LotteryState is large (~300+ bytes) and combined with 8 other accounts
+    /// in this struct, the unboxed version exceeds the stack offset limit.
     #[account(
         mut,
         seeds = [LOTTERY_SEED],
@@ -43,7 +46,7 @@ pub struct BuyBulk<'info> {
         constraint = lottery_state.is_funded @ LottoError::LotteryNotInitialized,
         constraint = !lottery_state.is_draw_in_progress @ LottoError::DrawInProgress
     )]
-    pub lottery_state: Account<'info, LotteryState>,
+    pub lottery_state: Box<Account<'info, LotteryState>>,
 
     /// The unified ticket account to be created for storing all tickets
     #[account(
