@@ -275,13 +275,19 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         // These are tracked in lottery_state but the USDC all goes to prize_pool_usdc
         let jackpot_contribution = (prize_pool_transfer as u128 * JACKPOT_ALLOCATION_BPS as u128
             / BPS_DENOMINATOR as u128) as u64;
-        let reserve_contribution = (prize_pool_transfer as u128 * RESERVE_ALLOCATION_BPS as u128
-            / BPS_DENOMINATOR as u128) as u64;
         // SECURITY FIX (Issue #4): Explicitly track the fixed prize allocation instead
         // of leaving it implicit. This prevents fixed prizes from eroding the jackpot.
         let fixed_prize_contribution = (prize_pool_transfer as u128
             * FIXED_PRIZE_ALLOCATION_BPS as u128
             / BPS_DENOMINATOR as u128) as u64;
+        // SECURITY FIX (Audit Issue #1): Capture the remainder (dust from integer
+        // division + the gap between BPS allocations summing to 9800 instead of
+        // 10000) into reserve_balance. Without this, ~2% of each prize_pool_transfer
+        // was untracked, causing accounting drift over time. This mirrors the
+        // approach already used in the QuickPick program.
+        let reserve_contribution = prize_pool_transfer
+            .saturating_sub(jackpot_contribution)
+            .saturating_sub(fixed_prize_contribution);
 
         (
             house_fee,
@@ -590,7 +596,129 @@ mod tests {
 
     #[test]
     fn test_validate_numbers_all_same() {
-        let numbers = [25, 25, 25, 25, 25, 25];
+        let numbers = [5, 5, 5, 5, 5, 5];
         assert!(validate_numbers(&numbers).is_err());
+    }
+
+    // =========================================================================
+    // ACCOUNTING REMAINDER FIX TESTS (Audit Issue #1)
+    // =========================================================================
+    // These tests verify that the per-ticket allocation math captures the full
+    // prize_pool_transfer into jackpot + fixed + reserve with zero leak.
+
+    /// Verify that jackpot + fixed + reserve == prize_pool_transfer (no dust leak).
+    /// Previously JACKPOT(5560) + FIXED(3940) + RESERVE(300) = 9800 BPS, leaving
+    /// 200 BPS (~2%) of prize_pool_transfer untracked. The fix computes reserve
+    /// as the subtraction remainder so the sum always equals the input exactly.
+    #[test]
+    fn test_allocation_no_accounting_leak() {
+        // Simulate a typical ticket price flow
+        let ticket_price: u64 = 2_500_000; // $2.50
+        let house_fee_bps: u64 = 3000; // 30%
+        let house_fee =
+            (ticket_price as u128 * house_fee_bps as u128 / BPS_DENOMINATOR as u128) as u64;
+        let after_house_fee = ticket_price.saturating_sub(house_fee);
+        let insurance_contribution = (after_house_fee as u128 * INSURANCE_ALLOCATION_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+        let prize_pool_transfer = after_house_fee.saturating_sub(insurance_contribution);
+
+        // New remainder-based allocation (the fix)
+        let jackpot_contribution = (prize_pool_transfer as u128 * JACKPOT_ALLOCATION_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+        let fixed_prize_contribution = (prize_pool_transfer as u128
+            * FIXED_PRIZE_ALLOCATION_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+        let reserve_contribution = prize_pool_transfer
+            .saturating_sub(jackpot_contribution)
+            .saturating_sub(fixed_prize_contribution);
+
+        // Critical invariant: all of prize_pool_transfer is accounted for
+        assert_eq!(
+            jackpot_contribution + fixed_prize_contribution + reserve_contribution,
+            prize_pool_transfer,
+            "Accounting leak detected: allocations do not sum to prize_pool_transfer"
+        );
+
+        // Reserve should capture at least the old 300 BPS allocation
+        let old_reserve = (prize_pool_transfer as u128 * RESERVE_ALLOCATION_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+        assert!(
+            reserve_contribution >= old_reserve,
+            "Reserve should capture at least the explicit 300 BPS allocation plus dust"
+        );
+    }
+
+    /// Verify the fix works for a range of prize_pool_transfer values,
+    /// including edge cases that amplify integer division dust.
+    #[test]
+    fn test_allocation_no_leak_various_amounts() {
+        let test_amounts: [u64; 7] = [
+            1,                 // minimal amount — maximum relative dust
+            999,               // odd amount
+            1_000_000,         // $1
+            2_500_000,         // $2.50 (standard ticket)
+            7_777_777,         // non-round amount
+            100_000_000_000,   // $100,000 (large bulk)
+            u64::MAX / 10_000, // near overflow boundary for BPS math
+        ];
+
+        for &prize_pool_transfer in &test_amounts {
+            let jackpot = (prize_pool_transfer as u128 * JACKPOT_ALLOCATION_BPS as u128
+                / BPS_DENOMINATOR as u128) as u64;
+            let fixed = (prize_pool_transfer as u128 * FIXED_PRIZE_ALLOCATION_BPS as u128
+                / BPS_DENOMINATOR as u128) as u64;
+            let reserve = prize_pool_transfer
+                .saturating_sub(jackpot)
+                .saturating_sub(fixed);
+
+            assert_eq!(
+                jackpot + fixed + reserve,
+                prize_pool_transfer,
+                "Accounting leak for prize_pool_transfer={}",
+                prize_pool_transfer
+            );
+        }
+    }
+
+    /// Demonstrate the old BPS-based reserve calculation leaked funds.
+    /// This test proves the bug existed and that the new approach fixes it.
+    #[test]
+    fn test_old_allocation_had_leak() {
+        let prize_pool_transfer: u64 = 2_500_000;
+
+        let jackpot = (prize_pool_transfer as u128 * JACKPOT_ALLOCATION_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+        let old_reserve = (prize_pool_transfer as u128 * RESERVE_ALLOCATION_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+        let fixed = (prize_pool_transfer as u128 * FIXED_PRIZE_ALLOCATION_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+
+        // Old approach: BPS sum is 5560 + 3940 + 300 = 9800, not 10000
+        let old_total = jackpot + old_reserve + fixed;
+        assert!(
+            old_total < prize_pool_transfer,
+            "Old BPS-based allocation should leak funds (sum {} < transfer {})",
+            old_total,
+            prize_pool_transfer
+        );
+
+        // New approach: remainder captures everything
+        let new_reserve = prize_pool_transfer
+            .saturating_sub(jackpot)
+            .saturating_sub(fixed);
+        let new_total = jackpot + new_reserve + fixed;
+        assert_eq!(
+            new_total, prize_pool_transfer,
+            "New remainder-based allocation must not leak"
+        );
+
+        // The difference is the dust that was previously leaked
+        let leaked = prize_pool_transfer - old_total;
+        assert!(leaked > 0, "There should be a non-zero leaked amount");
+        assert_eq!(
+            new_reserve - old_reserve,
+            leaked,
+            "New reserve should capture exactly the leaked amount"
+        );
     }
 }

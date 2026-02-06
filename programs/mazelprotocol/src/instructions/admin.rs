@@ -20,9 +20,10 @@ use crate::constants::*;
 use crate::errors::LottoError;
 use crate::events::{
     ConfigUpdated, DrawCancelled, DrawForceFinalized, EmergencyFundTransferred, EmergencyPause,
-    EmergencyUnpause, HouseFeesWithdrawn, InsurancePoolFunded, SolvencyCheckPerformed,
+    EmergencyUnpause, ExpiredPrizesReclaimed, HouseFeesWithdrawn, InsurancePoolFunded,
+    SolvencyCheckPerformed,
 };
-use crate::state::LotteryState;
+use crate::state::{DrawResult, LotteryState};
 
 // ============================================================================
 // PAUSE INSTRUCTION
@@ -1186,6 +1187,21 @@ pub struct ForceFinalizeDraw<'info> {
         constraint = lottery_state.is_draw_in_progress @ LottoError::DrawNotInProgress
     )]
     pub lottery_state: Account<'info, LotteryState>,
+
+    /// SECURITY FIX (Audit Issue #3): The DrawResult account for this draw.
+    /// If `execute_draw` was called before the emergency, a DrawResult already
+    /// exists on-chain. We mark it as explicitly finalized with zero prizes so
+    /// that `claim_prize` can find the account, see zero prize amounts, and
+    /// handle the force-finalized draw gracefully (no prize, no error).
+    /// Without this, tickets for force-finalized draws were permanently
+    /// unclaimable because no DrawResult existed or it remained un-finalized.
+    #[account(
+        mut,
+        seeds = [DRAW_SEED, &lottery_state.current_draw_id.to_le_bytes()],
+        bump = draw_result.bump,
+        constraint = draw_result.draw_id == lottery_state.current_draw_id @ LottoError::DrawIdMismatch
+    )]
+    pub draw_result: Account<'info, DrawResult>,
 }
 
 /// Force finalize a draw without winner distribution (emergency only)
@@ -1214,6 +1230,23 @@ pub struct ForceFinalizeDraw<'info> {
 /// * `Result<()>` - Success or error
 pub fn handler_force_finalize_draw(ctx: Context<ForceFinalizeDraw>, reason: String) -> Result<()> {
     let clock = Clock::get()?;
+
+    // =========================================================================
+    // SECURITY FIX (Audit Issue #3): Mark DrawResult as explicitly finalized
+    // with zero prizes. This ensures claim_prize can find the DrawResult,
+    // see that all prize amounts are 0, and handle the ticket gracefully
+    // (returning "no prize" instead of failing with a missing-account error).
+    // Previously, force_finalize_draw did NOT touch the DrawResult at all,
+    // making tickets from force-finalized draws permanently unclaimable.
+    // =========================================================================
+    let draw_result = &mut ctx.accounts.draw_result;
+    draw_result.match_6_prize_per_winner = 0;
+    draw_result.match_5_prize_per_winner = 0;
+    draw_result.match_4_prize_per_winner = 0;
+    draw_result.match_3_prize_per_winner = 0;
+    draw_result.match_2_prize_per_winner = 0;
+    draw_result.is_explicitly_finalized = true;
+
     let lottery_state = &mut ctx.accounts.lottery_state;
 
     let draw_id = lottery_state.current_draw_id;
@@ -1242,11 +1275,8 @@ pub fn handler_force_finalize_draw(ctx: Context<ForceFinalizeDraw>, reason: Stri
     msg!("  Tickets affected: {}", tickets_affected);
     msg!("  Reason: {}", reason);
     msg!("  New draw ID: {}", lottery_state.current_draw_id);
-    msg!(
-        "  ⚠️  WARNING: {} tickets will NOT receive prizes!",
-        tickets_affected
-    );
-    msg!("  Users may need off-chain compensation.");
+    msg!("  ✅ DrawResult marked as finalized with zero prizes.");
+    msg!("  Tickets can still call claim_prize and will see 0 prize (no error).");
     msg!(
         "  Next draw scheduled for: {}",
         lottery_state.next_draw_timestamp
@@ -1642,6 +1672,145 @@ pub fn handler_emergency_fund_transfer(
     msg!(
         "    Safety buffer (reserve + insurance): {} USDC lamports",
         lottery_state.get_safety_buffer()
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// RECLAIM EXPIRED PRIZES (Audit Issue #5)
+// ============================================================================
+
+/// Parameters for reclaiming expired prizes
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct ReclaimExpiredPrizesParams {
+    /// The draw ID whose expired prizes should be reclaimed
+    pub draw_id: u64,
+    /// Amount to reclaim (must be <= committed - paid for this draw).
+    /// The authority computes this off-chain by checking unclaimed tickets
+    /// whose claim window has expired.
+    pub amount: u64,
+}
+
+/// Accounts required for reclaiming expired prizes
+#[derive(Accounts)]
+#[instruction(params: ReclaimExpiredPrizesParams)]
+pub struct ReclaimExpiredPrizes<'info> {
+    /// Lottery authority
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    /// Lottery state
+    #[account(
+        mut,
+        seeds = [LOTTERY_SEED],
+        bump = lottery_state.bump,
+        constraint = lottery_state.authority == authority.key() @ LottoError::Unauthorized
+    )]
+    pub lottery_state: Account<'info, LotteryState>,
+
+    /// The DrawResult for the expired draw.
+    /// Used to verify the draw exists, is finalized, and its claim window
+    /// has expired based on TICKET_CLAIM_EXPIRATION.
+    #[account(
+        seeds = [DRAW_SEED, &params.draw_id.to_le_bytes()],
+        bump = draw_result.bump,
+        constraint = draw_result.draw_id == params.draw_id @ LottoError::DrawIdMismatch
+    )]
+    pub draw_result: Account<'info, DrawResult>,
+}
+
+/// Reclaim expired/unclaimed prize funds from a past draw back into reserve.
+///
+/// Over time, `total_prizes_committed` accumulates amounts for draws whose
+/// claim window has expired but whose unclaimed portions are never recovered.
+/// This creates "zombie" committed funds that make solvency metrics inaccurate.
+///
+/// This instruction allows the authority to sweep those expired commitments
+/// back into `reserve_balance` and decrement `total_prizes_committed`.
+///
+/// # Security
+/// - Only the authority can call this
+/// - The draw must be finalized (`is_explicitly_finalized` or has prize values)
+/// - The claim window must have fully expired (TICKET_CLAIM_EXPIRATION elapsed)
+/// - The reclaim amount must not exceed `total_prizes_committed`
+/// - Events are emitted for full audit trail
+///
+/// # Arguments
+/// * `ctx`    - Context with authority, lottery_state, and draw_result
+/// * `params` - Draw ID and amount to reclaim
+///
+/// # Returns
+/// * `Result<()>`
+pub fn handler_reclaim_expired_prizes(
+    ctx: Context<ReclaimExpiredPrizes>,
+    params: ReclaimExpiredPrizesParams,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let draw_result = &ctx.accounts.draw_result;
+
+    // 1. Verify the draw has been finalized
+    require!(draw_result.is_finalized(), LottoError::InvalidDrawState);
+
+    // 2. Verify the claim window has fully expired
+    // TICKET_CLAIM_EXPIRATION is the number of seconds after draw execution
+    // that tickets can still be claimed.
+    require!(TICKET_CLAIM_EXPIRATION > 0, LottoError::InvalidConfig);
+    let claim_deadline = draw_result
+        .timestamp
+        .checked_add(TICKET_CLAIM_EXPIRATION)
+        .ok_or(LottoError::ArithmeticError)?;
+    require!(
+        clock.unix_timestamp > claim_deadline,
+        LottoError::ClaimWindowNotExpired
+    );
+
+    // 3. Validate amount
+    require!(params.amount > 0, LottoError::InvalidAmount);
+
+    let lottery_state = &mut ctx.accounts.lottery_state;
+
+    // 4. Ensure reclaim does not exceed total committed
+    require!(
+        params.amount <= lottery_state.total_prizes_committed,
+        LottoError::ReclaimAmountExceedsCommitted
+    );
+
+    // 5. Decrement total_prizes_committed and credit reserve_balance
+    lottery_state.total_prizes_committed = lottery_state
+        .total_prizes_committed
+        .saturating_sub(params.amount);
+    lottery_state.reserve_balance = lottery_state
+        .reserve_balance
+        .checked_add(params.amount)
+        .ok_or(LottoError::Overflow)?;
+
+    // 6. Emit audit event
+    emit!(ExpiredPrizesReclaimed {
+        draw_id: params.draw_id,
+        amount_reclaimed: params.amount,
+        new_reserve_balance: lottery_state.reserve_balance,
+        new_total_prizes_committed: lottery_state.total_prizes_committed,
+        authority: ctx.accounts.authority.key(),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!("✅ Expired prizes reclaimed successfully!");
+    msg!("  Draw ID: {}", params.draw_id);
+    msg!("  Draw timestamp: {}", draw_result.timestamp);
+    msg!("  Claim deadline was: {}", claim_deadline);
+    msg!(
+        "  Time since expiry: {} seconds",
+        clock.unix_timestamp.saturating_sub(claim_deadline)
+    );
+    msg!("  Amount reclaimed: {} USDC lamports", params.amount);
+    msg!(
+        "  New reserve balance: {} USDC lamports",
+        lottery_state.reserve_balance
+    );
+    msg!(
+        "  New total_prizes_committed: {} USDC lamports",
+        lottery_state.total_prizes_committed
     );
 
     Ok(())

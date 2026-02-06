@@ -1131,12 +1131,20 @@ pub struct SyndicateWarsState {
     /// Is competition active
     pub is_active: bool,
 
+    /// SECURITY FIX (Audit Issue #2): Guard flag to prevent prizes from being
+    /// distributed more than once. Without this, the authority could call
+    /// `distribute_syndicate_wars_prizes` multiple times, overwriting rankings
+    /// and potentially causing double-spend or ranking manipulation.
+    pub is_distributed: bool,
+
     /// PDA bump
     pub bump: u8,
 }
 
 impl SyndicateWarsState {
     /// Account size including discriminator
+    /// NOTE: is_distributed field added in audit fix — if migrating existing
+    /// accounts, ensure reallocation covers the extra byte.
     pub const LEN: usize = 8 + std::mem::size_of::<SyndicateWarsState>();
 
     /// Check if competition is open for registration

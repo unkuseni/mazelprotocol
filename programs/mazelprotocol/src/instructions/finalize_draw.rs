@@ -638,19 +638,32 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     // ==========================================================================
     //
     // Priority for prize funding:
-    // 1. Jackpot balance (primary source)
-    // 2. Reserve balance (3% of ticket sales)
-    // 3. Insurance balance (2% of ticket sales - emergency only)
+    // 1. Jackpot balance (primary source for Match 6)
+    // 2. Fixed prize balance (39.4% allocation earmarked for Match 3/4/5)
+    // 3. Reserve balance (remainder from ticket sales)
+    // 4. Insurance balance (2% of ticket sales - emergency only)
     //
     // The insurance pool is the final safety net to ensure all prizes are paid.
 
-    // Get available funds from all sources
-    let primary_funds = jackpot_at_draw.saturating_add(lottery_state.reserve_balance);
+    // SECURITY FIX (Audit Issue #4): Include fixed_prize_balance in available
+    // funds for solvency calculation. Previously this was ignored, creating an
+    // inconsistency between how funds were tracked on purchase (39.4% allocated
+    // to fixed_prize_balance) and how solvency was computed at finalization
+    // (only jackpot + reserve + insurance). This could cause unnecessary prize
+    // scaling or insurance pool draws even when sufficient funds existed in the
+    // dedicated fixed prize pool.
+    let primary_funds = jackpot_at_draw
+        .saturating_add(lottery_state.reserve_balance)
+        .saturating_add(lottery_state.fixed_prize_balance);
     let total_available = primary_funds.saturating_add(lottery_state.insurance_balance);
     let insurance_balance_before = lottery_state.insurance_balance;
 
     msg!("📊 Solvency check:");
     msg!("  Jackpot balance: {} USDC lamports", jackpot_at_draw);
+    msg!(
+        "  Fixed prize balance: {} USDC lamports",
+        lottery_state.fixed_prize_balance
+    );
     msg!(
         "  Reserve balance: {} USDC lamports",
         lottery_state.reserve_balance
@@ -1276,5 +1289,152 @@ mod tests {
         // Match 3 pool should be the full jackpot
         let expected_match_3_prize = jackpot / 1000;
         assert_eq!(result.match_3_prize, expected_match_3_prize);
+    }
+
+    // =========================================================================
+    // FIXED PRIZE BALANCE SOLVENCY TESTS (Audit Issue #4)
+    // =========================================================================
+    // These tests verify that fixed_prize_balance is included in the available
+    // funds passed to calculate_fixed_prizes, preventing unnecessary prize
+    // scaling when the dedicated fixed prize pool has sufficient funds.
+
+    /// When jackpot + reserve alone are insufficient but fixed_prize_balance
+    /// covers the gap, prizes should NOT be scaled down.
+    #[test]
+    fn test_fixed_prize_balance_prevents_unnecessary_scaling() {
+        let winner_counts = WinnerCounts {
+            match_6: 0,
+            match_5: 1,
+            match_4: 10,
+            match_3: 100,
+            match_2: 50,
+        };
+
+        // Required fixed prizes: 1*$4000 + 10*$150 + 100*$5 = $5,500
+        let required_fixed: u64 = MATCH_5_PRIZE * 1 + MATCH_4_PRIZE * 10 + MATCH_3_PRIZE * 100;
+
+        let jackpot: u64 = 500_000_000_000; // $500k
+        let reserve: u64 = 1_000_000; // $1 (tiny reserve)
+        let fixed_prize_bal: u64 = 10_000_000_000; // $10k (ample for fixed prizes)
+        let insurance: u64 = 5_000_000_000; // $5k
+
+        // OLD solvency (without fixed_prize_balance):
+        // primary_funds = jackpot + reserve = $500,001
+        // total_available_old = primary_funds + insurance = $500,006
+        let old_primary = jackpot.saturating_add(reserve);
+        let old_total = old_primary.saturating_add(insurance);
+        let old_result = calculate_fixed_prizes(&winner_counts, jackpot, old_total);
+        // Old approach has plenty of funds from jackpot, so no scaling either
+        // (because funds_for_fixed = available_prize_pool when match_6 == 0)
+        assert!(!old_result.was_scaled_down);
+
+        // NEW solvency (with fixed_prize_balance included):
+        // primary_funds = jackpot + reserve + fixed_prize_bal
+        // total_available_new = primary_funds + insurance
+        let new_primary = jackpot
+            .saturating_add(reserve)
+            .saturating_add(fixed_prize_bal);
+        let new_total = new_primary.saturating_add(insurance);
+        let new_result = calculate_fixed_prizes(&winner_counts, jackpot, new_total);
+        assert!(!new_result.was_scaled_down);
+
+        // Both should pay full fixed prizes
+        assert_eq!(new_result.match_5_prize, MATCH_5_PRIZE);
+        assert_eq!(new_result.match_4_prize, MATCH_4_PRIZE);
+        assert_eq!(new_result.match_3_prize, MATCH_3_PRIZE);
+
+        // Verify required amount is correct
+        assert_eq!(
+            new_result.total_distributed, required_fixed,
+            "Total distributed should equal required fixed prizes"
+        );
+    }
+
+    /// When there IS a jackpot winner, fixed prizes must come from non-jackpot
+    /// funds. Including fixed_prize_balance in available_prize_pool means the
+    /// funds_for_fixed calculation has more headroom and avoids scaling.
+    #[test]
+    fn test_fixed_prize_balance_helps_when_jackpot_won() {
+        let winner_counts = WinnerCounts {
+            match_6: 1, // Jackpot winner!
+            match_5: 2,
+            match_4: 20,
+            match_3: 200,
+            match_2: 1000,
+        };
+
+        // Required fixed: 2*$4000 + 20*$150 + 200*$5 = $12,000
+        let required_fixed: u64 = MATCH_5_PRIZE * 2 + MATCH_4_PRIZE * 20 + MATCH_3_PRIZE * 200;
+
+        let jackpot: u64 = 500_000_000_000; // $500k (goes to match 6 winner)
+        let reserve: u64 = 5_000_000_000; // $5k reserve
+        let fixed_prize_bal: u64 = 15_000_000_000; // $15k fixed prize pool
+        let insurance: u64 = 2_000_000_000; // $2k insurance
+
+        // WITHOUT fixed_prize_balance:
+        // available = jackpot + reserve + insurance = $500k + $5k + $2k = $507k
+        // funds_for_fixed = available - jackpot = $7k  (less than $12k needed → SCALED)
+        let old_available = jackpot.saturating_add(reserve).saturating_add(insurance);
+        let old_result = calculate_fixed_prizes(&winner_counts, jackpot, old_available);
+        assert!(
+            old_result.was_scaled_down,
+            "Without fixed_prize_balance, prizes should be scaled down"
+        );
+
+        // WITH fixed_prize_balance:
+        // available = jackpot + reserve + fixed_prize_bal + insurance
+        //           = $500k + $5k + $15k + $2k = $522k
+        // funds_for_fixed = available - jackpot = $22k  (more than $12k → NO SCALING)
+        let new_available = jackpot
+            .saturating_add(reserve)
+            .saturating_add(fixed_prize_bal)
+            .saturating_add(insurance);
+        let new_result = calculate_fixed_prizes(&winner_counts, jackpot, new_available);
+        assert!(
+            !new_result.was_scaled_down,
+            "With fixed_prize_balance included, prizes should NOT be scaled down"
+        );
+
+        // New result should pay full fixed prizes
+        assert_eq!(new_result.match_5_prize, MATCH_5_PRIZE);
+        assert_eq!(new_result.match_4_prize, MATCH_4_PRIZE);
+        assert_eq!(new_result.match_3_prize, MATCH_3_PRIZE);
+        assert_eq!(new_result.total_distributed, jackpot + required_fixed);
+    }
+
+    /// Ensure that even with fixed_prize_balance, scaling still kicks in
+    /// when total available is genuinely insufficient.
+    #[test]
+    fn test_scaling_still_works_when_truly_insufficient() {
+        let winner_counts = WinnerCounts {
+            match_6: 1, // Jackpot winner
+            match_5: 100,
+            match_4: 1000,
+            match_3: 10000,
+            match_2: 500,
+        };
+
+        // Required fixed: 100*$4000 + 1000*$150 + 10000*$5 = $600k
+        let jackpot: u64 = 500_000_000_000; // $500k
+        let reserve: u64 = 50_000_000_000; // $50k
+        let fixed_prize_bal: u64 = 100_000_000_000; // $100k
+        let insurance: u64 = 20_000_000_000; // $20k
+
+        // total available = $670k. funds_for_fixed = $670k - $500k = $170k
+        // Required = $600k → must scale
+        let total_available = jackpot
+            .saturating_add(reserve)
+            .saturating_add(fixed_prize_bal)
+            .saturating_add(insurance);
+        let result = calculate_fixed_prizes(&winner_counts, jackpot, total_available);
+
+        assert!(
+            result.was_scaled_down,
+            "Should still scale when genuinely insufficient"
+        );
+        assert!(result.scale_factor_bps < 10000);
+        assert!(result.match_5_prize < MATCH_5_PRIZE);
+        assert!(result.match_4_prize < MATCH_4_PRIZE);
+        assert!(result.match_3_prize < MATCH_3_PRIZE);
     }
 }

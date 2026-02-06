@@ -329,6 +329,26 @@ pub mod solana_lotto {
         instructions::admin::handler_emergency_fund_transfer(ctx, source, amount, reason)
     }
 
+    /// Reclaim expired/unclaimed prize funds from a past draw
+    ///
+    /// Sweeps unclaimed committed prizes back into reserve_balance after
+    /// the TICKET_CLAIM_EXPIRATION window has fully elapsed. This prevents
+    /// "zombie" committed funds from accumulating in total_prizes_committed
+    /// and distorting solvency metrics.
+    ///
+    /// The authority must compute the correct reclaim amount off-chain by
+    /// inspecting unclaimed tickets for the given draw.
+    ///
+    /// # Arguments
+    /// * `ctx` - ReclaimExpiredPrizes accounts context
+    /// * `params` - Draw ID and amount to reclaim
+    pub fn reclaim_expired_prizes(
+        ctx: Context<ReclaimExpiredPrizes>,
+        params: ReclaimExpiredPrizesParams,
+    ) -> Result<()> {
+        instructions::admin::handler_reclaim_expired_prizes(ctx, params)
+    }
+
     // =========================================================================
     // TICKET INSTRUCTIONS
     // =========================================================================

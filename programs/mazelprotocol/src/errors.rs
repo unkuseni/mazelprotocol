@@ -600,6 +600,25 @@ pub enum LottoError {
     /// Invalid program ID
     #[msg("Invalid program ID.")]
     InvalidProgramId,
+
+    // ==========================================================================
+    // EXPIRED PRIZE RECLAMATION (Audit Issue #5)
+    // ==========================================================================
+    /// The claim window for this draw has not yet expired
+    #[msg("Claim window has not expired yet. Prizes can still be claimed.")]
+    ClaimWindowNotExpired,
+
+    /// The reclaim amount exceeds what was committed for this draw
+    #[msg("Reclaim amount exceeds committed prizes for this draw.")]
+    ReclaimAmountExceedsCommitted,
+
+    /// Prizes for this draw have already been reclaimed
+    #[msg("Prizes for this draw have already been reclaimed.")]
+    PrizesAlreadyReclaimed,
+
+    /// Distribution already completed for this competition
+    #[msg("Prizes have already been distributed for this competition.")]
+    AlreadyDistributed,
 }
 
 impl From<LottoError> for ProgramError {
