@@ -1,4 +1,11 @@
-//! Claim Bulk Prize Instruction
+//! Claim Bulk Prize Instructions
+//!
+//! SECURITY FIX (Issue #6): Both handlers now update lottery_state internal
+//! accounting (jackpot_balance, reserve_balance) when USDC prizes are transferred,
+//! keeping internal balances consistent with the actual prize_pool_usdc token account.
+//!
+//! SECURITY FIX (Issue #10): claim_all handler enforces a MAX_BULK_CLAIM_BATCH
+//! limit to prevent compute budget exhaustion on large unified tickets.
 //!
 //! This instruction allows players to claim their winnings from a unified ticket
 //! (bulk purchase) after a draw. It handles:
@@ -19,6 +26,11 @@ use crate::constants::*;
 use crate::errors::LottoError;
 use crate::events::PrizeClaimed;
 use crate::state::{DrawResult, LotteryState, UnifiedTicket, UserStats};
+
+/// Maximum number of tickets that can be claimed in a single claim_all transaction.
+/// Larger unified tickets must use individual claim_bulk_prize calls instead.
+/// This prevents compute budget exhaustion (Issue #10).
+pub const MAX_BULK_CLAIM_BATCH: usize = 20;
 
 /// Parameters for claiming a prize from a unified ticket
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -282,6 +294,25 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
         actual_transfer_amount = prize_amount;
     }
 
+    // SECURITY FIX (Issue #6): Update lottery_state internal accounting to stay
+    // consistent with the actual prize_pool_usdc token account balance.
+    // Prize payments reduce the token account but previously did NOT adjust
+    // the internal balances (jackpot_balance, reserve_balance), causing
+    // accounting drift that breaks solvency checks.
+    if actual_transfer_amount > 0 {
+        let lottery_state = &mut ctx.accounts.lottery_state;
+        if lottery_state.jackpot_balance >= actual_transfer_amount {
+            lottery_state.jackpot_balance = lottery_state
+                .jackpot_balance
+                .saturating_sub(actual_transfer_amount);
+        } else {
+            let from_jackpot = lottery_state.jackpot_balance;
+            let remainder = actual_transfer_amount.saturating_sub(from_jackpot);
+            lottery_state.jackpot_balance = 0;
+            lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(remainder);
+        }
+    }
+
     // Mark the specific ticket as claimed in the bitmap
     let unified_ticket = &mut ctx.accounts.unified_ticket;
     unified_ticket.mark_ticket_claimed(ticket_index);
@@ -461,6 +492,13 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
     let draw_timestamp = ctx.accounts.draw_result.timestamp;
     let ticket_count = ctx.accounts.unified_ticket.ticket_count as usize;
 
+    // SECURITY FIX (Issue #10): Enforce batch limit to prevent compute budget exhaustion.
+    // Large unified tickets (>20 tickets) must use individual claim_bulk_prize calls.
+    require!(
+        ticket_count <= MAX_BULK_CLAIM_BATCH,
+        LottoError::BulkPurchaseLimitExceeded
+    );
+
     // Proper finalization check
     require!(
         ctx.accounts.draw_result.is_finalized(),
@@ -559,6 +597,20 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
             total_prize_amount,
             lottery_bump,
         )?;
+
+        // SECURITY FIX (Issue #6): Update lottery_state internal accounting to stay
+        // consistent with the actual prize_pool_usdc token account balance.
+        let lottery_state = &mut ctx.accounts.lottery_state;
+        if lottery_state.jackpot_balance >= total_prize_amount {
+            lottery_state.jackpot_balance = lottery_state
+                .jackpot_balance
+                .saturating_sub(total_prize_amount);
+        } else {
+            let from_jackpot = lottery_state.jackpot_balance;
+            let remainder = total_prize_amount.saturating_sub(from_jackpot);
+            lottery_state.jackpot_balance = 0;
+            lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(remainder);
+        }
     }
 
     // FIXED: Only mark tickets as claimed if they were successfully processed.

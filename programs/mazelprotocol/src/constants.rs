@@ -309,6 +309,7 @@ pub const USER_STATS_SIZE: usize = 8 + // discriminator
 /// Syndicate base account size (without members)
 pub const SYNDICATE_BASE_SIZE: usize = 8 + // discriminator
     32 + // creator
+    32 + // original_creator (immutable, used for PDA seed derivation)
     8 +  // syndicate_id
     32 + // name
     1 +  // is_public

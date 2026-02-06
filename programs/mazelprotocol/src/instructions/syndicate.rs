@@ -57,6 +57,8 @@ pub struct CreateSyndicate<'info> {
             creator.key().as_ref(),
             &params.syndicate_id.to_le_bytes()
         ],
+        // NOTE: At creation time, creator.key() == original_creator.
+        // All subsequent PDA derivations MUST use syndicate.original_creator.
         bump
     )]
     pub syndicate: Account<'info, Syndicate>,
@@ -140,6 +142,9 @@ pub fn handler_create_syndicate(
 
     // Initialize syndicate
     syndicate.creator = ctx.accounts.creator.key();
+    // SECURITY FIX (Issue #1): Store original creator for stable PDA derivation.
+    // This field MUST NEVER be modified after creation.
+    syndicate.original_creator = ctx.accounts.creator.key();
     syndicate.syndicate_id = params.syndicate_id;
     syndicate.name = params.name;
     syndicate.is_public = params.is_public;
@@ -491,12 +496,13 @@ pub fn handler_leave_syndicate(ctx: Context<LeaveSyndicate>) -> Result<()> {
     let member_key = ctx.accounts.member.key();
     let syndicate_key = ctx.accounts.syndicate.key();
 
-    // Get the syndicate info needed for PDA signer seeds
-    let syndicate_creator = ctx.accounts.syndicate.creator;
+    // SECURITY FIX (Issue #1): Use original_creator for PDA signer seeds
+    let syndicate_original_creator = ctx.accounts.syndicate.original_creator;
     let syndicate_id = ctx.accounts.syndicate.syndicate_id;
     let syndicate_bump = ctx.accounts.syndicate.bump;
 
     // Check if this is the creator trying to leave
+    let syndicate_creator = ctx.accounts.syndicate.creator;
     if member_key == syndicate_creator {
         // Creator can only leave if:
         // 1. They have 0 contribution, AND
@@ -551,10 +557,10 @@ pub fn handler_leave_syndicate(ctx: Context<LeaveSyndicate>) -> Result<()> {
             LottoError::InsufficientTokenBalance
         );
 
-        // Create signer seeds for the syndicate PDA
+        // SECURITY FIX (Issue #1): Use original_creator for signer seeds
         let seeds = &[
             SYNDICATE_SEED,
-            syndicate_creator.as_ref(),
+            syndicate_original_creator.as_ref(),
             &syndicate_id.to_le_bytes(),
             &[syndicate_bump],
         ];
@@ -656,16 +662,18 @@ pub struct CloseSyndicate<'info> {
 /// * `Result<()>` - Success or error
 pub fn handler_close_syndicate(ctx: Context<CloseSyndicate>) -> Result<()> {
     let syndicate_key = ctx.accounts.syndicate.key();
-    let syndicate_creator = ctx.accounts.syndicate.creator;
+    // SECURITY FIX (Issue #1): Use original_creator for signer seeds
+    let syndicate_original_creator = ctx.accounts.syndicate.original_creator;
     let syndicate_id = ctx.accounts.syndicate.syndicate_id;
     let syndicate_bump = ctx.accounts.syndicate.bump;
     let remaining_balance = ctx.accounts.syndicate_usdc.amount;
 
     // Get creator's recorded contribution for comparison
+    let current_creator = ctx.accounts.syndicate.creator;
     let creator_contribution = ctx
         .accounts
         .syndicate
-        .find_member(&syndicate_creator)
+        .find_member(&current_creator)
         .map(|m| m.contribution)
         .unwrap_or(0);
 
@@ -688,7 +696,7 @@ pub fn handler_close_syndicate(ctx: Context<CloseSyndicate>) -> Result<()> {
     if remaining_balance > 0 {
         let seeds = &[
             SYNDICATE_SEED,
-            syndicate_creator.as_ref(),
+            syndicate_original_creator.as_ref(),
             &syndicate_id.to_le_bytes(),
             &[syndicate_bump],
         ];
@@ -719,7 +727,7 @@ pub fn handler_close_syndicate(ctx: Context<CloseSyndicate>) -> Result<()> {
     // Close the syndicate USDC token account
     let seeds = &[
         SYNDICATE_SEED,
-        syndicate_creator.as_ref(),
+        syndicate_original_creator.as_ref(),
         &syndicate_id.to_le_bytes(),
         &[syndicate_bump],
     ];
@@ -828,8 +836,8 @@ pub fn handler_withdraw_creator_contribution(
         LottoError::InsufficientTokenBalance
     );
 
-    // Get syndicate info for signer seeds
-    let syndicate_creator = ctx.accounts.syndicate.creator;
+    // SECURITY FIX (Issue #1): Use original_creator for signer seeds
+    let syndicate_original_creator = ctx.accounts.syndicate.original_creator;
     let syndicate_id = ctx.accounts.syndicate.syndicate_id;
     let syndicate_bump = ctx.accounts.syndicate.bump;
 
@@ -844,7 +852,7 @@ pub fn handler_withdraw_creator_contribution(
     // Transfer USDC to creator
     let seeds = &[
         SYNDICATE_SEED,
-        syndicate_creator.as_ref(),
+        syndicate_original_creator.as_ref(),
         &syndicate_id.to_le_bytes(),
         &[syndicate_bump],
     ];
@@ -895,8 +903,16 @@ pub struct BuySyndicateTickets<'info> {
     pub creator: Signer<'info>,
 
     /// The syndicate account
+    /// SECURITY FIX (Issue #1): Use original_creator for PDA seed derivation
+    /// to prevent fund-lock after creator transfer.
     #[account(
         mut,
+        seeds = [
+            SYNDICATE_SEED,
+            syndicate.original_creator.as_ref(),
+            &syndicate.syndicate_id.to_le_bytes()
+        ],
+        bump = syndicate.bump,
         constraint = syndicate.creator == creator.key() @ LottoError::Unauthorized
     )]
     pub syndicate: Account<'info, Syndicate>,
@@ -1048,14 +1064,15 @@ pub fn handler_buy_syndicate_tickets(
         (total_cost as u128 * house_fee_bps as u128 / BPS_DENOMINATOR as u128) as u64;
     let total_prize_pool = total_cost.saturating_sub(total_house_fee);
 
-    // Get syndicate signer seeds
-    let syndicate_creator = ctx.accounts.syndicate.creator;
+    // SECURITY FIX (Issue #1): Use original_creator for signer seeds
+    // to match the PDA derived at creation time.
+    let syndicate_original_creator = ctx.accounts.syndicate.original_creator;
     let syndicate_id = ctx.accounts.syndicate.syndicate_id;
     let syndicate_bump = ctx.accounts.syndicate.bump;
 
     let seeds = &[
         SYNDICATE_SEED,
-        syndicate_creator.as_ref(),
+        syndicate_original_creator.as_ref(),
         &syndicate_id.to_le_bytes(),
         &[syndicate_bump],
     ];
@@ -1293,22 +1310,25 @@ pub struct DistributeSyndicatePrize<'info> {
     pub manager: Signer<'info>,
 
     /// Lottery state (authority for prize pool)
+    /// SECURITY FIX (Issue #4): Require caller to be lottery authority to prevent
+    /// arbitrary prize pool drain by any syndicate creator.
     #[account(
         seeds = [LOTTERY_SEED],
-        bump = lottery_state.bump
+        bump = lottery_state.bump,
+        constraint = lottery_state.authority == manager.key() @ LottoError::Unauthorized
     )]
     pub lottery_state: Account<'info, LotteryState>,
 
     /// The syndicate account
+    /// SECURITY FIX (Issue #1): Use original_creator for PDA seed derivation
     #[account(
         mut,
         seeds = [
             SYNDICATE_SEED,
-            syndicate.creator.as_ref(),
+            syndicate.original_creator.as_ref(),
             &syndicate.syndicate_id.to_le_bytes()
         ],
-        bump = syndicate.bump,
-        constraint = syndicate.creator == manager.key() @ LottoError::Unauthorized
+        bump = syndicate.bump
     )]
     pub syndicate: Account<'info, Syndicate>,
 
@@ -1451,11 +1471,12 @@ pub struct ClaimSyndicateMemberPrize<'info> {
     pub member: Signer<'info>,
 
     /// The syndicate account
+    /// SECURITY FIX (Issue #1): Use original_creator for PDA seed derivation
     #[account(
         mut,
         seeds = [
             SYNDICATE_SEED,
-            syndicate.creator.as_ref(),
+            syndicate.original_creator.as_ref(),
             &syndicate.syndicate_id.to_le_bytes()
         ],
         bump = syndicate.bump
@@ -1548,14 +1569,14 @@ pub fn handler_claim_syndicate_member_prize(
         LottoError::InsufficientFunds
     );
 
-    // Transfer prize from syndicate to member using syndicate as authority
+    // SECURITY FIX (Issue #1): Use original_creator for signer seeds
     let syndicate = &ctx.accounts.syndicate;
-    let creator_key = syndicate.creator;
+    let original_creator_key = syndicate.original_creator;
     let syndicate_id_bytes = syndicate.syndicate_id.to_le_bytes();
     let syndicate_bump = syndicate.bump;
     let seeds = &[
         SYNDICATE_SEED,
-        creator_key.as_ref(),
+        original_creator_key.as_ref(),
         syndicate_id_bytes.as_ref(),
         &[syndicate_bump],
     ];
@@ -1572,19 +1593,15 @@ pub fn handler_claim_syndicate_member_prize(
 
     token::transfer(cpi_ctx, claim_amount)?;
 
-    // Update member's contribution (reduce it by claimed amount)
-    // This ensures future share calculations are accurate
-    let syndicate = &mut ctx.accounts.syndicate;
-    let member = &mut syndicate.members[member_index];
-
-    // Reduce contribution by claimed amount (but not below zero)
-    member.contribution = member.contribution.saturating_sub(claim_amount);
-
-    // Reduce total syndicate contribution
-    syndicate.total_contribution = syndicate.total_contribution.saturating_sub(claim_amount);
-
-    // Recalculate shares since contributions have changed
-    syndicate.recalculate_shares();
+    // SECURITY FIX (Issue #7): Do NOT reduce contribution when claiming prizes.
+    // Contributions track member deposits and are used to calculate share_percentage_bps.
+    // Reducing contributions by prize claims corrupts share math — a member who claims
+    // a large prize would lose their share, effectively redistributing their future
+    // claims to other members. Prizes and contributions are separate concerns.
+    //
+    // The member's claimable amount is already bounded by their share_percentage_bps
+    // applied to the actual syndicate_usdc token account balance, so no state update
+    // is needed. The USDC has already been transferred out of the syndicate account.
 
     msg!("Syndicate member prize claimed!");
     msg!("  Member: {}", member_key);
@@ -1627,11 +1644,13 @@ pub struct UpdateSyndicateConfig<'info> {
     pub manager: Signer<'info>,
 
     /// The syndicate account
+    /// SECURITY FIX (Issue #1): Use original_creator for PDA seed derivation
+    /// to prevent fund-lock after creator transfer.
     #[account(
         mut,
         seeds = [
             SYNDICATE_SEED,
-            manager.key().as_ref(),
+            syndicate.original_creator.as_ref(),
             &syndicate.syndicate_id.to_le_bytes()
         ],
         bump = syndicate.bump,
@@ -1727,15 +1746,15 @@ pub struct RemoveSyndicateMember<'info> {
     pub manager: Signer<'info>,
 
     /// The syndicate account
-    /// FIXED: Use syndicate.creator instead of manager.key() in PDA seeds.
-    /// After a creator transfer, manager.key() may differ from the original
-    /// creator used during PDA derivation. Using syndicate.creator ensures
+    /// SECURITY FIX (Issue #1): Use original_creator for PDA seed derivation.
+    /// After a creator transfer, syndicate.creator differs from the original
+    /// creator used during PDA derivation. Using original_creator ensures
     /// the PDA always resolves correctly.
     #[account(
         mut,
         seeds = [
             SYNDICATE_SEED,
-            syndicate.creator.as_ref(),
+            syndicate.original_creator.as_ref(),
             &syndicate.syndicate_id.to_le_bytes()
         ],
         bump = syndicate.bump,
@@ -1804,8 +1823,8 @@ pub fn handler_remove_syndicate_member(
         LottoError::Unauthorized
     );
 
-    // Get syndicate signer seeds before mutable borrow
-    let syndicate_creator = ctx.accounts.syndicate.creator;
+    // SECURITY FIX (Issue #1): Use original_creator for signer seeds
+    let syndicate_original_creator = ctx.accounts.syndicate.original_creator;
     let syndicate_id = ctx.accounts.syndicate.syndicate_id;
     let syndicate_bump = ctx.accounts.syndicate.bump;
 
@@ -1828,7 +1847,7 @@ pub fn handler_remove_syndicate_member(
     // sign for itself.
     let seeds = &[
         SYNDICATE_SEED,
-        syndicate_creator.as_ref(),
+        syndicate_original_creator.as_ref(),
         &syndicate_id.to_le_bytes(),
         &[syndicate_bump],
     ];
@@ -1881,8 +1900,15 @@ pub struct TransferSyndicateCreator<'info> {
     pub creator: Signer<'info>,
 
     /// The syndicate account
+    /// SECURITY FIX (Issue #1): Use original_creator for PDA seed derivation
     #[account(
         mut,
+        seeds = [
+            SYNDICATE_SEED,
+            syndicate.original_creator.as_ref(),
+            &syndicate.syndicate_id.to_le_bytes()
+        ],
+        bump = syndicate.bump,
         constraint = syndicate.creator == creator.key() @ LottoError::Unauthorized
     )]
     pub syndicate: Account<'info, Syndicate>,

@@ -609,8 +609,14 @@ impl SyndicateMember {
 #[account]
 #[derive(Default)]
 pub struct Syndicate {
-    /// Syndicate creator
+    /// Current syndicate creator/manager (mutable — can be transferred)
     pub creator: Pubkey,
+
+    /// Original creator at PDA creation time (immutable — used for PDA seed derivation).
+    /// This MUST NEVER be changed after initialization. All PDA seeds and CPI signer
+    /// seeds must use this field instead of `creator` to prevent fund-lock after
+    /// creator transfers. See Issue #1 in security audit.
+    pub original_creator: Pubkey,
 
     /// Unique identifier
     pub syndicate_id: u64,

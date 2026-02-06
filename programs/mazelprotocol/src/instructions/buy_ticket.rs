@@ -309,11 +309,12 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
                 .transfer_to_insurance_pool(insurance_contribution)?;
         }
 
-        // Verify: house_fee + prize_pool_transfer + insurance_contribution = ticket_price
-        debug_assert_eq!(
-            house_fee + prize_pool_transfer + insurance_contribution,
-            ticket_price,
-            "Fund allocation mismatch!"
+        // SECURITY FIX (Issue #8): Replace debug_assert with runtime require!
+        // debug_assert is stripped in release builds, leaving this critical
+        // invariant unchecked in production. Use require! to enforce it always.
+        require!(
+            house_fee + prize_pool_transfer + insurance_contribution == ticket_price,
+            LottoError::SafetyCheckFailed
         );
     }
 

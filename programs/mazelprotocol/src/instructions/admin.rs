@@ -605,6 +605,16 @@ pub fn handler_execute_config(
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
+/// SECURITY FIX (Issue #2): Legacy immediate config update now ONLY allows
+/// non-sensitive operational parameters (switchboard_queue rotation).
+///
+/// ALL financial parameters (ticket_price, house_fee_bps, jackpot_cap,
+/// seed_amount, soft_cap, hard_cap, draw_interval) MUST go through the
+/// propose_config → execute_config timelock flow. This prevents a
+/// compromised authority from instantly changing critical financial params.
+///
+/// If any sensitive parameter is provided, this handler will reject the call
+/// with an error directing the caller to use the timelock flow instead.
 pub fn handler_update_config(ctx: Context<UpdateConfig>, params: UpdateConfigParams) -> Result<()> {
     let clock = Clock::get()?;
     let lottery_state = &mut ctx.accounts.lottery_state;
@@ -615,138 +625,53 @@ pub fn handler_update_config(ctx: Context<UpdateConfig>, params: UpdateConfigPar
         LottoError::InvalidDrawState
     );
 
-    // Update ticket price
-    if let Some(ticket_price) = params.ticket_price {
-        require!(ticket_price > 0, LottoError::InvalidTicketPrice);
+    // SECURITY FIX (Issue #2): Block ALL sensitive financial parameter updates
+    // via this legacy immediate path. They MUST use the timelock flow.
+    require!(
+        params.ticket_price.is_none(),
+        LottoError::ConfigValidationFailed
+    );
+    require!(
+        params.house_fee_bps.is_none(),
+        LottoError::ConfigValidationFailed
+    );
+    require!(
+        params.jackpot_cap.is_none(),
+        LottoError::ConfigValidationFailed
+    );
+    require!(
+        params.seed_amount.is_none(),
+        LottoError::ConfigValidationFailed
+    );
+    require!(
+        params.soft_cap.is_none(),
+        LottoError::ConfigValidationFailed
+    );
+    require!(
+        params.hard_cap.is_none(),
+        LottoError::ConfigValidationFailed
+    );
+    require!(
+        params.draw_interval.is_none(),
+        LottoError::ConfigValidationFailed
+    );
 
-        emit!(ConfigUpdated {
-            parameter: "ticket_price".to_string(),
-            old_value: lottery_state.ticket_price,
-            new_value: ticket_price,
-            authority: ctx.accounts.authority.key(),
-            timestamp: clock.unix_timestamp,
-        });
-
-        lottery_state.ticket_price = ticket_price;
-        msg!("Updated ticket_price: {}", ticket_price);
-    }
-
-    // Update house fee
-    if let Some(house_fee_bps) = params.house_fee_bps {
-        require!(house_fee_bps <= 5000, LottoError::InvalidHouseFee);
-
-        emit!(ConfigUpdated {
-            parameter: "house_fee_bps".to_string(),
-            old_value: lottery_state.house_fee_bps as u64,
-            new_value: house_fee_bps as u64,
-            authority: ctx.accounts.authority.key(),
-            timestamp: clock.unix_timestamp,
-        });
-
-        lottery_state.house_fee_bps = house_fee_bps;
-        msg!("Updated house_fee_bps: {}", house_fee_bps);
-    }
-
-    // Update jackpot cap
-    if let Some(jackpot_cap) = params.jackpot_cap {
-        emit!(ConfigUpdated {
-            parameter: "jackpot_cap".to_string(),
-            old_value: lottery_state.jackpot_cap,
-            new_value: jackpot_cap,
-            authority: ctx.accounts.authority.key(),
-            timestamp: clock.unix_timestamp,
-        });
-
-        lottery_state.jackpot_cap = jackpot_cap;
-        msg!("Updated jackpot_cap: {}", jackpot_cap);
-    }
-
-    // Update seed amount
-    if let Some(seed_amount) = params.seed_amount {
-        emit!(ConfigUpdated {
-            parameter: "seed_amount".to_string(),
-            old_value: lottery_state.seed_amount,
-            new_value: seed_amount,
-            authority: ctx.accounts.authority.key(),
-            timestamp: clock.unix_timestamp,
-        });
-
-        lottery_state.seed_amount = seed_amount;
-        msg!("Updated seed_amount: {}", seed_amount);
-    }
-
-    // Update soft cap
-    if let Some(soft_cap) = params.soft_cap {
-        emit!(ConfigUpdated {
-            parameter: "soft_cap".to_string(),
-            old_value: lottery_state.soft_cap,
-            new_value: soft_cap,
-            authority: ctx.accounts.authority.key(),
-            timestamp: clock.unix_timestamp,
-        });
-
-        lottery_state.soft_cap = soft_cap;
-        msg!("Updated soft_cap: {}", soft_cap);
-    }
-
-    // Update hard cap
-    if let Some(hard_cap) = params.hard_cap {
-        emit!(ConfigUpdated {
-            parameter: "hard_cap".to_string(),
-            old_value: lottery_state.hard_cap,
-            new_value: hard_cap,
-            authority: ctx.accounts.authority.key(),
-            timestamp: clock.unix_timestamp,
-        });
-
-        lottery_state.hard_cap = hard_cap;
-        msg!("Updated hard_cap: {}", hard_cap);
-    }
-
-    // Update Switchboard queue
+    // Only switchboard_queue can be updated immediately (operational, non-financial)
     if let Some(switchboard_queue) = params.switchboard_queue {
+        emit!(ConfigUpdated {
+            parameter: "switchboard_queue".to_string(),
+            old_value: 0, // Pubkey doesn't fit in u64, use 0 as placeholder
+            new_value: 0,
+            authority: ctx.accounts.authority.key(),
+            timestamp: clock.unix_timestamp,
+        });
+
         lottery_state.switchboard_queue = switchboard_queue;
         msg!("Updated switchboard_queue: {}", switchboard_queue);
     }
 
-    // Update draw interval
-    if let Some(draw_interval) = params.draw_interval {
-        require!(
-            draw_interval >= 3600 && draw_interval <= 604800,
-            LottoError::InvalidDrawInterval
-        );
-
-        emit!(ConfigUpdated {
-            parameter: "draw_interval".to_string(),
-            old_value: lottery_state.draw_interval as u64,
-            new_value: draw_interval as u64,
-            authority: ctx.accounts.authority.key(),
-            timestamp: clock.unix_timestamp,
-        });
-
-        lottery_state.draw_interval = draw_interval;
-        msg!("Updated draw_interval: {}", draw_interval);
-    }
-
-    // Validate relationships after updates
-    require!(lottery_state.soft_cap > 0, LottoError::InvalidCapConfig);
-    require!(lottery_state.hard_cap > 0, LottoError::InvalidCapConfig);
-    require!(
-        lottery_state.soft_cap < lottery_state.hard_cap,
-        LottoError::InvalidCapConfig
-    );
-    require!(lottery_state.seed_amount > 0, LottoError::InvalidSeedAmount);
-    require!(
-        lottery_state.seed_amount < lottery_state.soft_cap,
-        LottoError::InvalidSeedAmount
-    );
-    require!(lottery_state.jackpot_cap > 0, LottoError::InvalidJackpotCap);
-    require!(
-        lottery_state.jackpot_cap <= lottery_state.hard_cap,
-        LottoError::InvalidJackpotCap
-    );
-
-    msg!("Configuration updated successfully (immediate mode)!");
+    msg!("Configuration updated (immediate mode — switchboard_queue only).");
+    msg!("NOTE: All financial parameter changes require the propose_config → execute_config timelock flow.");
 
     Ok(())
 }
@@ -1484,6 +1409,11 @@ pub struct EmergencyFundTransfer<'info> {
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
+/// Maximum amount that can be transferred from prize pool in a single emergency call.
+/// Set to 10% of hard cap as a safety limit. Larger transfers require multiple calls
+/// with separate authorization, giving monitors time to detect anomalous activity.
+pub const EMERGENCY_TRANSFER_MAX_BPS: u64 = 1000; // 10% of hard cap
+
 pub fn handler_emergency_fund_transfer(
     ctx: Context<EmergencyFundTransfer>,
     source: FundSource,
@@ -1500,6 +1430,34 @@ pub fn handler_emergency_fund_transfer(
 
     // Validate amount
     require!(amount > 0, LottoError::InsufficientFunds);
+
+    // SECURITY FIX (Issue #5): Cap the maximum per-call transfer amount for
+    // PrizePool source to limit damage from a compromised authority.
+    // Reserve and Insurance transfers stay within the protocol (pool-to-pool),
+    // but PrizePool transfers go to an external destination and need strict limits.
+    if matches!(source, FundSource::PrizePool) {
+        let max_transfer = (ctx.accounts.lottery_state.hard_cap as u128
+            * EMERGENCY_TRANSFER_MAX_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+        require!(amount <= max_transfer, LottoError::InvalidAmount);
+        msg!(
+            "  PrizePool emergency transfer cap: {} USDC lamports (10% of hard cap)",
+            max_transfer
+        );
+    }
+
+    // SECURITY FIX (Issue #5): For PrizePool external transfers, restrict destination
+    // to the house_fee_usdc PDA (the protocol treasury). This prevents rug-pull vectors
+    // where funds are sent to arbitrary external accounts.
+    if matches!(source, FundSource::PrizePool) {
+        let (expected_house_fee_pda, _) =
+            Pubkey::find_program_address(&[HOUSE_FEE_USDC_SEED], &crate::ID);
+        require!(
+            ctx.accounts.destination_usdc.key() == expected_house_fee_pda,
+            LottoError::InvalidTokenAccount
+        );
+        msg!("  Destination verified: house fee treasury PDA");
+    }
 
     let lottery_state = &mut ctx.accounts.lottery_state;
     let seeds = &[LOTTERY_SEED, &[lottery_state.bump]];
@@ -1560,14 +1518,16 @@ pub fn handler_emergency_fund_transfer(
             (before, after, "insurance_to_prize_pool".to_string())
         }
         FundSource::PrizePool => {
-            // Emergency withdrawal from prize pool to external destination
+            // Emergency withdrawal from prize pool to treasury destination
+            // SECURITY FIX (Issue #5): Destination is already validated above to be
+            // the house_fee_usdc PDA. Amount is capped to 10% of hard_cap per call.
             let before = ctx.accounts.prize_pool_usdc.amount;
             require!(
                 amount <= ctx.accounts.prize_pool_usdc.amount,
                 LottoError::InsufficientFunds
             );
 
-            // Transfer USDC from prize pool to external destination
+            // Transfer USDC from prize pool to treasury destination
             let cpi_accounts = Transfer {
                 from: ctx.accounts.prize_pool_usdc.to_account_info(),
                 to: ctx.accounts.destination_usdc.to_account_info(),
@@ -1590,7 +1550,7 @@ pub fn handler_emergency_fund_transfer(
             }
 
             let after = ctx.accounts.prize_pool_usdc.amount.saturating_sub(amount);
-            (before, after, "prize_pool_to_external".to_string())
+            (before, after, "prize_pool_to_treasury".to_string())
         }
     };
 
