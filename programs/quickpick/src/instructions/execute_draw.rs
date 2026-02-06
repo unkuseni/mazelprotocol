@@ -80,9 +80,13 @@ impl<'info> ExecuteQuickPickDraw<'info> {
 
         // SECURITY: Verify the seed_slot is recent
         // The reveal should happen shortly after commit
-        // Allow up to 50 slots (~20 seconds) for transaction propagation
+        // FIXED: Tightened from 50 to 10 slots (~4 seconds) to minimize MEV window.
+        // The previous 50-slot (~20s) window gave validators and MEV actors
+        // too much time to observe randomness before the reveal transaction.
+        // 10 slots is sufficient for normal transaction propagation while
+        // dramatically reducing the observation window for attackers.
         require!(
-            randomness_data.seed_slot >= current_slot.saturating_sub(50),
+            randomness_data.seed_slot >= current_slot.saturating_sub(10),
             QuickPickError::RandomnessExpired
         );
         require!(
@@ -108,8 +112,8 @@ impl<'info> ExecuteQuickPickDraw<'info> {
 /// * `randomness` - 32 bytes of verified randomness
 ///
 /// # Returns
-/// * `[u8; 5]` - Sorted array of 5 unique winning numbers
-fn generate_quick_pick_winning_numbers(randomness: &[u8; 32]) -> [u8; 5] {
+/// * `Result<[u8; 5]>` - Sorted array of 5 unique winning numbers, or error if generation fails
+fn generate_quick_pick_winning_numbers(randomness: &[u8; 32]) -> Result<[u8; 5]> {
     // Use SHA256 hash of randomness for better distribution
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
@@ -180,8 +184,15 @@ fn generate_quick_pick_winning_numbers(randomness: &[u8; 32]) -> [u8; 5] {
     // Final validation: ensure all numbers are valid (1-35) and unique
     for &num in &winning_numbers {
         if num < 1 || num > QUICK_PICK_RANGE {
-            // This should never happen, but if it does, use safe defaults
-            return [1, 2, 3, 4, 5];
+            // FIXED: Return an error instead of a predictable fallback.
+            // A fixed [1,2,3,4,5] fallback is exploitable — an attacker who
+            // can force this path would know the winning numbers in advance.
+            // Failing the draw forces admin recovery, which is far safer.
+            msg!(
+                "CRITICAL: generate_quick_pick_winning_numbers produced invalid number {}",
+                num
+            );
+            return Err(QuickPickError::InvalidRandomnessProof.into());
         }
     }
 
@@ -189,13 +200,17 @@ fn generate_quick_pick_winning_numbers(randomness: &[u8; 32]) -> [u8; 5] {
     let mut seen = [false; QUICK_PICK_RANGE as usize];
     for &num in &winning_numbers {
         if seen[num as usize - 1] {
-            // Duplicate found, use safe defaults
-            return [1, 2, 3, 4, 5];
+            // FIXED: Return an error instead of a predictable fallback.
+            msg!(
+                "CRITICAL: generate_quick_pick_winning_numbers produced duplicate number {}",
+                num
+            );
+            return Err(QuickPickError::InvalidRandomnessProof.into());
         }
         seen[num as usize - 1] = true;
     }
 
-    winning_numbers
+    Ok(winning_numbers)
 }
 
 /// Determine if rolldown should trigger based on randomness and probability
@@ -218,9 +233,14 @@ fn should_trigger_quick_pick_rolldown(randomness: &[u8; 32], probability_bps: u1
         return false; // 0% probability (below soft cap)
     }
 
-    // Use SHA256 hash for more uniform distribution
+    // FIXED: Use domain-separated SHA256 hash to prevent correlated randomness.
+    // Previously, the same raw randomness was hashed for both number generation
+    // and rolldown decision, which could create exploitable correlations.
+    // By adding a domain separator ("rolldown_decision"), the hash output is
+    // completely independent from the one used for winning numbers.
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
+    hasher.update(b"quickpick_rolldown_decision");
     hasher.update(randomness);
     let hash_result = hasher.finalize();
     let hash_bytes = hash_result.as_slice();
@@ -328,7 +348,8 @@ pub fn handler(ctx: Context<ExecuteQuickPickDraw>) -> Result<()> {
     require!(is_valid_randomness, QuickPickError::InvalidRandomnessProof);
 
     // Generate winning numbers (5 numbers from 1-35)
-    let winning_numbers = generate_quick_pick_winning_numbers(&randomness);
+    // FIXED: Now returns Result — propagates error instead of using predictable fallback
+    let winning_numbers = generate_quick_pick_winning_numbers(&randomness)?;
 
     // Determine if this draw triggers a rolldown
     let was_rolldown = if jackpot_balance >= hard_cap {
@@ -420,7 +441,8 @@ mod tests {
             0x05, 0x06, 0x07, 0x08,
         ];
 
-        let numbers = generate_quick_pick_winning_numbers(&randomness);
+        let numbers = generate_quick_pick_winning_numbers(&randomness)
+            .expect("should generate valid numbers");
 
         // Check all numbers are in valid range (1-35)
         for &num in numbers.iter() {
@@ -443,8 +465,10 @@ mod tests {
     fn test_generate_quick_pick_winning_numbers_deterministic() {
         let randomness = [0xAB; 32];
 
-        let numbers1 = generate_quick_pick_winning_numbers(&randomness);
-        let numbers2 = generate_quick_pick_winning_numbers(&randomness);
+        let numbers1 = generate_quick_pick_winning_numbers(&randomness)
+            .expect("should generate valid numbers");
+        let numbers2 = generate_quick_pick_winning_numbers(&randomness)
+            .expect("should generate valid numbers");
 
         assert_eq!(
             numbers1, numbers2,

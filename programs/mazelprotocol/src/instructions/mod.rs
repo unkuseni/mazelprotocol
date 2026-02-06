@@ -37,9 +37,9 @@ pub mod syndicate_wars;
 
 // Re-export account structs and params from admin
 pub use admin::{
-    AcceptAuthority, CancelAuthorityTransfer, CancelDraw, EmergencyFundTransfer, ForceFinalizeDraw,
-    FundSource, Pause, ProposeAuthority, TransferAuthority, Unpause, UpdateConfig,
-    UpdateConfigParams, WithdrawHouseFees,
+    AcceptAuthority, CancelAuthorityTransfer, CancelDraw, CheckSolvency, EmergencyFundTransfer,
+    ForceFinalizeDraw, FundSource, Pause, ProposeAuthority, TransferAuthority, Unpause,
+    UpdateConfig, UpdateConfigParams, WithdrawHouseFees,
 };
 
 // Re-export account structs and params from initialize

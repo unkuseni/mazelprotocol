@@ -249,7 +249,12 @@ pub const LOTTERY_STATE_SIZE: usize = 8 + // discriminator
     1 +  // is_paused
     1 +  // is_funded
     1 +  // bump
-    64; // padding for future use
+    8 +  // config_timelock_end (Issue 5 fix: timelock for config changes)
+    32 + // pending_config_hash (Issue 5 fix: hash of pending config)
+    24; // padding for future use (was 64, reduced by 8+32=40)
+
+/// Minimum timelock delay for config changes: 24 hours (in seconds)
+pub const CONFIG_TIMELOCK_DELAY: i64 = 86400;
 
 /// DrawResult account size
 pub const DRAW_RESULT_SIZE: usize = 8 + // discriminator

@@ -53,19 +53,19 @@ const USDC_DECIMALS = 6;
 function derivePDAs(programId: PublicKey) {
   const [lotteryState, lotteryBump] = PublicKey.findProgramAddressSync(
     [LOTTERY_SEED],
-    programId
+    programId,
   );
   const [prizePoolUsdc] = PublicKey.findProgramAddressSync(
     [PRIZE_POOL_USDC_SEED],
-    programId
+    programId,
   );
   const [houseFeeUsdc] = PublicKey.findProgramAddressSync(
     [HOUSE_FEE_USDC_SEED],
-    programId
+    programId,
   );
   const [insurancePoolUsdc] = PublicKey.findProgramAddressSync(
     [INSURANCE_POOL_USDC_SEED],
-    programId
+    programId,
   );
 
   return {
@@ -80,7 +80,7 @@ function derivePDAs(programId: PublicKey) {
 function deriveTicketPDA(
   programId: PublicKey,
   drawId: number,
-  ticketIndex: number
+  ticketIndex: number,
 ) {
   return PublicKey.findProgramAddressSync(
     [
@@ -88,14 +88,14 @@ function deriveTicketPDA(
       new BN(drawId).toArrayLike(Buffer, "le", 8),
       new BN(ticketIndex).toArrayLike(Buffer, "le", 8),
     ],
-    programId
+    programId,
   );
 }
 
 function deriveUserStatsPDA(programId: PublicKey, wallet: PublicKey) {
   return PublicKey.findProgramAddressSync(
     [USER_SEED, wallet.toBuffer()],
-    programId
+    programId,
   );
 }
 
@@ -103,7 +103,7 @@ function deriveUnifiedTicketPDA(
   programId: PublicKey,
   player: PublicKey,
   drawId: number,
-  currentDrawTickets: number
+  currentDrawTickets: number,
 ) {
   return PublicKey.findProgramAddressSync(
     [
@@ -112,21 +112,21 @@ function deriveUnifiedTicketPDA(
       new BN(drawId).toArrayLike(Buffer, "le", 8),
       new BN(currentDrawTickets).toArrayLike(Buffer, "le", 8),
     ],
-    programId
+    programId,
   );
 }
 
 function deriveDrawResultPDA(programId: PublicKey, drawId: number) {
   return PublicKey.findProgramAddressSync(
     [DRAW_SEED, new BN(drawId).toArrayLike(Buffer, "le", 8)],
-    programId
+    programId,
   );
 }
 
 function deriveSyndicatePDA(programId: PublicKey, syndicateId: BN) {
   return PublicKey.findProgramAddressSync(
     [SYNDICATE_SEED, syndicateId.toArrayLike(Buffer, "le", 8)],
-    programId
+    programId,
   );
 }
 
@@ -135,14 +135,14 @@ function deriveSyndicatePDA(programId: PublicKey, syndicateId: BN) {
  */
 async function createUsdcMint(
   provider: anchor.AnchorProvider,
-  authority: Keypair
+  authority: Keypair,
 ): Promise<PublicKey> {
   return await createMint(
     provider.connection,
     authority,
     authority.publicKey,
     null,
-    USDC_DECIMALS
+    USDC_DECIMALS,
   );
 }
 
@@ -154,13 +154,13 @@ async function createAndFundUsdcAccount(
   mint: PublicKey,
   owner: PublicKey,
   mintAuthority: Keypair,
-  amount: number | bigint
+  amount: number | bigint,
 ): Promise<PublicKey> {
   const account = await createAccount(
     provider.connection,
     mintAuthority,
     mint,
-    owner
+    owner,
   );
   if (amount > 0) {
     await mintTo(
@@ -169,7 +169,7 @@ async function createAndFundUsdcAccount(
       mint,
       account,
       mintAuthority,
-      amount
+      amount,
     );
   }
   return account;
@@ -181,7 +181,7 @@ async function createAndFundUsdcAccount(
 async function airdrop(
   provider: anchor.AnchorProvider,
   to: PublicKey,
-  amount: number = 100 * LAMPORTS_PER_SOL
+  amount: number = 100 * LAMPORTS_PER_SOL,
 ) {
   const sig = await provider.connection.requestAirdrop(to, amount);
   await provider.connection.confirmTransaction(sig, "confirmed");
@@ -201,7 +201,7 @@ function sleep(ms: number): Promise<void> {
  */
 async function advanceClock(
   provider: anchor.AnchorProvider,
-  seconds: number
+  seconds: number,
 ): Promise<void> {
   // On localnet, we can't easily warp time, so we just sleep for a bit
   // to let the slot advance. For tests that need time advancement,
@@ -269,7 +269,7 @@ describe("mazelprotocol", () => {
       usdcMint,
       authority.publicKey,
       authority,
-      seedAmountLamports + BigInt(100_000_000_000) // extra for reserve tests
+      seedAmountLamports + BigInt(100_000_000_000), // extra for reserve tests
     );
 
     // Players get $10,000 each for ticket buying
@@ -278,14 +278,14 @@ describe("mazelprotocol", () => {
       usdcMint,
       player1.publicKey,
       authority,
-      BigInt(10_000_000_000)
+      BigInt(10_000_000_000),
     );
     player2Usdc = await createAndFundUsdcAccount(
       provider,
       usdcMint,
       player2.publicKey,
       authority,
-      BigInt(10_000_000_000)
+      BigInt(10_000_000_000),
     );
 
     // Destination for fee withdrawal
@@ -294,7 +294,7 @@ describe("mazelprotocol", () => {
       usdcMint,
       authority.publicKey,
       authority,
-      BigInt(0)
+      BigInt(0),
     );
   });
 
@@ -331,7 +331,7 @@ describe("mazelprotocol", () => {
       const state = await program.account.lotteryState.fetch(pdas.lotteryState);
 
       expect(state.authority.toString()).to.equal(
-        authority.publicKey.toString()
+        authority.publicKey.toString(),
       );
       expect(state.ticketPrice.toString()).to.equal(TICKET_PRICE.toString());
       expect(state.houseFeeBps).to.equal(HOUSE_FEE_BPS);
@@ -432,7 +432,7 @@ describe("mazelprotocol", () => {
         usdcMint,
         unauthorizedUser.publicKey,
         authority,
-        BigInt(SEED_AMOUNT.toString())
+        BigInt(SEED_AMOUNT.toString()),
       );
 
       try {
@@ -457,7 +457,7 @@ describe("mazelprotocol", () => {
     it("funds the seed successfully", async () => {
       const prizePoolBefore = await getAccount(
         provider.connection,
-        pdas.prizePoolUsdc
+        pdas.prizePoolUsdc,
       );
       expect(Number(prizePoolBefore.amount)).to.equal(0);
 
@@ -482,10 +482,10 @@ describe("mazelprotocol", () => {
       // Verify USDC was actually transferred
       const prizePoolAfter = await getAccount(
         provider.connection,
-        pdas.prizePoolUsdc
+        pdas.prizePoolUsdc,
       );
       expect(Number(prizePoolAfter.amount)).to.equal(
-        Number(SEED_AMOUNT.toString())
+        Number(SEED_AMOUNT.toString()),
       );
     });
 
@@ -600,7 +600,7 @@ describe("mazelprotocol", () => {
     it("buys a single ticket successfully", async () => {
       // Fetch current state to know ticket index
       const stateBefore = await program.account.lotteryState.fetch(
-        pdas.lotteryState
+        pdas.lotteryState,
       );
       const drawId = stateBefore.currentDrawId.toNumber();
       const ticketIndex = stateBefore.currentDrawTickets.toNumber();
@@ -610,7 +610,7 @@ describe("mazelprotocol", () => {
 
       const player1UsdcBefore = await getAccount(
         provider.connection,
-        player1Usdc
+        player1Usdc,
       );
 
       await program.methods
@@ -648,36 +648,34 @@ describe("mazelprotocol", () => {
       // Verify USDC was deducted from player
       const player1UsdcAfter = await getAccount(
         provider.connection,
-        player1Usdc
+        player1Usdc,
       );
       expect(
-        Number(player1UsdcBefore.amount) - Number(player1UsdcAfter.amount)
+        Number(player1UsdcBefore.amount) - Number(player1UsdcAfter.amount),
       ).to.equal(TICKET_PRICE.toNumber());
 
       // Verify lottery state updated
       const stateAfter = await program.account.lotteryState.fetch(
-        pdas.lotteryState
+        pdas.lotteryState,
       );
       expect(stateAfter.currentDrawTickets.toNumber()).to.equal(
-        ticketIndex + 1
+        ticketIndex + 1,
       );
       expect(stateAfter.totalTicketsSold.toNumber()).to.equal(
-        stateBefore.totalTicketsSold.toNumber() + 1
+        stateBefore.totalTicketsSold.toNumber() + 1,
       );
 
       // Verify user stats created
       const userStats = await program.account.userStats.fetch(userStatsPda);
       expect(userStats.wallet.toString()).to.equal(
-        player1.publicKey.toString()
+        player1.publicKey.toString(),
       );
       expect(userStats.totalTickets.toNumber()).to.equal(1);
       expect(userStats.totalSpent.toString()).to.equal(TICKET_PRICE.toString());
     });
 
     it("buys a ticket with unsorted numbers (should be stored sorted)", async () => {
-      const state = await program.account.lotteryState.fetch(
-        pdas.lotteryState
-      );
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const drawId = state.currentDrawId.toNumber();
       const ticketIndex = state.currentDrawTickets.toNumber();
 
@@ -711,9 +709,7 @@ describe("mazelprotocol", () => {
     });
 
     it("fails to buy ticket with invalid numbers (out of range - zero)", async () => {
-      const state = await program.account.lotteryState.fetch(
-        pdas.lotteryState
-      );
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const drawId = state.currentDrawId.toNumber();
       const ticketIndex = state.currentDrawTickets.toNumber();
 
@@ -751,9 +747,7 @@ describe("mazelprotocol", () => {
     });
 
     it("fails to buy ticket with invalid numbers (out of range - too high)", async () => {
-      const state = await program.account.lotteryState.fetch(
-        pdas.lotteryState
-      );
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const drawId = state.currentDrawId.toNumber();
       const ticketIndex = state.currentDrawTickets.toNumber();
 
@@ -791,9 +785,7 @@ describe("mazelprotocol", () => {
     });
 
     it("fails to buy ticket with duplicate numbers", async () => {
-      const state = await program.account.lotteryState.fetch(
-        pdas.lotteryState
-      );
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const drawId = state.currentDrawId.toNumber();
       const ticketIndex = state.currentDrawTickets.toNumber();
 
@@ -831,9 +823,7 @@ describe("mazelprotocol", () => {
     });
 
     it("second player buys a ticket", async () => {
-      const state = await program.account.lotteryState.fetch(
-        pdas.lotteryState
-      );
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const drawId = state.currentDrawId.toNumber();
       const ticketIndex = state.currentDrawTickets.toNumber();
 
@@ -869,20 +859,17 @@ describe("mazelprotocol", () => {
     it("verifies USDC distribution across pools after ticket purchases", async () => {
       const prizePool = await getAccount(
         provider.connection,
-        pdas.prizePoolUsdc
+        pdas.prizePoolUsdc,
       );
-      const houseFee = await getAccount(
-        provider.connection,
-        pdas.houseFeeUsdc
-      );
+      const houseFee = await getAccount(provider.connection, pdas.houseFeeUsdc);
       const insurance = await getAccount(
         provider.connection,
-        pdas.insurancePoolUsdc
+        pdas.insurancePoolUsdc,
       );
 
       // Prize pool should have seed + ticket contributions
       expect(Number(prizePool.amount)).to.be.greaterThan(
-        Number(SEED_AMOUNT.toString())
+        Number(SEED_AMOUNT.toString()),
       );
 
       // House fee should have accumulated fees
@@ -908,9 +895,7 @@ describe("mazelprotocol", () => {
   // ========================================================================
   describe("Buy Bulk Tickets", () => {
     it("buys multiple tickets in bulk", async () => {
-      const state = await program.account.lotteryState.fetch(
-        pdas.lotteryState
-      );
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const drawId = state.currentDrawId.toNumber();
       const ticketIndex = state.currentDrawTickets.toNumber();
 
@@ -918,7 +903,7 @@ describe("mazelprotocol", () => {
         programId,
         player1.publicKey,
         drawId,
-        ticketIndex
+        ticketIndex,
       );
       const [userStatsPda] = deriveUserStatsPDA(programId, player1.publicKey);
 
@@ -947,9 +932,8 @@ describe("mazelprotocol", () => {
         .rpc();
 
       // Verify unified ticket
-      const unified = await program.account.unifiedTicket.fetch(
-        unifiedTicketPda
-      );
+      const unified =
+        await program.account.unifiedTicket.fetch(unifiedTicketPda);
       expect(unified.owner.toString()).to.equal(player1.publicKey.toString());
       expect(unified.drawId.toNumber()).to.equal(drawId);
       expect(unified.ticketCount).to.equal(3);
@@ -962,10 +946,10 @@ describe("mazelprotocol", () => {
 
       // Verify state was updated
       const stateAfter = await program.account.lotteryState.fetch(
-        pdas.lotteryState
+        pdas.lotteryState,
       );
       expect(stateAfter.currentDrawTickets.toNumber()).to.equal(
-        ticketIndex + 3
+        ticketIndex + 3,
       );
 
       // Verify user stats incremented
@@ -974,9 +958,7 @@ describe("mazelprotocol", () => {
     });
 
     it("fails to buy bulk with empty ticket array", async () => {
-      const state = await program.account.lotteryState.fetch(
-        pdas.lotteryState
-      );
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const drawId = state.currentDrawId.toNumber();
       const ticketIndex = state.currentDrawTickets.toNumber();
 
@@ -984,7 +966,7 @@ describe("mazelprotocol", () => {
         programId,
         player1.publicKey,
         drawId,
-        ticketIndex
+        ticketIndex,
       );
       const [userStatsPda] = deriveUserStatsPDA(programId, player1.publicKey);
 
@@ -1016,9 +998,7 @@ describe("mazelprotocol", () => {
     });
 
     it("fails to buy bulk with invalid numbers in one ticket", async () => {
-      const state = await program.account.lotteryState.fetch(
-        pdas.lotteryState
-      );
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const drawId = state.currentDrawId.toNumber();
       const ticketIndex = state.currentDrawTickets.toNumber();
 
@@ -1026,7 +1006,7 @@ describe("mazelprotocol", () => {
         programId,
         player1.publicKey,
         drawId,
-        ticketIndex
+        ticketIndex,
       );
       const [userStatsPda] = deriveUserStatsPDA(programId, player1.publicKey);
 
@@ -1340,17 +1320,14 @@ describe("mazelprotocol", () => {
     it("withdraws house fees successfully", async () => {
       const houseFeeAccount = await getAccount(
         provider.connection,
-        pdas.houseFeeUsdc
+        pdas.houseFeeUsdc,
       );
       const feeBalance = Number(houseFeeAccount.amount);
 
       // There should be accumulated fees from ticket purchases
       expect(feeBalance).to.be.greaterThan(0);
 
-      const destBefore = await getAccount(
-        provider.connection,
-        destinationUsdc
-      );
+      const destBefore = await getAccount(provider.connection, destinationUsdc);
 
       const withdrawAmount = new BN(feeBalance);
       await program.methods
@@ -1367,14 +1344,14 @@ describe("mazelprotocol", () => {
       // Verify house fee account is empty
       const houseFeeAfter = await getAccount(
         provider.connection,
-        pdas.houseFeeUsdc
+        pdas.houseFeeUsdc,
       );
       expect(Number(houseFeeAfter.amount)).to.equal(0);
 
       // Verify destination received the fees
       const destAfter = await getAccount(provider.connection, destinationUsdc);
       expect(Number(destAfter.amount) - Number(destBefore.amount)).to.equal(
-        feeBalance
+        feeBalance,
       );
     });
 
@@ -1422,7 +1399,7 @@ describe("mazelprotocol", () => {
   describe("Add Reserve Funds", () => {
     it("adds reserve funds successfully", async () => {
       const stateBefore = await program.account.lotteryState.fetch(
-        pdas.lotteryState
+        pdas.lotteryState,
       );
       const reserveBefore = stateBefore.reserveBalance.toNumber();
 
@@ -1440,10 +1417,10 @@ describe("mazelprotocol", () => {
         .rpc();
 
       const stateAfter = await program.account.lotteryState.fetch(
-        pdas.lotteryState
+        pdas.lotteryState,
       );
       expect(stateAfter.reserveBalance.toNumber()).to.equal(
-        reserveBefore + addAmount.toNumber()
+        reserveBefore + addAmount.toNumber(),
       );
     });
 
@@ -1488,7 +1465,7 @@ describe("mazelprotocol", () => {
 
       const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       expect(state.pendingAuthority.toString()).to.equal(
-        newAuthority.publicKey.toString()
+        newAuthority.publicKey.toString(),
       );
     });
 
@@ -1561,7 +1538,7 @@ describe("mazelprotocol", () => {
 
       let state = await program.account.lotteryState.fetch(pdas.lotteryState);
       expect(state.authority.toString()).to.equal(
-        newAuthority.publicKey.toString()
+        newAuthority.publicKey.toString(),
       );
       expect(state.pendingAuthority).to.be.null;
 
@@ -1585,7 +1562,7 @@ describe("mazelprotocol", () => {
 
       state = await program.account.lotteryState.fetch(pdas.lotteryState);
       expect(state.authority.toString()).to.equal(
-        authority.publicKey.toString()
+        authority.publicKey.toString(),
       );
     });
   });
@@ -1613,7 +1590,7 @@ describe("mazelprotocol", () => {
 
       let state = await program.account.lotteryState.fetch(pdas.lotteryState);
       expect(state.authority.toString()).to.equal(
-        tempAuthority.publicKey.toString()
+        tempAuthority.publicKey.toString(),
       );
 
       // Transfer back
@@ -1629,7 +1606,7 @@ describe("mazelprotocol", () => {
 
       state = await program.account.lotteryState.fetch(pdas.lotteryState);
       expect(state.authority.toString()).to.equal(
-        authority.publicKey.toString()
+        authority.publicKey.toString(),
       );
     });
   });
@@ -1653,7 +1630,7 @@ describe("mazelprotocol", () => {
         usdcMint,
         syndicatePda, // owner is the syndicate PDA, but createAccount needs the actual owner
         authority,
-        BigInt(0)
+        BigInt(0),
       );
 
       // The syndicate USDC account should be owned by the syndicate PDA.
@@ -1690,7 +1667,7 @@ describe("mazelprotocol", () => {
 
       const syndicate = await program.account.syndicate.fetch(syndicatePda);
       expect(syndicate.creator.toString()).to.equal(
-        player1.publicKey.toString()
+        player1.publicKey.toString(),
       );
       expect(syndicate.name).to.equal("Test Syndicate");
       expect(syndicate.isPublic).to.be.true;
@@ -1707,7 +1684,7 @@ describe("mazelprotocol", () => {
         usdcMint,
         badSyndicatePda,
         authority,
-        BigInt(0)
+        BigInt(0),
       );
 
       try {
@@ -1743,7 +1720,7 @@ describe("mazelprotocol", () => {
         usdcMint,
         badSyndicatePda,
         authority,
-        BigInt(0)
+        BigInt(0),
       );
 
       try {
@@ -1856,7 +1833,7 @@ describe("mazelprotocol", () => {
           .emergencyFundTransfer(
             { reserve: {} }, // FundSource::Reserve
             new BN(1_000_000),
-            "Test emergency"
+            "Test emergency",
           )
           .accounts({
             authority: authority.publicKey,
@@ -1884,7 +1861,7 @@ describe("mazelprotocol", () => {
         .rpc();
 
       const stateBefore = await program.account.lotteryState.fetch(
-        pdas.lotteryState
+        pdas.lotteryState,
       );
       const reserveBefore = stateBefore.reserveBalance.toNumber();
 
@@ -1895,7 +1872,7 @@ describe("mazelprotocol", () => {
           .emergencyFundTransfer(
             { reserve: {} },
             transferAmount,
-            "Reserve emergency transfer test"
+            "Reserve emergency transfer test",
           )
           .accounts({
             authority: authority.publicKey,
@@ -1908,10 +1885,10 @@ describe("mazelprotocol", () => {
           .rpc();
 
         const stateAfter = await program.account.lotteryState.fetch(
-          pdas.lotteryState
+          pdas.lotteryState,
         );
         expect(stateAfter.reserveBalance.toNumber()).to.be.lessThan(
-          reserveBefore
+          reserveBefore,
         );
       }
 
@@ -1936,11 +1913,7 @@ describe("mazelprotocol", () => {
 
       try {
         await program.methods
-          .emergencyFundTransfer(
-            { reserve: {} },
-            new BN(1),
-            "Unauthorized"
-          )
+          .emergencyFundTransfer({ reserve: {} }, new BN(1), "Unauthorized")
           .accounts({
             authority: unauthorizedUser.publicKey,
             lotteryState: pdas.lotteryState,
@@ -1975,7 +1948,7 @@ describe("mazelprotocol", () => {
 
       // Authority is the original authority
       expect(state.authority.toString()).to.equal(
-        authority.publicKey.toString()
+        authority.publicKey.toString(),
       );
 
       // Lottery is funded and not paused
@@ -1993,7 +1966,7 @@ describe("mazelprotocol", () => {
 
       // Jackpot should be at least seed amount (since no draws happened)
       expect(state.jackpotBalance.toNumber()).to.be.greaterThanOrEqual(
-        SEED_AMOUNT.toNumber()
+        SEED_AMOUNT.toNumber(),
       );
 
       // Prize caps are correct
@@ -2018,16 +1991,13 @@ describe("mazelprotocol", () => {
     it("verifies token account balances are non-negative", async () => {
       const prizePool = await getAccount(
         provider.connection,
-        pdas.prizePoolUsdc
+        pdas.prizePoolUsdc,
       );
       const insurance = await getAccount(
         provider.connection,
-        pdas.insurancePoolUsdc
+        pdas.insurancePoolUsdc,
       );
-      const houseFee = await getAccount(
-        provider.connection,
-        pdas.houseFeeUsdc
-      );
+      const houseFee = await getAccount(provider.connection, pdas.houseFeeUsdc);
 
       expect(Number(prizePool.amount)).to.be.greaterThanOrEqual(0);
       expect(Number(insurance.amount)).to.be.greaterThanOrEqual(0);
@@ -2045,7 +2015,7 @@ describe("mazelprotocol", () => {
       // Buy a few more tickets for player2
       for (let i = 0; i < 3; i++) {
         const state = await program.account.lotteryState.fetch(
-          pdas.lotteryState
+          pdas.lotteryState,
         );
         const drawId = state.currentDrawId.toNumber();
         const ticketIndex = state.currentDrawTickets.toNumber();
@@ -2110,19 +2080,17 @@ describe("mazelprotocol", () => {
         usdcMint,
         brokePlayer.publicKey,
         authority,
-        BigInt(0) // No USDC
+        BigInt(0), // No USDC
       );
 
-      const state = await program.account.lotteryState.fetch(
-        pdas.lotteryState
-      );
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const drawId = state.currentDrawId.toNumber();
       const ticketIndex = state.currentDrawTickets.toNumber();
 
       const [ticketPda] = deriveTicketPDA(programId, drawId, ticketIndex);
       const [userStatsPda] = deriveUserStatsPDA(
         programId,
-        brokePlayer.publicKey
+        brokePlayer.publicKey,
       );
 
       try {
@@ -2161,9 +2129,7 @@ describe("mazelprotocol", () => {
   // ========================================================================
   describe("Free Tickets", () => {
     it("fails to use free ticket when none available", async () => {
-      const state = await program.account.lotteryState.fetch(
-        pdas.lotteryState
-      );
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const drawId = state.currentDrawId.toNumber();
       const ticketIndex = state.currentDrawTickets.toNumber();
 
@@ -2245,7 +2211,7 @@ describe("mazelprotocol", () => {
 
       const [drawResultPda] = deriveDrawResultPDA(
         programId,
-        state.currentDrawId.toNumber()
+        state.currentDrawId.toNumber(),
       );
       const fakeRandomnessAccount = Keypair.generate();
 
@@ -2253,6 +2219,7 @@ describe("mazelprotocol", () => {
         await program.methods
           .executeDraw()
           .accounts({
+            authority: authority.publicKey,
             lotteryState: pdas.lotteryState,
             drawResult: drawResultPda,
             randomnessAccountData: fakeRandomnessAccount.publicKey,
@@ -2280,6 +2247,8 @@ describe("mazelprotocol", () => {
               match3: 5,
               match2: 10,
             },
+            verificationHash: Array(32).fill(0),
+            indexerNonce: new anchor.BN(0),
           })
           .accounts({
             authority: authority.publicKey,
@@ -2356,20 +2325,18 @@ describe("mazelprotocol", () => {
       // Buy a single ticket and verify the exact fund distribution
       const prizePoolBefore = await getAccount(
         provider.connection,
-        pdas.prizePoolUsdc
+        pdas.prizePoolUsdc,
       );
       const houseFeeBefore = await getAccount(
         provider.connection,
-        pdas.houseFeeUsdc
+        pdas.houseFeeUsdc,
       );
       const insuranceBefore = await getAccount(
         provider.connection,
-        pdas.insurancePoolUsdc
+        pdas.insurancePoolUsdc,
       );
 
-      const state = await program.account.lotteryState.fetch(
-        pdas.lotteryState
-      );
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const drawId = state.currentDrawId.toNumber();
       const ticketIndex = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveTicketPDA(programId, drawId, ticketIndex);
@@ -2398,15 +2365,15 @@ describe("mazelprotocol", () => {
 
       const prizePoolAfter = await getAccount(
         provider.connection,
-        pdas.prizePoolUsdc
+        pdas.prizePoolUsdc,
       );
       const houseFeeAfter = await getAccount(
         provider.connection,
-        pdas.houseFeeUsdc
+        pdas.houseFeeUsdc,
       );
       const insuranceAfter = await getAccount(
         provider.connection,
-        pdas.insurancePoolUsdc
+        pdas.insurancePoolUsdc,
       );
 
       const prizePoolDelta =
@@ -2548,15 +2515,12 @@ describe("mazelprotocol", () => {
       const state = await program.account.lotteryState.fetch(pdas.lotteryState);
       const prizePool = await getAccount(
         provider.connection,
-        pdas.prizePoolUsdc
+        pdas.prizePoolUsdc,
       );
-      const houseFee = await getAccount(
-        provider.connection,
-        pdas.houseFeeUsdc
-      );
+      const houseFee = await getAccount(provider.connection, pdas.houseFeeUsdc);
       const insurance = await getAccount(
         provider.connection,
-        pdas.insurancePoolUsdc
+        pdas.insurancePoolUsdc,
       );
 
       console.log("\n========== FINAL LOTTERY STATE ==========");
@@ -2565,21 +2529,21 @@ describe("mazelprotocol", () => {
       console.log(
         `Jackpot Balance: ${state.jackpotBalance.toString()} (${(
           state.jackpotBalance.toNumber() / 1_000_000
-        ).toFixed(2)} USDC)`
+        ).toFixed(2)} USDC)`,
       );
       console.log(
         `Reserve Balance: ${state.reserveBalance.toString()} (${(
           state.reserveBalance.toNumber() / 1_000_000
-        ).toFixed(2)} USDC)`
+        ).toFixed(2)} USDC)`,
       );
       console.log(
         `Insurance Balance: ${state.insuranceBalance.toString()} (${(
           state.insuranceBalance.toNumber() / 1_000_000
-        ).toFixed(2)} USDC)`
+        ).toFixed(2)} USDC)`,
       );
       console.log(`Total Tickets Sold: ${state.totalTicketsSold.toString()}`);
       console.log(
-        `Current Draw Tickets: ${state.currentDrawTickets.toString()}`
+        `Current Draw Tickets: ${state.currentDrawTickets.toString()}`,
       );
       console.log(`Is Paused: ${state.isPaused}`);
       console.log(`Is Funded: ${state.isFunded}`);
@@ -2590,17 +2554,17 @@ describe("mazelprotocol", () => {
       console.log(
         `Prize Pool USDC: ${prizePool.amount.toString()} (${(
           Number(prizePool.amount) / 1_000_000
-        ).toFixed(2)} USDC)`
+        ).toFixed(2)} USDC)`,
       );
       console.log(
         `House Fee USDC: ${houseFee.amount.toString()} (${(
           Number(houseFee.amount) / 1_000_000
-        ).toFixed(2)} USDC)`
+        ).toFixed(2)} USDC)`,
       );
       console.log(
         `Insurance USDC: ${insurance.amount.toString()} (${(
           Number(insurance.amount) / 1_000_000
-        ).toFixed(2)} USDC)`
+        ).toFixed(2)} USDC)`,
       );
       console.log("==========================================\n");
     });

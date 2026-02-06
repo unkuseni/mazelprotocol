@@ -297,25 +297,27 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
             .ok_or(LottoError::Overflow)?;
     }
 
-    // FIXED: Credit free ticket for Match 2 with correct error code
+    // FIXED: Credit free ticket for Match 2 - skip if at limit instead of blocking claim
+    // This ensures users can always claim their prizes, even if they can't get the bonus
     if free_ticket_credited {
         if user_stats.free_tickets_available >= MAX_FREE_TICKETS as u32 {
-            msg!("Free ticket limit reached!");
+            msg!("Free ticket limit reached - bonus skipped but claim proceeds!");
             msg!(
-                "  Current free tickets: {}",
+                "  Current free tickets: {} (maximum)",
                 user_stats.free_tickets_available
             );
-            msg!("  Maximum allowed: {}", MAX_FREE_TICKETS);
-            return Err(LottoError::MaxFreeTicketsReached.into());
+            msg!("  Match 2 prize acknowledged but free ticket not added.");
+            // Don't return error - just skip the free ticket credit
+        } else {
+            user_stats.free_tickets_available = user_stats
+                .free_tickets_available
+                .checked_add(1)
+                .ok_or(LottoError::Overflow)?;
+            msg!(
+                "Free ticket added. Total available: {}",
+                user_stats.free_tickets_available
+            );
         }
-        user_stats.free_tickets_available = user_stats
-            .free_tickets_available
-            .checked_add(1)
-            .ok_or(LottoError::Overflow)?;
-        msg!(
-            "Free ticket added. Total available: {}",
-            user_stats.free_tickets_available
-        );
     }
 
     // Track jackpot wins
@@ -485,6 +487,13 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
     let mut total_free_tickets = 0u32;
     let mut tickets_claimed = 0u32;
     let mut jackpot_wins = 0u32;
+    let mut skipped_insufficient_funds = 0u32;
+
+    // FIXED: Track which tickets were successfully processed so we only
+    // mark those as claimed. Tickets skipped due to insufficient prize pool
+    // must NOT be marked claimed — the user should be able to claim them later.
+    // Use a simple boolean array (max ticket_count entries).
+    let mut processed = vec![false; ticket_count];
 
     // Process all unclaimed tickets
     for ticket_index in 0..ticket_count {
@@ -510,20 +519,33 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
             // Free ticket credit
             total_free_tickets += 1;
             tickets_claimed += 1;
+            processed[ticket_index] = true;
         } else if prize_amount > 0 {
             // Verify prize pool solvency
             if prize_pool_balance >= prize_amount {
                 total_prize_amount += prize_amount;
                 prize_pool_balance -= prize_amount;
                 tickets_claimed += 1;
+                processed[ticket_index] = true;
 
                 if match_count == 6 {
                     jackpot_wins += 1;
                 }
+            } else {
+                // FIXED: Do NOT mark as claimed — insufficient funds.
+                // The user can retry this ticket later when the pool is replenished.
+                skipped_insufficient_funds += 1;
+                msg!(
+                    "  Ticket #{} skipped: prize {} exceeds available pool {}",
+                    ticket_index,
+                    prize_amount,
+                    prize_pool_balance
+                );
             }
         } else {
-            // No prize, but still mark as claimed
+            // No prize, safe to mark as claimed
             tickets_claimed += 1;
+            processed[ticket_index] = true;
         }
     }
 
@@ -539,10 +561,12 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
         )?;
     }
 
-    // Mark all processed tickets as claimed
+    // FIXED: Only mark tickets as claimed if they were successfully processed.
+    // Tickets skipped due to insufficient prize pool remain unclaimed so the
+    // user can claim them later (e.g., after insurance top-up).
     let unified_ticket = &mut ctx.accounts.unified_ticket;
     for ticket_index in 0..ticket_count {
-        if !unified_ticket.is_ticket_claimed(ticket_index) {
+        if processed[ticket_index] && !unified_ticket.is_ticket_claimed(ticket_index) {
             unified_ticket.mark_ticket_claimed(ticket_index);
         }
     }
@@ -596,6 +620,12 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
     msg!("  Tickets with prizes: {}", tickets_claimed);
     msg!("  Total USDC won: {} lamports", total_prize_amount);
     msg!("  Free tickets credited: {}", total_free_tickets);
+    if skipped_insufficient_funds > 0 {
+        msg!(
+            "  WARNING: {} tickets skipped due to insufficient prize pool (unclaimed, retryable)",
+            skipped_insufficient_funds
+        );
+    }
     if jackpot_wins > 0 {
         msg!("  JACKPOT WINS: {}", jackpot_wins);
     }

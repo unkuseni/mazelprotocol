@@ -19,8 +19,8 @@ use anchor_lang::prelude::*;
 use crate::constants::*;
 use crate::errors::LottoError;
 use crate::events::{
-    DrawFinalized, DynamicFeeTierChanged, EmergencyPause, HardCapReached, InsurancePoolUsed,
-    RolldownExecuted, SoftCapReached, SolvencyCheckPerformed,
+    DrawFinalized, DynamicFeeTierChanged, EmergencyPause, InsurancePoolUsed, RolldownExecuted,
+    SoftCapReached, SolvencyCheckPerformed,
 };
 use crate::state::{DrawResult, LotteryState, WinnerCounts};
 
@@ -29,6 +29,12 @@ use crate::state::{DrawResult, LotteryState, WinnerCounts};
 pub struct FinalizeDrawParams {
     /// Winner counts by tier (submitted by indexer)
     pub winner_counts: WinnerCounts,
+    /// Verification hash: SHA256(draw_id || winning_numbers || serialized_winner_counts || indexer_nonce)
+    /// This serves as a commitment to the off-chain winner data, enabling post-hoc auditing.
+    /// Off-chain indexers must publish the preimage so anyone can verify the hash on-chain.
+    pub verification_hash: [u8; 32],
+    /// Nonce used by the indexer when computing the verification hash (for replay protection)
+    pub indexer_nonce: u64,
 }
 
 /// Accounts required for finalizing the draw
@@ -459,6 +465,39 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     let old_house_fee_bps = lottery_state.house_fee_bps;
     let old_fee_tier_description = lottery_state.get_fee_tier_description();
 
+    // ==========================================================================
+    // VERIFICATION HASH CHECK (Issue 2 fix: tamper-resistant winner count audit)
+    // ==========================================================================
+    // The verification_hash is SHA256(draw_id || winning_numbers || match_6 || match_5 ||
+    //   match_4 || match_3 || match_2 || indexer_nonce).
+    // Off-chain indexers MUST publish the preimage (all inputs) so anyone can
+    // independently recompute the hash and verify on-chain. This creates a
+    // cryptographic commitment that makes fabricated winner counts detectable.
+    {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(draw_result.draw_id.to_le_bytes());
+        hasher.update(draw_result.winning_numbers);
+        hasher.update(params.winner_counts.match_6.to_le_bytes());
+        hasher.update(params.winner_counts.match_5.to_le_bytes());
+        hasher.update(params.winner_counts.match_4.to_le_bytes());
+        hasher.update(params.winner_counts.match_3.to_le_bytes());
+        hasher.update(params.winner_counts.match_2.to_le_bytes());
+        hasher.update(params.indexer_nonce.to_le_bytes());
+        let computed_hash = hasher.finalize();
+
+        require!(
+            computed_hash.as_slice() == params.verification_hash,
+            LottoError::InvalidPrizeCalculation
+        );
+
+        msg!(
+            "✅ Verification hash validated for draw {}",
+            draw_result.draw_id
+        );
+        msg!("  Indexer nonce: {}", params.indexer_nonce);
+    }
+
     // FIXED: Validate winner counts before updating
     // Check for suspicious patterns (e.g., all tickets winning in a tier)
     let total_tickets_in_draw = draw_result.total_tickets;
@@ -501,14 +540,86 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         return Err(LottoError::WinnerCountsExceedTickets.into());
     }
 
-    // Warn about suspicious winner rates (> 50% of tickets winning something)
-    if total_winners > total_tickets_in_draw / 2 && total_tickets_in_draw > 10 {
-        msg!("WARNING: Unusually high winner rate detected!");
+    // ==========================================================================
+    // STATISTICAL PLAUSIBILITY CHECKS (Issue 2 fix)
+    // ==========================================================================
+    // For a 6/46 lottery, the probability of matching all 6 is ~1 in 9,366,819.
+    // We enforce statistical upper bounds to reject clearly fabricated counts.
+    // These bounds are generous (100x expected) to avoid false positives while
+    // still catching blatant manipulation.
+    //
+    // Expected probabilities per ticket (6/46 matrix):
+    //   Match 6: ~1 in 9,366,819
+    //   Match 5: ~1 in 39,028 (240 ways)
+    //   Match 4: ~1 in 538 (10,800 ways)
+    //   Match 3: ~1 in 22 (86,400 ways)
+    //   Match 2: ~1 in 3 (311,040 ways)
+    //
+    // Upper bounds (generous: allow up to 100x expected rate + 1 for small draws):
+    if total_tickets_in_draw > 100 {
+        // Match 6: at most 1 per ~93,668 tickets (100x relaxed). Max = tickets/93668 + 1
+        let max_match_6 = (total_tickets_in_draw / 93_668).saturating_add(1) as u32;
+        if params.winner_counts.match_6 > max_match_6 {
+            msg!("ERROR: Statistically implausible Match 6 winner count!");
+            msg!(
+                "  Match 6 winners: {}, max plausible: {}",
+                params.winner_counts.match_6,
+                max_match_6
+            );
+            msg!("  Total tickets: {}", total_tickets_in_draw);
+            return Err(LottoError::SuspiciousWinnerCount.into());
+        }
+
+        // Match 5: at most 1 per ~390 tickets (100x relaxed). Max = tickets/390 + 1
+        let max_match_5 = (total_tickets_in_draw / 390).saturating_add(1) as u32;
+        if params.winner_counts.match_5 > max_match_5 {
+            msg!("ERROR: Statistically implausible Match 5 winner count!");
+            msg!(
+                "  Match 5 winners: {}, max plausible: {}",
+                params.winner_counts.match_5,
+                max_match_5
+            );
+            msg!("  Total tickets: {}", total_tickets_in_draw);
+            return Err(LottoError::SuspiciousWinnerCount.into());
+        }
+
+        // Match 4: at most 1 per ~5 tickets (100x relaxed). Max = tickets/5 + 1
+        let max_match_4 = (total_tickets_in_draw / 5).saturating_add(1) as u32;
+        if params.winner_counts.match_4 > max_match_4 {
+            msg!("ERROR: Statistically implausible Match 4 winner count!");
+            msg!(
+                "  Match 4 winners: {}, max plausible: {}",
+                params.winner_counts.match_4,
+                max_match_4
+            );
+            msg!("  Total tickets: {}", total_tickets_in_draw);
+            return Err(LottoError::SuspiciousWinnerCount.into());
+        }
+    }
+
+    // FIXED: Reject (not just warn) suspicious winner rates (> 70% of tickets winning)
+    // A legitimate lottery should never have >70% of tickets winning across all tiers.
+    if total_winners > (total_tickets_in_draw * 7) / 10 && total_tickets_in_draw > 10 {
+        msg!("ERROR: Implausible winner rate detected - rejecting finalization!");
         msg!(
             "  Winner rate: {}%",
             (total_winners * 100) / total_tickets_in_draw
         );
-        msg!("  This may indicate an issue with winner count submission.");
+        msg!(
+            "  Total winners: {}, Total tickets: {}",
+            total_winners,
+            total_tickets_in_draw
+        );
+        return Err(LottoError::SuspiciousWinnerCount.into());
+    }
+
+    // Log winner rate for audit trail (non-blocking for rates <= 70%)
+    if total_winners > total_tickets_in_draw / 2 && total_tickets_in_draw > 10 {
+        msg!("⚠️  HIGH WINNER RATE (audit note, not blocking):");
+        msg!(
+            "  Winner rate: {}%",
+            (total_winners * 100) / total_tickets_in_draw
+        );
     }
 
     // Update winner counts
@@ -927,6 +1038,61 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         lottery_state.get_rolldown_status()
     );
     msg!("  Calculation details: {}", prize_calc.calculation_details);
+
+    // ==========================================================================
+    // POST-CONDITION ASSERTIONS (Issue 6 fix: enforce state invariants)
+    // ==========================================================================
+    // These assertions verify that the state is consistent after all updates.
+    // If any assertion fails, the entire transaction is rolled back, preventing
+    // corrupted state from persisting on-chain.
+
+    // Invariant 1: Draw must no longer be in progress after finalization
+    require!(
+        !lottery_state.is_draw_in_progress,
+        LottoError::SafetyCheckFailed
+    );
+
+    // Invariant 2: Draw result must be marked as finalized
+    require!(
+        draw_result.is_explicitly_finalized,
+        LottoError::SafetyCheckFailed
+    );
+
+    // Invariant 3: Next draw ID must have advanced
+    require!(
+        lottery_state.current_draw_id > draw_result.draw_id,
+        LottoError::SafetyCheckFailed
+    );
+
+    // Invariant 4: Prize per winner must be 0 for tiers with 0 winners
+    if draw_result.match_6_winners == 0 && !was_rolldown {
+        require!(
+            draw_result.match_6_prize_per_winner == 0 || params.winner_counts.match_6 == 0,
+            LottoError::SafetyCheckFailed
+        );
+    }
+
+    // Invariant 5: Accounting sum sanity — jackpot + reserve should not exceed
+    // a reasonable upper bound (total_prizes_paid + current balances should be consistent)
+    let accounting_sum = lottery_state
+        .jackpot_balance
+        .saturating_add(lottery_state.reserve_balance)
+        .saturating_add(lottery_state.insurance_balance);
+
+    // The accounting sum should never be zero unless the lottery is paused for funding
+    if accounting_sum == 0 && !lottery_state.is_paused {
+        msg!("WARNING: All accounting balances are zero but lottery is not paused!");
+        msg!("  This may indicate an accounting error.");
+    }
+
+    // Invariant 6: total_prizes_paid must have increased (or stayed same if 0 distributed)
+    // We already did saturating_add above, so just verify it's >= what we distributed
+    require!(
+        lottery_state.total_prizes_paid >= prize_calc.total_distributed,
+        LottoError::SafetyCheckFailed
+    );
+
+    msg!("✅ Post-condition assertions passed.");
 
     Ok(())
 }

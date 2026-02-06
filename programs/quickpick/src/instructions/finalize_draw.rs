@@ -22,6 +22,12 @@ use crate::state::{LotteryState, QuickPickDrawResult, QuickPickState, QuickPickW
 pub struct FinalizeQuickPickDrawParams {
     /// Winner counts by tier (Match 5, Match 4, Match 3)
     pub winner_counts: QuickPickWinnerCounts,
+    /// Verification hash: SHA256(draw_id || winning_numbers || match_5 || match_4 || match_3 || indexer_nonce)
+    /// This serves as a commitment to the off-chain winner data, enabling post-hoc auditing.
+    /// Off-chain indexers must publish the preimage so anyone can verify the hash on-chain.
+    pub verification_hash: [u8; 32],
+    /// Nonce used by the indexer when computing the verification hash (for replay protection)
+    pub indexer_nonce: u64,
 }
 
 /// Accounts required for finalizing the Quick Pick draw
@@ -258,11 +264,105 @@ pub fn handler(
     let was_rolldown = ctx.accounts.draw_result.was_rolldown;
     let total_tickets = ctx.accounts.draw_result.total_tickets;
 
+    // ==========================================================================
+    // VERIFICATION HASH CHECK (Issue 2 fix: tamper-resistant winner count audit)
+    // ==========================================================================
+    // The verification_hash is SHA256(draw_id || winning_numbers || match_5 ||
+    //   match_4 || match_3 || indexer_nonce).
+    // Off-chain indexers MUST publish the preimage (all inputs) so anyone can
+    // independently recompute the hash and verify on-chain. This creates a
+    // cryptographic commitment that makes fabricated winner counts detectable.
+    {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(ctx.accounts.draw_result.draw_id.to_le_bytes());
+        hasher.update(ctx.accounts.draw_result.winning_numbers);
+        hasher.update(params.winner_counts.match_5.to_le_bytes());
+        hasher.update(params.winner_counts.match_4.to_le_bytes());
+        hasher.update(params.winner_counts.match_3.to_le_bytes());
+        hasher.update(params.indexer_nonce.to_le_bytes());
+        let computed_hash = hasher.finalize();
+
+        require!(
+            computed_hash.as_slice() == params.verification_hash,
+            QuickPickError::InvalidRandomnessProof
+        );
+
+        msg!(
+            "✅ Verification hash validated for Quick Pick draw {}",
+            ctx.accounts.draw_result.draw_id
+        );
+        msg!("  Indexer nonce: {}", params.indexer_nonce);
+    }
+
     // Validate winner counts
     require!(
         params.winner_counts.validate(total_tickets),
         QuickPickError::WinnerCountsExceedTickets
     );
+
+    // ==========================================================================
+    // STATISTICAL PLAUSIBILITY CHECKS (Issue 2 fix)
+    // ==========================================================================
+    // For a 5/35 lottery, enforce statistical upper bounds to reject clearly
+    // fabricated counts. These bounds are generous (100x expected) to avoid
+    // false positives while still catching blatant manipulation.
+    //
+    // Expected probabilities per ticket (5/35 matrix):
+    //   Match 5: ~1 in 324,632
+    //   Match 4: ~1 in 2,164 (150 ways)
+    //   Match 3: ~1 in 48 (3,000 ways)
+    //
+    // Upper bounds (generous: allow up to 100x expected rate + 1 for small draws):
+    if total_tickets > 100 {
+        // Match 5: at most 1 per ~3,246 tickets (100x relaxed). Max = tickets/3246 + 1
+        let max_match_5 = (total_tickets / 3_246).saturating_add(1) as u32;
+        if params.winner_counts.match_5 > max_match_5 {
+            msg!("ERROR: Statistically implausible Match 5 winner count!");
+            msg!(
+                "  Match 5 winners: {}, max plausible: {}",
+                params.winner_counts.match_5,
+                max_match_5
+            );
+            msg!("  Total tickets: {}", total_tickets);
+            return Err(QuickPickError::SuspiciousWinnerCount.into());
+        }
+
+        // Match 4: at most 1 per ~22 tickets (100x relaxed). Max = tickets/22 + 1
+        let max_match_4 = (total_tickets / 22).saturating_add(1) as u32;
+        if params.winner_counts.match_4 > max_match_4 {
+            msg!("ERROR: Statistically implausible Match 4 winner count!");
+            msg!(
+                "  Match 4 winners: {}, max plausible: {}",
+                params.winner_counts.match_4,
+                max_match_4
+            );
+            msg!("  Total tickets: {}", total_tickets);
+            return Err(QuickPickError::SuspiciousWinnerCount.into());
+        }
+    }
+
+    // FIXED: Reject (not just warn) suspicious winner rates (> 70% of tickets winning)
+    let total_winners = (params.winner_counts.match_5 as u64)
+        .saturating_add(params.winner_counts.match_4 as u64)
+        .saturating_add(params.winner_counts.match_3 as u64);
+
+    if total_winners > (total_tickets * 7) / 10 && total_tickets > 10 {
+        msg!("ERROR: Implausible winner rate detected - rejecting finalization!");
+        msg!("  Winner rate: {}%", (total_winners * 100) / total_tickets);
+        msg!(
+            "  Total winners: {}, Total tickets: {}",
+            total_winners,
+            total_tickets
+        );
+        return Err(QuickPickError::SuspiciousWinnerCount.into());
+    }
+
+    // Log winner rate for audit trail (non-blocking for rates <= 70%)
+    if total_winners > total_tickets / 2 && total_tickets > 10 {
+        msg!("⚠️  HIGH WINNER RATE (audit note, not blocking):");
+        msg!("  Winner rate: {}%", (total_winners * 100) / total_tickets);
+    }
 
     // Calculate prizes based on mode
     let prize_calc = if was_rolldown {

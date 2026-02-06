@@ -24,6 +24,10 @@ pub const USER_SEED: &[u8] = b"user";
 /// Seed for main lottery state (used for authority verification)
 pub const LOTTERY_SEED: &[u8] = b"lottery";
 
+/// Main lottery program ID (for cross-program PDA derivation of UserStats)
+/// This must match the deployed main lottery program ID in Anchor.toml
+pub const MAIN_LOTTERY_PROGRAM_ID: &str = "7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF";
+
 // ============================================================================
 // GAME PARAMETERS (5/35 Matrix)
 // ============================================================================

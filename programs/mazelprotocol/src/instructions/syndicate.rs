@@ -1073,8 +1073,21 @@ pub fn handler_buy_syndicate_tickets(
         token::transfer(cpi_ctx, total_house_fee)?;
     }
 
-    // Transfer prize pool amount from syndicate to prize pool
-    if total_prize_pool > 0 {
+    // Calculate jackpot, reserve, and insurance contributions BEFORE transfers
+    // so we can split the prize pool transfer correctly.
+    let jackpot_contribution = (total_prize_pool as u128 * JACKPOT_ALLOCATION_BPS as u128
+        / BPS_DENOMINATOR as u128) as u64;
+    let reserve_contribution = (total_prize_pool as u128 * RESERVE_ALLOCATION_BPS as u128
+        / BPS_DENOMINATOR as u128) as u64;
+    let insurance_contribution = (total_prize_pool as u128 * INSURANCE_ALLOCATION_BPS as u128
+        / BPS_DENOMINATOR as u128) as u64;
+
+    // FIXED: Transfer insurance portion to the insurance pool token account.
+    // Previously, insurance_contribution was only added to lottery_state.insurance_balance
+    // without an actual USDC transfer, creating an accounting mismatch.
+    let prize_pool_transfer = total_prize_pool.saturating_sub(insurance_contribution);
+
+    if prize_pool_transfer > 0 {
         let cpi_accounts = Transfer {
             from: ctx.accounts.syndicate_usdc.to_account_info(),
             to: ctx.accounts.prize_pool_usdc.to_account_info(),
@@ -1082,20 +1095,23 @@ pub fn handler_buy_syndicate_tickets(
         };
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-        token::transfer(cpi_ctx, total_prize_pool)?;
+        token::transfer(cpi_ctx, prize_pool_transfer)?;
+    }
+
+    if insurance_contribution > 0 {
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.syndicate_usdc.to_account_info(),
+            to: ctx.accounts.insurance_pool_usdc.to_account_info(),
+            authority: ctx.accounts.syndicate.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        token::transfer(cpi_ctx, insurance_contribution)?;
     }
 
     // Update syndicate total contribution (deduct spent amount)
     let syndicate = &mut ctx.accounts.syndicate;
     syndicate.total_contribution = syndicate.total_contribution.saturating_sub(total_cost);
-
-    // Calculate jackpot, reserve, and insurance contributions
-    let jackpot_contribution = (total_prize_pool as u128 * JACKPOT_ALLOCATION_BPS as u128
-        / BPS_DENOMINATOR as u128) as u64;
-    let reserve_contribution = (total_prize_pool as u128 * RESERVE_ALLOCATION_BPS as u128
-        / BPS_DENOMINATOR as u128) as u64;
-    let insurance_contribution = (total_prize_pool as u128 * INSURANCE_ALLOCATION_BPS as u128
-        / BPS_DENOMINATOR as u128) as u64;
 
     // Update lottery state
     let lottery_state = &mut ctx.accounts.lottery_state;
@@ -1382,9 +1398,17 @@ pub fn handler_distribute_syndicate_prize(
 
     token::transfer(cpi_ctx, total_prize)?;
 
-    // Update syndicate statistics
+    // FIXED: Do NOT add prize winnings to total_contribution.
+    // total_contribution tracks member deposits only and is used to calculate
+    // share_percentage_bps. Mixing prize winnings into it would corrupt share
+    // calculations and inflate members' perceived contributions, leading to
+    // incorrect refunds on leave/remove.
+    //
+    // The prize USDC is now sitting in the syndicate_usdc token account.
+    // ClaimSyndicateMemberPrize already calculates each member's claimable
+    // amount based on their share_percentage_bps applied to the actual
+    // syndicate_usdc token account balance, so no state update is needed here.
     let syndicate = &mut ctx.accounts.syndicate;
-    syndicate.total_contribution = syndicate.total_contribution.saturating_add(member_pool);
 
     // Emit event
     emit!(SyndicatePrizeDistributed {
@@ -1447,13 +1471,15 @@ pub struct ClaimSyndicateMemberPrize<'info> {
     pub member_usdc: Account<'info, TokenAccount>,
 
     /// Syndicate's USDC token account (source of prize)
+    /// FIXED: PDA seeds must match CreateSyndicate: [SYNDICATE_SEED, b"usdc", syndicate.key()]
+    /// Previously used [SYNDICATE_SEED, b"usdc", creator, syndicate_id] which derives a
+    /// different address and causes account validation failures.
     #[account(
         mut,
         seeds = [
             SYNDICATE_SEED,
             b"usdc",
-            syndicate.creator.as_ref(),
-            &syndicate.syndicate_id.to_le_bytes()
+            syndicate.key().as_ref()
         ],
         bump,
         constraint = syndicate_usdc.key() == syndicate.usdc_account @ LottoError::InvalidTokenAccount
@@ -1701,11 +1727,15 @@ pub struct RemoveSyndicateMember<'info> {
     pub manager: Signer<'info>,
 
     /// The syndicate account
+    /// FIXED: Use syndicate.creator instead of manager.key() in PDA seeds.
+    /// After a creator transfer, manager.key() may differ from the original
+    /// creator used during PDA derivation. Using syndicate.creator ensures
+    /// the PDA always resolves correctly.
     #[account(
         mut,
         seeds = [
             SYNDICATE_SEED,
-            manager.key().as_ref(),
+            syndicate.creator.as_ref(),
             &syndicate.syndicate_id.to_le_bytes()
         ],
         bump = syndicate.bump,
@@ -1722,13 +1752,15 @@ pub struct RemoveSyndicateMember<'info> {
     pub member_usdc: Account<'info, TokenAccount>,
 
     /// Syndicate's USDC token account (source of refund)
+    /// FIXED: PDA seeds must match CreateSyndicate: [SYNDICATE_SEED, b"usdc", syndicate.key()]
+    /// Previously used [SYNDICATE_SEED, b"usdc", manager.key(), syndicate_id] which derives
+    /// a different address and causes account validation failures.
     #[account(
         mut,
         seeds = [
             SYNDICATE_SEED,
             b"usdc",
-            manager.key().as_ref(),
-            &syndicate.syndicate_id.to_le_bytes()
+            syndicate.key().as_ref()
         ],
         bump,
         constraint = syndicate_usdc.key() == syndicate.usdc_account @ LottoError::InvalidTokenAccount
@@ -1772,6 +1804,11 @@ pub fn handler_remove_syndicate_member(
         LottoError::Unauthorized
     );
 
+    // Get syndicate signer seeds before mutable borrow
+    let syndicate_creator = ctx.accounts.syndicate.creator;
+    let syndicate_id = ctx.accounts.syndicate.syndicate_id;
+    let syndicate_bump = ctx.accounts.syndicate.bump;
+
     // Find and remove the member, getting their contribution
     let refund_amount = ctx
         .accounts
@@ -1785,16 +1822,28 @@ pub fn handler_remove_syndicate_member(
         LottoError::InsufficientFunds
     );
 
-    // Transfer refund from syndicate to member
+    // FIXED: Use syndicate PDA as authority (not syndicate_usdc token account).
+    // The syndicate PDA is the owner/authority of the token account, so it must
+    // sign the transfer. Previously used syndicate_usdc as authority which cannot
+    // sign for itself.
+    let seeds = &[
+        SYNDICATE_SEED,
+        syndicate_creator.as_ref(),
+        &syndicate_id.to_le_bytes(),
+        &[syndicate_bump],
+    ];
+    let signer_seeds = &[&seeds[..]];
+
     let transfer_instruction = Transfer {
         from: ctx.accounts.syndicate_usdc.to_account_info(),
         to: ctx.accounts.member_usdc.to_account_info(),
-        authority: ctx.accounts.syndicate_usdc.to_account_info(),
+        authority: ctx.accounts.syndicate.to_account_info(),
     };
 
-    let cpi_context = CpiContext::new(
+    let cpi_context = CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
         transfer_instruction,
+        signer_seeds,
     );
 
     token::transfer(cpi_context, refund_amount)?;

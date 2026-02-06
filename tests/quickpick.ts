@@ -66,19 +66,19 @@ const USDC_DECIMALS = 6;
 function deriveMainLotteryPDAs(programId: PublicKey) {
   const [lotteryState] = PublicKey.findProgramAddressSync(
     [LOTTERY_SEED],
-    programId
+    programId,
   );
   const [prizePoolUsdc] = PublicKey.findProgramAddressSync(
     [MAIN_PRIZE_POOL_USDC_SEED],
-    programId
+    programId,
   );
   const [houseFeeUsdc] = PublicKey.findProgramAddressSync(
     [MAIN_HOUSE_FEE_USDC_SEED],
-    programId
+    programId,
   );
   const [insurancePoolUsdc] = PublicKey.findProgramAddressSync(
     [MAIN_INSURANCE_POOL_USDC_SEED],
-    programId
+    programId,
   );
   return { lotteryState, prizePoolUsdc, houseFeeUsdc, insurancePoolUsdc };
 }
@@ -86,19 +86,19 @@ function deriveMainLotteryPDAs(programId: PublicKey) {
 function deriveQuickPickPDAs(programId: PublicKey) {
   const [quickPickState] = PublicKey.findProgramAddressSync(
     [QUICK_PICK_SEED],
-    programId
+    programId,
   );
   const [prizePoolUsdc] = PublicKey.findProgramAddressSync(
     [QP_PRIZE_POOL_USDC_SEED],
-    programId
+    programId,
   );
   const [houseFeeUsdc] = PublicKey.findProgramAddressSync(
     [QP_HOUSE_FEE_USDC_SEED],
-    programId
+    programId,
   );
   const [insurancePoolUsdc] = PublicKey.findProgramAddressSync(
     [QP_INSURANCE_POOL_USDC_SEED],
-    programId
+    programId,
   );
   return { quickPickState, prizePoolUsdc, houseFeeUsdc, insurancePoolUsdc };
 }
@@ -106,7 +106,7 @@ function deriveQuickPickPDAs(programId: PublicKey) {
 function deriveMainTicketPDA(
   programId: PublicKey,
   drawId: number,
-  ticketIndex: number
+  ticketIndex: number,
 ) {
   return PublicKey.findProgramAddressSync(
     [
@@ -114,21 +114,21 @@ function deriveMainTicketPDA(
       new BN(drawId).toArrayLike(Buffer, "le", 8),
       new BN(ticketIndex).toArrayLike(Buffer, "le", 8),
     ],
-    programId
+    programId,
   );
 }
 
 function deriveUserStatsPDA(programId: PublicKey, wallet: PublicKey) {
   return PublicKey.findProgramAddressSync(
     [USER_SEED, wallet.toBuffer()],
-    programId
+    programId,
   );
 }
 
 function deriveQPTicketPDA(
   programId: PublicKey,
   drawId: number,
-  ticketIndex: number
+  ticketIndex: number,
 ) {
   return PublicKey.findProgramAddressSync(
     [
@@ -136,14 +136,14 @@ function deriveQPTicketPDA(
       new BN(drawId).toArrayLike(Buffer, "le", 8),
       new BN(ticketIndex).toArrayLike(Buffer, "le", 8),
     ],
-    programId
+    programId,
   );
 }
 
 function deriveQPDrawResultPDA(programId: PublicKey, drawId: number) {
   return PublicKey.findProgramAddressSync(
     [QUICK_PICK_DRAW_SEED, new BN(drawId).toArrayLike(Buffer, "le", 8)],
-    programId
+    programId,
   );
 }
 
@@ -153,14 +153,14 @@ function deriveQPDrawResultPDA(programId: PublicKey, drawId: number) {
 
 async function createUsdcMint(
   provider: anchor.AnchorProvider,
-  authority: Keypair
+  authority: Keypair,
 ): Promise<PublicKey> {
   return await createMint(
     provider.connection,
     authority,
     authority.publicKey,
     null,
-    USDC_DECIMALS
+    USDC_DECIMALS,
   );
 }
 
@@ -169,13 +169,13 @@ async function createAndFundUsdc(
   mint: PublicKey,
   owner: PublicKey,
   mintAuthority: Keypair,
-  amount: bigint
+  amount: bigint,
 ): Promise<PublicKey> {
   const account = await createAccount(
     provider.connection,
     mintAuthority,
     mint,
-    owner
+    owner,
   );
   if (amount > 0n) {
     await mintTo(
@@ -184,7 +184,7 @@ async function createAndFundUsdc(
       mint,
       account,
       mintAuthority,
-      amount
+      amount,
     );
   }
   return account;
@@ -193,7 +193,7 @@ async function createAndFundUsdc(
 async function airdrop(
   provider: anchor.AnchorProvider,
   to: PublicKey,
-  lamports = 100 * LAMPORTS_PER_SOL
+  lamports = 100 * LAMPORTS_PER_SOL,
 ) {
   const sig = await provider.connection.requestAirdrop(to, lamports);
   await provider.connection.confirmTransaction(sig, "confirmed");
@@ -208,8 +208,7 @@ describe("quickpick", () => {
   anchor.setProvider(provider);
 
   // Both programs live in the same workspace
-  const mainProgram = anchor.workspace
-    .mazelprotocol as Program<Mazelprotocol>;
+  const mainProgram = anchor.workspace.mazelprotocol as Program<Mazelprotocol>;
   const qpProgram = anchor.workspace.quickpick as Program<Quickpick>;
 
   const mainProgramId = mainProgram.programId;
@@ -261,7 +260,7 @@ describe("quickpick", () => {
       usdcMint,
       authority.publicKey,
       authority,
-      totalAuthorityUsdc
+      totalAuthorityUsdc,
     );
 
     // Player1 gets a generous USDC balance for main + QP tickets
@@ -270,7 +269,7 @@ describe("quickpick", () => {
       usdcMint,
       player1.publicKey,
       authority,
-      BigInt(10_000_000_000) // $10,000
+      BigInt(10_000_000_000), // $10,000
     );
 
     // Player2 gets a small balance (NOT enough to pass $50 gate via main lottery)
@@ -279,7 +278,7 @@ describe("quickpick", () => {
       usdcMint,
       player2.publicKey,
       authority,
-      BigInt(1_000_000_000) // $1,000
+      BigInt(1_000_000_000), // $1,000
     );
 
     destinationUsdc = await createAndFundUsdc(
@@ -287,7 +286,7 @@ describe("quickpick", () => {
       usdcMint,
       authority.publicKey,
       authority,
-      0n
+      0n,
     );
 
     // ---------------------------------------------------------------
@@ -337,14 +336,14 @@ describe("quickpick", () => {
     const ticketsToBuy = 21;
     for (let i = 0; i < ticketsToBuy; i++) {
       const mainState = await mainProgram.account.lotteryState.fetch(
-        mainPDAs.lotteryState
+        mainPDAs.lotteryState,
       );
       const drawId = mainState.currentDrawId.toNumber();
       const idx = mainState.currentDrawTickets.toNumber();
       const [ticketPda] = deriveMainTicketPDA(mainProgramId, drawId, idx);
       const [userStatsPda] = deriveUserStatsPDA(
         mainProgramId,
-        player1.publicKey
+        player1.publicKey,
       );
 
       // Generate unique valid numbers for each ticket
@@ -399,7 +398,7 @@ describe("quickpick", () => {
     const [userStatsPda] = deriveUserStatsPDA(mainProgramId, player1.publicKey);
     const stats = await mainProgram.account.userStats.fetch(userStatsPda);
     expect(stats.totalSpent.toNumber()).to.be.greaterThanOrEqual(
-      QP_MIN_SPEND_GATE.toNumber()
+      QP_MIN_SPEND_GATE.toNumber(),
     );
   });
 
@@ -419,7 +418,7 @@ describe("quickpick", () => {
         .rpc();
 
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
 
       expect(state.currentDraw.toNumber()).to.equal(1);
@@ -486,7 +485,7 @@ describe("quickpick", () => {
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, 1, 0);
       const [userStatsPda] = deriveUserStatsPDA(
         mainProgramId,
-        player1.publicKey
+        player1.publicKey,
       );
 
       try {
@@ -519,7 +518,7 @@ describe("quickpick", () => {
         usdcMint,
         unauthorizedUser.publicKey,
         authority,
-        BigInt(QP_SEED_AMOUNT.toString())
+        BigInt(QP_SEED_AMOUNT.toString()),
       );
 
       try {
@@ -555,19 +554,16 @@ describe("quickpick", () => {
         .rpc();
 
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       expect(state.jackpotBalance.toString()).to.equal(
-        QP_SEED_AMOUNT.toString()
+        QP_SEED_AMOUNT.toString(),
       );
       expect(state.isFunded).to.be.true;
       expect(state.isPaused).to.be.false;
 
       // Verify USDC transferred
-      const pool = await getAccount(
-        provider.connection,
-        qpPDAs.prizePoolUsdc
-      );
+      const pool = await getAccount(provider.connection, qpPDAs.prizePoolUsdc);
       expect(Number(pool.amount)).to.equal(Number(QP_SEED_AMOUNT.toString()));
     });
 
@@ -609,7 +605,7 @@ describe("quickpick", () => {
         .rpc();
 
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       expect(state.isPaused).to.be.true;
     });
@@ -642,7 +638,7 @@ describe("quickpick", () => {
         .rpc();
 
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       expect(state.isPaused).to.be.false;
     });
@@ -691,7 +687,7 @@ describe("quickpick", () => {
   describe("Buy Ticket", () => {
     it("player1 buys a Quick Pick ticket (gate met)", async () => {
       const stateBefore = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const drawId = stateBefore.currentDraw.toNumber();
       const ticketIdx = stateBefore.currentDrawTickets.toNumber();
@@ -700,12 +696,12 @@ describe("quickpick", () => {
       // UserStats is owned by the main program
       const [userStatsPda] = deriveUserStatsPDA(
         mainProgramId,
-        player1.publicKey
+        player1.publicKey,
       );
 
       const playerUsdcBefore = await getAccount(
         provider.connection,
-        player1Usdc
+        player1Usdc,
       );
 
       await qpProgram.methods
@@ -738,34 +734,32 @@ describe("quickpick", () => {
       // Verify USDC deducted
       const playerUsdcAfter = await getAccount(
         provider.connection,
-        player1Usdc
+        player1Usdc,
       );
       expect(
-        Number(playerUsdcBefore.amount) - Number(playerUsdcAfter.amount)
+        Number(playerUsdcBefore.amount) - Number(playerUsdcAfter.amount),
       ).to.equal(QP_TICKET_PRICE.toNumber());
 
       // Verify state updated
       const stateAfter = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
-      expect(stateAfter.currentDrawTickets.toNumber()).to.equal(
-        ticketIdx + 1
-      );
+      expect(stateAfter.currentDrawTickets.toNumber()).to.equal(ticketIdx + 1);
       expect(stateAfter.totalTicketsSold.toNumber()).to.equal(
-        stateBefore.totalTicketsSold.toNumber() + 1
+        stateBefore.totalTicketsSold.toNumber() + 1,
       );
     });
 
     it("buys ticket with unsorted numbers (stored sorted)", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
       const [userStatsPda] = deriveUserStatsPDA(
         mainProgramId,
-        player1.publicKey
+        player1.publicKey,
       );
 
       await qpProgram.methods
@@ -797,14 +791,14 @@ describe("quickpick", () => {
       // fail (account not initialised). If it exists but total_spent < $50 it
       // will fail with InsufficientMainLotterySpend.
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
       const [userStatsPda] = deriveUserStatsPDA(
         mainProgramId,
-        player2.publicKey
+        player2.publicKey,
       );
 
       try {
@@ -840,14 +834,14 @@ describe("quickpick", () => {
   describe("Buy Ticket – Invalid Numbers", () => {
     it("fails with number 0 (out of range)", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
       const [userStatsPda] = deriveUserStatsPDA(
         mainProgramId,
-        player1.publicKey
+        player1.publicKey,
       );
 
       try {
@@ -879,14 +873,14 @@ describe("quickpick", () => {
 
     it("fails with number 36 (out of range for 5/35)", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
       const [userStatsPda] = deriveUserStatsPDA(
         mainProgramId,
-        player1.publicKey
+        player1.publicKey,
       );
 
       try {
@@ -918,14 +912,14 @@ describe("quickpick", () => {
 
     it("fails with duplicate numbers", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
       const [userStatsPda] = deriveUserStatsPDA(
         mainProgramId,
-        player1.publicKey
+        player1.publicKey,
       );
 
       try {
@@ -957,14 +951,14 @@ describe("quickpick", () => {
 
     it("fails with all-same numbers", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
       const [userStatsPda] = deriveUserStatsPDA(
         mainProgramId,
-        player1.publicKey
+        player1.publicKey,
       );
 
       try {
@@ -1007,18 +1001,18 @@ describe("quickpick", () => {
         usdcMint,
         brokePlayer.publicKey,
         authority,
-        0n
+        0n,
       );
 
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
       const [userStatsPda] = deriveUserStatsPDA(
         mainProgramId,
-        brokePlayer.publicKey
+        brokePlayer.publicKey,
       );
 
       try {
@@ -1052,22 +1046,16 @@ describe("quickpick", () => {
   // ==========================================================================
   describe("Fund Distribution", () => {
     it("verifies USDC split across QP pools after ticket purchases", async () => {
-      const pool = await getAccount(
-        provider.connection,
-        qpPDAs.prizePoolUsdc
-      );
-      const house = await getAccount(
-        provider.connection,
-        qpPDAs.houseFeeUsdc
-      );
+      const pool = await getAccount(provider.connection, qpPDAs.prizePoolUsdc);
+      const house = await getAccount(provider.connection, qpPDAs.houseFeeUsdc);
       const insurance = await getAccount(
         provider.connection,
-        qpPDAs.insurancePoolUsdc
+        qpPDAs.insurancePoolUsdc,
       );
 
       // Prize pool = seed + ticket contributions
       expect(Number(pool.amount)).to.be.greaterThan(
-        Number(QP_SEED_AMOUNT.toString())
+        Number(QP_SEED_AMOUNT.toString()),
       );
 
       // House fee accumulated
@@ -1122,7 +1110,7 @@ describe("quickpick", () => {
         .rpc();
 
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       expect(state.ticketPrice.toString()).to.equal(newPrice.toString());
 
@@ -1187,14 +1175,14 @@ describe("quickpick", () => {
     it("withdraws accumulated QP house fees", async () => {
       const houseAccount = await getAccount(
         provider.connection,
-        qpPDAs.houseFeeUsdc
+        qpPDAs.houseFeeUsdc,
       );
       const balance = Number(houseAccount.amount);
 
       if (balance > 0) {
         const destBefore = await getAccount(
           provider.connection,
-          destinationUsdc
+          destinationUsdc,
         );
 
         await qpProgram.methods
@@ -1211,16 +1199,16 @@ describe("quickpick", () => {
 
         const houseAfter = await getAccount(
           provider.connection,
-          qpPDAs.houseFeeUsdc
+          qpPDAs.houseFeeUsdc,
         );
         expect(Number(houseAfter.amount)).to.equal(0);
 
         const destAfter = await getAccount(
           provider.connection,
-          destinationUsdc
+          destinationUsdc,
         );
         expect(Number(destAfter.amount) - Number(destBefore.amount)).to.equal(
-          balance
+          balance,
         );
       }
     });
@@ -1252,7 +1240,7 @@ describe("quickpick", () => {
   describe("Add Reserve Funds", () => {
     it("adds reserve funds", async () => {
       const stateBefore = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const reserveBefore = stateBefore.reserveBalance.toNumber();
 
@@ -1271,10 +1259,10 @@ describe("quickpick", () => {
         .rpc();
 
       const stateAfter = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       expect(stateAfter.reserveBalance.toNumber()).to.equal(
-        reserveBefore + addAmount.toNumber()
+        reserveBefore + addAmount.toNumber(),
       );
     });
   });
@@ -1285,7 +1273,7 @@ describe("quickpick", () => {
   describe("Cancel / Force-Finalize Draw", () => {
     it("cancel_draw fails when no draw is in progress", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       expect(state.isDrawInProgress).to.be.false;
 
@@ -1306,7 +1294,7 @@ describe("quickpick", () => {
 
     it("force_finalize_draw fails when no draw in progress", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const drawId = state.currentDraw.toNumber();
       const [drawResultPda] = deriveQPDrawResultPDA(qpProgramId, drawId);
@@ -1351,7 +1339,7 @@ describe("quickpick", () => {
   describe("Emergency Fund Transfer", () => {
     it("fails when Quick Pick is not paused", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       expect(state.isPaused).to.be.false;
 
@@ -1360,7 +1348,7 @@ describe("quickpick", () => {
           .emergencyFundTransfer(
             { reserve: {} },
             new BN(1_000_000),
-            "Test emergency"
+            "Test emergency",
           )
           .accounts({
             authority: authority.publicKey,
@@ -1389,20 +1377,18 @@ describe("quickpick", () => {
         .rpc();
 
       const stateBefore = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const reserveBefore = stateBefore.reserveBalance.toNumber();
 
       if (reserveBefore > 0) {
-        const transferAmt = new BN(
-          Math.min(reserveBefore, 500_000_000)
-        ); // $500 or less
+        const transferAmt = new BN(Math.min(reserveBefore, 500_000_000)); // $500 or less
 
         await qpProgram.methods
           .emergencyFundTransfer(
             { reserve: {} },
             transferAmt,
-            "Reserve emergency"
+            "Reserve emergency",
           )
           .accounts({
             authority: authority.publicKey,
@@ -1416,10 +1402,10 @@ describe("quickpick", () => {
           .rpc();
 
         const stateAfter = await qpProgram.account.quickPickState.fetch(
-          qpPDAs.quickPickState
+          qpPDAs.quickPickState,
         );
         expect(stateAfter.reserveBalance.toNumber()).to.be.lessThan(
-          reserveBefore
+          reserveBefore,
         );
       }
 
@@ -1446,11 +1432,7 @@ describe("quickpick", () => {
 
       try {
         await qpProgram.methods
-          .emergencyFundTransfer(
-            { reserve: {} },
-            new BN(1),
-            "Unauthorized"
-          )
+          .emergencyFundTransfer({ reserve: {} }, new BN(1), "Unauthorized")
           .accounts({
             authority: unauthorizedUser.publicKey,
             lotteryState: mainPDAs.lotteryState,
@@ -1504,13 +1486,13 @@ describe("quickpick", () => {
 
     it("execute_draw fails when no draw in progress", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       expect(state.isDrawInProgress).to.be.false;
 
       const [drawResultPda] = deriveQPDrawResultPDA(
         qpProgramId,
-        state.currentDraw.toNumber()
+        state.currentDraw.toNumber(),
       );
       const fakeRandomness = Keypair.generate();
 
@@ -1535,17 +1517,19 @@ describe("quickpick", () => {
 
     it("finalize_draw fails when no draw result exists", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const [drawResultPda] = deriveQPDrawResultPDA(
         qpProgramId,
-        state.currentDraw.toNumber()
+        state.currentDraw.toNumber(),
       );
 
       try {
         await qpProgram.methods
           .finalizeDraw({
             winnerCounts: { match5: 0, match4: 1, match3: 5 },
+            verificationHash: Array(32).fill(0),
+            indexerNonce: new anchor.BN(0),
           })
           .accounts({
             authority: authority.publicKey,
@@ -1619,7 +1603,7 @@ describe("quickpick", () => {
   describe("State Invariants", () => {
     it("Quick Pick state is consistent after all operations", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
 
       expect(state.isFunded).to.be.true;
@@ -1628,11 +1612,9 @@ describe("quickpick", () => {
       expect(state.currentDraw.toNumber()).to.equal(1);
       expect(state.totalTicketsSold.toNumber()).to.be.greaterThanOrEqual(2);
       expect(state.jackpotBalance.toNumber()).to.be.greaterThanOrEqual(
-        QP_SEED_AMOUNT.toNumber()
+        QP_SEED_AMOUNT.toNumber(),
       );
-      expect(state.ticketPrice.toString()).to.equal(
-        QP_TICKET_PRICE.toString()
-      );
+      expect(state.ticketPrice.toString()).to.equal(QP_TICKET_PRICE.toString());
       expect(state.pickCount).to.equal(5);
       expect(state.numberRange).to.equal(35);
       expect(state.softCap.toString()).to.equal(QP_SOFT_CAP.toString());
@@ -1640,17 +1622,11 @@ describe("quickpick", () => {
     });
 
     it("token accounts are non-negative", async () => {
-      const pool = await getAccount(
-        provider.connection,
-        qpPDAs.prizePoolUsdc
-      );
-      const house = await getAccount(
-        provider.connection,
-        qpPDAs.houseFeeUsdc
-      );
+      const pool = await getAccount(provider.connection, qpPDAs.prizePoolUsdc);
+      const house = await getAccount(provider.connection, qpPDAs.houseFeeUsdc);
       const insurance = await getAccount(
         provider.connection,
-        qpPDAs.insurancePoolUsdc
+        qpPDAs.insurancePoolUsdc,
       );
 
       expect(Number(pool.amount)).to.be.greaterThanOrEqual(0);
@@ -1672,14 +1648,14 @@ describe("quickpick", () => {
 
       for (const numbers of ticketSets) {
         const state = await qpProgram.account.quickPickState.fetch(
-          qpPDAs.quickPickState
+          qpPDAs.quickPickState,
         );
         const drawId = state.currentDraw.toNumber();
         const idx = state.currentDrawTickets.toNumber();
         const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
         const [userStatsPda] = deriveUserStatsPDA(
           mainProgramId,
-          player1.publicKey
+          player1.publicKey,
         );
 
         await qpProgram.methods
@@ -1702,11 +1678,11 @@ describe("quickpick", () => {
       }
 
       const stateAfter = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       // 2 earlier + 3 new = 5
       expect(stateAfter.totalTicketsSold.toNumber()).to.be.greaterThanOrEqual(
-        5
+        5,
       );
     });
   });
@@ -1717,7 +1693,7 @@ describe("quickpick", () => {
   describe("Dynamic Fee Tier", () => {
     it("verifies house fee BPS matches current jackpot tier", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
       const jackpot = state.jackpotBalance.toNumber();
 
@@ -1754,39 +1730,53 @@ describe("quickpick", () => {
   describe("Final State Snapshot", () => {
     it("prints final Quick Pick state for audit", async () => {
       const state = await qpProgram.account.quickPickState.fetch(
-        qpPDAs.quickPickState
+        qpPDAs.quickPickState,
       );
-      const pool = await getAccount(
-        provider.connection,
-        qpPDAs.prizePoolUsdc
-      );
-      const house = await getAccount(
-        provider.connection,
-        qpPDAs.houseFeeUsdc
-      );
+      const pool = await getAccount(provider.connection, qpPDAs.prizePoolUsdc);
+      const house = await getAccount(provider.connection, qpPDAs.houseFeeUsdc);
       const insurance = await getAccount(
         provider.connection,
-        qpPDAs.insurancePoolUsdc
+        qpPDAs.insurancePoolUsdc,
       );
 
       console.log("\n========== FINAL QUICK PICK STATE ==========");
       console.log(`Current Draw: ${state.currentDraw.toString()}`);
-      console.log(`Ticket Price: ${state.ticketPrice.toString()} ($${(state.ticketPrice.toNumber() / 1_000_000).toFixed(2)})`);
-      console.log(`Pick Count / Range: ${state.pickCount}/${state.numberRange}`);
-      console.log(`Jackpot Balance: ${state.jackpotBalance.toString()} ($${(state.jackpotBalance.toNumber() / 1_000_000).toFixed(2)})`);
-      console.log(`Prize Pool Balance: ${state.prizePoolBalance.toString()} ($${(state.prizePoolBalance.toNumber() / 1_000_000).toFixed(2)})`);
-      console.log(`Insurance Balance: ${state.insuranceBalance.toString()} ($${(state.insuranceBalance.toNumber() / 1_000_000).toFixed(2)})`);
-      console.log(`Reserve Balance: ${state.reserveBalance.toString()} ($${(state.reserveBalance.toNumber() / 1_000_000).toFixed(2)})`);
+      console.log(
+        `Ticket Price: ${state.ticketPrice.toString()} ($${(state.ticketPrice.toNumber() / 1_000_000).toFixed(2)})`,
+      );
+      console.log(
+        `Pick Count / Range: ${state.pickCount}/${state.numberRange}`,
+      );
+      console.log(
+        `Jackpot Balance: ${state.jackpotBalance.toString()} ($${(state.jackpotBalance.toNumber() / 1_000_000).toFixed(2)})`,
+      );
+      console.log(
+        `Prize Pool Balance: ${state.prizePoolBalance.toString()} ($${(state.prizePoolBalance.toNumber() / 1_000_000).toFixed(2)})`,
+      );
+      console.log(
+        `Insurance Balance: ${state.insuranceBalance.toString()} ($${(state.insuranceBalance.toNumber() / 1_000_000).toFixed(2)})`,
+      );
+      console.log(
+        `Reserve Balance: ${state.reserveBalance.toString()} ($${(state.reserveBalance.toNumber() / 1_000_000).toFixed(2)})`,
+      );
       console.log(`Total Tickets Sold: ${state.totalTicketsSold.toString()}`);
-      console.log(`Current Draw Tickets: ${state.currentDrawTickets.toString()}`);
+      console.log(
+        `Current Draw Tickets: ${state.currentDrawTickets.toString()}`,
+      );
       console.log(`House Fee BPS: ${state.houseFeeBps}`);
       console.log(`Is Paused: ${state.isPaused}`);
       console.log(`Is Funded: ${state.isFunded}`);
       console.log(`Is Draw In Progress: ${state.isDrawInProgress}`);
       console.log(`Is Rolldown Pending: ${state.isRolldownPending}`);
-      console.log(`Prize Pool USDC: ${pool.amount.toString()} ($${(Number(pool.amount) / 1_000_000).toFixed(2)})`);
-      console.log(`House Fee USDC: ${house.amount.toString()} ($${(Number(house.amount) / 1_000_000).toFixed(2)})`);
-      console.log(`Insurance USDC: ${insurance.amount.toString()} ($${(Number(insurance.amount) / 1_000_000).toFixed(2)})`);
+      console.log(
+        `Prize Pool USDC: ${pool.amount.toString()} ($${(Number(pool.amount) / 1_000_000).toFixed(2)})`,
+      );
+      console.log(
+        `House Fee USDC: ${house.amount.toString()} ($${(Number(house.amount) / 1_000_000).toFixed(2)})`,
+      );
+      console.log(
+        `Insurance USDC: ${insurance.amount.toString()} ($${(Number(insurance.amount) / 1_000_000).toFixed(2)})`,
+      );
       console.log("=============================================\n");
     });
   });
