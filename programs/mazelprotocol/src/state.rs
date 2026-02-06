@@ -93,6 +93,19 @@ pub struct LotteryState {
 
     /// PDA bump seed
     pub bump: u8,
+
+    // ==========================================================================
+    // TIMELOCK FIELDS (Issue 5 fix: governance delay for config changes)
+    // ==========================================================================
+    /// Unix timestamp when a pending config change becomes effective.
+    /// 0 means no pending config change. Config updates are proposed first,
+    /// then can only be executed after this timestamp (minimum 24-hour delay).
+    pub config_timelock_end: i64,
+
+    /// SHA256 hash of the pending config change parameters.
+    /// Used to verify that the executed config matches what was proposed.
+    /// Zero hash means no pending config change.
+    pub pending_config_hash: [u8; 32],
 }
 
 impl LotteryState {

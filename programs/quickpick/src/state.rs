@@ -507,8 +507,8 @@ pub struct UserStats {
     /// Tickets purchased in current draw
     pub tickets_this_draw: u64,
 
-    /// Free tickets available
-    pub free_tickets_available: u64,
+    /// Free tickets available (u32 to match main lottery layout)
+    pub free_tickets_available: u32,
 
     /// PDA bump seed
     pub bump: u8,
@@ -516,6 +516,7 @@ pub struct UserStats {
 
 impl UserStats {
     /// Account size including discriminator
+    /// FIXED: free_tickets_available is u32 (4 bytes), matching main lottery
     pub const LEN: usize = 8 +  // discriminator
         32 +    // wallet
         8 +     // total_tickets
@@ -526,7 +527,7 @@ impl UserStats {
         4 +     // jackpot_wins
         8 +     // last_draw_participated
         8 +     // tickets_this_draw
-        8 +     // free_tickets_available
+        4 +     // free_tickets_available (u32)
         1 +     // bump
         16; // padding
 

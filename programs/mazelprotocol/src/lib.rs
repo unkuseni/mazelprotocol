@@ -154,15 +154,64 @@ pub mod solana_lotto {
         instructions::admin::handler_unpause(ctx)
     }
 
-    /// Update lottery configuration
+    /// Update lottery configuration (legacy immediate mode)
     ///
-    /// Updates various configuration parameters.
+    /// Updates various configuration parameters immediately.
+    /// For production use, prefer propose_config → execute_config flow.
+    /// Will refuse to run if a timelock proposal is active.
     ///
     /// # Arguments
     /// * `ctx` - UpdateConfig accounts context
     /// * `params` - New configuration parameters
     pub fn update_config(ctx: Context<UpdateConfig>, params: UpdateConfigParams) -> Result<()> {
         instructions::admin::handler_update_config(ctx, params)
+    }
+
+    /// Propose configuration changes (Phase 1 of timelock)
+    ///
+    /// Starts a 24-hour timelock by storing a hash of the proposed changes.
+    /// The actual changes are NOT applied until execute_config is called
+    /// after the timelock expires.
+    ///
+    /// # Arguments
+    /// * `ctx` - UpdateConfig accounts context
+    /// * `params` - Proposed configuration parameters
+    pub fn propose_config(ctx: Context<UpdateConfig>, params: UpdateConfigParams) -> Result<()> {
+        instructions::admin::handler_propose_config(ctx, params)
+    }
+
+    /// Execute proposed configuration changes (Phase 2 of timelock)
+    ///
+    /// Applies the previously proposed configuration changes after the
+    /// 24-hour timelock has expired. Params must exactly match the proposal.
+    ///
+    /// # Arguments
+    /// * `ctx` - UpdateConfig accounts context
+    /// * `params` - Configuration parameters (must match proposal hash)
+    pub fn execute_config(ctx: Context<UpdateConfig>, params: UpdateConfigParams) -> Result<()> {
+        instructions::admin::handler_execute_config(ctx, params)
+    }
+
+    /// Cancel a pending configuration proposal
+    ///
+    /// Clears the pending config hash and timelock, preventing execution.
+    ///
+    /// # Arguments
+    /// * `ctx` - UpdateConfig accounts context
+    pub fn cancel_config_proposal(ctx: Context<UpdateConfig>) -> Result<()> {
+        instructions::admin::handler_cancel_config_proposal(ctx)
+    }
+
+    /// On-chain solvency verification (permissionless)
+    ///
+    /// Allows ANYONE to verify that on-chain token balances match the
+    /// internal accounting state. If a mismatch is detected, the lottery
+    /// is automatically paused for safety.
+    ///
+    /// # Arguments
+    /// * `ctx` - CheckSolvency accounts context
+    pub fn check_solvency(ctx: Context<CheckSolvency>) -> Result<()> {
+        instructions::admin::handler_check_solvency(ctx)
     }
 
     /// Withdraw accumulated house fees

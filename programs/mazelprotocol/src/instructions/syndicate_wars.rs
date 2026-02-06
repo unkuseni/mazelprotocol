@@ -657,7 +657,10 @@ pub fn handler_distribute_syndicate_wars_prizes<'info>(
     let third_prize = prize_pool * 15 / 100; // 15%
     let runner_up_prize = prize_pool * 10 / 100 / 7; // 10% split among 7 runners-up
 
-    // Update ranks on remaining accounts (SyndicateWarsEntry accounts)
+    // FIXED: Use proper Anchor deserialization instead of fragile raw byte offsets.
+    // The previous approach manually computed a byte offset to write final_rank,
+    // which is brittle (breaks if field order/types change) and unsafe (no
+    // discriminator or owner validation on the remaining accounts).
     let remaining_accounts = ctx.remaining_accounts;
     for (i, account_info) in remaining_accounts.iter().enumerate() {
         if i >= 10 {
@@ -670,21 +673,46 @@ pub fn handler_distribute_syndicate_wars_prizes<'info>(
             continue; // Skip empty slots
         }
 
-        // Deserialize the entry account
-        let mut entry_data = account_info.try_borrow_mut_data()?;
+        // Verify account is owned by this program
+        require!(
+            account_info.owner == ctx.program_id,
+            LottoError::InvalidAccountOwner
+        );
 
-        // Skip discriminator (8 bytes) and read/write final_rank
-        // SyndicateWarsEntry layout: syndicate (32) + month (8) + tickets_purchased (8) +
-        // prizes_won (8) + win_count (4) + win_rate (8) + final_rank (Option<u32> = 5 bytes) +
-        // prize_claimed (1) + bump (1)
-        // Offset to final_rank: 8 (disc) + 32 + 8 + 8 + 8 + 4 + 8 = 76
-        let rank_offset = 8 + 32 + 8 + 8 + 8 + 4 + 8;
+        // Properly deserialize the SyndicateWarsEntry using Anchor's
+        // Account deserialization (validates discriminator automatically).
+        // Scope the immutable borrow so it's dropped before we take a
+        // mutable borrow for writing back.
+        let mut entry = {
+            let data = account_info.try_borrow_data()?;
+            let mut slice: &[u8] = &data;
+            SyndicateWarsEntry::try_deserialize(&mut slice)
+                .map_err(|_| LottoError::InvalidAccountData)?
+        }; // immutable borrow dropped here
 
-        // Write Some(rank) - Option<u32> is 1 byte discriminant + 4 bytes value
-        // 1 = Some variant
-        entry_data[rank_offset] = 1; // Some discriminant
+        // Validate the entry belongs to the expected syndicate
+        require!(
+            entry.syndicate == expected_syndicate,
+            LottoError::InvalidSyndicateConfig
+        );
+
+        // Validate the entry is for this competition month
+        require!(entry.month == month, LottoError::InvalidSyndicateConfig);
+
+        // Set the rank
         let rank = (i + 1) as u32;
-        entry_data[rank_offset + 1..rank_offset + 5].copy_from_slice(&rank.to_le_bytes());
+        entry.final_rank = Some(rank);
+
+        // Re-serialize the modified entry back into the account data.
+        // The immutable borrow is already dropped, so we can safely
+        // take a mutable borrow here.
+        {
+            let mut entry_data = account_info.try_borrow_mut_data()?;
+            let mut writer: &mut [u8] = &mut entry_data;
+            entry
+                .try_serialize(&mut writer)
+                .map_err(|_| LottoError::InvalidAccountData)?;
+        }
 
         msg!("Set rank {} for syndicate {}", rank, expected_syndicate);
     }

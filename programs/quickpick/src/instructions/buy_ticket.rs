@@ -20,7 +20,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use crate::constants::*;
 use crate::errors::QuickPickError;
 use crate::events::QuickPickTicketPurchased;
-use crate::state::{QuickPickState, QuickPickTicket, UserStats};
+use crate::state::{QuickPickState, QuickPickTicket};
 
 /// Parameters for buying a Quick Pick ticket
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -97,13 +97,13 @@ pub struct BuyQuickPickTicket<'info> {
     pub usdc_mint: Account<'info, Mint>,
 
     /// User statistics account (to verify $50 gate)
-    /// This account is owned by the main lottery program
-    #[account(
-        seeds = [USER_SEED, player.key().as_ref()],
-        bump = user_stats.bump,
-        constraint = user_stats.total_spent >= QUICK_PICK_MIN_SPEND_GATE @ QuickPickError::InsufficientMainLotterySpend
-    )]
-    pub user_stats: Account<'info, UserStats>,
+    /// This account is owned by the main lottery program, NOT this program.
+    /// We use UncheckedAccount + manual validation because Anchor's #[account]
+    /// derives PDAs under the current program ID, but this PDA lives under the
+    /// main lottery program.
+    /// CHECK: Validated manually in handler: owner == main lottery program,
+    /// PDA derivation verified, discriminator checked, total_spent >= gate
+    pub user_stats: UncheckedAccount<'info>,
 
     /// Token program
     pub token_program: Program<'info, Token>,
@@ -187,8 +187,78 @@ fn validate_quick_pick_numbers_internal(numbers: &[u8; 5]) -> Result<()> {
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
+/// Manually verify the UserStats account from the main lottery program
+/// and extract the total_spent value for the $50 gate check.
+fn verify_main_lottery_user_stats(
+    user_stats_info: &AccountInfo,
+    player_key: &Pubkey,
+) -> Result<u64> {
+    // 1. Verify the account is owned by the main lottery program
+    let main_lottery_id = MAIN_LOTTERY_PROGRAM_ID
+        .parse::<Pubkey>()
+        .map_err(|_| QuickPickError::InsufficientMainLotterySpend)?;
+
+    require!(
+        user_stats_info.owner == &main_lottery_id,
+        QuickPickError::InsufficientMainLotterySpend
+    );
+
+    // 2. Verify PDA derivation: seeds = [USER_SEED, player.key().as_ref()]
+    //    under the main lottery program
+    let (expected_pda, _bump) =
+        Pubkey::find_program_address(&[USER_SEED, player_key.as_ref()], &main_lottery_id);
+    require!(
+        user_stats_info.key() == expected_pda,
+        QuickPickError::InsufficientMainLotterySpend
+    );
+
+    // 3. Read account data and verify discriminator
+    let data = user_stats_info.try_borrow_data()?;
+
+    // Minimum size: 8 (discriminator) + 32 (wallet) + 8 (total_tickets) + 8 (total_spent) = 56
+    require!(
+        data.len() >= 56,
+        QuickPickError::InsufficientMainLotterySpend
+    );
+
+    // Verify Anchor discriminator for "account:UserStats"
+    // sha256("account:UserStats")[..8]
+    let expected_discriminator: [u8; 8] = {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(b"account:UserStats");
+        let result = hasher.finalize();
+        let mut disc = [0u8; 8];
+        disc.copy_from_slice(&result[..8]);
+        disc
+    };
+
+    require!(
+        data[..8] == expected_discriminator,
+        QuickPickError::InsufficientMainLotterySpend
+    );
+
+    // 4. Extract total_spent (offset: 8 disc + 32 wallet + 8 total_tickets = 48)
+    let total_spent = u64::from_le_bytes(
+        data[48..56]
+            .try_into()
+            .map_err(|_| QuickPickError::InsufficientMainLotterySpend)?,
+    );
+
+    Ok(total_spent)
+}
+
 pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParams) -> Result<()> {
     let clock = Clock::get()?;
+
+    // Validate the $50 main lottery spend gate via cross-program PDA verification
+    let total_spent =
+        verify_main_lottery_user_stats(&ctx.accounts.user_stats, &ctx.accounts.player.key())?;
+
+    require!(
+        total_spent >= QUICK_PICK_MIN_SPEND_GATE,
+        QuickPickError::InsufficientMainLotterySpend
+    );
 
     // Validate numbers first (before any borrows)
     validate_quick_pick_numbers_internal(&params.numbers)?;

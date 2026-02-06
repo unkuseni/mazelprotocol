@@ -28,6 +28,14 @@ use crate::state::{DrawResult, LotteryState};
 /// Accounts required for executing the draw
 #[derive(Accounts)]
 pub struct ExecuteDraw<'info> {
+    /// The authority executing the draw (SECURITY FIX: was previously permissionless)
+    /// Without this, anyone could call execute_draw once randomness was committed,
+    /// enabling MEV actors to observe randomness and frontrun the reveal.
+    #[account(
+        constraint = authority.key() == lottery_state.authority @ LottoError::Unauthorized
+    )]
+    pub authority: Signer<'info>,
+
     /// The main lottery state account
     #[account(
         mut,
@@ -80,12 +88,14 @@ impl<'info> ExecuteDraw<'info> {
 
         // SECURITY: Verify randomness was committed in a recent slot
         // The reveal should happen shortly after commit
-        // FIXED: Increased from 25 to 50 slots (~20 seconds) for better MEV protection
-        // This window should be long enough for normal transaction propagation
-        // but short enough to prevent attackers from observing and frontrunning
-        // Also add minimum delay of 1 slot to ensure commit is settled
+        // FIXED: Tightened from 50 to 10 slots (~4 seconds) to minimize MEV window.
+        // The previous 50-slot (~20s) window gave validators and MEV actors
+        // too much time to observe randomness before the reveal transaction.
+        // 10 slots is sufficient for normal transaction propagation while
+        // dramatically reducing the observation window for attackers.
+        // Also enforces minimum delay of 1 slot to ensure commit is settled.
         require!(
-            randomness_data.seed_slot >= current_slot.saturating_sub(50),
+            randomness_data.seed_slot >= current_slot.saturating_sub(10),
             LottoError::RandomnessExpired
         );
         require!(
@@ -119,7 +129,7 @@ impl<'info> ExecuteDraw<'info> {
 ///
 /// # Returns
 /// * `[u8; 6]` - Sorted array of 6 unique winning numbers
-fn generate_winning_numbers(randomness: &[u8; 32]) -> [u8; 6] {
+fn generate_winning_numbers(randomness: &[u8; 32]) -> Result<[u8; 6]> {
     // Use SHA256 hash of randomness for better distribution
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
@@ -189,8 +199,15 @@ fn generate_winning_numbers(randomness: &[u8; 32]) -> [u8; 6] {
     // Final validation: ensure all numbers are valid (1-46) and unique
     for &num in &winning_numbers {
         if num < 1 || num > MAX_NUMBER {
-            // This should never happen, but if it does, use safe defaults
-            return [1, 2, 3, 4, 5, 6];
+            // FIXED: Return an error instead of a predictable fallback.
+            // A fixed [1,2,3,4,5,6] fallback is exploitable — an attacker who
+            // can force this path would know the winning numbers in advance.
+            // Failing the draw forces admin recovery, which is far safer.
+            msg!(
+                "CRITICAL: generate_winning_numbers produced invalid number {}",
+                num
+            );
+            return Err(LottoError::InvalidRandomnessProof.into());
         }
     }
 
@@ -198,13 +215,17 @@ fn generate_winning_numbers(randomness: &[u8; 32]) -> [u8; 6] {
     let mut seen = [false; MAX_NUMBER as usize];
     for &num in &winning_numbers {
         if seen[num as usize - 1] {
-            // Duplicate found, use safe defaults
-            return [1, 2, 3, 4, 5, 6];
+            // FIXED: Return an error instead of a predictable fallback.
+            msg!(
+                "CRITICAL: generate_winning_numbers produced duplicate number {}",
+                num
+            );
+            return Err(LottoError::InvalidRandomnessProof.into());
         }
         seen[num as usize - 1] = true;
     }
 
-    winning_numbers
+    Ok(winning_numbers)
 }
 
 /// Determine if rolldown should trigger based on randomness and probability
@@ -227,9 +248,14 @@ fn should_trigger_rolldown(randomness: &[u8; 32], probability_bps: u16) -> bool 
         return false; // 0% probability (below soft cap)
     }
 
-    // Use SHA256 hash for more uniform distribution
+    // FIXED: Use domain-separated SHA256 hash to prevent correlated randomness.
+    // Previously, the same raw randomness was hashed for both number generation
+    // and rolldown decision, which could create exploitable correlations.
+    // By adding a domain separator ("rolldown_decision"), the hash output is
+    // completely independent from the one used for winning numbers.
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
+    hasher.update(b"rolldown_decision");
     hasher.update(randomness);
     let hash_result = hasher.finalize();
     let hash_bytes = hash_result.as_slice();
@@ -325,7 +351,8 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
     }
 
     // Generate winning numbers
-    let winning_numbers = generate_winning_numbers(&randomness);
+    // FIXED: Now returns Result — propagates error instead of using predictable fallback
+    let winning_numbers = generate_winning_numbers(&randomness)?;
 
     // ==========================================================================
     // SOFT/HARD CAP ROLLDOWN DETERMINATION
@@ -451,7 +478,7 @@ mod tests {
             0x05, 0x06, 0x07, 0x08,
         ];
 
-        let numbers = generate_winning_numbers(&randomness);
+        let numbers = generate_winning_numbers(&randomness).expect("should generate valid numbers");
 
         // Check all numbers are in valid range
         for &num in numbers.iter() {
@@ -474,8 +501,10 @@ mod tests {
     fn test_generate_winning_numbers_deterministic() {
         let randomness = [0xAB; 32];
 
-        let numbers1 = generate_winning_numbers(&randomness);
-        let numbers2 = generate_winning_numbers(&randomness);
+        let numbers1 =
+            generate_winning_numbers(&randomness).expect("should generate valid numbers");
+        let numbers2 =
+            generate_winning_numbers(&randomness).expect("should generate valid numbers");
 
         assert_eq!(
             numbers1, numbers2,
