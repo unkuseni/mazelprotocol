@@ -40,6 +40,12 @@ pub struct LotteryState {
     /// Insurance fund balance for guaranteed payouts
     pub insurance_balance: u64,
 
+    /// Dedicated fixed prize pool balance in USDC lamports.
+    /// Tracks the 39.4% allocation from ticket sales earmarked for fixed prizes
+    /// (Match 3/4/5). Previously this was implicit and prizes were paid from
+    /// jackpot_balance, eroding the advertised jackpot.
+    pub fixed_prize_balance: u64,
+
     /// Ticket price in USDC lamports
     pub ticket_price: u64,
 
@@ -76,8 +82,14 @@ pub struct LotteryState {
     /// Total tickets sold (lifetime)
     pub total_tickets_sold: u64,
 
-    /// Total prizes paid out (lifetime)
+    /// Total prizes actually paid out via USDC transfers at claim time (lifetime).
+    /// Incremented when real USDC leaves the prize pool, NOT at finalization time.
     pub total_prizes_paid: u64,
+
+    /// Total prizes committed at finalization time (lifetime).
+    /// Incremented during finalize_draw when prize amounts are calculated.
+    /// May differ from total_prizes_paid due to unclaimed/expired tickets.
+    pub total_prizes_committed: u64,
 
     /// Whether a draw is currently in progress
     pub is_draw_in_progress: bool,
@@ -106,6 +118,18 @@ pub struct LotteryState {
     /// Used to verify that the executed config matches what was proposed.
     /// Zero hash means no pending config change.
     pub pending_config_hash: [u8; 32],
+
+    // ==========================================================================
+    // EMERGENCY TRANSFER AGGREGATE TRACKING (Issue 5 fix)
+    // ==========================================================================
+    /// Cumulative amount transferred via emergency_fund_transfer (PrizePool source)
+    /// within the current rolling window. Reset when a new window starts.
+    pub emergency_transfer_total: u64,
+
+    /// Unix timestamp marking the start of the current emergency transfer rolling window.
+    /// Window duration is 24 hours. When a new transfer exceeds the window,
+    /// the total resets. Prevents unlimited repeated small drains.
+    pub emergency_transfer_window_start: i64,
 }
 
 impl LotteryState {
@@ -264,10 +288,11 @@ impl LotteryState {
         true
     }
 
-    /// Get available prize pool balance (jackpot + reserve + insurance)
+    /// Get available prize pool balance (jackpot + reserve + fixed_prize + insurance)
     pub fn get_available_prize_pool(&self) -> u64 {
         self.jackpot_balance
             .saturating_add(self.reserve_balance)
+            .saturating_add(self.fixed_prize_balance)
             .saturating_add(self.insurance_balance)
     }
 
@@ -312,8 +337,14 @@ impl LotteryState {
     ) -> (bool, u64, bool) {
         let total_required = required_fixed_prizes.saturating_add(jackpot_to_distribute);
 
-        // First check: can we pay from jackpot + reserve alone?
-        let primary_funds = self.jackpot_balance.saturating_add(self.reserve_balance);
+        // First check: can we pay from jackpot + reserve + fixed_prize_balance alone?
+        // SECURITY FIX (Issue #4): Include fixed_prize_balance in primary funds.
+        // This dedicated pool tracks the 39.4% allocation for fixed prizes and
+        // must be considered when checking solvency.
+        let primary_funds = self
+            .jackpot_balance
+            .saturating_add(self.reserve_balance)
+            .saturating_add(self.fixed_prize_balance);
 
         if primary_funds >= total_required {
             return (true, 0, false); // Fully solvent without insurance
@@ -338,17 +369,26 @@ impl LotteryState {
     /// Returns (from_jackpot, from_reserve, from_insurance, remaining_shortfall)
     ///
     /// This follows the priority order:
-    /// 1. Use jackpot balance first
-    /// 2. Use reserve balance second
-    /// 3. Use insurance balance last (emergency only)
+    /// 1. Use fixed_prize_balance first (dedicated fixed prize pool)
+    /// 2. Use jackpot balance second
+    /// 3. Use reserve balance third
+    /// 4. Use insurance balance last (emergency only)
+    ///
+    /// SECURITY FIX (Issue #4): Added fixed_prize_balance as the first source
+    /// for fund usage calculations. Fixed prizes should draw from their dedicated
+    /// pool before falling back to jackpot or reserve.
     pub fn calculate_fund_usage(&self, total_required: u64) -> (u64, u64, u64, u64) {
         let mut remaining = total_required;
 
-        // Use jackpot first
+        // Use fixed_prize_balance first (dedicated 39.4% allocation)
+        let from_fixed = remaining.min(self.fixed_prize_balance);
+        remaining = remaining.saturating_sub(from_fixed);
+
+        // Use jackpot second
         let from_jackpot = remaining.min(self.jackpot_balance);
         remaining = remaining.saturating_sub(from_jackpot);
 
-        // Use reserve second
+        // Use reserve third
         let from_reserve = remaining.min(self.reserve_balance);
         remaining = remaining.saturating_sub(from_reserve);
 
@@ -594,11 +634,18 @@ pub struct SyndicateMember {
     /// Member wallet
     pub wallet: Pubkey,
 
-    /// USDC contributed
+    /// Amount contributed in USDC lamports
     pub contribution: u64,
 
-    /// Share of prizes (basis points)
+    /// Share percentage in basis points (10000 = 100%)
     pub share_percentage_bps: u16,
+
+    /// Unclaimed prize balance in USDC lamports.
+    /// Snapshot-based: set during distribute_syndicate_prize based on
+    /// share_percentage_bps at distribution time. Decremented on claim.
+    /// Prevents race condition where early claimers reduce the live token
+    /// balance and later claimers get less than their fair share.
+    pub unclaimed_prize: u64,
 }
 
 impl SyndicateMember {
@@ -668,6 +715,7 @@ impl Syndicate {
             wallet,
             contribution,
             share_percentage_bps: 0, // Will be calculated
+            unclaimed_prize: 0,
         });
         self.total_contribution = self.total_contribution.saturating_add(contribution);
         self.member_count = self.member_count.saturating_add(1);

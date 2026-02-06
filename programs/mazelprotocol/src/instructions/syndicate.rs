@@ -160,6 +160,7 @@ pub fn handler_create_syndicate(
         wallet: ctx.accounts.creator.key(),
         contribution: 0,
         share_percentage_bps: 10000, // 100% until others join
+        unclaimed_prize: 0,
     }];
 
     // Emit event
@@ -380,6 +381,7 @@ pub fn handler_join_syndicate(
             wallet: member_key,
             contribution: params.contribution,
             share_percentage_bps: 0, // Will be calculated
+            unclaimed_prize: 0,
         });
         syndicate.member_count = syndicate
             .member_count
@@ -1098,6 +1100,9 @@ pub fn handler_buy_syndicate_tickets(
         / BPS_DENOMINATOR as u128) as u64;
     let insurance_contribution = (total_prize_pool as u128 * INSURANCE_ALLOCATION_BPS as u128
         / BPS_DENOMINATOR as u128) as u64;
+    // SECURITY FIX (Issue #4): Explicitly track fixed prize allocation
+    let fixed_prize_contribution = (total_prize_pool as u128 * FIXED_PRIZE_ALLOCATION_BPS as u128
+        / BPS_DENOMINATOR as u128) as u64;
 
     // FIXED: Transfer insurance portion to the insurance pool token account.
     // Previously, insurance_contribution was only added to lottery_state.insurance_balance
@@ -1144,6 +1149,13 @@ pub fn handler_buy_syndicate_tickets(
         .insurance_balance
         .checked_add(insurance_contribution)
         .ok_or(LottoError::Overflow)?;
+    // SECURITY FIX (Issue #4): Track dedicated fixed prize pool balance.
+    if fixed_prize_contribution > 0 {
+        lottery_state.fixed_prize_balance = lottery_state
+            .fixed_prize_balance
+            .checked_add(fixed_prize_contribution)
+            .ok_or(LottoError::Overflow)?;
+    }
     lottery_state.current_draw_tickets = lottery_state
         .current_draw_tickets
         .checked_add(ticket_count as u64)
@@ -1312,7 +1324,10 @@ pub struct DistributeSyndicatePrize<'info> {
     /// Lottery state (authority for prize pool)
     /// SECURITY FIX (Issue #4): Require caller to be lottery authority to prevent
     /// arbitrary prize pool drain by any syndicate creator.
+    /// SECURITY FIX (Issue #3): Made mutable so we can update internal accounting
+    /// when moving tokens out of prize_pool_usdc.
     #[account(
+        mut,
         seeds = [LOTTERY_SEED],
         bump = lottery_state.bump,
         constraint = lottery_state.authority == manager.key() @ LottoError::Unauthorized
@@ -1418,17 +1433,85 @@ pub fn handler_distribute_syndicate_prize(
 
     token::transfer(cpi_ctx, total_prize)?;
 
-    // FIXED: Do NOT add prize winnings to total_contribution.
-    // total_contribution tracks member deposits only and is used to calculate
-    // share_percentage_bps. Mixing prize winnings into it would corrupt share
-    // calculations and inflate members' perceived contributions, leading to
-    // incorrect refunds on leave/remove.
+    // SECURITY FIX (Issue #3): Update lottery_state internal accounting when
+    // moving tokens out of prize_pool_usdc. Previously this transfer was not
+    // reflected in lottery_state balances, causing a mismatch between the actual
+    // token balance and the internal accounting state. This breaks solvency
+    // checks and can produce false assumptions about available funds.
     //
-    // The prize USDC is now sitting in the syndicate_usdc token account.
-    // ClaimSyndicateMemberPrize already calculates each member's claimable
-    // amount based on their share_percentage_bps applied to the actual
-    // syndicate_usdc token account balance, so no state update is needed here.
+    // Deduction priority: fixed_prize_balance first (syndicate prizes are
+    // typically fixed-tier wins), then reserve, then jackpot as last resort.
+    {
+        let lottery_state = &mut ctx.accounts.lottery_state;
+        let mut remaining = total_prize;
+
+        // 1. Deduct from fixed_prize_balance
+        let from_fixed = remaining.min(lottery_state.fixed_prize_balance);
+        lottery_state.fixed_prize_balance =
+            lottery_state.fixed_prize_balance.saturating_sub(from_fixed);
+        remaining = remaining.saturating_sub(from_fixed);
+
+        // 2. Deduct from reserve_balance
+        if remaining > 0 {
+            let from_reserve = remaining.min(lottery_state.reserve_balance);
+            lottery_state.reserve_balance =
+                lottery_state.reserve_balance.saturating_sub(from_reserve);
+            remaining = remaining.saturating_sub(from_reserve);
+        }
+
+        // 3. Last resort: deduct from jackpot_balance
+        if remaining > 0 {
+            lottery_state.jackpot_balance = lottery_state.jackpot_balance.saturating_sub(remaining);
+            msg!(
+                "WARNING: Syndicate prize distribution required {} from jackpot",
+                remaining
+            );
+        }
+
+        msg!(
+            "  Lottery state updated: jackpot={}, reserve={}, fixed_prize={}",
+            lottery_state.jackpot_balance,
+            lottery_state.reserve_balance,
+            lottery_state.fixed_prize_balance
+        );
+    }
+
+    // SECURITY FIX (Issue #2): Snapshot per-member unclaimed_prize at distribution
+    // time instead of computing claims from the live token account balance.
+    // Previously, claim_syndicate_member_prize computed max claim against the
+    // current syndicate_usdc balance, which means early claimers reduce the
+    // balance for later members (front-running / ordering attack).
+    //
+    // Now, each member's share is computed once at distribution time and stored
+    // in their unclaimed_prize field. Claims simply deduct from this snapshot.
     let syndicate = &mut ctx.accounts.syndicate;
+
+    // Distribute member_pool across all members based on their share_percentage_bps
+    let mut total_allocated = 0u64;
+    for i in 0..syndicate.members.len() {
+        let share_bps = syndicate.members[i].share_percentage_bps;
+        let member_share =
+            (member_pool as u128 * share_bps as u128 / BPS_DENOMINATOR as u128) as u64;
+        syndicate.members[i].unclaimed_prize = syndicate.members[i]
+            .unclaimed_prize
+            .checked_add(member_share)
+            .unwrap_or(u64::MAX);
+        total_allocated = total_allocated.saturating_add(member_share);
+    }
+
+    // Handle dust from integer division — give remainder to first member
+    let dust = member_pool.saturating_sub(total_allocated);
+    if dust > 0 && !syndicate.members.is_empty() {
+        syndicate.members[0].unclaimed_prize =
+            syndicate.members[0].unclaimed_prize.saturating_add(dust);
+    }
+
+    msg!(
+        "  Per-member unclaimed_prize snapshot set ({} members, {} allocated, {} dust)",
+        syndicate.members.len(),
+        total_allocated,
+        dust
+    );
 
     // Emit event
     emit!(SyndicatePrizeDistributed {
@@ -1549,21 +1632,21 @@ pub fn handler_claim_syndicate_member_prize(
         .ok_or(LottoError::NotSyndicateMember)?;
 
     let member_share_bps = ctx.accounts.syndicate.members[member_index].share_percentage_bps;
-    let _member_contribution = ctx.accounts.syndicate.members[member_index].contribution;
+    let member_unclaimed = ctx.accounts.syndicate.members[member_index].unclaimed_prize;
 
-    // Calculate member's maximum claimable amount
-    // This is based on their share of the total syndicate funds
-    let total_syndicate_funds = ctx.accounts.syndicate_usdc.amount;
-    let member_max_claim =
-        (total_syndicate_funds as u128 * member_share_bps as u128 / BPS_DENOMINATOR as u128) as u64;
-
-    // Validate claim amount doesn't exceed member's share
+    // SECURITY FIX (Issue #2): Use the snapshot-based unclaimed_prize field instead
+    // of computing the claim from the live token account balance. This prevents
+    // the race condition where early claimers reduce the balance for later members.
+    //
+    // The unclaimed_prize was set during distribute_syndicate_prize based on
+    // the member's share_percentage_bps at distribution time. Claims simply
+    // deduct from this per-member snapshot.
     require!(
-        claim_amount <= member_max_claim,
+        claim_amount <= member_unclaimed,
         LottoError::InsufficientFunds
     );
 
-    // Validate syndicate has enough funds
+    // Validate syndicate token account has enough funds for the actual transfer
     require!(
         ctx.accounts.syndicate_usdc.amount >= claim_amount,
         LottoError::InsufficientFunds
@@ -1593,22 +1676,23 @@ pub fn handler_claim_syndicate_member_prize(
 
     token::transfer(cpi_ctx, claim_amount)?;
 
-    // SECURITY FIX (Issue #7): Do NOT reduce contribution when claiming prizes.
-    // Contributions track member deposits and are used to calculate share_percentage_bps.
-    // Reducing contributions by prize claims corrupts share math — a member who claims
-    // a large prize would lose their share, effectively redistributing their future
-    // claims to other members. Prizes and contributions are separate concerns.
-    //
-    // The member's claimable amount is already bounded by their share_percentage_bps
-    // applied to the actual syndicate_usdc token account balance, so no state update
-    // is needed. The USDC has already been transferred out of the syndicate account.
+    // SECURITY FIX (Issue #2): Deduct from the member's unclaimed_prize snapshot.
+    // This ensures each member can only claim up to their pre-computed share,
+    // regardless of when they claim relative to other members.
+    let syndicate_mut = &mut ctx.accounts.syndicate;
+    syndicate_mut.members[member_index].unclaimed_prize = syndicate_mut.members[member_index]
+        .unclaimed_prize
+        .saturating_sub(claim_amount);
 
     msg!("Syndicate member prize claimed!");
     msg!("  Member: {}", member_key);
     msg!("  Syndicate: {}", syndicate_key);
     msg!("  Amount claimed: {} USDC lamports", claim_amount);
     msg!("  Member share: {} BPS", member_share_bps);
-    msg!("  Member max claim: {} USDC lamports", member_max_claim);
+    msg!(
+        "  Remaining unclaimed: {} USDC lamports",
+        syndicate_mut.members[member_index].unclaimed_prize
+    );
     msg!(
         "  Remaining syndicate funds: {} USDC lamports",
         ctx.accounts

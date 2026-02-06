@@ -317,6 +317,12 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
     let fixed_prize_contribution = (prize_pool_transfer as u128
         * QUICK_PICK_FIXED_PRIZE_ALLOCATION_BPS as u128
         / BPS_DENOMINATOR as u128) as u64;
+    // SECURITY FIX: Track the integer division remainder as reserve_balance.
+    // Without this, dust from rounding (prize_pool_transfer - jackpot - fixed)
+    // is never accounted for, and rolldown reseeding can't draw on it.
+    let reserve_contribution = prize_pool_transfer
+        .saturating_sub(jackpot_contribution)
+        .saturating_sub(fixed_prize_contribution);
 
     // Perform USDC transfers
     ctx.accounts.transfer_to_prize_pool(prize_pool_transfer)?;
@@ -348,6 +354,13 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
         .insurance_balance
         .checked_add(insurance_contribution)
         .ok_or(QuickPickError::Overflow)?;
+    // Track remainder (dust) as reserve — used for jackpot reseeding after rolldown/win
+    if reserve_contribution > 0 {
+        quick_pick_state.reserve_balance = quick_pick_state
+            .reserve_balance
+            .checked_add(reserve_contribution)
+            .ok_or(QuickPickError::Overflow)?;
+    }
     quick_pick_state.current_draw_tickets = quick_pick_state
         .current_draw_tickets
         .checked_add(1)

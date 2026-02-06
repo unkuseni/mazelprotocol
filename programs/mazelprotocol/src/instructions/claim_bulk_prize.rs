@@ -294,23 +294,59 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
         actual_transfer_amount = prize_amount;
     }
 
-    // SECURITY FIX (Issue #6): Update lottery_state internal accounting to stay
-    // consistent with the actual prize_pool_usdc token account balance.
-    // Prize payments reduce the token account but previously did NOT adjust
-    // the internal balances (jackpot_balance, reserve_balance), causing
-    // accounting drift that breaks solvency checks.
+    // SECURITY FIX (Issue #6 + Issue #4): Update lottery_state internal accounting
+    // to stay consistent with the actual prize_pool_usdc token account balance.
+    //
+    // Deduction priority depends on prize tier:
+    // - Match 6 (jackpot): deduct from jackpot_balance, then reserve as fallback.
+    // - Match 3/4/5 (fixed prizes): deduct from fixed_prize_balance first,
+    //   then reserve, then jackpot as last resort.
     if actual_transfer_amount > 0 {
         let lottery_state = &mut ctx.accounts.lottery_state;
-        if lottery_state.jackpot_balance >= actual_transfer_amount {
-            lottery_state.jackpot_balance = lottery_state
-                .jackpot_balance
-                .saturating_sub(actual_transfer_amount);
+
+        if match_count == 6 {
+            // Jackpot prize: deduct from jackpot_balance first
+            if lottery_state.jackpot_balance >= actual_transfer_amount {
+                lottery_state.jackpot_balance = lottery_state
+                    .jackpot_balance
+                    .saturating_sub(actual_transfer_amount);
+            } else {
+                let from_jackpot = lottery_state.jackpot_balance;
+                let remainder = actual_transfer_amount.saturating_sub(from_jackpot);
+                lottery_state.jackpot_balance = 0;
+                lottery_state.reserve_balance =
+                    lottery_state.reserve_balance.saturating_sub(remainder);
+            }
         } else {
-            let from_jackpot = lottery_state.jackpot_balance;
-            let remainder = actual_transfer_amount.saturating_sub(from_jackpot);
-            lottery_state.jackpot_balance = 0;
-            lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(remainder);
+            // Fixed prizes (Match 3/4/5): deduct from fixed_prize_balance first
+            let mut remaining = actual_transfer_amount;
+
+            let from_fixed = remaining.min(lottery_state.fixed_prize_balance);
+            lottery_state.fixed_prize_balance =
+                lottery_state.fixed_prize_balance.saturating_sub(from_fixed);
+            remaining = remaining.saturating_sub(from_fixed);
+
+            if remaining > 0 {
+                let from_reserve = remaining.min(lottery_state.reserve_balance);
+                lottery_state.reserve_balance =
+                    lottery_state.reserve_balance.saturating_sub(from_reserve);
+                remaining = remaining.saturating_sub(from_reserve);
+            }
+
+            if remaining > 0 {
+                lottery_state.jackpot_balance =
+                    lottery_state.jackpot_balance.saturating_sub(remaining);
+                msg!(
+                    "WARNING: Fixed prize payment required {} from jackpot (fixed pool exhausted)",
+                    remaining
+                );
+            }
         }
+
+        // Increment total_prizes_paid at actual claim time
+        lottery_state.total_prizes_paid = lottery_state
+            .total_prizes_paid
+            .saturating_add(actual_transfer_amount);
     }
 
     // Mark the specific ticket as claimed in the bitmap
@@ -598,19 +634,71 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
             lottery_bump,
         )?;
 
-        // SECURITY FIX (Issue #6): Update lottery_state internal accounting to stay
-        // consistent with the actual prize_pool_usdc token account balance.
+        // SECURITY FIX (Issue #6 + Issue #4): Update lottery_state internal accounting.
+        // For bulk claims, we conservatively deduct from fixed_prize_balance first
+        // for non-jackpot prizes. Since we're processing mixed tiers in bulk,
+        // we deduct the total from fixed first, then reserve, then jackpot.
+        // Jackpot wins are tracked separately above for stats.
         let lottery_state = &mut ctx.accounts.lottery_state;
-        if lottery_state.jackpot_balance >= total_prize_amount {
-            lottery_state.jackpot_balance = lottery_state
-                .jackpot_balance
-                .saturating_sub(total_prize_amount);
+
+        // Separate jackpot prize amount from fixed prize amount
+        // jackpot_wins tracks Match-6 count; each Match-6 winner gets match_6_prize_per_winner
+        let jackpot_prize_total = if jackpot_wins > 0 {
+            ctx.accounts
+                .draw_result
+                .match_6_prize_per_winner
+                .saturating_mul(jackpot_wins as u64)
+                .min(total_prize_amount)
         } else {
-            let from_jackpot = lottery_state.jackpot_balance;
-            let remainder = total_prize_amount.saturating_sub(from_jackpot);
-            lottery_state.jackpot_balance = 0;
-            lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(remainder);
+            0u64
+        };
+        let fixed_prize_total = total_prize_amount.saturating_sub(jackpot_prize_total);
+
+        // Deduct jackpot portion from jackpot_balance
+        if jackpot_prize_total > 0 {
+            if lottery_state.jackpot_balance >= jackpot_prize_total {
+                lottery_state.jackpot_balance = lottery_state
+                    .jackpot_balance
+                    .saturating_sub(jackpot_prize_total);
+            } else {
+                let from_jackpot = lottery_state.jackpot_balance;
+                let remainder = jackpot_prize_total.saturating_sub(from_jackpot);
+                lottery_state.jackpot_balance = 0;
+                lottery_state.reserve_balance =
+                    lottery_state.reserve_balance.saturating_sub(remainder);
+            }
         }
+
+        // Deduct fixed prize portion from fixed_prize_balance first
+        if fixed_prize_total > 0 {
+            let mut remaining = fixed_prize_total;
+
+            let from_fixed = remaining.min(lottery_state.fixed_prize_balance);
+            lottery_state.fixed_prize_balance =
+                lottery_state.fixed_prize_balance.saturating_sub(from_fixed);
+            remaining = remaining.saturating_sub(from_fixed);
+
+            if remaining > 0 {
+                let from_reserve = remaining.min(lottery_state.reserve_balance);
+                lottery_state.reserve_balance =
+                    lottery_state.reserve_balance.saturating_sub(from_reserve);
+                remaining = remaining.saturating_sub(from_reserve);
+            }
+
+            if remaining > 0 {
+                lottery_state.jackpot_balance =
+                    lottery_state.jackpot_balance.saturating_sub(remaining);
+                msg!(
+                    "WARNING: Fixed prize payment required {} from jackpot (fixed pool exhausted)",
+                    remaining
+                );
+            }
+        }
+
+        // Increment total_prizes_paid at actual claim time
+        lottery_state.total_prizes_paid = lottery_state
+            .total_prizes_paid
+            .saturating_add(total_prize_amount);
     }
 
     // FIXED: Only mark tickets as claimed if they were successfully processed.
