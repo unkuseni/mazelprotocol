@@ -326,11 +326,12 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
             .transfer_to_insurance_pool(insurance_contribution)?;
     }
 
-    // Verify allocation integrity
-    debug_assert_eq!(
-        house_fee + prize_pool_transfer + insurance_contribution,
-        ticket_price,
-        "Quick Pick fund allocation mismatch!"
+    // SECURITY FIX (Issue #8): Replace debug_assert with runtime require!
+    // debug_assert is stripped in release builds, leaving this critical
+    // invariant unchecked in production. Use require! to enforce it always.
+    require!(
+        house_fee + prize_pool_transfer + insurance_contribution == ticket_price,
+        QuickPickError::InternalError
     );
 
     // Update Quick Pick state

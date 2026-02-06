@@ -272,6 +272,29 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
         actual_transfer_amount = prize_amount;
     }
 
+    // SECURITY FIX (Issue #6): Update lottery_state internal accounting to stay
+    // consistent with the actual prize_pool_usdc token account balance.
+    // Prize payments reduce the token account but previously did NOT adjust
+    // the internal balances (jackpot_balance, reserve_balance), causing
+    // accounting drift that breaks solvency checks and can trigger false
+    // auto-pause events.
+    //
+    // Deduction priority: jackpot_balance first (prizes are funded from jackpot),
+    // then reserve_balance as fallback.
+    if actual_transfer_amount > 0 {
+        let lottery_state = &mut ctx.accounts.lottery_state;
+        if lottery_state.jackpot_balance >= actual_transfer_amount {
+            lottery_state.jackpot_balance = lottery_state
+                .jackpot_balance
+                .saturating_sub(actual_transfer_amount);
+        } else {
+            let from_jackpot = lottery_state.jackpot_balance;
+            let remainder = actual_transfer_amount.saturating_sub(from_jackpot);
+            lottery_state.jackpot_balance = 0;
+            lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(remainder);
+        }
+    }
+
     // Update ticket state
     let ticket = &mut ctx.accounts.ticket;
     ticket.match_count = match_count;

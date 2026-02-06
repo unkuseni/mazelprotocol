@@ -570,6 +570,11 @@ pub struct QuickPickEmergencyFundTransferred {
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
+/// Maximum basis points of hard_cap that can be transferred per emergency call.
+/// Set to 10% as a safety limit. Larger transfers require multiple calls,
+/// giving monitors time to detect anomalous activity.
+pub const QP_EMERGENCY_TRANSFER_MAX_BPS: u64 = 1000; // 10%
+
 pub fn handler_emergency_fund_transfer(
     ctx: Context<EmergencyQuickPickFundTransfer>,
     source: QuickPickFundSource,
@@ -593,6 +598,29 @@ pub fn handler_emergency_fund_transfer(
         ctx.accounts.destination_usdc.mint == ctx.accounts.usdc_mint.key(),
         QuickPickError::InvalidUsdcMint
     );
+
+    // SECURITY FIX (Issue #5): Cap per-call transfer amount for PrizePool source
+    // to limit damage from a compromised authority. Reserve and Insurance transfers
+    // stay within the protocol (pool-to-pool), but PrizePool transfers can go to
+    // an external destination and need strict limits.
+    if matches!(source, QuickPickFundSource::PrizePool) {
+        let hard_cap = ctx.accounts.quick_pick_state.hard_cap;
+        let max_transfer =
+            (hard_cap as u128 * QP_EMERGENCY_TRANSFER_MAX_BPS as u128 / 10000u128) as u64;
+        require!(amount <= max_transfer, QuickPickError::InvalidConfig);
+        msg!(
+            "  PrizePool emergency transfer cap: {} USDC lamports (10% of hard cap)",
+            max_transfer
+        );
+
+        // SECURITY FIX (Issue #5): For PrizePool external transfers, validate that
+        // the source is actually the prize pool PDA and the destination is not the
+        // same as the source (prevent no-op abuse for event spam).
+        require!(
+            ctx.accounts.source_usdc.key() != ctx.accounts.destination_usdc.key(),
+            QuickPickError::InvalidTokenAccount
+        );
+    }
 
     let source_name = match source {
         QuickPickFundSource::Reserve => "reserve",

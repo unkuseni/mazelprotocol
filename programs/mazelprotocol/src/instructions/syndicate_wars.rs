@@ -188,11 +188,13 @@ pub struct RegisterForSyndicateWars<'info> {
     pub manager: Signer<'info>,
 
     /// Syndicate account
+    /// SECURITY FIX (Issue #1): Use original_creator for PDA seed derivation
+    /// to prevent fund-lock after creator transfer.
     #[account(
         mut,
         seeds = [
             SYNDICATE_SEED,
-            manager.key().as_ref(),
+            syndicate.original_creator.as_ref(),
             &syndicate.syndicate_id.to_le_bytes()
         ],
         bump = syndicate.bump,
@@ -339,10 +341,11 @@ pub struct UpdateSyndicateWarsStats<'info> {
     pub wars_entry: Account<'info, SyndicateWarsEntry>,
 
     /// Syndicate account (for validation)
+    /// SECURITY FIX (Issue #1): Use original_creator for PDA seed derivation
     #[account(
         seeds = [
             SYNDICATE_SEED,
-            syndicate.creator.as_ref(),
+            syndicate.original_creator.as_ref(),
             &syndicate.syndicate_id.to_le_bytes()
         ],
         bump = syndicate.bump
@@ -747,11 +750,13 @@ pub struct ClaimSyndicateWarsPrize<'info> {
     pub manager: Signer<'info>,
 
     /// Syndicate account
+    /// SECURITY FIX (Issue #1): Use original_creator for PDA seed derivation
+    /// to prevent fund-lock after creator transfer.
     #[account(
         mut,
         seeds = [
             SYNDICATE_SEED,
-            manager.key().as_ref(),
+            syndicate.original_creator.as_ref(),
             &syndicate.syndicate_id.to_le_bytes()
         ],
         bump = syndicate.bump,
