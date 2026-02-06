@@ -631,3 +631,24 @@ pub struct DrawForceFinalized {
     /// Timestamp when force finalized
     pub timestamp: i64,
 }
+
+/// SECURITY FIX (Audit Issue #5): Emitted when expired/unclaimed prize funds
+/// are reclaimed from a past draw back into the reserve pool.
+/// Without periodic reclamation, `total_prizes_committed` accumulates "zombie"
+/// committed amounts for draws whose claim window has long expired, leading to
+/// an ever-growing gap between committed and paid totals.
+#[event]
+pub struct ExpiredPrizesReclaimed {
+    /// Draw ID whose unclaimed prizes were reclaimed
+    pub draw_id: u64,
+    /// Amount reclaimed back to reserve
+    pub amount_reclaimed: u64,
+    /// New reserve balance after reclamation
+    pub new_reserve_balance: u64,
+    /// Updated total_prizes_committed after decrement
+    pub new_total_prizes_committed: u64,
+    /// Authority who initiated the reclamation
+    pub authority: Pubkey,
+    /// Timestamp of reclamation
+    pub timestamp: i64,
+}

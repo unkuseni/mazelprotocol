@@ -206,6 +206,7 @@ pub fn handler_initialize_syndicate_wars(
     state.registered_count = 0;
     state.min_tickets = params.min_tickets;
     state.is_active = true;
+    state.is_distributed = false;
     state.bump = ctx.bumps.syndicate_wars_state;
 
     msg!("Syndicate Wars competition initialized!");
@@ -693,6 +694,12 @@ pub fn handler_distribute_syndicate_wars_prizes<'info>(
     params: DistributeSyndicateWarsPrizesParams,
 ) -> Result<()> {
     let state = &mut ctx.accounts.syndicate_wars_state;
+
+    // SECURITY FIX (Audit Issue #2): Prevent re-distribution of prizes.
+    // Without this guard, the authority could call this instruction multiple
+    // times, overwriting syndicate rankings and enabling prize manipulation.
+    require!(!state.is_distributed, LottoError::AlreadyDistributed);
+
     let prize_pool = state.prize_pool;
     let month = state.month;
 
@@ -770,6 +777,11 @@ pub fn handler_distribute_syndicate_wars_prizes<'info>(
         winner_win_rate: 0, // Would need to be calculated from entries
         timestamp: Clock::get()?.unix_timestamp,
     });
+
+    // SECURITY FIX (Audit Issue #2): Mark as distributed so this instruction
+    // cannot be called again for the same competition month.
+    let state = &mut ctx.accounts.syndicate_wars_state;
+    state.is_distributed = true;
 
     msg!("Syndicate Wars prizes distributed!");
     msg!("  Month: {}", month);

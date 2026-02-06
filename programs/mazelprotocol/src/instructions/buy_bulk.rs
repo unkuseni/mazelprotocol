@@ -274,14 +274,19 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     let total_jackpot_contribution = (total_prize_pool_transfer as u128
         * JACKPOT_ALLOCATION_BPS as u128
         / BPS_DENOMINATOR as u128) as u64;
-    let total_reserve_contribution = (total_prize_pool_transfer as u128
-        * RESERVE_ALLOCATION_BPS as u128
-        / BPS_DENOMINATOR as u128) as u64;
     // SECURITY FIX (Issue #4): Explicitly track the fixed prize allocation instead
     // of leaving it implicit. This prevents fixed prizes from eroding the jackpot.
     let total_fixed_prize_contribution = (total_prize_pool_transfer as u128
         * FIXED_PRIZE_ALLOCATION_BPS as u128
         / BPS_DENOMINATOR as u128) as u64;
+    // SECURITY FIX (Audit Issue #1): Capture the remainder (dust from integer
+    // division + the gap between BPS allocations summing to 9800 instead of
+    // 10000) into reserve_balance. Without this, ~2% of each prize_pool_transfer
+    // was untracked, causing accounting drift over time. This mirrors the
+    // approach already used in the QuickPick program.
+    let total_reserve_contribution = total_prize_pool_transfer
+        .saturating_sub(total_jackpot_contribution)
+        .saturating_sub(total_fixed_prize_contribution);
 
     // Verify player has sufficient balance for TOTAL amount
     // Total = total_house_fee + total_prize_pool_transfer + total_insurance_contribution = total_price
