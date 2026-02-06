@@ -75,7 +75,7 @@ pub use instructions::syndicate::*;
 pub use instructions::syndicate_wars::*;
 
 // Program ID - Update this after deployment
-declare_id!("11111111111111111111111111111111");
+declare_id!("7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF");
 
 /// SolanaLotto Protocol Program
 #[program]

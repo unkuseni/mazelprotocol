@@ -6,8 +6,8 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-mazelprotocol = "3zi12qNicsbBazvKxGqFp8cirL1dFXCijsZzRCPrAGT4"
-quickpick = "QPickExpressProgram111111111111111111111111"
+mazelprotocol = "7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF"
+quickpick = "7XC1KT5mvsHHXbR2mH6er138fu2tJ4L2fAgmpjLnnZK2"
 
 [registry]
 url = "https://api.apr.dev"
