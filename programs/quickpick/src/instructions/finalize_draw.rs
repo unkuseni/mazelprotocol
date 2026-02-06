@@ -420,17 +420,79 @@ pub fn handler(
 
     // Handle jackpot based on mode
     if was_rolldown {
-        // Rolldown: reset jackpot to seed amount
-        quick_pick_state.jackpot_balance = seed_amount;
+        // SECURITY FIX (Issue #7): Verify that the internal accounting balances
+        // can actually back the seed amount before resetting. Previously, rolldown
+        // reset jackpot to seed_amount without checking whether the prize pool
+        // actually has funds to cover it, producing phantom balances.
+        //
+        // Use reserve_balance to fund reseeding (analogous to main lottery behavior).
+        // If reserve is insufficient, seed with whatever is available and pause.
+        let available_for_seed = quick_pick_state
+            .reserve_balance
+            .saturating_add(quick_pick_state.prize_pool_balance);
+        let actual_seed = seed_amount.min(available_for_seed);
+
+        // Deduct seed from reserve first, then prize_pool_balance
+        let from_reserve = actual_seed.min(quick_pick_state.reserve_balance);
+        quick_pick_state.reserve_balance = quick_pick_state
+            .reserve_balance
+            .saturating_sub(from_reserve);
+        let remainder_from_pool = actual_seed.saturating_sub(from_reserve);
+        if remainder_from_pool > 0 {
+            quick_pick_state.prize_pool_balance = quick_pick_state
+                .prize_pool_balance
+                .saturating_sub(remainder_from_pool);
+        }
+
+        quick_pick_state.jackpot_balance = actual_seed;
         quick_pick_state.is_rolldown_pending = false;
-        msg!("  Jackpot reset to seed amount: {} USDC", seed_amount);
+
+        if actual_seed < seed_amount {
+            msg!(
+                "⚠️  Rolldown reseed: only {} of {} available (reserve + prize pool insufficient)",
+                actual_seed,
+                seed_amount
+            );
+        } else {
+            msg!(
+                "  Jackpot reset to seed amount: {} USDC (funded from reserve)",
+                seed_amount
+            );
+        }
     } else if params.winner_counts.match_5 > 0 {
-        // Jackpot won: reset to seed amount
-        quick_pick_state.jackpot_balance = seed_amount;
-        msg!(
-            "  🎉 JACKPOT WON! Reset to seed amount: {} USDC",
-            seed_amount
-        );
+        // Jackpot won: reset to seed amount, funded from reserve
+        // SECURITY FIX (Issue #7): Same verification as rolldown — don't create
+        // phantom balances by assigning seed_amount without backing funds.
+        let available_for_seed = quick_pick_state
+            .reserve_balance
+            .saturating_add(quick_pick_state.prize_pool_balance);
+        let actual_seed = seed_amount.min(available_for_seed);
+
+        let from_reserve = actual_seed.min(quick_pick_state.reserve_balance);
+        quick_pick_state.reserve_balance = quick_pick_state
+            .reserve_balance
+            .saturating_sub(from_reserve);
+        let remainder_from_pool = actual_seed.saturating_sub(from_reserve);
+        if remainder_from_pool > 0 {
+            quick_pick_state.prize_pool_balance = quick_pick_state
+                .prize_pool_balance
+                .saturating_sub(remainder_from_pool);
+        }
+
+        quick_pick_state.jackpot_balance = actual_seed;
+
+        if actual_seed < seed_amount {
+            msg!(
+                "⚠️  🎉 JACKPOT WON! Reseed: only {} of {} available",
+                actual_seed,
+                seed_amount
+            );
+        } else {
+            msg!(
+                "  🎉 JACKPOT WON! Reset to seed amount: {} USDC",
+                seed_amount
+            );
+        }
     }
     // If no jackpot winner and no rolldown, jackpot carries over (no change)
 
@@ -467,10 +529,25 @@ pub fn handler(
         msg!("  Minimum required: {} USDC lamports", minimum_jackpot);
     }
 
-    // Update total prizes paid
-    quick_pick_state.total_prizes_paid = quick_pick_state
-        .total_prizes_paid
-        .saturating_add(prize_calc.total_distributed);
+    // SECURITY FIX (Issue #6): Track committed prizes separately from actual paid prizes.
+    // total_prizes_committed (stored in total_prizes_paid for backward compat at finalization)
+    // reflects what was promised. Actual total_prizes_paid is now incremented at claim time
+    // in claim_prize.rs. For QuickPick we keep using total_prizes_paid as the committed stat
+    // since actual payment tracking was added in claim_prize.
+    //
+    // NOTE: total_prizes_paid here represents "committed" amounts. The actual USDC transfers
+    // happen at claim time (claim_prize.rs) where we now also increment this field.
+    // To avoid double-counting, we rename the semantic: finalization records the commitment,
+    // claim records the actual payment. Both add to the same field for simplicity, but
+    // claim_prize now also deducts from internal balances (jackpot/prize_pool).
+    // We skip the finalization-time increment here and let claim_prize handle it,
+    // ensuring total_prizes_paid only reflects actual USDC transfers.
+    //
+    // Log the committed amount for audit trail without incrementing total_prizes_paid.
+    msg!(
+        "  Prizes committed (to be paid at claim time): {} USDC lamports",
+        prize_calc.total_distributed
+    );
 
     // Reset draw state (commit-reveal cycle complete)
     quick_pick_state.is_draw_in_progress = false;

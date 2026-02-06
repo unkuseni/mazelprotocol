@@ -274,7 +274,11 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     let total_reserve_contribution = (total_prize_pool_transfer as u128
         * RESERVE_ALLOCATION_BPS as u128
         / BPS_DENOMINATOR as u128) as u64;
-    // Note: fixed_prize_allocation is implicit (the remainder in prize_pool)
+    // SECURITY FIX (Issue #4): Explicitly track the fixed prize allocation instead
+    // of leaving it implicit. This prevents fixed prizes from eroding the jackpot.
+    let total_fixed_prize_contribution = (total_prize_pool_transfer as u128
+        * FIXED_PRIZE_ALLOCATION_BPS as u128
+        / BPS_DENOMINATOR as u128) as u64;
 
     // Verify player has sufficient balance for TOTAL amount
     // Total = total_house_fee + total_prize_pool_transfer + total_insurance_contribution = total_price
@@ -320,6 +324,15 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
         .insurance_balance
         .checked_add(total_insurance_contribution)
         .ok_or(LottoError::Overflow)?;
+    // SECURITY FIX (Issue #4): Track dedicated fixed prize pool balance.
+    // This 39.4% allocation is now explicitly tracked instead of being implicit,
+    // preventing fixed prize payouts from eroding the advertised jackpot.
+    if total_fixed_prize_contribution > 0 {
+        lottery_state.fixed_prize_balance = lottery_state
+            .fixed_prize_balance
+            .checked_add(total_fixed_prize_contribution)
+            .ok_or(LottoError::Overflow)?;
+    }
     lottery_state.current_draw_tickets = lottery_state
         .current_draw_tickets
         .checked_add(ticket_count as u64)

@@ -231,6 +231,7 @@ pub const LOTTERY_STATE_SIZE: usize = 8 + // discriminator
     8 +  // jackpot_balance
     8 +  // reserve_balance
     8 +  // insurance_balance
+    8 +  // fixed_prize_balance (dedicated tracked fixed prize pool)
     8 +  // ticket_price
     2 +  // house_fee_bps
     8 +  // jackpot_cap
@@ -243,7 +244,8 @@ pub const LOTTERY_STATE_SIZE: usize = 8 + // discriminator
     8 +  // commit_timestamp
     8 +  // current_draw_tickets
     8 +  // total_tickets_sold
-    8 +  // total_prizes_paid
+    8 +  // total_prizes_paid (actual USDC transfers at claim time)
+    8 +  // total_prizes_committed (committed at finalization time)
     1 +  // is_draw_in_progress
     1 +  // is_rolldown_active
     1 +  // is_paused
@@ -251,7 +253,9 @@ pub const LOTTERY_STATE_SIZE: usize = 8 + // discriminator
     1 +  // bump
     8 +  // config_timelock_end (Issue 5 fix: timelock for config changes)
     32 + // pending_config_hash (Issue 5 fix: hash of pending config)
-    24; // padding for future use (was 64, reduced by 8+32=40)
+    8 +  // emergency_transfer_total (rolling window aggregate)
+    8 +  // emergency_transfer_window_start (window start timestamp)
+    0; // no padding remaining (was 24, consumed by new fields: 8+8+8=24)
 
 /// Minimum timelock delay for config changes: 24 hours (in seconds)
 pub const CONFIG_TIMELOCK_DELAY: i64 = 86400;
@@ -324,7 +328,16 @@ pub const SYNDICATE_BASE_SIZE: usize = 8 + // discriminator
 /// Size per syndicate member
 pub const SYNDICATE_MEMBER_SIZE: usize = 32 + // wallet
     8 +  // contribution
-    2; // share_percentage_bps
+    2 +  // share_percentage_bps
+    8; // unclaimed_prize (snapshot-based distribution to prevent race condition)
+
+/// Maximum aggregate emergency transfer amount per 24-hour rolling window.
+/// Set to 20% of hard cap. This prevents a compromised authority from
+/// draining the prize pool through repeated small emergency transfers.
+pub const EMERGENCY_TRANSFER_DAILY_CAP_BPS: u64 = 2000; // 20% of hard cap per 24h window
+
+/// Duration of the emergency transfer rolling window in seconds (24 hours).
+pub const EMERGENCY_TRANSFER_WINDOW_DURATION: i64 = 86400;
 
 /// Quick Pick state account size
 pub const QUICK_PICK_STATE_SIZE: usize = 8 + // discriminator

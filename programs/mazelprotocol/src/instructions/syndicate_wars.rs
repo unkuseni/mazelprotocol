@@ -155,6 +155,48 @@ pub fn handler_initialize_syndicate_wars(
 
     token::transfer(cpi_ctx, wars_prize_pool)?;
 
+    // SECURITY FIX (Issue #3): Update lottery_state internal accounting when
+    // moving tokens out of prize_pool_usdc. Previously this transfer was not
+    // reflected in lottery_state balances, causing a mismatch between the actual
+    // token balance and the internal accounting state, which breaks solvency
+    // checks and can produce false assumptions about available funds.
+    //
+    // Deduction priority: reserve_balance first (syndicate wars is a promotional
+    // feature funded from reserves), then fixed_prize_balance, then jackpot.
+    {
+        let lottery_state = &mut ctx.accounts.lottery_state;
+        let mut remaining = wars_prize_pool;
+
+        // 1. Deduct from reserve_balance
+        let from_reserve = remaining.min(lottery_state.reserve_balance);
+        lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(from_reserve);
+        remaining = remaining.saturating_sub(from_reserve);
+
+        // 2. Deduct from fixed_prize_balance
+        if remaining > 0 {
+            let from_fixed = remaining.min(lottery_state.fixed_prize_balance);
+            lottery_state.fixed_prize_balance =
+                lottery_state.fixed_prize_balance.saturating_sub(from_fixed);
+            remaining = remaining.saturating_sub(from_fixed);
+        }
+
+        // 3. Last resort: deduct from jackpot_balance
+        if remaining > 0 {
+            lottery_state.jackpot_balance = lottery_state.jackpot_balance.saturating_sub(remaining);
+            msg!(
+                "WARNING: Syndicate Wars init required {} from jackpot",
+                remaining
+            );
+        }
+
+        msg!(
+            "  Lottery state updated: jackpot={}, reserve={}, fixed_prize={}",
+            lottery_state.jackpot_balance,
+            lottery_state.reserve_balance,
+            lottery_state.fixed_prize_balance
+        );
+    }
+
     // Initialize Syndicate Wars state
     let state = &mut ctx.accounts.syndicate_wars_state;
     state.month = params.month;

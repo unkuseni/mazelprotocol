@@ -251,10 +251,11 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         jackpot_contribution,
         reserve_contribution,
         insurance_contribution,
+        fixed_prize_contribution,
         actual_price,
     ) = if using_free_ticket {
         // Free ticket - no USDC transfer needed
-        (0u64, 0u64, 0u64, 0u64, 0u64, 0u64)
+        (0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64)
     } else {
         // Calculate dynamic house fee based on current jackpot level
         let house_fee =
@@ -276,7 +277,11 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
             / BPS_DENOMINATOR as u128) as u64;
         let reserve_contribution = (prize_pool_transfer as u128 * RESERVE_ALLOCATION_BPS as u128
             / BPS_DENOMINATOR as u128) as u64;
-        // Note: fixed_prize_allocation is implicit (the remainder in prize_pool)
+        // SECURITY FIX (Issue #4): Explicitly track the fixed prize allocation instead
+        // of leaving it implicit. This prevents fixed prizes from eroding the jackpot.
+        let fixed_prize_contribution = (prize_pool_transfer as u128
+            * FIXED_PRIZE_ALLOCATION_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
 
         (
             house_fee,
@@ -284,6 +289,7 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
             jackpot_contribution,
             reserve_contribution,
             insurance_contribution,
+            fixed_prize_contribution,
             ticket_price,
         )
     };
@@ -338,6 +344,15 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         lottery_state.insurance_balance = lottery_state
             .insurance_balance
             .checked_add(insurance_contribution)
+            .ok_or(LottoError::Overflow)?;
+    }
+    // SECURITY FIX (Issue #4): Track dedicated fixed prize pool balance.
+    // This 39.4% allocation is now explicitly tracked instead of being implicit,
+    // preventing fixed prize payouts from eroding the advertised jackpot.
+    if fixed_prize_contribution > 0 {
+        lottery_state.fixed_prize_balance = lottery_state
+            .fixed_prize_balance
+            .checked_add(fixed_prize_contribution)
             .ok_or(LottoError::Overflow)?;
     }
     lottery_state.current_draw_tickets = lottery_state
@@ -483,6 +498,10 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         msg!(
             "  -> Reserve contribution: {} USDC lamports",
             reserve_contribution
+        );
+        msg!(
+            "  -> Fixed prize contribution: {} USDC lamports",
+            fixed_prize_contribution
         );
         msg!(
             "  Insurance contribution: {} USDC lamports",

@@ -272,27 +272,66 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
         actual_transfer_amount = prize_amount;
     }
 
-    // SECURITY FIX (Issue #6): Update lottery_state internal accounting to stay
-    // consistent with the actual prize_pool_usdc token account balance.
-    // Prize payments reduce the token account but previously did NOT adjust
-    // the internal balances (jackpot_balance, reserve_balance), causing
-    // accounting drift that breaks solvency checks and can trigger false
-    // auto-pause events.
+    // SECURITY FIX (Issue #6 + Issue #4): Update lottery_state internal accounting
+    // to stay consistent with the actual prize_pool_usdc token account balance.
     //
-    // Deduction priority: jackpot_balance first (prizes are funded from jackpot),
-    // then reserve_balance as fallback.
+    // Deduction priority depends on prize tier:
+    // - Match 6 (jackpot): deduct from jackpot_balance, then reserve as fallback.
+    // - Match 3/4/5 (fixed prizes): deduct from fixed_prize_balance first (the
+    //   dedicated 39.4% allocation), then reserve, then jackpot as last resort.
+    //   This prevents fixed prize payouts from eroding the advertised jackpot.
+    // - Match 2: free ticket credit, no USDC transfer, no deduction needed.
     if actual_transfer_amount > 0 {
         let lottery_state = &mut ctx.accounts.lottery_state;
-        if lottery_state.jackpot_balance >= actual_transfer_amount {
-            lottery_state.jackpot_balance = lottery_state
-                .jackpot_balance
-                .saturating_sub(actual_transfer_amount);
+
+        if match_count == 6 {
+            // Jackpot prize: deduct from jackpot_balance first
+            if lottery_state.jackpot_balance >= actual_transfer_amount {
+                lottery_state.jackpot_balance = lottery_state
+                    .jackpot_balance
+                    .saturating_sub(actual_transfer_amount);
+            } else {
+                let from_jackpot = lottery_state.jackpot_balance;
+                let remainder = actual_transfer_amount.saturating_sub(from_jackpot);
+                lottery_state.jackpot_balance = 0;
+                lottery_state.reserve_balance =
+                    lottery_state.reserve_balance.saturating_sub(remainder);
+            }
         } else {
-            let from_jackpot = lottery_state.jackpot_balance;
-            let remainder = actual_transfer_amount.saturating_sub(from_jackpot);
-            lottery_state.jackpot_balance = 0;
-            lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(remainder);
+            // Fixed prizes (Match 3/4/5): deduct from fixed_prize_balance first,
+            // then reserve, then jackpot as last resort.
+            let mut remaining = actual_transfer_amount;
+
+            // 1. Deduct from fixed_prize_balance
+            let from_fixed = remaining.min(lottery_state.fixed_prize_balance);
+            lottery_state.fixed_prize_balance =
+                lottery_state.fixed_prize_balance.saturating_sub(from_fixed);
+            remaining = remaining.saturating_sub(from_fixed);
+
+            // 2. Deduct remainder from reserve_balance
+            if remaining > 0 {
+                let from_reserve = remaining.min(lottery_state.reserve_balance);
+                lottery_state.reserve_balance =
+                    lottery_state.reserve_balance.saturating_sub(from_reserve);
+                remaining = remaining.saturating_sub(from_reserve);
+            }
+
+            // 3. Last resort: deduct from jackpot_balance
+            if remaining > 0 {
+                lottery_state.jackpot_balance =
+                    lottery_state.jackpot_balance.saturating_sub(remaining);
+                msg!(
+                    "WARNING: Fixed prize payment required {} from jackpot (fixed pool exhausted)",
+                    remaining
+                );
+            }
         }
+
+        // SECURITY FIX (Issue #6): Increment total_prizes_paid at actual claim time,
+        // not at finalization time. This ensures the stat reflects real USDC transfers.
+        lottery_state.total_prizes_paid = lottery_state
+            .total_prizes_paid
+            .saturating_add(actual_transfer_amount);
     }
 
     // Update ticket state

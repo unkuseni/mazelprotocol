@@ -1444,6 +1444,47 @@ pub fn handler_emergency_fund_transfer(
             "  PrizePool emergency transfer cap: {} USDC lamports (10% of hard cap)",
             max_transfer
         );
+
+        // SECURITY FIX (Issue #5 continued): Enforce aggregate daily rolling window cap.
+        // Even though each individual call is capped at 10% of hard cap, a compromised
+        // authority could repeatedly call this to drain the pool. This rolling window
+        // limits the total amount that can be transferred within a 24-hour period.
+        //
+        // NOTE: We capture hard_cap before the mutable borrow to avoid conflicting borrows.
+        let hard_cap_snapshot = ctx.accounts.lottery_state.hard_cap;
+        let window_duration = EMERGENCY_TRANSFER_WINDOW_DURATION;
+        let daily_max = (hard_cap_snapshot as u128 * EMERGENCY_TRANSFER_DAILY_CAP_BPS as u128
+            / BPS_DENOMINATOR as u128) as u64;
+
+        // Scope the mutable borrow so it's dropped before the next one below.
+        {
+            let lottery_state = &mut ctx.accounts.lottery_state;
+            let window_start = lottery_state.emergency_transfer_window_start;
+
+            // Check if we're still within the current window
+            if window_start > 0
+                && clock.unix_timestamp < window_start.saturating_add(window_duration)
+            {
+                // Same window — check aggregate
+                let new_total = lottery_state
+                    .emergency_transfer_total
+                    .checked_add(amount)
+                    .ok_or(LottoError::Overflow)?;
+                require!(new_total <= daily_max, LottoError::InvalidAmount);
+                lottery_state.emergency_transfer_total = new_total;
+            } else {
+                // New window — reset and start fresh
+                require!(amount <= daily_max, LottoError::InvalidAmount);
+                lottery_state.emergency_transfer_window_start = clock.unix_timestamp;
+                lottery_state.emergency_transfer_total = amount;
+            }
+
+            msg!(
+                "  Aggregate daily cap: {} / {} USDC lamports (20% of hard cap per 24h)",
+                lottery_state.emergency_transfer_total,
+                daily_max
+            );
+        }
     }
 
     // SECURITY FIX (Issue #5): For PrizePool external transfers, restrict destination

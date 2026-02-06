@@ -824,9 +824,12 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     }
     // If no jackpot winner and no rolldown, jackpot continues to accumulate
 
-    // Update total prizes paid
-    lottery_state.total_prizes_paid = lottery_state
-        .total_prizes_paid
+    // SECURITY FIX (Issue #6): Track committed prizes separately from actual paid prizes.
+    // total_prizes_committed reflects what was promised at finalization time.
+    // total_prizes_paid is now incremented at actual claim time (in claim_prize/claim_bulk_prize).
+    // This separation allows accurate solvency monitoring and governance oversight.
+    lottery_state.total_prizes_committed = lottery_state
+        .total_prizes_committed
         .saturating_add(prize_calc.total_distributed);
 
     // Reset for next draw using helper method
@@ -1085,10 +1088,10 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         msg!("  This may indicate an accounting error.");
     }
 
-    // Invariant 6: total_prizes_paid must have increased (or stayed same if 0 distributed)
+    // Invariant 6: total_prizes_committed must have increased (or stayed same if 0 distributed)
     // We already did saturating_add above, so just verify it's >= what we distributed
     require!(
-        lottery_state.total_prizes_paid >= prize_calc.total_distributed,
+        lottery_state.total_prizes_committed >= prize_calc.total_distributed,
         LottoError::SafetyCheckFailed
     );
 

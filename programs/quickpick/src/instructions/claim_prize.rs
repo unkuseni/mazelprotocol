@@ -214,6 +214,8 @@ pub fn handler(ctx: Context<ClaimQuickPickPrize>) -> Result<()> {
     };
 
     // Handle prize payment
+    let mut actual_transfer_amount = 0u64;
+
     if prize_amount > 0 {
         // Verify solvency
         if prize_pool_balance < prize_amount {
@@ -232,6 +234,59 @@ pub fn handler(ctx: Context<ClaimQuickPickPrize>) -> Result<()> {
             prize_amount,
             quick_pick_bump,
         )?;
+
+        actual_transfer_amount = prize_amount;
+    }
+
+    // SECURITY FIX (Issue #1 from audit): Update quick_pick_state internal accounting
+    // to stay consistent with the actual prize_pool_usdc token account balance.
+    // Previously, claim_prize performed the token transfer but did NOT update
+    // quick_pick_state balances, causing internal books to drift and future
+    // finalizations/solvency checks to be incorrect.
+    //
+    // Deduction priority depends on prize tier:
+    // - Match 5 (jackpot): deduct from jackpot_balance first, then prize_pool_balance.
+    // - Match 3/4 (fixed prizes): deduct from prize_pool_balance first, then jackpot_balance.
+    if actual_transfer_amount > 0 {
+        let qp_state = &mut ctx.accounts.quick_pick_state;
+
+        if match_count == 5 {
+            // Jackpot prize: deduct from jackpot_balance first
+            if qp_state.jackpot_balance >= actual_transfer_amount {
+                qp_state.jackpot_balance = qp_state
+                    .jackpot_balance
+                    .saturating_sub(actual_transfer_amount);
+            } else {
+                let from_jackpot = qp_state.jackpot_balance;
+                let remainder = actual_transfer_amount.saturating_sub(from_jackpot);
+                qp_state.jackpot_balance = 0;
+                qp_state.prize_pool_balance = qp_state.prize_pool_balance.saturating_sub(remainder);
+            }
+        } else {
+            // Fixed prizes (Match 3/4): deduct from prize_pool_balance first
+            if qp_state.prize_pool_balance >= actual_transfer_amount {
+                qp_state.prize_pool_balance = qp_state
+                    .prize_pool_balance
+                    .saturating_sub(actual_transfer_amount);
+            } else {
+                let from_pool = qp_state.prize_pool_balance;
+                let remainder = actual_transfer_amount.saturating_sub(from_pool);
+                qp_state.prize_pool_balance = 0;
+                qp_state.jackpot_balance = qp_state.jackpot_balance.saturating_sub(remainder);
+            }
+        }
+
+        // Increment total_prizes_paid at actual claim time for accurate tracking
+        qp_state.total_prizes_paid = qp_state
+            .total_prizes_paid
+            .saturating_add(actual_transfer_amount);
+
+        msg!(
+            "  QuickPick state updated: jackpot={}, prize_pool={}, total_paid={}",
+            qp_state.jackpot_balance,
+            qp_state.prize_pool_balance,
+            qp_state.total_prizes_paid
+        );
     }
 
     // Update ticket state
