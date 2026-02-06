@@ -413,7 +413,13 @@ describe("quickpick", () => {
           authority: authority.publicKey,
           lotteryState: mainPDAs.lotteryState,
           quickPickState: qpPDAs.quickPickState,
+          usdcMint,
+          prizePoolUsdc: qpPDAs.prizePoolUsdc,
+          houseFeeUsdc: qpPDAs.houseFeeUsdc,
+          insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
           systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
         })
         .rpc();
 
@@ -447,7 +453,13 @@ describe("quickpick", () => {
             authority: authority.publicKey,
             lotteryState: mainPDAs.lotteryState,
             quickPickState: qpPDAs.quickPickState,
+            usdcMint,
+            prizePoolUsdc: qpPDAs.prizePoolUsdc,
+            houseFeeUsdc: qpPDAs.houseFeeUsdc,
+            insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
             systemProgram: SystemProgram.programId,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
           })
           .rpc();
         expect.fail("Should have thrown — account already exists");
@@ -466,7 +478,13 @@ describe("quickpick", () => {
             authority: unauthorizedUser.publicKey,
             lotteryState: mainPDAs.lotteryState,
             quickPickState: qpPDAs.quickPickState,
+            usdcMint,
+            prizePoolUsdc: qpPDAs.prizePoolUsdc,
+            houseFeeUsdc: qpPDAs.houseFeeUsdc,
+            insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
             systemProgram: SystemProgram.programId,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
           })
           .signers([unauthorizedUser])
           .rpc();

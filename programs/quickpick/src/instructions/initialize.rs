@@ -5,9 +5,13 @@
 //! every 4 hours.
 //!
 //! Only the lottery authority can initialize Quick Pick Express.
+//!
+//! IMPORTANT: This instruction now also creates the PDA-controlled token
+//! accounts (prize pool, house fee, insurance pool) that are required by
+//! fund_seed, buy_ticket, claim_prize, and admin instructions.
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::*;
 use crate::errors::QuickPickError;
@@ -22,6 +26,12 @@ pub struct InitializeQuickPickParams {
 }
 
 /// Accounts required for initializing Quick Pick Express
+///
+/// Creates the QuickPickState PDA **and** the three PDA-controlled USDC token
+/// accounts (prize_pool, house_fee, insurance_pool) in a single atomic
+/// transaction. This mirrors the main lottery's Initialize instruction and
+/// ensures all downstream instructions (fund_seed, buy_ticket, claim_prize,
+/// withdraw_house_fees, etc.) have their required token accounts available.
 #[derive(Accounts)]
 pub struct InitializeQuickPick<'info> {
     /// The authority (must be lottery authority)
@@ -48,8 +58,50 @@ pub struct InitializeQuickPick<'info> {
     )]
     pub quick_pick_state: Account<'info, QuickPickState>,
 
+    /// USDC mint account
+    pub usdc_mint: Account<'info, Mint>,
+
+    /// Prize pool USDC token account (PDA-controlled by quick_pick_state)
+    #[account(
+        init,
+        payer = authority,
+        seeds = [PRIZE_POOL_USDC_SEED],
+        bump,
+        token::mint = usdc_mint,
+        token::authority = quick_pick_state
+    )]
+    pub prize_pool_usdc: Account<'info, TokenAccount>,
+
+    /// House fee USDC token account (PDA-controlled by quick_pick_state)
+    #[account(
+        init,
+        payer = authority,
+        seeds = [HOUSE_FEE_USDC_SEED],
+        bump,
+        token::mint = usdc_mint,
+        token::authority = quick_pick_state
+    )]
+    pub house_fee_usdc: Account<'info, TokenAccount>,
+
+    /// Insurance pool USDC token account (PDA-controlled by quick_pick_state)
+    #[account(
+        init,
+        payer = authority,
+        seeds = [INSURANCE_POOL_USDC_SEED],
+        bump,
+        token::mint = usdc_mint,
+        token::authority = quick_pick_state
+    )]
+    pub insurance_pool_usdc: Account<'info, TokenAccount>,
+
     /// System program
     pub system_program: Program<'info, System>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+
+    /// Rent sysvar
+    pub rent: Sysvar<'info, Rent>,
 }
 
 /// Initialize Quick Pick Express
@@ -57,9 +109,11 @@ pub struct InitializeQuickPick<'info> {
 /// This instruction:
 /// 1. Verifies the caller is the lottery authority
 /// 2. Creates the Quick Pick state account
-/// 3. Sets up game parameters (5/35 matrix, $1.50 price, 4-hour intervals)
-/// 4. Initializes jackpot caps and seed amount
-/// 5. Sets the first draw timestamp
+/// 3. Creates PDA-controlled USDC token accounts for prize pool, house fees,
+///    and insurance pool
+/// 4. Sets up game parameters (5/35 matrix, $1.50 price, 4-hour intervals)
+/// 5. Initializes jackpot caps and seed amount
+/// 6. Sets the first draw timestamp
 ///
 /// # Arguments
 /// * `ctx` - The context containing all required accounts
@@ -69,6 +123,12 @@ pub struct InitializeQuickPick<'info> {
 /// * `Result<()>` - Success or error
 pub fn handler(ctx: Context<InitializeQuickPick>, params: InitializeQuickPickParams) -> Result<()> {
     let clock = Clock::get()?;
+
+    // Validate USDC mint has 6 decimals
+    require!(
+        ctx.accounts.usdc_mint.decimals == 6,
+        QuickPickError::InvalidUsdcMint
+    );
 
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;
 
@@ -148,6 +208,12 @@ pub fn handler(ctx: Context<InitializeQuickPick>, params: InitializeQuickPickPar
         "  Hard cap: {} USDC lamports (${:.0})",
         QUICK_PICK_HARD_CAP,
         QUICK_PICK_HARD_CAP as f64 / 1_000_000.0
+    );
+    msg!("  Prize pool USDC: {}", ctx.accounts.prize_pool_usdc.key());
+    msg!("  House fee USDC: {}", ctx.accounts.house_fee_usdc.key());
+    msg!(
+        "  Insurance pool USDC: {}",
+        ctx.accounts.insurance_pool_usdc.key()
     );
     msg!("  Status: PAUSED (must fund seed and unpause)");
 
