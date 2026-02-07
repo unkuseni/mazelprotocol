@@ -194,9 +194,9 @@ function LandingPage() {
     },
     {
       icon: Coins,
-      title: "Dynamic Fee Model",
+      title: "More Money Back to You",
       description:
-        "House fee scales from 28–40% based on jackpot level. During rolldown, fees drop to 28% to maximize player profits.",
+        "During rolldown windows, up to 72% of ticket revenue flows directly into player prizes. The math literally flips in your favor.",
     },
     {
       icon: Zap,
@@ -206,9 +206,9 @@ function LandingPage() {
     },
     {
       icon: Lock,
-      title: "Operator Protection",
+      title: "Prizes Always Guaranteed",
       description:
-        "Hybrid FIXED → PARI-MUTUEL system caps operator liability at jackpot amount. 5% safety buffer (3% reserve + 2% insurance).",
+        "5% of every ticket goes to reserve and insurance funds that back your winnings. Prizes are always paid — verified on-chain.",
     },
   ];
 
@@ -231,7 +231,7 @@ function LandingPage() {
       step: 3,
       title: "+EV Window Opens",
       description:
-        "Expected value per $2.50 ticket becomes +11.2% — that's +$0.28 profit per ticket on average. The house edge inverts.",
+        "Expected value per $2.50 ticket becomes +11.2% — that's +$0.28 profit per ticket on average. The odds flip in your favor.",
       icon: Sparkles,
     },
     {
@@ -671,7 +671,7 @@ function LandingPage() {
                       />
                     </div>
                     <p className="text-[11px] text-gray-600 mt-1.5">
-                      House edge — standard for most lotteries
+                      You lose money on average — standard for most lotteries
                     </p>
                   </div>
 
@@ -692,8 +692,7 @@ function LandingPage() {
                       />
                     </div>
                     <p className="text-[11px] text-gray-600 mt-1.5">
-                      House edge inverts — players have the mathematical
-                      advantage
+                      The math flips — you have the mathematical advantage
                     </p>
                   </div>
 

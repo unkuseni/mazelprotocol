@@ -14,7 +14,9 @@ import { Route as SyndicatesRouteImport } from './routes/syndicates'
 import { Route as ResultsRouteImport } from './routes/results'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SyndicatesIndexRouteImport } from './routes/syndicates.index'
 import { Route as PlayIndexRouteImport } from './routes/play.index'
+import { Route as SyndicatesSyndicateIdRouteImport } from './routes/syndicates.$syndicateId'
 import { Route as PlayQuickPickRouteImport } from './routes/play.quick-pick'
 import { Route as LearnRolldownRouteImport } from './routes/learn.rolldown'
 import { Route as DemoTrpcTodoRouteImport } from './routes/demo/trpc-todo'
@@ -59,10 +61,20 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SyndicatesIndexRoute = SyndicatesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SyndicatesRoute,
+} as any)
 const PlayIndexRoute = PlayIndexRouteImport.update({
   id: '/play/',
   path: '/play/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SyndicatesSyndicateIdRoute = SyndicatesSyndicateIdRouteImport.update({
+  id: '/$syndicateId',
+  path: '/$syndicateId',
+  getParentRoute: () => SyndicatesRoute,
 } as any)
 const PlayQuickPickRoute = PlayQuickPickRouteImport.update({
   id: '/play/quick-pick',
@@ -159,7 +171,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/results': typeof ResultsRoute
-  '/syndicates': typeof SyndicatesRoute
+  '/syndicates': typeof SyndicatesRouteWithChildren
   '/tickets': typeof TicketsRoute
   '/demo/db-chat': typeof DemoDbChatRoute
   '/demo/db-chat-api': typeof DemoDbChatApiRoute
@@ -168,7 +180,9 @@ export interface FileRoutesByFullPath {
   '/demo/trpc-todo': typeof DemoTrpcTodoRoute
   '/learn/rolldown': typeof LearnRolldownRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
+  '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
   '/play/': typeof PlayIndexRoute
+  '/syndicates/': typeof SyndicatesIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
@@ -185,7 +199,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/results': typeof ResultsRoute
-  '/syndicates': typeof SyndicatesRoute
   '/tickets': typeof TicketsRoute
   '/demo/db-chat': typeof DemoDbChatRoute
   '/demo/db-chat-api': typeof DemoDbChatApiRoute
@@ -194,7 +207,9 @@ export interface FileRoutesByTo {
   '/demo/trpc-todo': typeof DemoTrpcTodoRoute
   '/learn/rolldown': typeof LearnRolldownRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
+  '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
   '/play': typeof PlayIndexRoute
+  '/syndicates': typeof SyndicatesIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
@@ -212,7 +227,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/results': typeof ResultsRoute
-  '/syndicates': typeof SyndicatesRoute
+  '/syndicates': typeof SyndicatesRouteWithChildren
   '/tickets': typeof TicketsRoute
   '/demo/db-chat': typeof DemoDbChatRoute
   '/demo/db-chat-api': typeof DemoDbChatApiRoute
@@ -221,7 +236,9 @@ export interface FileRoutesById {
   '/demo/trpc-todo': typeof DemoTrpcTodoRoute
   '/learn/rolldown': typeof LearnRolldownRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
+  '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
   '/play/': typeof PlayIndexRoute
+  '/syndicates/': typeof SyndicatesIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
@@ -249,7 +266,9 @@ export interface FileRouteTypes {
     | '/demo/trpc-todo'
     | '/learn/rolldown'
     | '/play/quick-pick'
+    | '/syndicates/$syndicateId'
     | '/play/'
+    | '/syndicates/'
     | '/api/trpc/$'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
@@ -266,7 +285,6 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/results'
-    | '/syndicates'
     | '/tickets'
     | '/demo/db-chat'
     | '/demo/db-chat-api'
@@ -275,7 +293,9 @@ export interface FileRouteTypes {
     | '/demo/trpc-todo'
     | '/learn/rolldown'
     | '/play/quick-pick'
+    | '/syndicates/$syndicateId'
     | '/play'
+    | '/syndicates'
     | '/api/trpc/$'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
@@ -301,7 +321,9 @@ export interface FileRouteTypes {
     | '/demo/trpc-todo'
     | '/learn/rolldown'
     | '/play/quick-pick'
+    | '/syndicates/$syndicateId'
     | '/play/'
+    | '/syndicates/'
     | '/api/trpc/$'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
@@ -319,7 +341,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   ResultsRoute: typeof ResultsRoute
-  SyndicatesRoute: typeof SyndicatesRoute
+  SyndicatesRoute: typeof SyndicatesRouteWithChildren
   TicketsRoute: typeof TicketsRoute
   DemoDbChatRoute: typeof DemoDbChatRoute
   DemoDbChatApiRoute: typeof DemoDbChatApiRoute
@@ -379,12 +401,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/syndicates/': {
+      id: '/syndicates/'
+      path: '/'
+      fullPath: '/syndicates/'
+      preLoaderRoute: typeof SyndicatesIndexRouteImport
+      parentRoute: typeof SyndicatesRoute
+    }
     '/play/': {
       id: '/play/'
       path: '/play'
       fullPath: '/play/'
       preLoaderRoute: typeof PlayIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/syndicates/$syndicateId': {
+      id: '/syndicates/$syndicateId'
+      path: '/$syndicateId'
+      fullPath: '/syndicates/$syndicateId'
+      preLoaderRoute: typeof SyndicatesSyndicateIdRouteImport
+      parentRoute: typeof SyndicatesRoute
     }
     '/play/quick-pick': {
       id: '/play/quick-pick'
@@ -515,11 +551,25 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface SyndicatesRouteChildren {
+  SyndicatesSyndicateIdRoute: typeof SyndicatesSyndicateIdRoute
+  SyndicatesIndexRoute: typeof SyndicatesIndexRoute
+}
+
+const SyndicatesRouteChildren: SyndicatesRouteChildren = {
+  SyndicatesSyndicateIdRoute: SyndicatesSyndicateIdRoute,
+  SyndicatesIndexRoute: SyndicatesIndexRoute,
+}
+
+const SyndicatesRouteWithChildren = SyndicatesRoute._addFileChildren(
+  SyndicatesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   ResultsRoute: ResultsRoute,
-  SyndicatesRoute: SyndicatesRoute,
+  SyndicatesRoute: SyndicatesRouteWithChildren,
   TicketsRoute: TicketsRoute,
   DemoDbChatRoute: DemoDbChatRoute,
   DemoDbChatApiRoute: DemoDbChatApiRoute,

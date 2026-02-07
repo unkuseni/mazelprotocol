@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
 import {
   BarChart3,
   Trophy,
@@ -21,6 +20,7 @@ import {
   Flame,
   type LucideIcon,
 } from "lucide-react";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
 import { Button } from "@/components/ui/button";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import {
@@ -751,6 +751,8 @@ function JackpotTrend() {
 }
 
 function WalletNotConnected() {
+  const { open } = useAppKit();
+
   return (
     <div className="min-h-screen bg-background">
       <section className="relative pt-24 pb-8 sm:pt-28 sm:pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
@@ -771,7 +773,10 @@ function WalletNotConnected() {
             monitor rolldown windows, and manage your syndicates.
           </p>
 
-          <Button className="h-12 px-8 bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] text-sm">
+          <Button
+            onClick={() => open({ view: "Connect", namespace: "solana" })}
+            className="h-12 px-8 bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] text-sm"
+          >
             <Wallet size={18} />
             Connect Wallet
           </Button>
@@ -817,11 +822,10 @@ function WalletNotConnected() {
 /* -------------------------------------------------------------------------- */
 
 function DashboardPage() {
-  // For demo, we'll show the connected dashboard
-  // In a real app: if (!walletConnected) return <WalletNotConnected />;
-  const [showWalletPrompt] = useState(false);
+  const { isConnected } = useAppKitAccount();
 
-  if (showWalletPrompt) {
+  // Show wallet prompt when not connected
+  if (!isConnected) {
     return <WalletNotConnected />;
   }
 
