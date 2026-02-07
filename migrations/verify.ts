@@ -1,7 +1,7 @@
 /**
  * MazelProtocol – Post-Deployment Verification Script
  *
- * This script fetches all on-chain state for both the main lottery (SolanaLotto)
+ * This script fetches all on-chain state for both the main lottery (MazelProtocol)
  * and Quick Pick Express programs, checks token balances, validates solvency
  * invariants, and reports any issues.
  *

@@ -1,4 +1,4 @@
-//! SolanaLotto Protocol - Constants
+//! MazelProtocol - Constants
 //!
 //! This module contains all the configuration constants for the lottery protocol,
 //! including game parameters, fee tiers, prize structures, and system limits.

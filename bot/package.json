@@ -1,7 +1,7 @@
 {
   "name": "mazelprotocol-draw-bot",
   "version": "2.0.0",
-  "description": "Draw lifecycle bot for MazelProtocol (SolanaLotto) — Cloudflare Worker with Telegram bot integration. Handles commit, execute, index, and finalize phases for both Main Lottery and Quick Pick Express.",
+  "description": "Draw lifecycle bot for MazelProtocol — Cloudflare Worker with Telegram bot integration. Handles commit, execute, index, and finalize phases for both Main Lottery and Quick Pick Express.",
   "main": "src/worker.ts",
   "scripts": {
     "dev": "wrangler dev",

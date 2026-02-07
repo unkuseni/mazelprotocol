@@ -2,7 +2,7 @@
 
 ## Overview
 
-The SolanaLotto application now supports dynamic theme switching between light and dark modes, with an additional "system" option that follows the user's operating system preference.
+The MazelProtocol application now supports dynamic theme switching between light and dark modes, with an additional "system" option that follows the user's operating system preference.
 
 ## Features
 
@@ -156,13 +156,10 @@ Potential improvements for the theme system:
 3. **High Contrast**: Additional high-contrast theme option
 4. **Custom Themes**: User-defined color schemes
 5. **Theme Transitions**: Smooth transitions between themes
-```
-
-Now let me provide a summary of what I've implemented:
 
 ## Summary
 
-I've successfully implemented a comprehensive theme system for the SolanaLotto application with the following features:
+I've successfully implemented a comprehensive theme system for the MazelProtocol application with the following features:
 
 ### 1. **Theme Context & Provider** (`/src/lib/theme.tsx`)
 - Manages theme state (light/dark/system)
