@@ -1,12 +1,12 @@
-# SolanaLotto Constants Documentation Guide
+# MazelProtocol Constants Documentation Guide
 
 ## Overview
 
-This guide provides comprehensive documentation for all constants used in the SolanaLotto protocol. Constants are organized into logical categories with detailed explanations, usage examples, and mathematical formulas.
+This guide provides comprehensive documentation for all constants used in the MazelProtocol protocol. Constants are organized into logical categories with detailed explanations, usage examples, and mathematical formulas.
 
 > **🔒 CRITICAL DESIGN FEATURE: FIXED → PARI-MUTUEL PRIZE TRANSITION**
 >
-> All prizes in SolanaLotto START as **FIXED amounts** during normal operation, then TRANSITION to **PARI-MUTUEL** (shared pool) distribution during:
+> All prizes in MazelProtocol START as **FIXED amounts** during normal operation, then TRANSITION to **PARI-MUTUEL** (shared pool) distribution during:
 > 1. **Rolldown events** — All prizes become pari-mutuel
 > 2. **High-volume draws** — When (Winners × Fixed Prize) > Pool triggers transition
 > 3. **Multiple winner scenarios** — Automatic pool sharing

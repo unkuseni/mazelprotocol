@@ -1,4 +1,4 @@
-//! SolanaLotto Protocol - Events
+//! MazelProtocol - Events
 //!
 //! This module defines all events emitted by the lottery protocol.
 //! Events are used for off-chain indexing, analytics, and UI updates.

@@ -1,4 +1,4 @@
-//! SolanaLotto Protocol - Error Codes
+//! MazelProtocol - Error Codes
 //!
 //! This module defines all error codes for the lottery protocol.
 //! Errors are grouped by category for easier debugging and handling.

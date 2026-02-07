@@ -1,4 +1,4 @@
-# 🎰 SolanaLotto Protocol
+# 🎰 MazelProtocol Protocol
 
 ### The First Provably Fair Lottery with Intentional Positive-EV Rolldown Mechanics on Solana
 
@@ -30,7 +30,7 @@
 
 ## 🎯 Overview
 
-**SolanaLotto** is a decentralized lottery protocol built on Solana that introduces a revolutionary **rolldown mechanism** inspired by the Massachusetts Cash WinFall lottery. Unlike traditional lotteries where the house always wins, SolanaLotto creates predictable windows of **positive expected value (+EV)** for players while maintaining sustainable operator profitability.
+**MazelProtocol** is a decentralized lottery protocol built on Solana that introduces a revolutionary **rolldown mechanism** inspired by the Massachusetts Cash WinFall lottery. Unlike traditional lotteries where the house always wins, MazelProtocol creates predictable windows of **positive expected value (+EV)** for players while maintaining sustainable operator profitability.
 
 ### The Core Innovation
 
@@ -174,7 +174,7 @@ The transition from fixed to pari-mutuel prizes during rolldown ensures:
 
 ### Single Random Rolldown System
 
-SolanaLotto uses a **probabilistic rolldown** system that prevents calendar gaming:
+MazelProtocol uses a **probabilistic rolldown** system that prevents calendar gaming:
 
 | Parameter | Threshold | Behavior |
 |-----------|-----------|----------|
@@ -577,7 +577,7 @@ pub struct DrawResult {
 
 ### Randomness (Switchboard with TEE)
 
-SolanaLotto uses **Switchboard Randomness** with Trusted Execution Environments (TEEs) and a commit-reveal pattern for provably fair draws.
+MazelProtocol uses **Switchboard Randomness** with Trusted Execution Environments (TEEs) and a commit-reveal pattern for provably fair draws.
 
 **Why Switchboard?**
 - **TEE Security**: Randomness is generated inside protected hardware that cannot be altered or inspected
@@ -671,7 +671,7 @@ SolanaLotto uses **Switchboard Randomness** with Trusted Execution Environments 
 | Medium (limited impact) | $2,000 - $10,000 |
 | Low (informational) | $500 - $2,000 |
 
-Report vulnerabilities to: `security@solanalotto.io`
+Report vulnerabilities to: `security@mazelprotocol.io`
 
 ---
 
@@ -714,7 +714,7 @@ Report vulnerabilities to: `security@solanalotto.io`
 - [ ] Apply streak bonus to prize calculations (logic exists, just not wired in)
 - [ ] Lucky Numbers NFT instructions (data structure & constants ready)
 - [ ] Jito MEV protection integration
-- [ ] Client SDK package (`@solanalotto/sdk`)
+- [ ] Client SDK package (`@mazelprotocol/sdk`)
 - [ ] Security audit #1
 - [ ] Devnet deployment & public testnet
 
@@ -823,7 +823,7 @@ Monthly competition where syndicates compete for the best win rate:
 
 ## 🛡️ MEV Protection
 
-SolanaLotto implements MEV protection with one measure currently on-chain and two planned for future phases:
+MazelProtocol implements MEV protection with one measure currently on-chain and two planned for future phases:
 
 ### ✅ Implemented: Tightened Reveal Window
 
@@ -874,7 +874,7 @@ SolanaLotto implements MEV protection with one measure currently on-chain and tw
 
 ```javascript
 // Via Web Interface
-1. Go to https://solanalotto.io
+1. Go to https://mazelprotocol.io
 2. Click "Buy Tickets"
 3. Select your numbers or use Quick Pick
 4. Confirm transaction in wallet
@@ -905,7 +905,7 @@ console.log('Winning numbers:', result.winningNumbers);
 
 #### Installation
 
-> ⚠️ **SDK NOT YET PUBLISHED** — The `@solanalotto/sdk` NPM package does not exist yet. For now, interact with the on-chain programs directly via Anchor's generated client.
+> ⚠️ **SDK NOT YET PUBLISHED** — The `@mazelprotocol/sdk` NPM package does not exist yet. For now, interact with the on-chain programs directly via Anchor's generated client.
 
 ```bash
 # Use Anchor directly:
@@ -980,7 +980,7 @@ if (ticket.prizeAmount.toNumber() > 0 && !ticket.isClaimed) {
 
 ## 📚 API Reference
 
-> ⚠️ **SDK NOT YET PUBLISHED** — The `@solanalotto/sdk` NPM package does not exist yet.
+> ⚠️ **SDK NOT YET PUBLISHED** — The `@mazelprotocol/sdk` NPM package does not exist yet.
 > The API interfaces below describe the **planned SDK design**. For now, interact with the
 > on-chain programs directly via Anchor's generated client or the IDL.
 >
@@ -1054,13 +1054,13 @@ All instructions are called via Anchor's `program.methods.<instruction>()` patte
 
 ### Planned SDK Methods (Future)
 
-The following methods describe the **planned** `@solanalotto/sdk` API. These do **not exist yet**.
+The following methods describe the **planned** `@mazelprotocol/sdk` API. These do **not exist yet**.
 
 ```typescript
 // Planned — NOT YET IMPLEMENTED
-import { SolanaLotto } from '@solanalotto/sdk';
+import { MazelProtocol } from '@mazelprotocol/sdk';
 
-const lotto = new SolanaLotto(connection);
+const lotto = new MazelProtocol(connection);
 const state = await lotto.getLotteryState();
 await lotto.buyTicket(wallet, [7, 14, 21, 28, 35, 42]);
 await lotto.claimPrize(wallet, ticketPubkey);
@@ -1075,7 +1075,7 @@ await lotto.joinSyndicate(wallet, syndicatePubkey, 500_000_000);
 ### General
 
 **Q: Is this legal?**  
-A: SolanaLotto operates as a decentralized protocol. Users are responsible for ensuring compliance with their local laws. The protocol does not accept users from prohibited jurisdictions.
+A: MazelProtocol operates as a decentralized protocol. Users are responsible for ensuring compliance with their local laws. The protocol does not accept users from prohibited jurisdictions.
 
 **Q: How do I know the draws are fair?**  
 A: All randomness is generated using Switchboard Randomness with Trusted Execution Environments (TEEs). The commit-reveal pattern ensures neither the protocol nor oracle operators can predict or manipulate the outcome. All proofs are verifiable on-chain.
@@ -1111,7 +1111,7 @@ A: Yes, the SDK supports programmatic ticket purchases. However, there are rate 
 
 ### Risk Disclosure
 
-SolanaLotto is a decentralized lottery protocol. By participating, you acknowledge and accept the following risks:
+MazelProtocol is a decentralized lottery protocol. By participating, you acknowledge and accept the following risks:
 
 1. **Financial Risk**: Lottery participation should be considered entertainment. Most players will lose money over time. Only risk what you can afford to lose.
 
@@ -1148,12 +1148,12 @@ Nothing in this documentation constitutes financial, investment, legal, or tax a
 
 | Channel | Link |
 |---------|------|
-| 🌐 Website | [https://solanalotto.io](https://solanalotto.io) |
-| 📱 Twitter/X | [@SolanaLotto](https://twitter.com/SolanaLotto) |
-| 💬 Discord | [discord.gg/solanalotto](https://discord.gg/solanalotto) |
-| 📧 Email | hello@solanalotto.io |
-| 🔒 Security | security@solanalotto.io |
-| 📄 GitHub | [github.com/solanalotto](https://github.com/solanalotto) |
+| 🌐 Website | [https://mazelprotocol.io](https://mazelprotocol.io) |
+| 📱 Twitter/X | [@MazelProtocol](https://twitter.com/MazelProtocol) |
+| 💬 Discord | [discord.gg/mazelprotocol](https://discord.gg/mazelprotocol) |
+| 📧 Email | hello@mazelprotocol.io |
+| 🔒 Security | security@mazelprotocol.io |
+| 📄 GitHub | [github.com/mazelprotocol](https://github.com/mazelprotocol) |
 
 ---
 
@@ -1184,19 +1184,19 @@ Nothing in this documentation constitutes financial, investment, legal, or tax a
 | **Future** | Lucky Numbers NFT | ❌ Data struct only |
 | **Future** | Jito MEV integration | ❌ |
 | **Future** | Threshold encryption | ❌ |
-| **Future** | SDK (`@solanalotto/sdk`) | ❌ |
+| **Future** | SDK (`@mazelprotocol/sdk`) | ❌ |
 | **Future** | Governance DAO | ❌ |
 
 ---
 
 ## 📜 License
 
-SolanaLotto Protocol is released under the [MIT License](LICENSE).
+MazelProtocol Protocol is released under the [MIT License](LICENSE).
 
 ```
 MIT License
 
-Copyright (c) 2025 SolanaLotto Protocol
+Copyright (c) 2025 MazelProtocol Protocol
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

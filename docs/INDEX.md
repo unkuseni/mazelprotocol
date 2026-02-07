@@ -1,6 +1,6 @@
-# 📚 SolanaLotto Documentation Index
+# 📚 MazelProtocol Documentation Index
 
-> **Complete documentation hub for the SolanaLotto Protocol**
+> **Complete documentation hub for the MazelProtocol Protocol**
 
 ---
 
@@ -106,7 +106,7 @@
 | Lucky Numbers NFT | ADVANCED_FEATURES.md §3 | Data structure (`LuckyNumbersNFT`), constants, events, error codes | **No instructions** — cannot mint, claim bonuses, or govern NFTs |
 | Threshold Encryption MEV | ADVANCED_FEATURES.md §4.2-4.3 | Nothing | Entire feature — encrypted tickets, key management, decryption |
 | Jito Integration | ADVANCED_FEATURES.md §4.4 | Nothing | Jito tip accounts, bundle integration |
-| SDK (`@solanalotto/sdk`) | QUICK_START.md, SOLANA_LOTTO.md | Nothing | No NPM package exists; API examples in docs are aspirational |
+| SDK (`@mazelprotocol/sdk`) | QUICK_START.md, SOLANA_LOTTO.md | Nothing | No NPM package exists; API examples in docs are aspirational |
 | Governance DAO | WHITEPAPER.md §6.1 | Nothing | No on-chain governance — authority is a single signer |
 | White-label / Cross-chain / DAO Transition | Roadmap | Nothing | Future roadmap items |
 
@@ -229,7 +229,7 @@
 - Apply streak bonus to prize calculations (logic exists, just not wired up)
 - Lucky Numbers NFT instructions (data structure ready)
 - Jito MEV protection integration
-- Client SDK package (`@solanalotto/sdk`)
+- Client SDK package (`@mazelprotocol/sdk`)
 
 ### 🔮 Future
 - Threshold encryption MEV protection
@@ -298,9 +298,9 @@
 
 | Channel | Purpose |
 |---------|---------|
-| [Discord](https://discord.gg/solanalotto) | Community chat, support |
-| [Twitter](https://twitter.com/SolanaLotto) | Announcements, updates |
-| [GitHub](https://github.com/solanalotto) | Code, issues, PRs |
+| [Discord](https://discord.gg/mazelprotocol) | Community chat, support |
+| [Twitter](https://twitter.com/MazelProtocol) | Announcements, updates |
+| [GitHub](https://github.com/mazelprotocol) | Code, issues, PRs |
 | security@solanalotto.io | Security vulnerabilities |
 | hello@solanalotto.io | General inquiries |
 
@@ -308,7 +308,7 @@
 
 <div align="center">
 
-**SolanaLotto Protocol v3.0**
+**MazelProtocol Protocol v3.0**
 
 *Complete documentation for the world's first intentionally exploitable lottery*
 

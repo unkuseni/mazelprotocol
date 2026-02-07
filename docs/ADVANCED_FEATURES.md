@@ -1,4 +1,4 @@
-# SolanaLotto Advanced Features Specification
+# MazelProtocol Advanced Features Specification
 
 ## Version 3.0.0
 
@@ -442,8 +442,8 @@ pub fn distribute_lucky_numbers_bonuses(
     "name": "Lucky Numbers #4521",
     "symbol": "LUCKYNUMS",
     "description": "This NFT contains the lucky numbers [4, 12, 23, 31, 38, 45] which won Match 5 on Draw #127. If these exact numbers ever hit the jackpot, the holder receives 1% of the jackpot!",
-    "image": "https://solanalotto.io/nft/4521.png",
-    "external_url": "https://solanalotto.io/lucky-numbers/4521",
+    "image": "https://mazelprotocol.io/nft/4521.png",
+    "external_url": "https://mazelprotocol.io/lucky-numbers/4521",
     "attributes": [
         {
             "trait_type": "Number 1",
@@ -490,7 +490,7 @@ pub fn distribute_lucky_numbers_bonuses(
         "category": "lottery",
         "creators": [
             {
-                "address": "SolanaLottoProgram...",
+                "address": "MazelProtocolProgram...",
                 "share": 100
             }
         ]
@@ -828,7 +828,7 @@ A high-frequency mini-lottery featuring the **same rolldown mechanics and +EV ex
 
 ### 5.2 Access Requirements
 
-> ⚠️ **$50 Gate Requirement**: Players must have spent a minimum of **$50 USDC lifetime** in the main SolanaLotto (6/46) before gaining access to Quick Pick Express.
+> ⚠️ **$50 Gate Requirement**: Players must have spent a minimum of **$50 USDC lifetime** in the main MazelProtocol (6/46) before gaining access to Quick Pick Express.
 
 This requirement:
 - Ensures players understand the main lottery mechanics first
@@ -1840,7 +1840,7 @@ pub fn distribute_syndicate_wars_prizes(
 ├── Apply streak bonus to prize calculations (logic exists, not wired in)
 ├── Lucky Numbers NFT instructions (data structure & constants ready)
 ├── Jito MEV tip integration
-├── Client SDK package (@solanalotto/sdk)
+├── Client SDK package (@mazelprotocol/sdk)
 └── Security audit
 
 🔮 FUTURE
@@ -1955,5 +1955,5 @@ pub struct SyndicateWarsConcluded {
 ---
 
 *Advanced Features Specification v1.0.0*
-*SolanaLotto Protocol*
+*MazelProtocol Protocol*
 *Last Updated: 2025*

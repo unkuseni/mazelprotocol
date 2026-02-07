@@ -1,5 +1,5 @@
 {
-  "name": "app",
+  "name": "mazelProtocol",
   "private": true,
   "type": "module",
   "scripts": {

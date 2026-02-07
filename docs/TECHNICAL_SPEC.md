@@ -1,4 +1,4 @@
-# SolanaLotto Technical Specification
+# MazelProtocol Technical Specification
 
 ## Version 3.0.0
 
@@ -25,7 +25,7 @@
 
 ### 1.1 Purpose
 
-This document provides the complete technical specification for implementing, integrating with, and deploying the SolanaLotto protocol. It is intended for:
+This document provides the complete technical specification for implementing, integrating with, and deploying the MazelProtocol protocol. It is intended for:
 
 - Smart contract developers
 - Frontend/backend engineers
@@ -2852,26 +2852,26 @@ fn test_draw_state_errors() {
 
 ```bash
 # NPM
-npm install @solanalotto/sdk
+npm install @mazelprotocol/sdk
 
 # Yarn
-yarn add @solanalotto/sdk
+yarn add @mazelprotocol/sdk
 
 # PNPM
-pnpm add @solanalotto/sdk
+pnpm add @mazelprotocol/sdk
 ```
 
 ### 9.2 Basic Usage
 
 ```typescript
 import { Connection, PublicKey, Keypair } from '@solana/web3.js';
-import { SolanaLotto } from '@solanalotto/sdk';
+import { MazelProtocol } from '@mazelprotocol/sdk';
 
 // Initialize connection
 const connection = new Connection('https://api.mainnet-beta.solana.com');
 
 // Initialize SDK
-const lotto = new SolanaLotto(connection, {
+const lotto = new MazelProtocol(connection, {
     programId: new PublicKey('LOTTO...xxxx'),
     usdcMint: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
 });
@@ -2982,7 +2982,7 @@ lotto.removeListener(subscriptionId);
 ### 9.5 Error Handling
 
 ```typescript
-import { LottoError } from '@solanalotto/sdk';
+import { LottoError } from '@mazelprotocol/sdk';
 
 try {
     await lotto.buyTicket(wallet, [1, 1, 2, 3, 4, 5]); // Duplicate!
@@ -3041,7 +3041,7 @@ mod tests {
     #[tokio::test]
     async fn test_buy_ticket() {
         let mut test = ProgramTest::new(
-            "solanalotto",
+            "mazelprotocol",
             PROGRAM_ID,
             processor!(process_instruction),
         );
@@ -3122,10 +3122,10 @@ mod tests {
 
 ```typescript
 import { expect } from 'chai';
-import { SolanaLotto } from '@solanalotto/sdk';
+import { MazelProtocol } from '@mazelprotocol/sdk';
 
-describe('SolanaLotto Integration', () => {
-    let lotto: SolanaLotto;
+describe('MazelProtocol Integration', () => {
+    let lotto: MazelProtocol;
     let wallet: Keypair;
 
     before(async () => {
@@ -3192,7 +3192,7 @@ describe('SolanaLotto Integration', () => {
 solana config set --url devnet
 
 # Create keypair for program
-solana-keygen new -o target/deploy/solanalotto-keypair.json
+solana-keygen new -o target/deploy/mazelprotocol-keypair.json
 
 # Build program
 anchor build
@@ -3309,7 +3309,7 @@ export const DEVNET_CONFIG = {
 
 > **🔒 CRITICAL OPERATOR PROTECTION:** All prizes START as FIXED amounts during normal operation, then TRANSITION to PARI-MUTUEL (shared pool) during rolldown events and high-volume draws. This hybrid system ensures **operator liability is ALWAYS CAPPED** while maintaining attractive +EV windows for players.
 
-To ensure protocol sustainability while maintaining player value, SolanaLotto implements a hybrid prize system where prizes transition from fixed amounts to pari-mutuel (shared pool) distribution based on draw volume and conditions.
+To ensure protocol sustainability while maintaining player value, MazelProtocol implements a hybrid prize system where prizes transition from fixed amounts to pari-mutuel (shared pool) distribution based on draw volume and conditions.
 
 #### Fixed Prize Mode (Default) — NORMAL OPERATION
 
@@ -3473,13 +3473,13 @@ Quick Pick Express (5/35) uses the identical Fixed → Pari-Mutuel transition:
 | Resource | Link |
 |----------|------|
 | Documentation | https://docs.solanalotto.io |
-| GitHub | https://github.com/solanalotto |
-| Discord | https://discord.gg/solanalotto |
-| Twitter | https://twitter.com/SolanaLotto |
+| GitHub | https://github.com/mazelprotocol |
+| Discord | https://discord.gg/mazelprotocol |
+| Twitter | https://twitter.com/MazelProtocol |
 | Bug Bounty | https://solanalotto.io/security |
 
 ---
 
 *Technical Specification v1.0.0*
 *Last Updated: 2025*
-*SolanaLotto Protocol Team*
+*MazelProtocol Protocol Team*

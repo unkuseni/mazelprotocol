@@ -2,7 +2,7 @@
  * MazelProtocol – Deployment Migration Script
  *
  * This script performs the complete on-chain initialization sequence for both
- * the main lottery (SolanaLotto) and Quick Pick Express programs.
+ * the main lottery (MazelProtocol) and Quick Pick Express programs.
  *
  * Steps:
  *   1. Initialize main lottery  (state + 3 PDA token accounts)

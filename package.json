@@ -1,7 +1,7 @@
 {
   "name": "mazelprotocol",
   "version": "0.1.0",
-  "description": "SolanaLotto Protocol - The first intentionally exploitable lottery on Solana",
+  "description": "MazelProtocol - The first intentionally exploitable lottery on Solana",
   "main": "index.js",
   "scripts": {
     "test": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
@@ -13,7 +13,7 @@
     "defi",
     "anchor"
   ],
-  "author": "SolanaLotto Team",
+  "author": "MazelProtocol Team",
   "license": "MIT",
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",

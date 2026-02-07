@@ -1,4 +1,4 @@
-# SolanaLotto Protocol
+# MazelProtocol Protocol
 
 ## Technical Whitepaper v3.0
 
@@ -8,7 +8,7 @@
 
 **Abstract**
 
-SolanaLotto introduces a novel lottery mechanism that intentionally creates windows of positive expected value (+EV) for players while maintaining sustainable operator profitability. By implementing a rolldown mechanism inspired by the Massachusetts Cash WinFall lottery (2004-2012), the protocol creates a two-phase economic cycle: negative-EV normal operation that builds the prize pool, followed by positive-EV rolldown events that distribute accumulated value to lower-tier winners. This paper presents the mathematical foundations, economic sustainability proofs, and technical implementation details of the SolanaLotto protocol.
+MazelProtocol introduces a novel lottery mechanism that intentionally creates windows of positive expected value (+EV) for players while maintaining sustainable operator profitability. By implementing a rolldown mechanism inspired by the Massachusetts Cash WinFall lottery (2004-2012), the protocol creates a two-phase economic cycle: negative-EV normal operation that builds the prize pool, followed by positive-EV rolldown events that distribute accumulated value to lower-tier winners. This paper presents the mathematical foundations, economic sustainability proofs, and technical implementation details of the MazelProtocol protocol.
 
 ---
 
@@ -40,9 +40,9 @@ This creates a paradox: lotteries depend on player participation, yet rational e
 - Regulatory monopolies (no competition)
 - Information asymmetry (hidden odds)
 
-### 1.2 The SolanaLotto Solution
+### 1.2 The MazelProtocol Solution
 
-SolanaLotto proposes an alternative model that aligns incentives between operators and sophisticated players while maintaining profitability:
+MazelProtocol proposes an alternative model that aligns incentives between operators and sophisticated players while maintaining profitability:
 
 1. **Transparent negative-EV normal operation** builds the prize pool
 2. **Intentional positive-EV rolldown events** reward engagement
@@ -94,9 +94,9 @@ From 2004 to 2012, the Massachusetts State Lottery operated Cash WinFall, a 6/46
 
 ### 2.2 Lessons for Protocol Design
 
-SolanaLotto incorporates Cash WinFall's successful mechanics while addressing its weaknesses:
+MazelProtocol incorporates Cash WinFall's successful mechanics while addressing its weaknesses:
 
-| Cash WinFall Issue | SolanaLotto Solution |
+| Cash WinFall Issue | MazelProtocol Solution |
 |--------------------|----------------------|
 | Opaque odds calculation | All math published in smart contracts |
 | Manual prize claiming | Automatic on-chain distribution |
@@ -112,7 +112,7 @@ SolanaLotto incorporates Cash WinFall's successful mechanics while addressing it
 | Standard VRF Lotteries | Standard negative-EV | No differentiation from traditional |
 | Various NFT lotteries | Random NFT distribution | Illiquid prizes, opaque odds |
 
-SolanaLotto is the first protocol to implement intentional +EV windows in a decentralized lottery.
+MazelProtocol is the first protocol to implement intentional +EV windows in a decentralized lottery.
 
 ---
 
@@ -120,7 +120,7 @@ SolanaLotto is the first protocol to implement intentional +EV windows in a dece
 
 ### 3.1 Combinatorial Basis
 
-SolanaLotto uses a 6/46 matrix: players select 6 numbers from a pool of 46.
+MazelProtocol uses a 6/46 matrix: players select 6 numbers from a pool of 46.
 
 **Total possible combinations:**
 
@@ -577,7 +577,7 @@ However, several factors prevent perfect equilibrium:
 Operators want: High volume, predictable cycles, sustainable margins
 Players want: Positive EV, large prizes, fair games
 
-**SolanaLotto Resolution:**
+**MazelProtocol Resolution:**
 
 The rolldown mechanism creates a Pareto improvement:
 - Operators profit from increased rolldown volume (more house fees)
@@ -1199,7 +1199,7 @@ interface IndexerService {
 
 ### 7.1 Overview
 
-The SolanaLotto protocol implements a multi-layered fund protection system designed to ensure prize pool solvency and protect player funds during edge cases and emergencies. This system consists of:
+The MazelProtocol protocol implements a multi-layered fund protection system designed to ensure prize pool solvency and protect player funds during edge cases and emergencies. This system consists of:
 
 1. **Reserve Fund (3%)**: For jackpot seeding and normal shortfalls
 2. **Insurance Pool (2%)**: For insolvency emergencies and catastrophic events
@@ -1378,7 +1378,7 @@ The protocol maintains these invariants at all times:
 
 ### 8.1 Summary
 
-SolanaLotto represents a paradigm shift in lottery design by embracing, rather than hiding, the mathematical realities of probability games. The rolldown mechanism creates a unique value proposition:
+MazelProtocol represents a paradigm shift in lottery design by embracing, rather than hiding, the mathematical realities of probability games. The rolldown mechanism creates a unique value proposition:
 
 1. **For Casual Players:** Entertainment with transparent odds and the excitement of rolldown events
 2. **For Sophisticated Players:** Predictable +EV windows for strategic participation
@@ -1404,7 +1404,7 @@ SolanaLotto represents a paradigm shift in lottery design by embracing, rather t
 
 ### 8.4 Call to Action
 
-SolanaLotto invites participation from:
+MazelProtocol invites participation from:
 - **Developers:** Contribute to open-source protocol
 - **Auditors:** Review and improve security
 - **Players:** Participate in fair, transparent lottery
@@ -1489,13 +1489,13 @@ SolanaLotto invites participation from:
 
 *Document Version: 1.0*
 *Last Updated: 2025*
-*Authors: SolanaLotto Protocol Team*
+*Authors: MazelProtocol Protocol Team*
 
 ---
 
 <div align="center">
 
-**© 2025 SolanaLotto Protocol**
+**© 2025 MazelProtocol Protocol**
 
 *Building the future of fair, transparent, and mathematically sound lotteries.*
 

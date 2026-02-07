@@ -1,16 +1,16 @@
-# SolanaLotto Quick Start Guide
+# MazelProtocol Quick Start Guide
 
 > **The world's first intentionally exploitable lottery on Solana**
 
 ---
 
-## 🚀 What is SolanaLotto?
+## 🚀 What is MazelProtocol?
 
-SolanaLotto is a decentralized lottery protocol that creates **predictable windows of positive expected value (+EV)** for players. Unlike traditional lotteries where the house always wins, SolanaLotto's rolldown mechanism allows sophisticated players to profit during specific market conditions.
+MazelProtocol is a decentralized lottery protocol that creates **predictable windows of positive expected value (+EV)** for players. Unlike traditional lotteries where the house always wins, MazelProtocol's rolldown mechanism allows sophisticated players to profit during specific market conditions.
 
 ### The Core Innovation
 
-SolanaLotto uses a **probabilistic rolldown system**:
+MazelProtocol uses a **probabilistic rolldown system**:
 
 | Cap | Threshold | What Happens |
 |-----|-----------|--------------|
@@ -158,11 +158,11 @@ Between $1.75M and $2.25M, each draw has a chance to trigger full rolldown:
 
 ### Installation
 
-> ⚠️ **SDK NOT YET PUBLISHED** — The `@solanalotto/sdk` NPM package does not exist yet. The examples below show the intended API design. For now, interact with the on-chain programs directly via Anchor's generated client or the IDL.
+> ⚠️ **SDK NOT YET PUBLISHED** — The `@mazelprotocol/sdk` NPM package does not exist yet. The examples below show the intended API design. For now, interact with the on-chain programs directly via Anchor's generated client or the IDL.
 
 ```bash
 # Coming soon:
-# npm install @solanalotto/sdk
+# npm install @mazelprotocol/sdk
 
 # For now, use Anchor directly:
 npm install @coral-xyz/anchor @solana/web3.js @solana/spl-token
@@ -297,12 +297,12 @@ All randomness is generated using **Switchboard Randomness** with Trusted Execut
 
 | Resource | URL |
 |----------|-----|
-| 🌐 Website | https://solanalotto.io |
-| 📖 Documentation | https://docs.solanalotto.io |
-| 💬 Discord | https://discord.gg/solanalotto |
-| 🐦 Twitter | https://twitter.com/SolanaLotto |
-| 📦 GitHub | https://github.com/solanalotto |
-| 🔒 Security | security@solanalotto.io |
+| 🌐 Website | https://mazelprotocol.io |
+| 📖 Documentation | https://docs.mazelprotocol.io |
+| 💬 Discord | https://discord.gg/mazelprotocol |
+| 🐦 Twitter | https://twitter.com/MazelProtocol |
+| 📦 GitHub | https://github.com/mazelprotocol |
+| 🔒 Security | security@mazelprotocol.io |
 
 ---
 
@@ -344,7 +344,7 @@ Only play with money you can afford to lose. Verify your local laws before parti
 - ❌ **Lucky Numbers NFT** (data structure exists, no instructions to mint or claim)
 - ❌ **Jito MEV Integration** (no tip accounts or bundle logic)
 - ❌ **Threshold Encryption** (no encrypted tickets or key management)
-- ❌ **SDK** (`@solanalotto/sdk` package does not exist yet)
+- ❌ **SDK** (`@mazelprotocol/sdk` package does not exist yet)
 - ❌ **Governance DAO** (authority is a single signer, no on-chain governance)
 
 ---
@@ -359,7 +359,7 @@ MIT License - See [LICENSE](../LICENSE) for details.
 
 <div align="center">
 
-**SolanaLotto Protocol v3.0**
+**MazelProtocol Protocol v3.0**
 
 *Where the math finally works in your favor... sometimes.*
 
