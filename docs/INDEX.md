@@ -1,6 +1,6 @@
 # 📚 MazelProtocol Documentation Index
 
-> **Complete documentation hub for the MazelProtocol Protocol**
+> **Complete documentation hub for MazelProtocol**
 
 ---
 
@@ -308,7 +308,7 @@
 
 <div align="center">
 
-**MazelProtocol Protocol v3.0**
+**MazelProtocol v3.0**
 
 *Complete documentation for the world's first intentionally exploitable lottery*
 

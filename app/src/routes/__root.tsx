@@ -45,8 +45,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
           "MazelProtocol introduces positive expected value windows through mathematical rolldown mechanics. Play smart, win bigger on Solana.",
       },
       {
-        title:
-          "MazelProtocol Protocol | The First Intentionally Exploitable Lottery",
+        title: "MazelProtocol | The First Intentionally Exploitable Lottery",
       },
       {
         name: "theme-color",
@@ -58,8 +57,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
       {
         property: "og:title",
-        content:
-          "MazelProtocol Protocol | The First Intentionally Exploitable Lottery",
+        content: "MazelProtocol | The First Intentionally Exploitable Lottery",
       },
       {
         property: "og:description",
@@ -76,7 +74,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
       {
         name: "twitter:title",
-        content: "MazelProtocol Protocol",
+        content: "MazelProtocol",
       },
       {
         name: "twitter:description",

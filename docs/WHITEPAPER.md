@@ -1,4 +1,4 @@
-# MazelProtocol Protocol
+# MazelProtocol
 
 ## Technical Whitepaper v3.0
 
@@ -8,7 +8,7 @@
 
 **Abstract**
 
-MazelProtocol introduces a novel lottery mechanism that intentionally creates windows of positive expected value (+EV) for players while maintaining sustainable operator profitability. By implementing a rolldown mechanism inspired by the Massachusetts Cash WinFall lottery (2004-2012), the protocol creates a two-phase economic cycle: negative-EV normal operation that builds the prize pool, followed by positive-EV rolldown events that distribute accumulated value to lower-tier winners. This paper presents the mathematical foundations, economic sustainability proofs, and technical implementation details of the MazelProtocol protocol.
+MazelProtocol introduces a novel lottery mechanism that intentionally creates windows of positive expected value (+EV) for players while maintaining sustainable operator profitability. By implementing a rolldown mechanism inspired by the Massachusetts Cash WinFall lottery (2004-2012), the protocol creates a two-phase economic cycle: negative-EV normal operation that builds the prize pool, followed by positive-EV rolldown events that distribute accumulated value to lower-tier winners. This paper presents the mathematical foundations, economic sustainability proofs, and technical implementation details of MazelProtocol.
 
 ---
 
@@ -1199,7 +1199,7 @@ interface IndexerService {
 
 ### 7.1 Overview
 
-The MazelProtocol protocol implements a multi-layered fund protection system designed to ensure prize pool solvency and protect player funds during edge cases and emergencies. This system consists of:
+MazelProtocol implements a multi-layered fund protection system designed to ensure prize pool solvency and protect player funds during edge cases and emergencies. This system consists of:
 
 1. **Reserve Fund (3%)**: For jackpot seeding and normal shortfalls
 2. **Insurance Pool (2%)**: For insolvency emergencies and catastrophic events
@@ -1489,13 +1489,13 @@ MazelProtocol invites participation from:
 
 *Document Version: 1.0*
 *Last Updated: 2025*
-*Authors: MazelProtocol Protocol Team*
+*Authors: MazelProtocol Team*
 
 ---
 
 <div align="center">
 
-**© 2025 MazelProtocol Protocol**
+**© 2025 MazelProtocol**
 
 *Building the future of fair, transparent, and mathematically sound lotteries.*
 

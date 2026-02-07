@@ -359,7 +359,7 @@ MIT License - See [LICENSE](../LICENSE) for details.
 
 <div align="center">
 
-**MazelProtocol Protocol v3.0**
+**MazelProtocol v3.0**
 
 *Where the math finally works in your favor... sometimes.*
 

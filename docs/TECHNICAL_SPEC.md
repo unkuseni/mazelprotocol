@@ -25,7 +25,7 @@
 
 ### 1.1 Purpose
 
-This document provides the complete technical specification for implementing, integrating with, and deploying the MazelProtocol protocol. It is intended for:
+This document provides the complete technical specification for implementing, integrating with, and deploying MazelProtocol. It is intended for:
 
 - Smart contract developers
 - Frontend/backend engineers
@@ -3482,4 +3482,4 @@ Quick Pick Express (5/35) uses the identical Fixed → Pari-Mutuel transition:
 
 *Technical Specification v1.0.0*
 *Last Updated: 2025*
-*MazelProtocol Protocol Team*
+*MazelProtocol Team*

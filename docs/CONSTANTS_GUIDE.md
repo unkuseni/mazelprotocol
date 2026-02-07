@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides comprehensive documentation for all constants used in the MazelProtocol protocol. Constants are organized into logical categories with detailed explanations, usage examples, and mathematical formulas.
+This guide provides comprehensive documentation for all constants used in MazelProtocol. Constants are organized into logical categories with detailed explanations, usage examples, and mathematical formulas.
 
 > **🔒 CRITICAL DESIGN FEATURE: FIXED → PARI-MUTUEL PRIZE TRANSITION**
 >

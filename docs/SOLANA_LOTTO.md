@@ -1,4 +1,4 @@
-# 🎰 MazelProtocol Protocol
+# 🎰 MazelProtocol
 
 ### The First Provably Fair Lottery with Intentional Positive-EV Rolldown Mechanics on Solana
 
@@ -1191,12 +1191,12 @@ Nothing in this documentation constitutes financial, investment, legal, or tax a
 
 ## 📜 License
 
-MazelProtocol Protocol is released under the [MIT License](LICENSE).
+MazelProtocol is released under the [MIT License](LICENSE).
 
 ```
 MIT License
 
-Copyright (c) 2025 MazelProtocol Protocol
+Copyright (c) 2025 MazelProtocol
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

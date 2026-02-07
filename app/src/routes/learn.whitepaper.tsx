@@ -576,7 +576,7 @@ function WhitepaperPage() {
               pool, followed by positive-EV rolldown events that distribute
               accumulated value to lower-tier winners. This paper presents the
               mathematical foundations, economic sustainability proofs, and
-              technical implementation details of the MazelProtocol protocol.
+              technical implementation details of MazelProtocol.
             </p>
           </div>
 
@@ -1825,9 +1825,9 @@ pub struct Ticket {
                   7.1 Overview
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
-                  The MazelProtocol protocol implements a multi-layered fund
-                  protection system designed to ensure prize pool solvency and
-                  protect player funds during edge cases and emergencies:
+                  MazelProtocol implements a multi-layered fund protection
+                  system designed to ensure prize pool solvency and protect
+                  player funds during edge cases and emergencies:
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <StatCard
@@ -2454,11 +2454,11 @@ pub struct Ticket {
               Document Version: 3.0 • Last Updated: 2025
             </p>
             <p className="text-xs text-muted-foreground/60 mt-1">
-              MazelProtocol Protocol Team
+              MazelProtocol Team
             </p>
             <p className="text-[10px] text-gray-700 mt-3">
-              © 2025 MazelProtocol Protocol — Building the future of fair,
-              transparent, and mathematically sound lotteries.
+              © 2025 MazelProtocol — Building the future of fair, transparent,
+              and mathematically sound lotteries.
             </p>
           </div>
 

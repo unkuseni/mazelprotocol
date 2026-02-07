@@ -1955,5 +1955,5 @@ pub struct SyndicateWarsConcluded {
 ---
 
 *Advanced Features Specification v1.0.0*
-*MazelProtocol Protocol*
+*MazelProtocol*
 *Last Updated: 2025*
