@@ -7,7 +7,7 @@ The SolanaLotto application now supports dynamic theme switching between light a
 ## Features
 
 - **Dark Mode**: The default theme, optimized for the lottery application's visual design
-- **Light Mode**: A lighter alternative theme
+- **Light Mode**: A polished premium light theme with navy-tinted surfaces, deeper emerald/gold for contrast, and brand-consistent personality
 - **System Theme**: Automatically follows the user's OS theme preference
 - **Persistent Preference**: Theme choice is saved in `localStorage`
 - **Dynamic Meta Tags**: Updates `theme-color` and `color-scheme` meta tags

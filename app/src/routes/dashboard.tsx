@@ -215,16 +215,16 @@ function StatCard({
       valueColor: "text-gradient-gold",
     },
     default: {
-      iconBg: "bg-white/[0.04] border-white/[0.06]",
-      iconColor: "text-gray-400",
-      valueColor: "text-white",
+      iconBg: "bg-foreground/[0.04] border-foreground/[0.06]",
+      iconColor: "text-muted-foreground",
+      valueColor: "text-foreground",
     },
   };
 
   const colors = colorMap[accentColor];
 
   return (
-    <div className="glass rounded-xl p-4 transition-all hover:border-white/10">
+    <div className="glass rounded-xl p-4 transition-all hover:border-foreground/10">
       <div className="flex items-start justify-between mb-3">
         <div className={`p-2 rounded-lg border ${colors.iconBg}`}>
           <Icon size={16} className={colors.iconColor} />
@@ -249,11 +249,11 @@ function StatCard({
       <div className={`text-xl font-black ${colors.valueColor} leading-none`}>
         {value}
       </div>
-      <div className="text-[10px] text-gray-500 uppercase tracking-wider mt-1.5">
+      <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1.5">
         {label}
       </div>
       {subValue && (
-        <div className="text-[10px] text-gray-600 mt-0.5">{subValue}</div>
+        <div className="text-[10px] text-muted-foreground/60 mt-0.5">{subValue}</div>
       )}
     </div>
   );
@@ -274,7 +274,7 @@ function RolldownMonitor() {
   return (
     <div className="glass-strong rounded-2xl p-5 sm:p-6 border-gradient-emerald">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
           <Activity size={16} className="text-emerald" />
           Rolldown Monitor
         </h3>
@@ -286,9 +286,9 @@ function RolldownMonitor() {
             </span>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-foreground/5 border border-foreground/10">
             <div className="w-1.5 h-1.5 rounded-full bg-gray-500" />
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
               Normal
             </span>
           </div>
@@ -297,7 +297,7 @@ function RolldownMonitor() {
 
       {/* Progress visualization */}
       <div className="mb-4">
-        <div className="relative h-3 bg-white/5 rounded-full overflow-hidden">
+        <div className="relative h-3 bg-foreground/5 rounded-full overflow-hidden">
           {/* Hard cap zone */}
           <div
             className="absolute top-0 right-0 h-full bg-red-500/10"
@@ -324,7 +324,7 @@ function RolldownMonitor() {
 
         {/* Labels */}
         <div className="flex items-center justify-between mt-2 text-[10px]">
-          <span className="text-gray-600">$0</span>
+          <span className="text-muted-foreground/60">$0</span>
           <div className="flex items-center gap-4">
             <span className="text-emerald-light/70">
               Soft Cap: ${(softCap / 1_000_000).toFixed(2)}M
@@ -338,37 +338,37 @@ function RolldownMonitor() {
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="text-center p-2.5 rounded-lg bg-white/[0.02]">
+        <div className="text-center p-2.5 rounded-lg bg-foreground/[0.02]">
           <div className="text-xs font-bold text-gold tabular-nums">
             ${(currentJackpot / 1_000_000).toFixed(2)}M
           </div>
-          <div className="text-[9px] text-gray-500 mt-0.5">Current Jackpot</div>
+          <div className="text-[9px] text-muted-foreground mt-0.5">Current Jackpot</div>
         </div>
-        <div className="text-center p-2.5 rounded-lg bg-white/[0.02]">
-          <div className="text-xs font-bold text-white tabular-nums">
+        <div className="text-center p-2.5 rounded-lg bg-foreground/[0.02]">
+          <div className="text-xs font-bold text-foreground tabular-nums">
             {progress.toFixed(1)}%
           </div>
-          <div className="text-[9px] text-gray-500 mt-0.5">To Soft Cap</div>
+          <div className="text-[9px] text-muted-foreground mt-0.5">To Soft Cap</div>
         </div>
-        <div className="text-center p-2.5 rounded-lg bg-white/[0.02]">
+        <div className="text-center p-2.5 rounded-lg bg-foreground/[0.02]">
           <div className="text-xs font-bold text-emerald-light tabular-nums">
             ~{drawsToSoftCap}
           </div>
-          <div className="text-[9px] text-gray-500 mt-0.5">Draws Est.</div>
+          <div className="text-[9px] text-muted-foreground mt-0.5">Draws Est.</div>
         </div>
       </div>
 
       {/* EV indicator */}
-      <div className="mt-4 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+      <div className="mt-4 p-3 rounded-xl bg-foreground/[0.02] border border-foreground/[0.04]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp
               size={12}
               className={
-                isRolldownActive ? "text-emerald-light" : "text-gray-500"
+                isRolldownActive ? "text-emerald-light" : "text-muted-foreground"
               }
             />
-            <span className="text-[10px] text-gray-400">
+            <span className="text-[10px] text-muted-foreground">
               Expected Value (Rolldown)
             </span>
           </div>
@@ -381,7 +381,7 @@ function RolldownMonitor() {
           </span>
         </div>
         {!isRolldownActive && (
-          <p className="text-[10px] text-gray-600 mt-1.5">
+          <p className="text-[10px] text-muted-foreground/60 mt-1.5">
             EV turns positive when the jackpot reaches the soft cap ($
             {(softCap / 1_000_000).toFixed(2)}M) and no Match 6 winner is drawn.
             Strategic players buy more tickets during rolldown windows.
@@ -397,14 +397,14 @@ function RecentDrawCard({ draw }: { draw: (typeof MOCK_RECENT_DRAWS)[0] }) {
   const totalPrize = draw.userMatches.reduce((sum, m) => sum + m.prize, 0);
 
   return (
-    <div className="glass rounded-xl p-4 transition-all hover:border-white/10">
+    <div className="glass rounded-xl p-4 transition-all hover:border-foreground/10">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-white">
+          <span className="text-xs font-bold text-foreground">
             Draw #{draw.drawId}
           </span>
-          <span className="text-[10px] text-gray-500">{draw.date}</span>
+          <span className="text-[10px] text-muted-foreground">{draw.date}</span>
           {draw.wasRolldown && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald/10 border border-emerald/20 text-[9px] font-bold text-emerald-light uppercase tracking-wider">
               <Zap size={8} />
@@ -428,7 +428,7 @@ function RecentDrawCard({ draw }: { draw: (typeof MOCK_RECENT_DRAWS)[0] }) {
       {/* Your results */}
       {draw.userTickets > 0 && (
         <div className="space-y-1.5">
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
             Your Tickets ({draw.userTickets})
           </div>
           {draw.userMatches.length > 0 ? (
@@ -443,7 +443,7 @@ function RecentDrawCard({ draw }: { draw: (typeof MOCK_RECENT_DRAWS)[0] }) {
               return (
                 <div
                   key={`match-${draw.drawId}-${i}`}
-                  className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-white/[0.02]"
+                  className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-foreground/[0.02]"
                 >
                   <WinningNumbers
                     numbers={match.ticketNumbers}
@@ -457,7 +457,7 @@ function RecentDrawCard({ draw }: { draw: (typeof MOCK_RECENT_DRAWS)[0] }) {
                           ? "text-gold"
                           : match.matchCount >= 3
                             ? "text-emerald-light"
-                            : "text-gray-400"
+                            : "text-muted-foreground"
                       }`}
                     >
                       {match.matchCount} match
@@ -473,7 +473,7 @@ function RecentDrawCard({ draw }: { draw: (typeof MOCK_RECENT_DRAWS)[0] }) {
               );
             })
           ) : (
-            <div className="text-[10px] text-gray-600 py-1">
+            <div className="text-[10px] text-muted-foreground/60 py-1">
               No matches this draw
             </div>
           )}
@@ -481,7 +481,7 @@ function RecentDrawCard({ draw }: { draw: (typeof MOCK_RECENT_DRAWS)[0] }) {
       )}
 
       {/* Draw Stats */}
-      <div className="flex items-center gap-4 mt-3 pt-2.5 border-t border-white/5 text-[10px] text-gray-500">
+      <div className="flex items-center gap-4 mt-3 pt-2.5 border-t border-foreground/5 text-[10px] text-muted-foreground">
         <span>{draw.totalTickets.toLocaleString()} total tickets</span>
         <span>Jackpot: ${(draw.jackpot / 1_000_000).toFixed(2)}M</span>
       </div>
@@ -493,16 +493,16 @@ function ActiveTicketsPanel() {
   if (MOCK_ACTIVE_TICKETS.length === 0) {
     return (
       <div className="glass rounded-2xl p-5 sm:p-6">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
           <Ticket size={16} className="text-emerald" />
           Active Tickets
         </h3>
         <div className="text-center py-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.06] mb-3">
-            <Ticket size={20} className="text-gray-600" />
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-foreground/[0.03] border border-foreground/[0.06] mb-3">
+            <Ticket size={20} className="text-muted-foreground/60" />
           </div>
-          <p className="text-sm text-gray-500 mb-1">No active tickets</p>
-          <p className="text-xs text-gray-600 mb-4">
+          <p className="text-sm text-muted-foreground mb-1">No active tickets</p>
+          <p className="text-xs text-muted-foreground/60 mb-4">
             Buy tickets for the next draw
           </p>
           <Link
@@ -520,14 +520,14 @@ function ActiveTicketsPanel() {
   return (
     <div className="glass rounded-2xl p-5 sm:p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
           <Ticket size={16} className="text-emerald" />
           Active Tickets
           <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald/15 text-[10px] font-bold text-emerald-light">
             {MOCK_ACTIVE_TICKETS.length}
           </span>
         </h3>
-        <span className="text-[10px] text-gray-500">
+        <span className="text-[10px] text-muted-foreground">
           Draw #90 &bull; Pending
         </span>
       </div>
@@ -536,7 +536,7 @@ function ActiveTicketsPanel() {
         {MOCK_ACTIVE_TICKETS.map((ticket) => (
           <div
             key={ticket.id}
-            className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-white/[0.02] border border-white/[0.04]"
+            className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-foreground/[0.02] border border-foreground/[0.04]"
           >
             <div className="flex items-center gap-3">
               <WinningNumbers numbers={ticket.numbers} size="sm" />
@@ -548,8 +548,8 @@ function ActiveTicketsPanel() {
               )}
             </div>
             <div className="flex items-center gap-1.5">
-              <Clock size={10} className="text-gray-500" />
-              <span className="text-[10px] text-gray-500">Pending</span>
+              <Clock size={10} className="text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">Pending</span>
             </div>
           </div>
         ))}
@@ -601,7 +601,7 @@ function SyndicateMemberships() {
   return (
     <div className="glass rounded-2xl p-5 sm:p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
           <Users size={16} className="text-emerald" />
           My Syndicates
         </h3>
@@ -618,7 +618,7 @@ function SyndicateMemberships() {
         {MOCK_SYNDICATE_MEMBERSHIPS.map((syn) => (
           <div
             key={syn.id}
-            className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:border-emerald/10 transition-colors"
+            className="p-3 rounded-xl bg-foreground/[0.02] border border-foreground/[0.04] hover:border-emerald/10 transition-colors"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -626,8 +626,8 @@ function SyndicateMemberships() {
                   {syn.name.charAt(0)}
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-white">{syn.name}</h4>
-                  <span className="text-[9px] text-gray-500">
+                  <h4 className="text-xs font-bold text-foreground">{syn.name}</h4>
+                  <span className="text-[9px] text-muted-foreground">
                     {syn.members}/{syn.maxMembers} members
                   </span>
                 </div>
@@ -636,32 +636,32 @@ function SyndicateMemberships() {
                 <div className="text-xs font-bold text-emerald-light">
                   {syn.myShare.toFixed(2)}%
                 </div>
-                <div className="text-[9px] text-gray-500">Your share</div>
+                <div className="text-[9px] text-muted-foreground">Your share</div>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <div className="text-center py-1.5 rounded-md bg-white/[0.02]">
-                <div className="text-[10px] font-bold text-white">
+              <div className="text-center py-1.5 rounded-md bg-foreground/[0.02]">
+                <div className="text-[10px] font-bold text-foreground">
                   ${syn.myContribution.toFixed(0)}
                 </div>
-                <div className="text-[8px] text-gray-500 uppercase">
+                <div className="text-[8px] text-muted-foreground uppercase">
                   My Contrib
                 </div>
               </div>
-              <div className="text-center py-1.5 rounded-md bg-white/[0.02]">
-                <div className="text-[10px] font-bold text-white">
+              <div className="text-center py-1.5 rounded-md bg-foreground/[0.02]">
+                <div className="text-[10px] font-bold text-foreground">
                   ${syn.totalPool.toFixed(0)}
                 </div>
-                <div className="text-[8px] text-gray-500 uppercase">
+                <div className="text-[8px] text-muted-foreground uppercase">
                   Total Pool
                 </div>
               </div>
-              <div className="text-center py-1.5 rounded-md bg-white/[0.02]">
+              <div className="text-center py-1.5 rounded-md bg-foreground/[0.02]">
                 <div className="text-[10px] font-bold text-emerald-light">
                   {syn.ticketsThisDraw}
                 </div>
-                <div className="text-[8px] text-gray-500 uppercase">
+                <div className="text-[8px] text-muted-foreground uppercase">
                   Tickets
                 </div>
               </div>
@@ -681,7 +681,7 @@ function JackpotTrend() {
   return (
     <div className="glass rounded-2xl p-5 sm:p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
           <BarChart3 size={16} className="text-gold" />
           Jackpot Trend
         </h3>
@@ -719,12 +719,12 @@ function JackpotTrend() {
               <div className="text-center">
                 <div
                   className={`text-[9px] font-bold tabular-nums ${
-                    isLatest ? "text-gold" : "text-gray-400"
+                    isLatest ? "text-gold" : "text-muted-foreground"
                   }`}
                 >
                   ${(point.amount / 1_000_000).toFixed(2)}M
                 </div>
-                <div className="text-[8px] text-gray-600">#{point.drawId}</div>
+                <div className="text-[8px] text-muted-foreground/60">#{point.drawId}</div>
               </div>
             </div>
           );
@@ -732,7 +732,7 @@ function JackpotTrend() {
       </div>
 
       {/* Soft cap indicator */}
-      <div className="flex items-center gap-2 text-[10px] text-gray-500">
+      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-sm bg-gradient-to-t from-emerald-dark to-emerald" />
           <span>Rolldown active</span>
@@ -765,10 +765,10 @@ function WalletNotConnected() {
             <Wallet size={36} className="text-emerald-light" />
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white mb-3">
+          <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground mb-3">
             Connect Your Wallet
           </h1>
-          <p className="text-sm sm:text-base text-gray-400 max-w-md mx-auto mb-8">
+          <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto mb-8">
             Connect your Solana wallet to view your dashboard, track tickets,
             monitor rolldown windows, and manage your syndicates.
           </p>
@@ -781,7 +781,7 @@ function WalletNotConnected() {
             Connect Wallet
           </Button>
 
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-[10px] text-gray-500">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-[10px] text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <Shield size={10} className="text-emerald/60" />
               <span>Non-custodial</span>
@@ -842,8 +842,8 @@ function DashboardPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-xs text-gray-500 mb-6">
-            <Link to="/" className="hover:text-white transition-colors">
+          <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
+            <Link to="/" className="hover:text-foreground transition-colors">
               Home
             </Link>
             <ChevronRight size={12} />
@@ -857,11 +857,11 @@ function DashboardPage() {
                   <BarChart3 size={24} className="text-emerald-light" />
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
                     Dashboard
                   </h1>
-                  <p className="text-sm text-gray-400 mt-0.5 flex items-center gap-2">
-                    <span className="font-mono text-xs text-gray-500">
+                  <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2">
+                    <span className="font-mono text-xs text-muted-foreground">
                       7xKX...AsU
                     </span>
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald/10 border border-emerald/20 text-[9px] font-bold text-emerald-light">
@@ -963,7 +963,7 @@ function DashboardPage() {
               {/* Recent Draws */}
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                     <Clock size={18} className="text-emerald" />
                     Recent Draws
                   </h2>
@@ -999,99 +999,99 @@ function DashboardPage() {
 
               {/* Quick Actions */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
                   <Zap size={16} className="text-emerald" />
                   Quick Actions
                 </h3>
                 <div className="space-y-2">
                   <Link
                     to="/play"
-                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.03] transition-colors group"
+                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/[0.03] transition-colors group"
                   >
                     <div className="flex items-center gap-2">
                       <Trophy
                         size={14}
                         className="text-gold/60 group-hover:text-gold transition-colors"
                       />
-                      <span className="text-xs text-gray-400 group-hover:text-white transition-colors">
+                      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                         Buy 6/46 Tickets
                       </span>
                     </div>
                     <ChevronRight
                       size={12}
-                      className="text-gray-600 group-hover:text-gray-400 transition-colors"
+                      className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
                     />
                   </Link>
                   <Link
                     to="/play/quick-pick"
-                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.03] transition-colors group"
+                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/[0.03] transition-colors group"
                   >
                     <div className="flex items-center gap-2">
                       <Zap
                         size={14}
                         className="text-emerald/60 group-hover:text-emerald-light transition-colors"
                       />
-                      <span className="text-xs text-gray-400 group-hover:text-white transition-colors">
+                      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                         Quick Pick Express
                       </span>
                     </div>
                     <ChevronRight
                       size={12}
-                      className="text-gray-600 group-hover:text-gray-400 transition-colors"
+                      className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
                     />
                   </Link>
                   <Link
                     to="/tickets"
-                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.03] transition-colors group"
+                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/[0.03] transition-colors group"
                   >
                     <div className="flex items-center gap-2">
                       <Award
                         size={14}
                         className="text-gold/60 group-hover:text-gold transition-colors"
                       />
-                      <span className="text-xs text-gray-400 group-hover:text-white transition-colors">
+                      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                         Claim Prizes
                       </span>
                     </div>
                     <ChevronRight
                       size={12}
-                      className="text-gray-600 group-hover:text-gray-400 transition-colors"
+                      className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
                     />
                   </Link>
                   <Link
                     to="/syndicates"
-                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.03] transition-colors group"
+                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/[0.03] transition-colors group"
                   >
                     <div className="flex items-center gap-2">
                       <Users
                         size={14}
                         className="text-emerald/60 group-hover:text-emerald-light transition-colors"
                       />
-                      <span className="text-xs text-gray-400 group-hover:text-white transition-colors">
+                      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                         Browse Syndicates
                       </span>
                     </div>
                     <ChevronRight
                       size={12}
-                      className="text-gray-600 group-hover:text-gray-400 transition-colors"
+                      className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
                     />
                   </Link>
                   <Link
                     to="/learn/rolldown"
-                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.03] transition-colors group"
+                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/[0.03] transition-colors group"
                   >
                     <div className="flex items-center gap-2">
                       <TrendingUp
                         size={14}
                         className="text-emerald/60 group-hover:text-emerald-light transition-colors"
                       />
-                      <span className="text-xs text-gray-400 group-hover:text-white transition-colors">
+                      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                         Learn Rolldown Strategy
                       </span>
                     </div>
                     <ChevronRight
                       size={12}
-                      className="text-gray-600 group-hover:text-gray-400 transition-colors"
+                      className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
                     />
                   </Link>
                 </div>

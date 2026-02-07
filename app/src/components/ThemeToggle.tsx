@@ -25,14 +25,14 @@ export function ThemeToggle() {
   return (
     <div className="flex items-center gap-3">
       <div className="flex items-center gap-2">
-        <Sun size={18} className="text-gray-500 shrink-0" />
+        <Sun size={18} className="text-muted-foreground shrink-0" />
         <Switch
           checked={isDarkMode}
           onCheckedChange={handleThemeChange}
           aria-label="Toggle theme"
           className="shrink-0"
         />
-        <Moon size={18} className="text-gray-500 shrink-0" />
+        <Moon size={18} className="text-muted-foreground shrink-0" />
       </div>
       <button
         type="button"
@@ -40,7 +40,7 @@ export function ThemeToggle() {
         className={`p-2 rounded-lg transition-colors flex items-center justify-center shrink-0 ${
           isSystemMode
             ? "bg-emerald/20 text-emerald-light border border-emerald/30"
-            : "bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-gray-300 border border-gray-700/50"
+            : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground border border-border"
         }`}
         aria-label="Use system theme"
         title="Use system theme"
@@ -71,7 +71,7 @@ export function ThemeToggleCompact() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="relative p-2 rounded-lg flex items-center justify-center bg-gray-800/50 hover:bg-gray-800 border border-gray-700/50 hover:border-gray-600/50 transition-all group"
+      className="relative p-2 rounded-lg flex items-center justify-center bg-muted hover:bg-muted/80 border border-border hover:border-border/80 transition-all group"
       aria-label="Toggle theme"
     >
       <div className="relative w-5 h-5 flex items-center justify-center">
@@ -81,7 +81,7 @@ export function ThemeToggleCompact() {
             isDarkMode
               ? "opacity-0 rotate-90 scale-0"
               : "opacity-100 rotate-0 scale-100"
-          } text-gray-300`}
+          } text-foreground`}
         />
         <Moon
           size={16}
@@ -89,7 +89,7 @@ export function ThemeToggleCompact() {
             isDarkMode
               ? "opacity-100 rotate-0 scale-100"
               : "opacity-0 -rotate-90 scale-0"
-          } text-gray-300`}
+          } text-foreground`}
         />
       </div>
       {isSystemMode && (

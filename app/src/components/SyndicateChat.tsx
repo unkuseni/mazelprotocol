@@ -268,14 +268,14 @@ function MessageAvatar({
 function SystemMessage({ message }: { message: ChatMessage }) {
   return (
     <div className="flex items-center justify-center gap-2 py-2">
-      <div className="h-px flex-1 bg-white/5" />
-      <span className="text-[10px] text-gray-500 px-3 flex items-center gap-1.5">
+      <div className="h-px flex-1 bg-foreground/5" />
+      <span className="text-[10px] text-muted-foreground px-3 flex items-center gap-1.5">
         {message.type === "system" && (
-          <Shield size={10} className="text-gray-600" />
+          <Shield size={10} className="text-muted-foreground/60" />
         )}
         {message.text}
       </span>
-      <div className="h-px flex-1 bg-white/5" />
+      <div className="h-px flex-1 bg-foreground/5" />
     </div>
   );
 }
@@ -299,7 +299,7 @@ function ReactionBadge({
       className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] transition-all ${
         isReacted
           ? "bg-emerald/15 border border-emerald/25 text-emerald-light"
-          : "bg-white/[0.04] border border-white/[0.06] text-gray-400 hover:bg-white/[0.08]"
+          : "bg-foreground/[0.04] border border-foreground/[0.06] text-muted-foreground hover:bg-foreground/[0.08]"
       }`}
     >
       <span>{emoji}</span>
@@ -329,7 +329,7 @@ function ChatBubble({
 
   return (
     <div
-      className={`group flex gap-2.5 px-4 py-1.5 transition-colors hover:bg-white/[0.02] ${
+      className={`group flex gap-2.5 px-4 py-1.5 transition-colors hover:bg-foreground/[0.02] ${
         isOwn ? "flex-row-reverse" : ""
       }`}
       onMouseEnter={() => setShowActions(true)}
@@ -345,7 +345,7 @@ function ChatBubble({
         {/* Sender name + time */}
         {!isOwn && (
           <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-[11px] font-semibold text-gray-300">
+            <span className="text-[11px] font-semibold text-muted-foreground">
               {message.senderShort}
             </span>
             {message.role === "manager" && (
@@ -353,7 +353,7 @@ function ChatBubble({
                 Manager
               </span>
             )}
-            <span className="text-[10px] text-gray-600">
+            <span className="text-[10px] text-muted-foreground/60">
               {formatTimestamp(message.timestamp)}
             </span>
             {message.isPinned && <Pin size={9} className="text-gold/60" />}
@@ -367,7 +367,7 @@ function ChatBubble({
               ? "bg-gradient-to-br from-emerald/10 to-gold/5 border border-emerald/20 text-gray-200 rounded-xl"
               : isOwn
                 ? "bg-gradient-to-br from-emerald/20 to-emerald-dark/15 text-gray-100 rounded-br-md border border-emerald/15"
-                : "bg-white/[0.05] text-gray-200 rounded-bl-md border border-white/[0.06]"
+                : "bg-foreground/[0.05] text-gray-200 rounded-bl-md border border-foreground/[0.06]"
           }`}
         >
           {message.text}
@@ -375,7 +375,7 @@ function ChatBubble({
 
         {/* Own message timestamp */}
         {isOwn && (
-          <span className="text-[10px] text-gray-600 mt-0.5 mr-1">
+          <span className="text-[10px] text-muted-foreground/60 mt-0.5 mr-1">
             {formatTimestamp(message.timestamp)}
           </span>
         )}
@@ -394,7 +394,7 @@ function ChatBubble({
             ))}
             <button
               type="button"
-              className="w-5 h-5 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-gray-600 hover:text-gray-400 hover:bg-white/[0.06] transition-colors"
+              className="w-5 h-5 rounded-full bg-foreground/[0.03] border border-foreground/[0.06] flex items-center justify-center text-muted-foreground/60 hover:text-muted-foreground hover:bg-foreground/[0.06] transition-colors"
               onClick={() => onReact(message.id, "👍")}
             >
               <SmilePlus size={10} />
@@ -412,7 +412,7 @@ function ChatBubble({
         >
           <button
             type="button"
-            className="p-1 rounded-md text-gray-600 hover:text-gray-300 hover:bg-white/5 transition-colors"
+            className="p-1 rounded-md text-muted-foreground/60 hover:text-muted-foreground hover:bg-foreground/5 transition-colors"
             title="React"
             onClick={() => onReact(message.id, "👍")}
           >
@@ -420,14 +420,14 @@ function ChatBubble({
           </button>
           <button
             type="button"
-            className="p-1 rounded-md text-gray-600 hover:text-gray-300 hover:bg-white/5 transition-colors"
+            className="p-1 rounded-md text-muted-foreground/60 hover:text-muted-foreground hover:bg-foreground/5 transition-colors"
             title="Reply"
           >
             <Reply size={12} />
           </button>
           <button
             type="button"
-            className="p-1 rounded-md text-gray-600 hover:text-gray-300 hover:bg-white/5 transition-colors"
+            className="p-1 rounded-md text-muted-foreground/60 hover:text-muted-foreground hover:bg-foreground/5 transition-colors"
             title="More"
           >
             <MoreHorizontal size={12} />
@@ -454,7 +454,7 @@ function TypingIndicator({ names }: { names: string[] }) {
         <span className="w-1.5 h-1.5 rounded-full bg-emerald/50 animate-bounce [animation-delay:150ms]" />
         <span className="w-1.5 h-1.5 rounded-full bg-emerald/50 animate-bounce [animation-delay:300ms]" />
       </div>
-      <span className="text-[10px] text-gray-500">{text}</span>
+      <span className="text-[10px] text-muted-foreground">{text}</span>
     </div>
   );
 }
@@ -464,11 +464,11 @@ function ConnectWalletPrompt() {
 
   return (
     <div className="flex flex-col items-center justify-center py-8 px-4">
-      <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-4">
-        <Wallet size={24} className="text-gray-500" />
+      <div className="w-14 h-14 rounded-2xl bg-foreground/[0.03] border border-foreground/[0.06] flex items-center justify-center mb-4">
+        <Wallet size={24} className="text-muted-foreground" />
       </div>
-      <h3 className="text-sm font-bold text-white mb-1">Connect to Chat</h3>
-      <p className="text-xs text-gray-500 text-center max-w-xs mb-4">
+      <h3 className="text-sm font-bold text-foreground mb-1">Connect to Chat</h3>
+      <p className="text-xs text-muted-foreground text-center max-w-xs mb-4">
         Connect your wallet to send messages and coordinate with your syndicate
         members.
       </p>
@@ -528,7 +528,7 @@ function QuickEmojiBar({
           key={emoji}
           type="button"
           onClick={() => onSelect(emoji)}
-          className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center text-sm transition-colors"
+          className="w-7 h-7 rounded-lg hover:bg-foreground/10 flex items-center justify-center text-sm transition-colors"
         >
           {emoji}
         </button>
@@ -654,19 +654,19 @@ export default function SyndicateChat({
       {/* ================================================================ */}
       {/*  Chat Header                                                     */}
       {/* ================================================================ */}
-      <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
+      <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 border-b border-foreground/[0.06] bg-foreground/[0.02]">
         <div className="flex items-center gap-3 min-w-0">
           <div className="p-1.5 rounded-lg bg-emerald/10 border border-emerald/15">
             <MessageCircle size={16} className="text-emerald-light" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <Hash size={12} className="text-gray-500" />
-              <h3 className="text-sm font-bold text-white truncate">
+              <Hash size={12} className="text-muted-foreground" />
+              <h3 className="text-sm font-bold text-foreground truncate">
                 {syndicateName}
               </h3>
             </div>
-            <p className="text-[10px] text-gray-500">
+            <p className="text-[10px] text-muted-foreground">
               <span className="text-emerald-light font-semibold">
                 {onlineCount}
               </span>{" "}
@@ -682,7 +682,7 @@ export default function SyndicateChat({
           className={`p-2 rounded-lg transition-colors ${
             showMembers
               ? "bg-emerald/10 text-emerald-light border border-emerald/20"
-              : "text-gray-500 hover:text-white hover:bg-white/5"
+              : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
           }`}
           title="Toggle members"
         >
@@ -708,10 +708,10 @@ export default function SyndicateChat({
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-3">
-                  <MessageCircle size={20} className="text-gray-600" />
+                <div className="w-12 h-12 rounded-2xl bg-foreground/[0.03] border border-foreground/[0.06] flex items-center justify-center mb-3">
+                  <MessageCircle size={20} className="text-muted-foreground/60" />
                 </div>
-                <p className="text-xs text-gray-500 text-center">
+                <p className="text-xs text-muted-foreground text-center">
                   No messages yet. Start the conversation!
                 </p>
               </div>
@@ -750,11 +750,11 @@ export default function SyndicateChat({
           {/*  Input area                                                   */}
           {/* ============================================================ */}
           {!isConnected ? (
-            <div className="shrink-0 border-t border-white/[0.06]">
+            <div className="shrink-0 border-t border-foreground/[0.06]">
               <ConnectWalletPrompt />
             </div>
           ) : (
-            <div className="shrink-0 border-t border-white/[0.06] p-3 space-y-2">
+            <div className="shrink-0 border-t border-foreground/[0.06] p-3 space-y-2">
               {/* Emoji bar */}
               <QuickEmojiBar
                 visible={showEmojiBar}
@@ -769,7 +769,7 @@ export default function SyndicateChat({
                   className={`p-2 rounded-lg transition-colors ${
                     showEmojiBar
                       ? "bg-emerald/10 text-emerald-light"
-                      : "text-gray-500 hover:text-white hover:bg-white/5"
+                      : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                   }`}
                   title="Emoji"
                 >
@@ -779,7 +779,7 @@ export default function SyndicateChat({
                 {/* Attachment placeholder */}
                 <button
                   type="button"
-                  className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
+                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
                   title="Attach image"
                 >
                   <ImageIcon size={16} />
@@ -794,7 +794,7 @@ export default function SyndicateChat({
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Type a message..."
-                    className="w-full h-9 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald/30 focus:ring-1 focus:ring-emerald/15 transition-colors"
+                    className="w-full h-9 px-4 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08] text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/30 focus:ring-1 focus:ring-emerald/15 transition-colors"
                     maxLength={500}
                   />
                 </div>
@@ -816,7 +816,7 @@ export default function SyndicateChat({
                     className={`text-[10px] ${
                       inputValue.length >= 500
                         ? "text-red-400"
-                        : "text-gray-500"
+                        : "text-muted-foreground"
                     }`}
                   >
                     {inputValue.length}/500
@@ -831,9 +831,9 @@ export default function SyndicateChat({
         {/*  Members sidebar                                              */}
         {/* ============================================================ */}
         {showMembers && (
-          <div className="w-56 shrink-0 border-l border-white/[0.06] bg-white/[0.01] overflow-y-auto hidden md:block">
+          <div className="w-56 shrink-0 border-l border-foreground/[0.06] bg-foreground/[0.01] overflow-y-auto hidden md:block">
             <div className="p-3">
-              <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Members — {members.length}
               </h4>
 
@@ -849,12 +849,12 @@ export default function SyndicateChat({
                       .map((member) => (
                         <div
                           key={member.address}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors"
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-foreground/[0.04] transition-colors"
                         >
                           <OnlineDot isOnline />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-mono text-gray-300 truncate">
+                              <span className="text-xs font-mono text-muted-foreground truncate">
                                 {member.addressShort}
                               </span>
                               {member.role === "manager" && (
@@ -864,7 +864,7 @@ export default function SyndicateChat({
                                 />
                               )}
                             </div>
-                            <span className="text-[9px] text-gray-600">
+                            <span className="text-[9px] text-muted-foreground/60">
                               {member.ticketsContributed} tickets
                             </span>
                           </div>
@@ -877,7 +877,7 @@ export default function SyndicateChat({
               {/* Offline */}
               {members.filter((m) => !m.isOnline).length > 0 && (
                 <div>
-                  <p className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider mb-2">
+                  <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider mb-2">
                     Offline — {members.filter((m) => !m.isOnline).length}
                   </p>
                   <div className="space-y-1">
@@ -886,12 +886,12 @@ export default function SyndicateChat({
                       .map((member) => (
                         <div
                           key={member.address}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors opacity-60"
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-foreground/[0.04] transition-colors opacity-60"
                         >
                           <OnlineDot isOnline={false} />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-mono text-gray-400 truncate">
+                              <span className="text-xs font-mono text-muted-foreground truncate">
                                 {member.addressShort}
                               </span>
                               {member.role === "manager" && (
@@ -901,7 +901,7 @@ export default function SyndicateChat({
                                 />
                               )}
                             </div>
-                            <span className="text-[9px] text-gray-600">
+                            <span className="text-[9px] text-muted-foreground/60">
                               {member.ticketsContributed} tickets
                             </span>
                           </div>

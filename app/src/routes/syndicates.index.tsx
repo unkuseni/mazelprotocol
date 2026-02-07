@@ -235,21 +235,21 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
                 ? "bg-gradient-to-br from-gold/30 to-gold-dark/20 text-gold border border-gold/20"
                 : syndicate.totalWinnings >= 10_000
                   ? "bg-gradient-to-br from-emerald/20 to-emerald-dark/10 text-emerald-light border border-emerald/20"
-                  : "bg-white/[0.04] text-gray-400 border border-white/[0.06]"
+                  : "bg-foreground/[0.04] text-muted-foreground border border-foreground/[0.06]"
             }`}
           >
             {syndicate.name.charAt(0)}
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-bold text-white truncate group-hover:text-emerald-light transition-colors">
+            <h3 className="text-sm font-bold text-foreground truncate group-hover:text-emerald-light transition-colors">
               {syndicate.name}
             </h3>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[10px] text-gray-500 font-mono">
+              <span className="text-[10px] text-muted-foreground font-mono">
                 by {syndicate.creatorShort}
               </span>
               {!syndicate.isPublic && (
-                <Lock size={9} className="text-gray-500" />
+                <Lock size={9} className="text-muted-foreground" />
               )}
             </div>
           </div>
@@ -269,7 +269,7 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
                       ? "bg-emerald/10 text-emerald-light border border-emerald/20"
                       : tag === "No Fee"
                         ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                        : "bg-white/5 text-gray-400 border border-white/[0.06]"
+                        : "bg-foreground/5 text-muted-foreground border border-foreground/[0.06]"
               }`}
             >
               {tag}
@@ -281,7 +281,7 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
       {/* Stats grid */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         <div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
             Winnings
           </div>
           <div className="text-sm font-bold text-gradient-gold">
@@ -289,7 +289,7 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
           </div>
         </div>
         <div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
             Win Rate
           </div>
           <div className="text-sm font-bold text-emerald-light">
@@ -297,12 +297,12 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
           </div>
         </div>
         <div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
             This Draw
           </div>
-          <div className="text-sm font-bold text-white">
+          <div className="text-sm font-bold text-foreground">
             {syndicate.ticketsThisDraw}
-            <span className="text-[10px] text-gray-500 font-normal ml-0.5">
+            <span className="text-[10px] text-muted-foreground font-normal ml-0.5">
               tix
             </span>
           </div>
@@ -312,17 +312,17 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
       {/* Members bar */}
       <div className="mb-4">
         <div className="flex items-center justify-between text-[10px] mb-1.5">
-          <span className="text-gray-500 flex items-center gap-1">
+          <span className="text-muted-foreground flex items-center gap-1">
             <Users size={10} />
             Members
           </span>
           <span
-            className={`font-bold ${isFull ? "text-red-400" : "text-white"}`}
+            className={`font-bold ${isFull ? "text-red-400" : "text-foreground"}`}
           >
             {syndicate.members}/{syndicate.maxMembers}
           </span>
         </div>
-        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+        <div className="h-1.5 bg-foreground/5 rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-500 ${
               isFull
@@ -337,7 +337,7 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
       </div>
 
       {/* Meta info row */}
-      <div className="flex items-center justify-between text-[10px] text-gray-500 mb-4">
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-4">
         <span>
           {syndicate.drawsParticipated} draws &bull;{" "}
           {syndicate.totalTickets.toLocaleString()} total tickets
@@ -352,7 +352,7 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
 
       {/* Action */}
       {isFull ? (
-        <div className="w-full h-9 text-xs font-semibold border border-white/10 text-gray-400 rounded-md inline-flex items-center justify-center gap-2 opacity-50">
+        <div className="w-full h-9 text-xs font-semibold border border-foreground/10 text-muted-foreground rounded-md inline-flex items-center justify-center gap-2 opacity-50">
           <Lock size={12} />
           Full
         </div>
@@ -388,32 +388,32 @@ function SyndicateWarsBanner() {
                 Syndicate Wars &bull; Season {SYNDICATE_WARS_SEASON.season}
               </span>
             </div>
-            <h3 className="text-lg font-black text-white mb-1">
+            <h3 className="text-lg font-black text-foreground mb-1">
               Compete for{" "}
               <span className="text-gradient-gold">
                 ${SYNDICATE_WARS_SEASON.prizePool.toLocaleString()}
               </span>{" "}
               Prize Pool
             </h3>
-            <p className="text-xs text-gray-400 max-w-lg">
+            <p className="text-xs text-muted-foreground max-w-lg">
               Syndicates compete based on total winnings, tickets purchased, and
               member engagement. Top 3 syndicates share the prize pool.
             </p>
           </div>
 
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs">
-              <Clock size={12} className="text-gray-500" />
-              <span className="text-gray-400">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/5 border border-foreground/10 text-xs">
+              <Clock size={12} className="text-muted-foreground" />
+              <span className="text-muted-foreground">
                 Ends in{" "}
-                <span className="font-bold text-white">
+                <span className="font-bold text-foreground">
                   {SYNDICATE_WARS_SEASON.endsIn}
                 </span>
               </span>
             </div>
-            <div className="flex items-center gap-4 text-[10px] text-gray-500">
+            <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
               <span>
-                <span className="font-bold text-white">
+                <span className="font-bold text-foreground">
                   {SYNDICATE_WARS_SEASON.participants}
                 </span>{" "}
                 syndicates competing
@@ -466,12 +466,12 @@ function CreateSyndicateModal({
             <div className="p-1.5 rounded-lg bg-emerald/15 border border-emerald/20">
               <Plus size={16} className="text-emerald-light" />
             </div>
-            <h2 className="text-lg font-bold text-white">Create Syndicate</h2>
+            <h2 className="text-lg font-bold text-foreground">Create Syndicate</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
             <X size={18} />
           </button>
@@ -482,7 +482,7 @@ function CreateSyndicateModal({
           <div>
             <label
               htmlFor="syndicate-name"
-              className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5"
+              className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5"
             >
               Syndicate Name
             </label>
@@ -493,9 +493,9 @@ function CreateSyndicateModal({
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Diamond Hands Club"
               maxLength={32}
-              className="w-full h-10 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+              className="w-full h-10 px-3 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08] text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
             />
-            <p className="text-[10px] text-gray-600 mt-1">
+            <p className="text-[10px] text-muted-foreground/60 mt-1">
               {name.length}/32 characters
             </p>
           </div>
@@ -504,7 +504,7 @@ function CreateSyndicateModal({
           <div>
             <label
               htmlFor="max-members"
-              className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5"
+              className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5"
             >
               Max Members
             </label>
@@ -515,9 +515,9 @@ function CreateSyndicateModal({
               onChange={(e) => setMaxMembers(e.target.value)}
               min={2}
               max={100}
-              className="w-full h-10 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+              className="w-full h-10 px-3 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08] text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
             />
-            <p className="text-[10px] text-gray-600 mt-1">
+            <p className="text-[10px] text-muted-foreground/60 mt-1">
               Between 2 and 100 members
             </p>
           </div>
@@ -526,7 +526,7 @@ function CreateSyndicateModal({
           <div>
             <label
               htmlFor="manager-fee"
-              className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5"
+              className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5"
             >
               Manager Fee (%)
             </label>
@@ -538,16 +538,16 @@ function CreateSyndicateModal({
               min={0}
               max={10}
               step={0.5}
-              className="w-full h-10 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+              className="w-full h-10 px-3 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08] text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
             />
-            <p className="text-[10px] text-gray-600 mt-1">
+            <p className="text-[10px] text-muted-foreground/60 mt-1">
               Fee taken from syndicate prize winnings (0-10%)
             </p>
           </div>
 
           {/* Visibility */}
           <div>
-            <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Visibility
             </span>
             <div className="flex items-center gap-2">
@@ -557,7 +557,7 @@ function CreateSyndicateModal({
                 className={`flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition-all ${
                   isPublic
                     ? "bg-emerald/15 border border-emerald/30 text-emerald-light"
-                    : "bg-white/[0.03] border border-white/[0.06] text-gray-500 hover:bg-white/[0.05]"
+                    : "bg-foreground/[0.03] border border-foreground/[0.06] text-muted-foreground hover:bg-foreground/[0.05]"
                 }`}
               >
                 <Unlock size={12} />
@@ -569,14 +569,14 @@ function CreateSyndicateModal({
                 className={`flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition-all ${
                   !isPublic
                     ? "bg-gold/15 border border-gold/30 text-gold"
-                    : "bg-white/[0.03] border border-white/[0.06] text-gray-500 hover:bg-white/[0.05]"
+                    : "bg-foreground/[0.03] border border-foreground/[0.06] text-muted-foreground hover:bg-foreground/[0.05]"
                 }`}
               >
                 <Lock size={12} />
                 Private
               </button>
             </div>
-            <p className="text-[10px] text-gray-600 mt-1.5">
+            <p className="text-[10px] text-muted-foreground/60 mt-1.5">
               {isPublic
                 ? "Anyone can join your syndicate"
                 : "Members need an invite to join"}
@@ -584,9 +584,9 @@ function CreateSyndicateModal({
           </div>
 
           {/* Info */}
-          <div className="flex items-start gap-2 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-foreground/[0.02] border border-foreground/[0.04]">
             <AlertTriangle size={12} className="text-gold/60 mt-0.5 shrink-0" />
-            <p className="text-[10px] text-gray-500">
+            <p className="text-[10px] text-muted-foreground">
               Creating a syndicate requires a wallet connection. You&apos;ll
               need to sign a transaction to create the on-chain syndicate
               account.
@@ -599,7 +599,7 @@ function CreateSyndicateModal({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="flex-1 h-10 text-sm text-gray-400 hover:text-white"
+            className="flex-1 h-10 text-sm text-muted-foreground hover:text-foreground"
           >
             Cancel
           </Button>
@@ -646,7 +646,7 @@ function StatsBar() {
       label: "Total Members",
       value: "3,847",
       icon: UserPlus,
-      color: "text-white",
+      color: "text-foreground",
     },
     {
       label: "Combined Winnings",
@@ -678,7 +678,7 @@ function StatsBar() {
             <div className={`text-lg sm:text-xl font-black ${stat.color}`}>
               {stat.value}
             </div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
               {stat.label}
             </div>
           </div>
@@ -756,8 +756,8 @@ function SyndicatesPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-xs text-gray-500 mb-6">
-            <Link to="/" className="hover:text-white transition-colors">
+          <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
+            <Link to="/" className="hover:text-foreground transition-colors">
               Home
             </Link>
             <ChevronRight size={12} />
@@ -771,10 +771,10 @@ function SyndicatesPage() {
                   <Users size={24} className="text-emerald-light" />
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
                     Syndicates
                   </h1>
-                  <p className="text-sm text-gray-400 mt-0.5">
+                  <p className="text-sm text-muted-foreground mt-0.5">
                     Pool resources with other players &bull; Share tickets
                     &bull; Split winnings
                   </p>
@@ -817,20 +817,20 @@ function SyndicatesPage() {
               <div className="relative flex-1 w-full">
                 <Search
                   size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                 />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search syndicates by name, address, or tag..."
-                  className="w-full h-9 pl-9 pr-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+                  className="w-full h-9 pl-9 pr-3 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08] text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
                 />
               </div>
 
               {/* Visibility filter */}
               <div className="flex items-center gap-1">
-                <Filter size={12} className="text-gray-500 mr-1" />
+                <Filter size={12} className="text-muted-foreground mr-1" />
                 {(["all", "public", "private"] as FilterVisibility[]).map(
                   (vis) => (
                     <button
@@ -840,7 +840,7 @@ function SyndicatesPage() {
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                         filterVisibility === vis
                           ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                          : "text-gray-500 hover:text-white hover:bg-white/5"
+                          : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                       }`}
                     >
                       {vis === "all"
@@ -855,7 +855,7 @@ function SyndicatesPage() {
 
               {/* Sort */}
               <div className="flex items-center gap-1">
-                <ArrowUpDown size={12} className="text-gray-500 mr-1" />
+                <ArrowUpDown size={12} className="text-muted-foreground mr-1" />
                 {(
                   [
                     { field: "totalWinnings" as SortField, label: "Winnings" },
@@ -871,7 +871,7 @@ function SyndicatesPage() {
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
                       sortField === field
                         ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                        : "text-gray-500 hover:text-white hover:bg-white/5"
+                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                     }`}
                   >
                     {label}
@@ -888,9 +888,9 @@ function SyndicatesPage() {
 
           {/* Results count */}
           <div className="flex items-center justify-between">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Showing{" "}
-              <span className="font-bold text-white">
+              <span className="font-bold text-foreground">
                 {filteredSyndicates.length}
               </span>{" "}
               syndicate{filteredSyndicates.length !== 1 ? "s" : ""}
@@ -908,11 +908,11 @@ function SyndicatesPage() {
           {/* Syndicate Grid */}
           {filteredSyndicates.length === 0 ? (
             <div className="glass rounded-2xl p-12 text-center">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.06] mb-4">
-                <Search size={24} className="text-gray-600" />
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground/[0.03] border border-foreground/[0.06] mb-4">
+                <Search size={24} className="text-muted-foreground/60" />
               </div>
-              <p className="text-sm text-gray-400 mb-1">No syndicates found</p>
-              <p className="text-xs text-gray-600 mb-4">
+              <p className="text-sm text-muted-foreground mb-1">No syndicates found</p>
+              <p className="text-xs text-muted-foreground/60 mb-4">
                 Try adjusting your search or filter criteria
               </p>
               <Button
@@ -937,7 +937,7 @@ function SyndicatesPage() {
 
           {/* How Syndicates Work */}
           <div className="glass rounded-2xl p-6 sm:p-8 mt-8">
-            <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
               <Sparkles size={18} className="text-gold" />
               How Syndicates Work
             </h2>
@@ -981,10 +981,10 @@ function SyndicatesPage() {
                       </div>
                       <Icon size={14} className="text-emerald/60" />
                     </div>
-                    <h3 className="text-sm font-bold text-white mb-1">
+                    <h3 className="text-sm font-bold text-foreground mb-1">
                       {item.title}
                     </h3>
-                    <p className="text-xs text-gray-500 leading-relaxed">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
                       {item.description}
                     </p>
                   </div>
@@ -992,7 +992,7 @@ function SyndicatesPage() {
               })}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-white/5 flex flex-wrap items-center gap-4 text-[10px] text-gray-500">
+            <div className="mt-6 pt-4 border-t border-foreground/5 flex flex-wrap items-center gap-4 text-[10px] text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <Shield size={10} className="text-emerald/60" />
                 <span>Fully on-chain &bull; Non-custodial</span>
@@ -1021,10 +1021,10 @@ function SyndicatesPage() {
                   <Wallet size={28} className="text-emerald-light" />
                 </div>
                 <div className="text-center sm:text-left flex-1">
-                  <h3 className="text-base font-black text-white mb-1">
+                  <h3 className="text-base font-black text-foreground mb-1">
                     Connect Your Wallet to Get Started
                   </h3>
-                  <p className="text-xs text-gray-400 max-w-md">
+                  <p className="text-xs text-muted-foreground max-w-md">
                     Connect your Solana wallet to create syndicates, join
                     existing ones, and start pooling resources with other
                     players.
@@ -1040,7 +1040,7 @@ function SyndicatesPage() {
                   Connect Wallet
                 </Button>
               </div>
-              <div className="relative z-10 mt-4 pt-3 border-t border-white/5 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-[10px] text-gray-500">
+              <div className="relative z-10 mt-4 pt-3 border-t border-foreground/5 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-[10px] text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <Shield size={10} className="text-emerald/60" />
                   <span>Non-custodial</span>

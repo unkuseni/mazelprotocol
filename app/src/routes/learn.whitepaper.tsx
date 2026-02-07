@@ -60,11 +60,11 @@ function SectionHeading({
         {number}
       </div>
       <div>
-        <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
+        <h2 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">
           {title}
           <Icon size={20} className="text-emerald/60" />
         </h2>
-        {subtitle && <p className="text-sm text-gray-400 mt-1">{subtitle}</p>}
+        {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
       </div>
     </div>
   );
@@ -110,7 +110,7 @@ function Callout({
           {title && (
             <p className={`text-xs font-bold ${c.titleColor} mb-1`}>{title}</p>
           )}
-          <div className="text-[11px] sm:text-xs text-gray-400 leading-relaxed">
+          <div className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed">
             {children}
           </div>
         </div>
@@ -132,12 +132,12 @@ function DataTable({
     <div className="overflow-x-auto -mx-1">
       <table className="w-full text-[11px] sm:text-xs">
         <thead>
-          <tr className="border-b border-white/10">
+          <tr className="border-b border-foreground/10">
             {headers.map((h, i) => (
               <th
                 key={h}
                 className={`text-left py-2 px-2 font-bold ${
-                  i === highlightCol ? "text-emerald-light" : "text-gray-300"
+                  i === highlightCol ? "text-emerald-light" : "text-muted-foreground"
                 }`}
               >
                 {h}
@@ -149,7 +149,7 @@ function DataTable({
           {rows.map((row) => (
             <tr
               key={row.join("|")}
-              className="border-b border-white/5 hover:bg-white/2 transition-colors"
+              className="border-b border-foreground/5 hover:bg-foreground/2 transition-colors"
             >
               {row.map((cell, ci) => (
                 <td
@@ -157,7 +157,7 @@ function DataTable({
                   className={`py-2 px-2 ${
                     ci === highlightCol
                       ? "text-emerald-light font-semibold"
-                      : "text-gray-400"
+                      : "text-muted-foreground"
                   }`}
                 >
                   {cell}
@@ -185,16 +185,16 @@ function StatCard({
   return (
     <div className="glass rounded-xl p-4 text-center">
       <Icon size={18} className="text-emerald mx-auto mb-2 opacity-60" />
-      <p className="text-lg sm:text-xl font-black text-white">{value}</p>
-      <p className="text-[11px] font-semibold text-gray-300 mt-1">{label}</p>
-      {sub && <p className="text-[10px] text-gray-500 mt-0.5">{sub}</p>}
+      <p className="text-lg sm:text-xl font-black text-foreground">{value}</p>
+      <p className="text-[11px] font-semibold text-muted-foreground mt-1">{label}</p>
+      {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
     </div>
   );
 }
 
 function CodeBlock({ children }: { children: string }) {
   return (
-    <pre className="overflow-x-auto rounded-xl bg-[#0a0f1a]/80 border border-white/5 p-4 text-[10px] sm:text-[11px] leading-relaxed text-gray-300 font-mono">
+    <pre className="overflow-x-auto rounded-xl bg-[#0a0f1a]/80 border border-foreground/5 p-4 text-[10px] sm:text-[11px] leading-relaxed text-muted-foreground font-mono">
       <code>{children}</code>
     </pre>
   );
@@ -210,14 +210,14 @@ function TocItem({ number, title, icon: Icon }: TocItemProps) {
   return (
     <a
       href={`#section-${number}`}
-      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-colors group"
+      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors group"
     >
-      <span className="shrink-0 w-6 h-6 rounded-md bg-white/5 group-hover:bg-emerald/10 flex items-center justify-center text-[10px] font-bold text-gray-500 group-hover:text-emerald-light transition-colors">
+      <span className="shrink-0 w-6 h-6 rounded-md bg-foreground/5 group-hover:bg-emerald/10 flex items-center justify-center text-[10px] font-bold text-muted-foreground group-hover:text-emerald-light transition-colors">
         {number}
       </span>
       <Icon
         size={12}
-        className="text-gray-600 group-hover:text-emerald/60 transition-colors"
+        className="text-muted-foreground/60 group-hover:text-emerald/60 transition-colors"
       />
       <span>{title}</span>
     </a>
@@ -231,21 +231,21 @@ function TocItem({ number, title, icon: Icon }: TocItemProps) {
 function ArchitectureDiagram() {
   return (
     <div className="glass rounded-2xl p-5 sm:p-6 space-y-4">
-      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+      <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
         <Layers size={14} className="text-emerald" />
         System Architecture
       </h4>
 
       {/* Application Layer */}
-      <div className="rounded-xl border border-white/10 p-3">
-        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+      <div className="rounded-xl border border-foreground/10 p-3">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
           Application Layer
         </p>
         <div className="flex flex-wrap gap-2">
           {["Web App", "Mobile App", "API / SDK", "Bots"].map((item) => (
             <span
               key={item}
-              className="px-2.5 py-1 rounded-md bg-white/5 text-[10px] font-medium text-gray-300 border border-white/5"
+              className="px-2.5 py-1 rounded-md bg-foreground/5 text-[10px] font-medium text-muted-foreground border border-foreground/5"
             >
               {item}
             </span>
@@ -282,7 +282,7 @@ function ArchitectureDiagram() {
           ))}
         </div>
 
-        <div className="border-t border-white/5 pt-3">
+        <div className="border-t border-foreground/5 pt-3">
           <p className="text-[10px] font-bold text-emerald-light/70 uppercase tracking-wider mb-2">
             Quick Pick Express Program
           </p>
@@ -306,8 +306,8 @@ function ArchitectureDiagram() {
       </div>
 
       {/* Infrastructure */}
-      <div className="rounded-xl border border-white/10 p-3">
-        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+      <div className="rounded-xl border border-foreground/10 p-3">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
           Infrastructure Layer
         </p>
         <div className="flex flex-wrap gap-2">
@@ -318,7 +318,7 @@ function ArchitectureDiagram() {
           ].map((item) => (
             <span
               key={item}
-              className="px-2.5 py-1 rounded-md bg-white/5 text-[10px] font-medium text-gray-300 border border-white/5"
+              className="px-2.5 py-1 rounded-md bg-foreground/5 text-[10px] font-medium text-muted-foreground border border-foreground/5"
             >
               {item}
             </span>
@@ -369,7 +369,7 @@ function RandomnessFlow() {
 
   return (
     <div className="glass rounded-2xl p-5 sm:p-6">
-      <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+      <h4 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
         <Hash size={14} className="text-emerald" />
         Switchboard Commit-Reveal Flow
       </h4>
@@ -381,18 +381,18 @@ function RandomnessFlow() {
                 className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black ${
                   i === 3
                     ? "bg-emerald/20 text-emerald-light border border-emerald/30"
-                    : "bg-white/5 text-gray-500 border border-white/10"
+                    : "bg-foreground/5 text-muted-foreground border border-foreground/10"
                 }`}
               >
                 {s.step}
               </div>
               {i < steps.length - 1 && (
-                <div className="w-px flex-1 bg-white/10 my-1" />
+                <div className="w-px flex-1 bg-foreground/10 my-1" />
               )}
             </div>
             <div className="pb-4">
-              <p className="text-xs font-bold text-white">{s.title}</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">{s.desc}</p>
+              <p className="text-xs font-bold text-foreground">{s.title}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{s.desc}</p>
             </div>
           </div>
         ))}
@@ -429,17 +429,17 @@ function RolldownDistributionDiagram() {
 
   return (
     <div className="glass rounded-2xl p-5 sm:p-6">
-      <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+      <h4 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
         <BarChart3 size={14} className="text-emerald" />
         Rolldown Pari-Mutuel Distribution
       </h4>
 
       <div className="mb-4 text-center">
-        <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
           Jackpot Pool
         </p>
         <p className="text-2xl font-black text-emerald-light">$1,750,000</p>
-        <p className="text-[10px] text-gray-500">
+        <p className="text-[10px] text-muted-foreground">
           Distributed to lower-tier winners
         </p>
       </div>
@@ -448,14 +448,14 @@ function RolldownDistributionDiagram() {
         {tiers.map((t) => (
           <div key={t.label}>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-bold text-gray-300">
+              <span className="text-[11px] font-bold text-muted-foreground">
                 {t.label}
               </span>
-              <span className="text-[11px] font-bold text-gray-400">
+              <span className="text-[11px] font-bold text-muted-foreground">
                 {t.share}
               </span>
             </div>
-            <div className="h-3 rounded-full bg-white/5 overflow-hidden">
+            <div className="h-3 rounded-full bg-foreground/5 overflow-hidden">
               <div
                 className={`h-full rounded-full bg-linear-to-r ${t.color} ${t.width}`}
               />
@@ -465,7 +465,7 @@ function RolldownDistributionDiagram() {
       </div>
 
       <div className="mt-4 p-3 rounded-lg bg-emerald/[0.03] border border-emerald/10">
-        <p className="text-[10px] text-gray-400 text-center">
+        <p className="text-[10px] text-muted-foreground text-center">
           <span className="font-bold text-emerald-light">
             Prize per winner = (Pool × Share%) ÷ Number of Winners
           </span>
@@ -495,12 +495,12 @@ function WhitepaperPage() {
 
         <div className="relative z-10 max-w-4xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-xs text-gray-500 mb-8">
-            <Link to="/" className="hover:text-white transition-colors">
+          <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-8">
+            <Link to="/" className="hover:text-foreground transition-colors">
               Home
             </Link>
             <ChevronRight size={12} />
-            <span className="text-gray-500">Learn</span>
+            <span className="text-muted-foreground">Learn</span>
             <ChevronRight size={12} />
             <span className="text-emerald-light font-medium">Whitepaper</span>
           </nav>
@@ -510,15 +510,15 @@ function WhitepaperPage() {
               <FileText size={32} className="text-emerald-light" />
             </div>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mb-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-foreground mb-4">
               SolanaLotto{" "}
               <span className="text-gradient-primary">Whitepaper</span>
             </h1>
 
-            <p className="text-sm sm:text-base text-gray-400 leading-relaxed max-w-2xl mx-auto mb-2">
+            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-2">
               Technical Whitepaper v3.0
             </p>
-            <p className="text-base sm:text-lg text-gray-400 leading-relaxed max-w-2xl mx-auto mb-6">
+            <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-6">
               A Provably Fair Decentralized Lottery with Intentional Positive
               Expected Value Windows
             </p>
@@ -554,11 +554,11 @@ function WhitepaperPage() {
         <div className="max-w-4xl mx-auto">
           {/* Abstract */}
           <div className="glass rounded-2xl p-5 sm:p-6 mb-8">
-            <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
               <BookOpen size={14} className="text-emerald" />
               Abstract
             </h3>
-            <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
               SolanaLotto introduces a novel lottery mechanism that
               intentionally creates windows of positive expected value (+EV) for
               players while maintaining long-term protocol sustainability. By
@@ -574,7 +574,7 @@ function WhitepaperPage() {
 
           {/* Table of Contents */}
           <div className="glass rounded-2xl p-5 sm:p-6">
-            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
               <Layers size={14} className="text-emerald" />
               Table of Contents
             </h3>
@@ -637,17 +637,17 @@ function WhitepaperPage() {
             <div className="space-y-6">
               {/* 1.1 The Problem */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   1.1 The Problem with Traditional Lotteries
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-4">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
                   Traditional lotteries operate on a simple principle: the house
                   always wins. With typical house edges ranging from 40–60%,
                   players face overwhelming negative expected value on every
                   ticket purchased. While jackpot dreams attract players, the
                   mathematical reality ensures consistent losses over time.
                 </p>
-                <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-4">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
                   This creates a paradox: lotteries depend on player
                   participation, yet rational economic actors should avoid
                   negative-EV propositions. Traditional lotteries resolve this
@@ -661,7 +661,7 @@ function WhitepaperPage() {
                   ].map((item) => (
                     <li
                       key={item}
-                      className="flex items-start gap-2 text-xs text-gray-400"
+                      className="flex items-start gap-2 text-xs text-muted-foreground"
                     >
                       <span className="shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-red-500/40" />
                       {item}
@@ -672,10 +672,10 @@ function WhitepaperPage() {
 
               {/* 1.2 The Solution */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   1.2 The SolanaLotto Solution
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-4">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
                   SolanaLotto proposes an alternative model that aligns
                   incentives between the protocol and sophisticated players
                   while maintaining sustainability:
@@ -705,17 +705,17 @@ function WhitepaperPage() {
                   ].map((item) => (
                     <div
                       key={item.title}
-                      className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/5"
+                      className="flex items-start gap-2.5 p-3 rounded-lg bg-foreground/[0.02] border border-foreground/5"
                     >
                       <item.icon
                         size={14}
                         className="text-emerald shrink-0 mt-0.5"
                       />
                       <div>
-                        <p className="text-[11px] font-bold text-white">
+                        <p className="text-[11px] font-bold text-foreground">
                           {item.title}
                         </p>
-                        <p className="text-[10px] text-gray-500 mt-0.5">
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
                           {item.desc}
                         </p>
                       </div>
@@ -726,7 +726,7 @@ function WhitepaperPage() {
 
               {/* 1.3 Design Principles */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   1.3 Design Principles
                 </h3>
                 <DataTable
@@ -785,10 +785,10 @@ function WhitepaperPage() {
             <div className="space-y-6">
               {/* Cash WinFall */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   2.1 The Massachusetts Cash WinFall Case Study
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-4">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
                   From 2004 to 2012, the Massachusetts State Lottery operated
                   Cash WinFall, a 6/46 lottery with a unique rolldown provision.
                   When the jackpot exceeded $2 million and no one matched all
@@ -805,7 +805,7 @@ function WhitepaperPage() {
                   ].map((item) => (
                     <div
                       key={item}
-                      className="flex items-start gap-2 text-xs text-gray-400"
+                      className="flex items-start gap-2 text-xs text-muted-foreground"
                     >
                       <CheckCircle
                         size={12}
@@ -825,7 +825,7 @@ function WhitepaperPage() {
 
               {/* Lessons */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   2.2 Lessons for Protocol Design
                 </h3>
                 <DataTable
@@ -854,7 +854,7 @@ function WhitepaperPage() {
 
               {/* Existing Protocols */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   2.3 Existing Crypto Lottery Protocols
                 </h3>
                 <DataTable
@@ -899,23 +899,23 @@ function WhitepaperPage() {
             <div className="space-y-6">
               {/* 3.1 Combinatorial Basis */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   3.1 Combinatorial Basis
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-4">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
                   SolanaLotto uses a{" "}
-                  <strong className="text-white">6/46 matrix</strong>: players
+                  <strong className="text-foreground">6/46 matrix</strong>: players
                   select 6 numbers from a pool of 46.
                 </p>
-                <div className="p-4 rounded-xl bg-[#0a0f1a]/80 border border-white/5 text-center mb-4">
-                  <p className="text-[10px] text-gray-500 mb-1">
+                <div className="p-4 rounded-xl bg-[#0a0f1a]/80 border border-foreground/5 text-center mb-4">
+                  <p className="text-[10px] text-muted-foreground mb-1">
                     Total possible combinations
                   </p>
                   <p className="text-lg sm:text-xl font-black text-emerald-light font-mono">
                     C(46, 6) = 9,366,819
                   </p>
                 </div>
-                <p className="text-xs text-gray-400 leading-relaxed">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   For matching exactly <em>k</em> numbers out of 6 drawn, the
                   probability formula is:{" "}
                   <span className="font-mono text-emerald-light/80">
@@ -926,7 +926,7 @@ function WhitepaperPage() {
 
               {/* 3.2 Probability Table */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   3.2 Probability Calculations
                 </h3>
                 <DataTable
@@ -942,14 +942,14 @@ function WhitepaperPage() {
                     ["0 of 6", "0.40982", "2.440"],
                   ]}
                 />
-                <p className="text-[10px] text-gray-500 mt-3 text-center">
+                <p className="text-[10px] text-muted-foreground mt-3 text-center">
                   Verification: Σ P(k) for k=0..6 = 1.000 ✓
                 </p>
               </div>
 
               {/* 3.3 Expected Value — Normal Mode */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   3.3 Expected Value — Normal Mode (Fixed Prizes)
                 </h3>
                 <Callout variant="info" title="Prize Mode: FIXED">
@@ -958,7 +958,7 @@ function WhitepaperPage() {
                 </Callout>
 
                 <div className="mt-4 mb-4">
-                  <p className="text-xs font-bold text-gray-300 mb-2">
+                  <p className="text-xs font-bold text-muted-foreground mb-2">
                     Fixed Prize Schedule:
                   </p>
                   <DataTable
@@ -978,15 +978,15 @@ function WhitepaperPage() {
                   />
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#0a0f1a]/80 border border-white/5 mb-3">
-                  <p className="text-xs text-gray-400 leading-relaxed">
+                <div className="p-3 rounded-xl bg-[#0a0f1a]/80 border border-foreground/5 mb-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     For J = $1,000,000:
                   </p>
-                  <p className="text-sm font-mono font-bold text-white mt-1">
+                  <p className="text-sm font-mono font-bold text-foreground mt-1">
                     EV<sub>normal</sub> = $0.1068 + $0.7612 ={" "}
                     <span className="text-red-400">$0.868</span>
                   </p>
-                  <p className="text-[10px] text-gray-500 mt-1">
+                  <p className="text-[10px] text-muted-foreground mt-1">
                     Ticket costs $2.50 — negative EV in normal mode
                   </p>
                 </div>
@@ -994,7 +994,7 @@ function WhitepaperPage() {
 
               {/* 3.3 Expected Value — Rolldown Mode */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   3.3 Expected Value — Rolldown Mode (Pari-Mutuel Prizes)
                 </h3>
                 <Callout
@@ -1008,9 +1008,9 @@ function WhitepaperPage() {
                 </Callout>
 
                 <div className="mt-4 mb-4">
-                  <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                     During rolldown, a jackpot{" "}
-                    <strong className="text-white">J</strong> (where $1.75M ≤ J
+                    <strong className="text-foreground">J</strong> (where $1.75M ≤ J
                     ≤ $2.25M) distributes to lower tiers using pari-mutuel
                     pools:
                   </p>
@@ -1025,20 +1025,20 @@ function WhitepaperPage() {
                   />
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#0a0f1a]/80 border border-white/5 mb-4">
-                  <p className="text-xs text-gray-400 leading-relaxed mb-2">
+                <div className="p-3 rounded-xl bg-[#0a0f1a]/80 border border-foreground/5 mb-4">
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-2">
                     The EV formula simplifies beautifully:
                   </p>
-                  <p className="text-sm font-mono font-bold text-white">
+                  <p className="text-sm font-mono font-bold text-foreground">
                     EV<sub>rolldown</sub> ={" "}
                     <span className="text-emerald-light">J / N</span> + $0.3659
                   </p>
-                  <p className="text-[10px] text-gray-500 mt-1">
+                  <p className="text-[10px] text-muted-foreground mt-1">
                     where J = jackpot amount, N = total tickets sold
                   </p>
                 </div>
 
-                <p className="text-xs font-bold text-gray-300 mb-2">
+                <p className="text-xs font-bold text-muted-foreground mb-2">
                   Player Edge Examples (Pari-Mutuel):
                 </p>
                 <DataTable
@@ -1061,20 +1061,20 @@ function WhitepaperPage() {
 
               {/* 3.4 Break-Even Analysis */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   3.4 Break-Even Analysis
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-3">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-3">
                   For positive expected value during pari-mutuel rolldown:
                 </p>
-                <div className="p-3 rounded-xl bg-[#0a0f1a]/80 border border-white/5 mb-4">
-                  <p className="text-sm font-mono text-white">
+                <div className="p-3 rounded-xl bg-[#0a0f1a]/80 border border-foreground/5 mb-4">
+                  <p className="text-sm font-mono text-foreground">
                     J/N + 0.3659 &gt; 2.50 →{" "}
                     <span className="text-emerald-light">N &lt; J / 2.134</span>
                   </p>
                 </div>
 
-                <p className="text-xs text-gray-400 mb-3">
+                <p className="text-xs text-muted-foreground mb-3">
                   The pari-mutuel system creates a natural volume-based
                   equilibrium. If fewer than J/2.134 tickets are sold during
                   rolldown, players have +EV.
@@ -1091,7 +1091,7 @@ function WhitepaperPage() {
                 />
 
                 <div className="mt-4 p-3 rounded-xl bg-emerald/[0.03] border border-emerald/10">
-                  <p className="text-[11px] text-gray-300 leading-relaxed">
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
                     <strong className="text-emerald-light">
                       Theorem 3.1 (Pari-Mutuel +EV Threshold):
                     </strong>{" "}
@@ -1118,10 +1118,10 @@ function WhitepaperPage() {
             <div className="space-y-6">
               {/* Revenue Flow */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   4.1 Revenue Flow Architecture
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-4">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
                   Every $2.50 ticket is split between a dynamic house fee
                   (28–40%) and the prize pool (60–72%). The prize pool is
                   further allocated:
@@ -1163,7 +1163,7 @@ function WhitepaperPage() {
 
               {/* Prize Mode Transition */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   4.2 Prize Mode Transition System
                 </h3>
                 <DataTable
@@ -1182,7 +1182,7 @@ function WhitepaperPage() {
                   ]}
                 />
                 <div className="mt-4 space-y-2">
-                  <p className="text-xs font-bold text-gray-300">
+                  <p className="text-xs font-bold text-muted-foreground">
                     Automatic Transition Triggers:
                   </p>
                   {[
@@ -1192,7 +1192,7 @@ function WhitepaperPage() {
                   ].map((item) => (
                     <div
                       key={item}
-                      className="flex items-start gap-2 text-xs text-gray-400"
+                      className="flex items-start gap-2 text-xs text-muted-foreground"
                     >
                       <CheckCircle
                         size={12}
@@ -1209,10 +1209,10 @@ function WhitepaperPage() {
 
               {/* Rolldown Pari-Mutuel Example */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   4.3 Pari-Mutuel Distribution Example
                 </h3>
-                <p className="text-xs text-gray-400 leading-relaxed mb-4">
+                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
                   With a $1,750,000 jackpot and 700,000 tickets sold during
                   rolldown:
                 </p>
@@ -1231,7 +1231,7 @@ function WhitepaperPage() {
                     ["Match 3", "40%", "$700,000", "~14,763", "~$47"],
                   ]}
                 />
-                <p className="text-[10px] text-gray-500 mt-3">
+                <p className="text-[10px] text-muted-foreground mt-3">
                   Compare normal mode: Match 5 = $4,000, Match 4 = $150, Match 3
                   = $5. Rolldown prizes can be{" "}
                   <span className="font-bold text-emerald-light">
@@ -1243,7 +1243,7 @@ function WhitepaperPage() {
 
               {/* Risk Scenarios */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   4.4 Cycle Scenarios
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1271,15 +1271,15 @@ function WhitepaperPage() {
                   ].map((s) => (
                     <div
                       key={s.title}
-                      className="p-3 rounded-lg bg-white/[0.02] border border-white/5"
+                      className="p-3 rounded-lg bg-foreground/[0.02] border border-foreground/5"
                     >
                       <div className="flex items-center gap-2 mb-1.5">
                         <s.icon size={13} className="text-emerald-light/60" />
-                        <p className="text-[11px] font-bold text-white">
+                        <p className="text-[11px] font-bold text-foreground">
                           {s.title}
                         </p>
                       </div>
-                      <p className="text-[10px] text-gray-400 leading-relaxed">
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
                         {s.desc}
                       </p>
                     </div>
@@ -1303,14 +1303,14 @@ function WhitepaperPage() {
             <div className="space-y-6">
               {/* Player Segmentation */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   5.1 Player Segmentation
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                  <div className="p-4 rounded-xl bg-foreground/[0.02] border border-foreground/5">
                     <div className="flex items-center gap-2 mb-2">
                       <Sparkles size={14} className="text-gold" />
-                      <p className="text-xs font-bold text-white">
+                      <p className="text-xs font-bold text-foreground">
                         Casual Players (70% of normal volume)
                       </p>
                     </div>
@@ -1323,7 +1323,7 @@ function WhitepaperPage() {
                       ].map((item) => (
                         <li
                           key={item}
-                          className="text-[10px] text-gray-400 flex items-start gap-1.5"
+                          className="text-[10px] text-muted-foreground flex items-start gap-1.5"
                         >
                           <span className="shrink-0 mt-1 w-1 h-1 rounded-full bg-gold/40" />
                           {item}
@@ -1334,7 +1334,7 @@ function WhitepaperPage() {
                   <div className="p-4 rounded-xl bg-emerald/[0.02] border border-emerald/10">
                     <div className="flex items-center gap-2 mb-2">
                       <Target size={14} className="text-emerald-light" />
-                      <p className="text-xs font-bold text-white">
+                      <p className="text-xs font-bold text-foreground">
                         Sophisticated Players (30% normal, 80% rolldown)
                       </p>
                     </div>
@@ -1347,7 +1347,7 @@ function WhitepaperPage() {
                       ].map((item) => (
                         <li
                           key={item}
-                          className="text-[10px] text-gray-400 flex items-start gap-1.5"
+                          className="text-[10px] text-muted-foreground flex items-start gap-1.5"
                         >
                           <CheckCircle
                             size={10}
@@ -1363,15 +1363,15 @@ function WhitepaperPage() {
 
               {/* Nash Equilibrium */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   5.2 Nash Equilibrium Analysis
                 </h3>
-                <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                   At equilibrium, the marginal entrant earns zero economic
                   profit. The equilibrium condition:
                 </p>
-                <div className="p-3 rounded-xl bg-[#0a0f1a]/80 border border-white/5 mb-4">
-                  <p className="text-sm font-mono text-white text-center">
+                <div className="p-3 rounded-xl bg-[#0a0f1a]/80 border border-foreground/5 mb-4">
+                  <p className="text-sm font-mono text-foreground text-center">
                     1,750,000 / N* + 0.3659 = 2.50 →{" "}
                     <span className="text-emerald-light">
                       N* ≈ 820,000 tickets
@@ -1379,7 +1379,7 @@ function WhitepaperPage() {
                   </p>
                 </div>
 
-                <p className="text-xs font-bold text-gray-300 mb-2">
+                <p className="text-xs font-bold text-muted-foreground mb-2">
                   Practical Implications:
                 </p>
                 <div className="space-y-2">
@@ -1390,7 +1390,7 @@ function WhitepaperPage() {
                   ].map((item) => (
                     <div
                       key={item}
-                      className="flex items-start gap-2 text-[11px] text-gray-400"
+                      className="flex items-start gap-2 text-[11px] text-muted-foreground"
                     >
                       <ArrowRight
                         size={11}
@@ -1402,7 +1402,7 @@ function WhitepaperPage() {
                 </div>
 
                 <div className="mt-4">
-                  <p className="text-xs text-gray-400 leading-relaxed">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     Several factors prevent perfect equilibrium: information
                     asymmetry (not all players calculate EV), transaction costs,
                     capital constraints, and risk aversion (EV ≠ certainty).
@@ -1412,7 +1412,7 @@ function WhitepaperPage() {
 
               {/* Mechanism Design */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   5.3 Mechanism Design Properties
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1436,17 +1436,17 @@ function WhitepaperPage() {
                   ].map((item) => (
                     <div
                       key={item.title}
-                      className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/5"
+                      className="flex items-start gap-2.5 p-3 rounded-lg bg-foreground/[0.02] border border-foreground/5"
                     >
                       <CheckCircle
                         size={13}
                         className="text-emerald shrink-0 mt-0.5"
                       />
                       <div>
-                        <p className="text-[11px] font-bold text-white">
+                        <p className="text-[11px] font-bold text-foreground">
                           {item.title}
                         </p>
-                        <p className="text-[10px] text-gray-500 mt-0.5">
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
                           {item.desc}
                         </p>
                       </div>
@@ -1471,7 +1471,7 @@ function WhitepaperPage() {
             <div className="space-y-6">
               {/* Architecture */}
               <div>
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   6.1 System Architecture
                 </h3>
                 <Callout variant="info" title="Protocol Structure (v3.0)">
@@ -1488,11 +1488,11 @@ function WhitepaperPage() {
 
               {/* Smart Contract: Ticket Module */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
                   <Code size={14} className="text-emerald/60" />
                   6.2 Smart Contract — Ticket Module
                 </h3>
-                <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                   Handles all ticket purchases, validation, and storage. Key
                   validations include number range [1, 46], no duplicates, and
                   USDC transfer.
@@ -1527,7 +1527,7 @@ function WhitepaperPage() {
 
               {/* Account Structures */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
                   <Database size={14} className="text-emerald/60" />
                   6.2.1 Core Account Structures
                 </h3>
@@ -1575,11 +1575,11 @@ pub struct Ticket {
 
               {/* Draw Module */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
                   <Zap size={14} className="text-emerald/60" />
                   6.3 Smart Contract — Draw Module
                 </h3>
-                <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                   Executes draws using Switchboard&apos;s commit-reveal pattern
                   with TEE (Trusted Execution Environment) randomness.
                 </p>
@@ -1613,7 +1613,7 @@ pub struct Ticket {
 
               {/* Rolldown Implementation */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
                   <RefreshCw size={14} className="text-emerald/60" />
                   6.4 Rolldown Distribution Implementation
                 </h3>
@@ -1651,7 +1651,7 @@ pub struct Ticket {
 
               {/* Prize Claim */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
                   <Trophy size={14} className="text-emerald/60" />
                   6.5 Prize Claim Module
                 </h3>
@@ -1692,7 +1692,7 @@ pub struct Ticket {
 
               {/* Randomness */}
               <div>
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   6.6 Randomness Generation
                 </h3>
                 <RandomnessFlow />
@@ -1705,7 +1705,7 @@ pub struct Ticket {
                   ].map((item) => (
                     <div
                       key={item}
-                      className="flex items-start gap-2 text-xs text-gray-400"
+                      className="flex items-start gap-2 text-xs text-muted-foreground"
                     >
                       <Shield
                         size={12}
@@ -1719,7 +1719,7 @@ pub struct Ticket {
 
               {/* Number Derivation */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
                   <Hash size={14} className="text-emerald/60" />
                   6.7 Number Derivation Algorithm
                 </h3>
@@ -1745,7 +1745,7 @@ pub struct Ticket {
                   ].map((item) => (
                     <div
                       key={item}
-                      className="flex items-start gap-2 text-[11px] text-gray-400"
+                      className="flex items-start gap-2 text-[11px] text-muted-foreground"
                     >
                       <CheckCircle
                         size={11}
@@ -1759,11 +1759,11 @@ pub struct Ticket {
 
               {/* Data Indexing */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
                   <Database size={14} className="text-emerald/60" />
                   6.8 Data Indexing Architecture
                 </h3>
-                <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                   An off-chain indexer service provides real-time data for the
                   application layer:
                 </p>
@@ -1776,10 +1776,10 @@ pub struct Ticket {
                   ].map((item) => (
                     <div
                       key={item.label}
-                      className="flex items-center gap-1.5 p-2 rounded-lg bg-white/[0.02] border border-white/5"
+                      className="flex items-center gap-1.5 p-2 rounded-lg bg-foreground/[0.02] border border-foreground/5"
                     >
                       <item.icon size={12} className="text-emerald/40" />
-                      <span className="text-[10px] font-medium text-gray-300">
+                      <span className="text-[10px] font-medium text-muted-foreground">
                         {item.label}
                       </span>
                     </div>
@@ -1813,10 +1813,10 @@ pub struct Ticket {
             <div className="space-y-6">
               {/* Overview */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   7.1 Overview
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-4">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
                   The SolanaLotto protocol implements a multi-layered fund
                   protection system designed to ensure prize pool solvency and
                   protect player funds during edge cases and emergencies:
@@ -1851,7 +1851,7 @@ pub struct Ticket {
 
               {/* Fund Allocation */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   7.2 Fund Allocation Structure
                 </h3>
                 <CodeBlock>{`Ticket Price ($2.50 USDC)
@@ -1865,10 +1865,10 @@ pub struct Ticket {
 
               {/* Automatic Solvency */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   7.3 Automatic Solvency Protection
                 </h3>
-                <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                   During draw finalization, the protocol automatically checks
                   prize pool solvency and scales prizes if needed:
                 </p>
@@ -1885,10 +1885,10 @@ pub struct Ticket {
 
               {/* Emergency Transfer */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   7.4 Emergency Fund Transfer
                 </h3>
-                <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                   For catastrophic scenarios requiring manual intervention:
                 </p>
                 <div className="space-y-2 mb-3">
@@ -1900,7 +1900,7 @@ pub struct Ticket {
                   ].map((item) => (
                     <div
                       key={item}
-                      className="flex items-start gap-2 text-xs text-gray-400"
+                      className="flex items-start gap-2 text-xs text-muted-foreground"
                     >
                       <Lock
                         size={11}
@@ -1914,7 +1914,7 @@ pub struct Ticket {
 
               {/* Insurance Scenarios */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   7.5 Insurance Pool Usage Scenarios
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1938,12 +1938,12 @@ pub struct Ticket {
                   ].map((s) => (
                     <div
                       key={s.title}
-                      className="p-3 rounded-lg bg-white/[0.02] border border-white/5"
+                      className="p-3 rounded-lg bg-foreground/[0.02] border border-foreground/5"
                     >
-                      <p className="text-[11px] font-bold text-white mb-1">
+                      <p className="text-[11px] font-bold text-foreground mb-1">
                         {s.title}
                       </p>
-                      <p className="text-[10px] text-gray-500">{s.desc}</p>
+                      <p className="text-[10px] text-muted-foreground">{s.desc}</p>
                     </div>
                   ))}
                 </div>
@@ -1951,7 +1951,7 @@ pub struct Ticket {
 
               {/* Player Protection Guarantees */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   7.6 Player Protection Guarantees
                 </h3>
                 <div className="space-y-2">
@@ -1964,7 +1964,7 @@ pub struct Ticket {
                   ].map((item) => (
                     <div
                       key={item}
-                      className="flex items-start gap-2 text-xs text-gray-400"
+                      className="flex items-start gap-2 text-xs text-muted-foreground"
                     >
                       <CheckCircle
                         size={12}
@@ -1992,7 +1992,7 @@ pub struct Ticket {
             <div className="space-y-6">
               {/* Threat Model */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   8.1 Threat Model
                 </h3>
                 <DataTable
@@ -2044,7 +2044,7 @@ pub struct Ticket {
 
               {/* Access Control */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   8.2 Access Control Matrix
                 </h3>
                 <Callout variant="info">
@@ -2076,10 +2076,10 @@ pub struct Ticket {
 
               {/* Invariants */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   8.3 Protocol Invariants
                 </h3>
-                <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                   The protocol maintains these invariants at all times:
                 </p>
                 <div className="space-y-3">
@@ -2105,9 +2105,9 @@ pub struct Ticket {
                   ].map((inv) => (
                     <div
                       key={inv.title}
-                      className="p-3 rounded-lg bg-[#0a0f1a]/60 border border-white/5"
+                      className="p-3 rounded-lg bg-[#0a0f1a]/60 border border-foreground/5"
                     >
-                      <p className="text-[11px] font-bold text-white mb-1">
+                      <p className="text-[11px] font-bold text-foreground mb-1">
                         {inv.title}
                       </p>
                       <p className="text-[10px] font-mono text-emerald-light/70">
@@ -2120,7 +2120,7 @@ pub struct Ticket {
 
               {/* Audit Checklist */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   8.4 Audit Checklist
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2138,9 +2138,9 @@ pub struct Ticket {
                   ].map((item) => (
                     <div
                       key={item}
-                      className="flex items-start gap-2 text-[11px] text-gray-400"
+                      className="flex items-start gap-2 text-[11px] text-muted-foreground"
                     >
-                      <div className="shrink-0 mt-0.5 w-3.5 h-3.5 rounded border border-white/10 flex items-center justify-center">
+                      <div className="shrink-0 mt-0.5 w-3.5 h-3.5 rounded border border-foreground/10 flex items-center justify-center">
                         <CheckCircle size={9} className="text-emerald/40" />
                       </div>
                       {item}
@@ -2164,10 +2164,10 @@ pub struct Ticket {
 
             <div className="space-y-6">
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   9.1 Summary
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                   SolanaLotto represents a paradigm shift in lottery design by
                   embracing, rather than hiding, the mathematical realities of
                   probability games. The rolldown mechanism creates a unique
@@ -2179,7 +2179,7 @@ pub struct Ticket {
               </div>
 
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   9.2 Key Innovations
                 </h3>
                 <DataTable
@@ -2211,7 +2211,7 @@ pub struct Ticket {
               </div>
 
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   9.3 Future Directions
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2224,7 +2224,7 @@ pub struct Ticket {
                   ].map((item) => (
                     <div
                       key={item}
-                      className="flex items-start gap-2 text-xs text-gray-400"
+                      className="flex items-start gap-2 text-xs text-muted-foreground"
                     >
                       <ArrowRight
                         size={12}
@@ -2238,10 +2238,10 @@ pub struct Ticket {
 
               {/* CTA */}
               <div className="glass rounded-2xl p-5 sm:p-6 border border-emerald/10">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   9.4 Get Involved
                 </h3>
-                <p className="text-xs text-gray-400 leading-relaxed mb-4">
+                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
                   SolanaLotto invites participation from:
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -2279,16 +2279,16 @@ pub struct Ticket {
                   ].map((item) => (
                     <div
                       key={item.title}
-                      className="p-3 rounded-lg bg-white/[0.02] border border-white/5 text-center"
+                      className="p-3 rounded-lg bg-foreground/[0.02] border border-foreground/5 text-center"
                     >
                       <item.icon
                         size={16}
                         className="text-emerald mx-auto mb-1.5 opacity-60"
                       />
-                      <p className="text-[11px] font-bold text-white">
+                      <p className="text-[11px] font-bold text-foreground">
                         {item.title}
                       </p>
-                      <p className="text-[9px] text-gray-500 mt-0.5">
+                      <p className="text-[9px] text-muted-foreground mt-0.5">
                         {item.desc}
                       </p>
                     </div>
@@ -2312,7 +2312,7 @@ pub struct Ticket {
             <div className="space-y-6">
               {/* References */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   10.1 References
                 </h3>
                 <ol className="space-y-2 list-decimal list-inside">
@@ -2328,7 +2328,7 @@ pub struct Ticket {
                   ].map((ref) => (
                     <li
                       key={ref}
-                      className="text-[11px] text-gray-400 leading-relaxed"
+                      className="text-[11px] text-muted-foreground leading-relaxed"
                     >
                       {ref}
                     </li>
@@ -2338,7 +2338,7 @@ pub struct Ticket {
 
               {/* Appendix A: Probability Tables */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   Appendix A: Full Probability Tables (6/46 Matrix)
                 </h3>
                 <DataTable
@@ -2359,14 +2359,14 @@ pub struct Ticket {
                     ["0", "3,838,380", "0.40982", "1.000"],
                   ]}
                 />
-                <p className="text-[10px] text-gray-500 mt-3 text-center font-bold">
+                <p className="text-[10px] text-muted-foreground mt-3 text-center font-bold">
                   Total: 9,366,819 combinations
                 </p>
               </div>
 
               {/* Appendix B: Contract Addresses */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   Appendix B: Smart Contract Addresses
                 </h3>
                 <DataTable
@@ -2376,7 +2376,7 @@ pub struct Ticket {
                     ["Quick Pick Express", "7XC1K...nZK2", "Devnet"],
                   ]}
                 />
-                <p className="text-[10px] text-gray-500 mt-3">
+                <p className="text-[10px] text-muted-foreground mt-3">
                   Mainnet addresses TBD after audit and deployment. All logic
                   lives within these two programs — no separate contracts.
                 </p>
@@ -2384,7 +2384,7 @@ pub struct Ticket {
 
               {/* Appendix C: Glossary */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-white mb-3">
+                <h3 className="text-sm font-bold text-foreground mb-3">
                   Appendix C: Glossary
                 </h3>
                 <DataTable
@@ -2439,11 +2439,11 @@ pub struct Ticket {
           {/* ------------------------------------------------------------ */}
           {/*  Version & Authoring                                          */}
           {/* ------------------------------------------------------------ */}
-          <div className="text-center pt-8 border-t border-white/5">
-            <p className="text-xs text-gray-600">
+          <div className="text-center pt-8 border-t border-foreground/5">
+            <p className="text-xs text-muted-foreground/60">
               Document Version: 3.0 • Last Updated: 2025
             </p>
-            <p className="text-xs text-gray-600 mt-1">
+            <p className="text-xs text-muted-foreground/60 mt-1">
               SolanaLotto Protocol Team
             </p>
             <p className="text-[10px] text-gray-700 mt-3">
@@ -2460,8 +2460,8 @@ pub struct Ticket {
               to="/learn/rolldown"
               className="flex-1 glass rounded-xl p-4 hover:border-emerald/20 transition-all group text-center"
             >
-              <p className="text-[10px] text-gray-500 mb-1">← Learn More</p>
-              <p className="text-sm font-bold text-white group-hover:text-emerald-light transition-colors">
+              <p className="text-[10px] text-muted-foreground mb-1">← Learn More</p>
+              <p className="text-sm font-bold text-foreground group-hover:text-emerald-light transition-colors">
                 How Rolldown Works
               </p>
             </Link>
@@ -2469,8 +2469,8 @@ pub struct Ticket {
               to="/play/quick-pick"
               className="flex-1 glass rounded-xl p-4 hover:border-emerald/20 transition-all group text-center"
             >
-              <p className="text-[10px] text-gray-500 mb-1">Try It →</p>
-              <p className="text-sm font-bold text-white group-hover:text-emerald-light transition-colors">
+              <p className="text-[10px] text-muted-foreground mb-1">Try It →</p>
+              <p className="text-sm font-bold text-foreground group-hover:text-emerald-light transition-colors">
                 Quick Pick Express
               </p>
             </Link>

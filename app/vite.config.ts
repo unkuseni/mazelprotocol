@@ -14,21 +14,7 @@ const config = defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
-  // Prevent AppKit / WalletConnect packages (which reference `document` and
-  // other browser globals at import time) from being bundled into the SSR
-  // entry that runs inside Cloudflare Workers.
-  ssr: {
-    noExternal: [],
-    external: [
-      "@reown/appkit",
-      "@reown/appkit-adapter-solana",
-      "@reown/appkit/react",
-      "@reown/appkit-adapter-solana/react",
-      "@reown/appkit/networks",
-      "@walletconnect/sign-client",
-      "@walletconnect/universal-provider",
-    ],
-  },
+
   // Ensure Node.js globals that WalletConnect dependencies may reference in
   // the client bundle are shimmed.
   define: {
