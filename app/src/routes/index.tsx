@@ -1127,8 +1127,8 @@ function LandingPage() {
           </div>
 
           <p className="text-muted-foreground/60 text-xs mt-8">
-            MazelProtocol Protocol &bull; Built on Solana &bull; Fully
-            transparent &bull; Non-custodial
+            MazelProtocol &bull; Built on Solana &bull; Fully transparent &bull;
+            Non-custodial
           </p>
         </div>
       </section>

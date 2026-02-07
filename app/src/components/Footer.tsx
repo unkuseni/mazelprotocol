@@ -223,7 +223,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="py-5 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground/60">
-            &copy; {currentYear} MazelProtocol Protocol. All rights reserved.
+            &copy; {currentYear} MazelProtocol. All rights reserved.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground/60">
             <a
