@@ -13,7 +13,11 @@ import {
   Ticket,
   BarChart3,
   Gem,
+  LogOut,
+  Copy,
+  Check,
 } from "lucide-react";
+import { useAppKit, useAppKitAccount, useDisconnect } from "@/lib/appkit-hooks";
 
 const navLinks = [
   {
@@ -202,6 +206,154 @@ function DesktopDropdown({ label, icon: Icon, children }: DropdownProps) {
   );
 }
 
+function WalletButton() {
+  const { open } = useAppKit();
+  const { address, isConnected } = useAppKitAccount();
+  const { disconnect } = useDisconnect();
+  const [copied, setCopied] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const truncatedAddress = address
+    ? `${address.slice(0, 4)}...${address.slice(-4)}`
+    : "";
+
+  const handleCopy = () => {
+    if (address) {
+      navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  if (isConnected && address) {
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setShowDropdown((p) => !p)}
+          className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-emerald/10 border border-emerald/20 hover:border-emerald/40 rounded-lg transition-all duration-200"
+        >
+          <div className="w-2 h-2 rounded-full bg-emerald animate-pulse" />
+          <span className="font-mono text-xs">{truncatedAddress}</span>
+          <ChevronDown
+            size={14}
+            className={`opacity-60 transition-transform duration-200 ${showDropdown ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {showDropdown && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setShowDropdown(false)}
+            />
+            <div className="absolute right-0 mt-2 w-56 z-50 rounded-xl bg-navy-deep/95 backdrop-blur-xl border border-white/10 shadow-xl shadow-black/30 p-2 space-y-1">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              >
+                {copied ? (
+                  <Check size={14} className="text-emerald" />
+                ) : (
+                  <Copy size={14} className="opacity-60" />
+                )}
+                <span>{copied ? "Copied!" : "Copy Address"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  open({ view: "Account" });
+                  setShowDropdown(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              >
+                <Wallet size={14} className="opacity-60" />
+                <span>Wallet Details</span>
+              </button>
+              <div className="h-px bg-white/5 my-1" />
+              <button
+                type="button"
+                onClick={() => {
+                  disconnect();
+                  setShowDropdown(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/5 rounded-lg transition-colors"
+              >
+                <LogOut size={14} />
+                <span>Disconnect</span>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => open({ view: "Connect", namespace: "solana" })}
+      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-lg transition-all duration-300 shadow-lg shadow-emerald/20 hover:shadow-emerald/30 hover:scale-[1.02] active:scale-[0.98]"
+    >
+      <Wallet size={16} />
+      <span>Connect Wallet</span>
+    </button>
+  );
+}
+
+function MobileWalletButton() {
+  const { open } = useAppKit();
+  const { address, isConnected } = useAppKitAccount();
+  const { disconnect } = useDisconnect();
+
+  const truncatedAddress = address
+    ? `${address.slice(0, 6)}...${address.slice(-4)}`
+    : "";
+
+  if (isConnected && address) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald/10 border border-emerald/20">
+          <div className="w-2 h-2 rounded-full bg-emerald animate-pulse" />
+          <span className="font-mono text-xs text-emerald-light">
+            {truncatedAddress}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => open({ view: "Account" })}
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-300 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <Wallet size={13} />
+            <span>Details</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => disconnect()}
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-red-400 bg-red-500/5 hover:bg-red-500/10 rounded-lg transition-colors"
+          >
+            <LogOut size={13} />
+            <span>Disconnect</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => open({ view: "Connect", namespace: "solana" })}
+      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald to-emerald-dark rounded-lg shadow-lg shadow-emerald/20"
+    >
+      <Wallet size={16} />
+      <span>Connect Wallet</span>
+    </button>
+  );
+}
+
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -294,13 +446,9 @@ export default function Header() {
               </div>
 
               {/* Wallet Connect Button */}
-              <button
-                type="button"
-                className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-lg transition-all duration-300 shadow-lg shadow-emerald/20 hover:shadow-emerald/30 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Wallet size={16} />
-                <span>Connect Wallet</span>
-              </button>
+              <div className="hidden sm:block">
+                <WalletButton />
+              </div>
 
               {/* Mobile Menu Toggle */}
               <button
@@ -352,13 +500,7 @@ export default function Header() {
 
           {/* Mobile wallet connect */}
           <div className="px-4 pt-4">
-            <button
-              type="button"
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald to-emerald-dark rounded-lg shadow-lg shadow-emerald/20"
-            >
-              <Wallet size={16} />
-              <span>Connect Wallet</span>
-            </button>
+            <MobileWalletButton />
           </div>
 
           {/* Jackpot badge mobile */}

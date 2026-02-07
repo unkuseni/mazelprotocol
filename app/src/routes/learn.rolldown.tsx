@@ -287,9 +287,9 @@ function VisualDiagram() {
         </div>
 
         <p className="text-[10px] text-gray-500 text-center">
-          All prizes are pari-mutuel (Pool ÷ Winners). Operator liability is
-          capped at the jackpot amount. After rolldown, the jackpot resets to
-          the $500,000 seed.
+          All prizes are pari-mutuel (Pool ÷ Winners) — fewer winners means
+          bigger prizes for you. After rolldown, the jackpot resets to the
+          $500,000 seed and the cycle begins again.
         </p>
       </div>
     </div>
@@ -445,7 +445,7 @@ function LearnRolldownPage() {
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gold/10 border border-gold/20">
                 <Shield size={12} className="text-gold" />
                 <span className="text-xs font-semibold text-gold">
-                  Operator liability always capped
+                  Your prizes are always guaranteed
                 </span>
               </div>
             </div>
@@ -480,9 +480,9 @@ function LearnRolldownPage() {
                     </h3>
                     <ul className="space-y-2">
                       {[
-                        "House always wins (–50% EV or worse)",
-                        "Jackpot rolls forever, only benefits operator",
-                        "Opaque randomness — trust the operator",
+                        "You always lose on average (–50% EV or worse)",
+                        "Jackpot rolls forever — you never see that money",
+                        "Opaque randomness — no way to verify fairness",
                         "Fixed prizes that never change",
                         "No strategic advantage for smart play",
                       ].map((item) => (
@@ -902,125 +902,168 @@ function LearnRolldownPage() {
           </div>
 
           {/* -------------------------------------------------------------- */}
-          {/*  Section 7: Operator Protection                                */}
+          {/*  Section 7: Why Your Odds Are Better                           */}
           {/* -------------------------------------------------------------- */}
           <div>
             <SectionHeading
               number="7"
-              title="How the Operator Stays Solvent"
-              subtitle="The clever design that makes +EV for players and sustainable for the protocol"
-              icon={Shield}
+              title="Why Your Odds Are Better Here"
+              subtitle="How the rolldown gives you a real mathematical edge over every other lottery"
+              icon={TrendingUp}
             />
 
             <div className="glass rounded-2xl p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <h4 className="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
-                    <Shield size={11} className="text-emerald" />
-                    Pari-Mutuel Capping
+                    <TrendingUp size={11} className="text-emerald" />
+                    The Rolldown Is Your Edge
                   </h4>
                   <p className="text-[11px] text-gray-400 leading-relaxed">
-                    During rolldown, prizes are <strong>pari-mutuel</strong>{" "}
-                    (Pool ÷ Winners), not fixed. The operator&apos;s total
-                    liability is <em>exactly</em> the jackpot amount — never
-                    more. If many people win, each gets less; if few win, each
-                    gets more. The total payout is constant.
+                    Every other lottery keeps the unclaimed jackpot and rolls it
+                    forward forever — you never see that money. SolanaLotto{" "}
+                    <strong>
+                      caps the jackpot and forces it back to players
+                    </strong>
+                    . When no one hits the top prize, the entire pool flows down
+                    to lower tiers. Your Match 3 ticket that normally pays $5
+                    can suddenly pay{" "}
+                    <span className="text-emerald-light font-semibold">
+                      $225
+                    </span>
+                    .
                   </p>
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
                     <DollarSign size={11} className="text-gold" />
-                    Dynamic House Fee
+                    Pari-Mutuel = Fewer Winners, Bigger Prizes
                   </h4>
                   <p className="text-[11px] text-gray-400 leading-relaxed">
-                    The house fee adjusts from 28% to 40% based on jackpot
-                    level. At lower jackpots (growing phase), the fee is lower
-                    to incentivize play. At higher jackpots (approaching
-                    rolldown), the fee rises. During rolldown itself, it drops
-                    back to 28%.
+                    During rolldown, prizes are <strong>pari-mutuel</strong>{" "}
+                    (Pool ÷ Winners). This means{" "}
+                    <span className="text-gold font-semibold">
+                      the fewer people who play, the more each winner gets
+                    </span>
+                    . Time your purchases when you spot a rolldown window
+                    forming and you&apos;re splitting a massive pool with fewer
+                    players. That&apos;s the exploit.
                   </p>
                 </div>
               </div>
 
-              {/* Fee tier breakdown */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { range: "< $500K", fee: "28%", color: "text-emerald-light" },
-                  {
-                    range: "$500K–$1M",
-                    fee: "32%",
-                    color: "text-gray-300",
-                  },
-                  {
-                    range: "$1M–$1.5M",
-                    fee: "36%",
-                    color: "text-gray-300",
-                  },
-                  { range: "> $1.5M", fee: "40%", color: "text-gold" },
-                ].map((tier) => (
-                  <div
-                    key={tier.range}
-                    className="p-2.5 rounded-lg bg-white/[0.02] text-center"
-                  >
-                    <div className={`text-sm font-black ${tier.color}`}>
-                      {tier.fee}
-                    </div>
-                    <div className="text-[9px] text-gray-500 mt-0.5">
-                      {tier.range}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Safety nets */}
+              {/* Odds comparison with other lotteries */}
               <div>
                 <h4 className="text-xs font-bold text-white mb-3 flex items-center gap-1.5">
-                  <Shield size={11} className="text-emerald" />
-                  Safety Nets
+                  <Target size={11} className="text-emerald" />
+                  Your Odds vs Other Lotteries
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    {
+                      name: "Powerball",
+                      odds: "1 in 292M",
+                      ev: "-50%",
+                      color: "text-red-400",
+                    },
+                    {
+                      name: "Mega Millions",
+                      odds: "1 in 302M",
+                      ev: "-55%",
+                      color: "text-red-400",
+                    },
+                    {
+                      name: "EuroMillions",
+                      odds: "1 in 139M",
+                      ev: "-50%",
+                      color: "text-red-400",
+                    },
+                    {
+                      name: "SolanaLotto",
+                      odds: "1 in 9.37M",
+                      ev: "+47%",
+                      color: "text-emerald-light",
+                    },
+                  ].map((lottery) => (
+                    <div
+                      key={lottery.name}
+                      className={`p-2.5 rounded-lg text-center ${
+                        lottery.name === "SolanaLotto"
+                          ? "bg-emerald/[0.06] border border-emerald/20"
+                          : "bg-white/[0.02]"
+                      }`}
+                    >
+                      <div className="text-[10px] text-gray-500 mb-0.5">
+                        {lottery.name}
+                      </div>
+                      <div className="text-[10px] text-gray-400">
+                        {lottery.odds}
+                      </div>
+                      <div
+                        className={`text-sm font-black mt-0.5 ${lottery.color}`}
+                      >
+                        {lottery.ev} EV
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Why this matters for YOU */}
+              <div>
+                <h4 className="text-xs font-bold text-white mb-3 flex items-center gap-1.5">
+                  <Sparkles size={11} className="text-gold" />
+                  What This Means For You
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                  <div className="p-3 rounded-xl bg-emerald/[0.04] border border-emerald/10">
                     <div className="text-sm font-black text-emerald-light">
-                      3%
+                      31× Better
                     </div>
                     <div className="text-[10px] text-gray-400 mt-0.5">
-                      Reserve Fund
+                      Jackpot Odds vs Powerball
                     </div>
                     <div className="text-[9px] text-gray-600 mt-0.5">
-                      For jackpot seeding & shortfalls
+                      1:9.37M vs 1:292M
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                  <div className="p-3 rounded-xl bg-emerald/[0.04] border border-emerald/10">
                     <div className="text-sm font-black text-emerald-light">
-                      2%
+                      1 in 54
                     </div>
                     <div className="text-[10px] text-gray-400 mt-0.5">
-                      Insurance Pool
+                      Match 3 Odds
                     </div>
                     <div className="text-[9px] text-gray-600 mt-0.5">
-                      Insolvency protection buffer
+                      Pays ~$225 during rolldown
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                    <div className="text-sm font-black text-gold">5%</div>
+                  <div className="p-3 rounded-xl bg-gold/[0.04] border border-gold/10">
+                    <div className="text-sm font-black text-gold">~15 Days</div>
                     <div className="text-[10px] text-gray-400 mt-0.5">
-                      Total Safety Buffer
+                      Average Rolldown Cycle
                     </div>
                     <div className="text-[9px] text-gray-600 mt-0.5">
-                      Combined protection
+                      Regular +EV windows to exploit
                     </div>
                   </div>
                 </div>
               </div>
 
-              <p className="text-[10px] text-gray-500 leading-relaxed">
-                The protocol earns approximately $34M annually at target volume.
-                The +EV windows during rolldown are deliberately designed — they
-                cost the operator their accumulated jackpot (which resets after
-                rolldown), while the house fee revenue collected during the
-                growth phase more than covers the rolldown payout. It&apos;s a
-                sustainable flywheel.
-              </p>
+              <div className="p-3 rounded-xl bg-emerald/[0.03] border border-emerald/10">
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  <span className="font-bold text-emerald-light">
+                    The rolldown is designed for you to exploit.
+                  </span>{" "}
+                  Every ~15 days, the jackpot caps and the entire pool
+                  redistributes to lower-tier winners. Smart players monitor the
+                  jackpot tracker, increase their ticket purchases when the soft
+                  cap approaches, and let the math work in their favor. Your
+                  prizes are always backed by on-chain reserves — 5% of every
+                  ticket goes to reserve and insurance funds that guarantee
+                  payouts.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -1039,31 +1082,35 @@ function LearnRolldownPage() {
               {[
                 {
                   q: "What happens if someone wins the jackpot during a rolldown-eligible draw?",
-                  a: "If a player matches all 6 numbers (or all 5 in Quick Pick Express), they win the full jackpot at its current amount — there is no rolldown. The rolldown only triggers when the top prize goes unclaimed. The jackpot then resets to the seed amount.",
+                  a: "If a player matches all 6 numbers (or all 5 in Quick Pick Express), they win the full jackpot at its current amount — there is no rolldown. The rolldown only triggers when the top prize goes unclaimed. The jackpot then resets to the seed amount and the cycle begins again.",
                 },
                 {
-                  q: "Can the operator prevent rolldowns?",
-                  a: "No. Rolldowns are triggered automatically by the smart contract based on on-chain jackpot balance and randomness. The operator cannot interfere with, delay, or manipulate the rolldown. All logic is transparent and verifiable.",
+                  q: "Can anyone prevent or delay the rolldown?",
+                  a: "No. Rolldowns are triggered automatically by the smart contract based on on-chain jackpot balance and verifiable randomness. Nobody can interfere with, delay, or manipulate the rolldown. The code is open, the logic is transparent, and every draw is verifiable on-chain.",
                 },
                 {
-                  q: "What's the difference between soft cap and hard cap?",
-                  a: "The soft cap ($1.75M for 6/46) is the threshold where rolldowns become probabilistically possible. The probability increases linearly from 0% (at soft cap) to 100% as the jackpot approaches the hard cap ($2.25M). At the hard cap, a rolldown is forced regardless of probability.",
+                  q: "When should I buy tickets for maximum advantage?",
+                  a: "Watch the jackpot tracker on the Dashboard. When it approaches the $1.75M soft cap, rolldown probability increases linearly. At the $2.25M hard cap, a rolldown is guaranteed. The closer to the hard cap, the better your expected value. Strategic players load up on tickets during these windows.",
                 },
                 {
                   q: "Does the +EV guarantee I'll make money?",
-                  a: "No. Expected value is a statistical average over many plays. On any individual draw, you might win big, win small, or win nothing. +EV means that if you could play the same draw thousands of times, you'd come out ahead on average. It's a mathematical edge, not a guarantee.",
+                  a: "Positive EV is a statistical edge over many plays — not a guarantee on any single ticket. But consider this: traditional lotteries have -50% EV (you lose half on average). During rolldown, SolanaLotto has +47% EV. Over time, that mathematical edge compounds in your favor. It's the same principle professional gamblers use.",
                 },
                 {
-                  q: "How does pari-mutuel protect the operator?",
-                  a: "With pari-mutuel prizes, the total payout equals the jackpot pool — no more, no less. If 10x more people buy tickets, there are more winners, but each winner gets a proportionally smaller share. The operator's maximum liability is always exactly the jackpot amount.",
+                  q: "Why are the odds so much better than Powerball or Mega Millions?",
+                  a: "SolanaLotto uses a 6/46 matrix (1 in 9.37 million for the jackpot) versus Powerball's 5/69+1/26 (1 in 292 million). That's 31× better odds. And during rolldown, even matching just 3 numbers (1 in 54 odds) pays ~$225 instead of $5. No traditional lottery offers anything close to this.",
                 },
                 {
-                  q: "How long does a typical cycle take?",
-                  a: "At average volumes (~14,000 tickets/day for the 6/46 lottery), the jackpot grows from the $500K seed to the $1.75M soft cap in approximately 15 days. Quick Pick Express cycles are much faster due to the smaller $30K soft cap and 4-hour draw frequency.",
+                  q: "How does pari-mutuel pricing benefit me?",
+                  a: "During rolldown, prizes are Pool ÷ Winners. Fewer players in a draw means each winner gets a bigger share of the jackpot. If you time your purchases when fewer people are buying — say, a rolldown that triggers mid-week — you're splitting a massive pool with fewer competitors. That's how you maximize your edge.",
                 },
                 {
-                  q: "What is the randomness source?",
-                  a: "SolanaLotto uses Switchboard's Trusted Execution Environment (TEE) randomness with a commit-reveal pattern. The randomness account is committed before ticket purchases close, then revealed to execute the draw. This prevents any manipulation of the outcome.",
+                  q: "How long between rolldown windows?",
+                  a: "At average volumes (~14,000 tickets/day for 6/46), the jackpot grows from the $500K seed to the $1.75M soft cap in roughly 15 days. Quick Pick Express cycles are much faster due to the smaller $30K soft cap and 4-hour draw frequency — you get rolldown opportunities multiple times per week.",
+                },
+                {
+                  q: "How do I know the draws are fair?",
+                  a: "SolanaLotto uses Switchboard's Trusted Execution Environment (TEE) randomness with a commit-reveal pattern. The randomness is committed before ticket purchases close, then revealed to execute the draw. Everything is on-chain and verifiable. You can audit every single draw yourself.",
                 },
               ].map((faq) => (
                 <div key={faq.q} className="glass rounded-xl p-4 sm:p-5">

@@ -20,6 +20,7 @@ import {
   Lock,
   ArrowRight,
 } from "lucide-react";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
 import { Button } from "@/components/ui/button";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { QuickPickCountdown } from "@/components/CountdownTimer";
@@ -173,11 +174,7 @@ function TicketCard({
   );
 }
 
-function GateLockedOverlay({
-  lifetimeSpend,
-}: {
-  lifetimeSpend: number;
-}) {
+function GateLockedOverlay({ lifetimeSpend }: { lifetimeSpend: number }) {
   const remaining = LIFETIME_GATE - lifetimeSpend;
   const progress = Math.min((lifetimeSpend / LIFETIME_GATE) * 100, 100);
 
@@ -246,8 +243,8 @@ function PlayQuickPickExpress() {
   const [showPrizeInfo, setShowPrizeInfo] = useState(false);
   const [showRolldownInfo, setShowRolldownInfo] = useState(false);
 
-  // Mock state
-  const walletConnected = false;
+  const { open } = useAppKit();
+  const { isConnected: walletConnected } = useAppKitAccount();
   const mockJackpot = 18_420;
   const mockLifetimeSpend = 72.5; // Above the $50 gate for demo
   const isUnlocked = mockLifetimeSpend >= LIFETIME_GATE;
@@ -307,12 +304,15 @@ function PlayQuickPickExpress() {
   }, []);
 
   const handleCheckout = useCallback(() => {
+    if (!walletConnected) {
+      open({ view: "Connect", namespace: "solana" });
+      return;
+    }
+    // In a real app, this would trigger the on-chain transaction
     alert(
-      walletConnected
-        ? `Purchasing ${tickets.length} Quick Pick Express ticket(s) for $${totalCost.toFixed(2)} USDC`
-        : "Wallet connection flow would open here",
+      `Purchasing ${tickets.length} Quick Pick Express ticket(s) for $${totalCost.toFixed(2)} USDC`,
     );
-  }, [walletConnected, tickets.length, totalCost]);
+  }, [walletConnected, tickets.length, totalCost, open]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -447,8 +447,8 @@ function PlayQuickPickExpress() {
                         </p>
                         <p className="text-xs text-gray-400">
                           The jackpot has reached the soft cap. If no one
-                          matches all 5, the entire jackpot is distributed
-                          among Match 4 (60%) and Match 3 (40%) winners using
+                          matches all 5, the entire jackpot is distributed among
+                          Match 4 (60%) and Match 3 (40%) winners using
                           pari-mutuel division. Expected player edge:{" "}
                           <span className="font-bold text-emerald-light">
                             +66.7%
@@ -611,8 +611,8 @@ function PlayQuickPickExpress() {
                         No tickets yet
                       </p>
                       <p className="text-xs text-gray-600">
-                        Pick your numbers above or use Quick Pick to get
-                        started fast
+                        Pick your numbers above or use Quick Pick to get started
+                        fast
                       </p>
                     </div>
                   ) : (
@@ -632,8 +632,8 @@ function PlayQuickPickExpress() {
                   {tickets.length > 0 && tickets.length < MAX_TICKETS && (
                     <p className="text-[10px] text-gray-600 mt-3 text-center">
                       {MAX_TICKETS - tickets.length} more ticket
-                      {MAX_TICKETS - tickets.length !== 1 ? "s" : ""}{" "}
-                      available (max {MAX_TICKETS} per transaction)
+                      {MAX_TICKETS - tickets.length !== 1 ? "s" : ""} available
+                      (max {MAX_TICKETS} per transaction)
                     </p>
                   )}
                 </div>
@@ -828,9 +828,7 @@ function PlayQuickPickExpress() {
                   <div className="glass rounded-2xl p-5 sm:p-6 mt-4">
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowRolldownInfo(!showRolldownInfo)
-                      }
+                      onClick={() => setShowRolldownInfo(!showRolldownInfo)}
                       className="w-full flex items-center justify-between"
                     >
                       <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -878,20 +876,17 @@ function PlayQuickPickExpress() {
                               className="mt-0.5 shrink-0 text-gold/60"
                             />
                             <span>
-                              *Rolldown prizes are pari-mutuel estimates.
-                              Actual = Pool ÷ Winners. Operator liability is
-                              capped at the jackpot amount ($30K-$50K).
+                              *Rolldown prizes are pari-mutuel estimates. Actual
+                              = Pool ÷ Winners. Fewer winners means bigger
+                              prizes for you ($30K-$50K pool).
                             </span>
                           </div>
                           <div className="flex items-start gap-2 text-[10px] text-emerald-light/70">
-                            <TrendingUp
-                              size={10}
-                              className="mt-0.5 shrink-0"
-                            />
+                            <TrendingUp size={10} className="mt-0.5 shrink-0" />
                             <span>
-                              During rolldown, player expected value is{" "}
+                              During rolldown, your expected value is{" "}
                               <span className="font-bold">+66.7%</span> — the
-                              house edge inverts in players' favor!
+                              math flips and you have the edge!
                             </span>
                           </div>
                         </div>

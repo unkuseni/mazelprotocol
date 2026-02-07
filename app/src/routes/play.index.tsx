@@ -18,6 +18,7 @@ import {
   Check,
   AlertTriangle,
 } from "lucide-react";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
 import { Button } from "@/components/ui/button";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { CountdownTimer } from "@/components/CountdownTimer";
@@ -237,8 +238,8 @@ function PlayMainLottery() {
   >([]);
   const [showPrizeInfo, setShowPrizeInfo] = useState(false);
 
-  // Mock state
-  const walletConnected = false;
+  const { open } = useAppKit();
+  const { isConnected: walletConnected } = useAppKitAccount();
   const mockJackpot = 1_247_832;
   const rolldownActive = mockJackpot >= 1_750_000;
 
@@ -296,13 +297,15 @@ function PlayMainLottery() {
   }, []);
 
   const handleCheckout = useCallback(() => {
-    // In a real app, this would trigger the wallet connection / transaction
+    if (!walletConnected) {
+      open({ view: "Connect", namespace: "solana" });
+      return;
+    }
+    // In a real app, this would trigger the on-chain transaction
     alert(
-      walletConnected
-        ? `Purchasing ${tickets.length} ticket(s) for $${totalCost.toFixed(2)} USDC`
-        : "Wallet connection flow would open here",
+      `Purchasing ${tickets.length} ticket(s) for $${totalCost.toFixed(2)} USDC`,
     );
-  }, [walletConnected, tickets.length, totalCost]);
+  }, [walletConnected, tickets.length, totalCost, open]);
 
   return (
     <div className="min-h-screen bg-background">

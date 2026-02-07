@@ -10,6 +10,10 @@ import Header from "../components/Header";
 
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
+// Initialize Reown AppKit (must be imported at module level, outside components)
+import "../lib/appkit";
+import { AppKitProvider } from "../lib/appkit-hooks";
+
 import appCss from "../styles.css?url";
 
 import type { QueryClient } from "@tanstack/react-query";
@@ -109,8 +113,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased">
-        <Header />
-        {children}
+        <AppKitProvider>
+          <Header />
+          {children}
+        </AppKitProvider>
         <TanStackDevtools
           config={{
             position: "bottom-right",
