@@ -112,110 +112,129 @@ impl<'info> ExecuteDraw<'info> {
     }
 }
 
-/// Generate winning numbers from randomness bytes
+/// Generate winning numbers from randomness bytes using rejection sampling.
 ///
-/// Uses a deterministic algorithm to convert 32 bytes of randomness
-/// into 6 unique numbers in the range [1, 46].
+/// Uses a cryptographically sound algorithm to convert 32 bytes of randomness
+/// into 6 unique numbers in the range [1, 46] with **zero modulo bias**.
 ///
-/// Algorithm:
-/// 1. Use SHA256 hash of randomness to ensure uniform distribution
-/// 2. For each of the 6 numbers, use a different portion of the hash
-/// 3. Generate a number in range [1, 46] using modulo operation
-/// 4. If the number is a duplicate, use next available number (mod 46)
-/// 5. Sort the final numbers
+/// Algorithm (Fix #8 — rejection sampling):
+/// 1. Domain-separate randomness via SHA256("winning_numbers" || randomness)
+/// 2. Extract u32 values from the hash output
+/// 3. For each u32, reject values in the biased tail of the u32 range
+///    (i.e. values >= largest multiple of MAX_NUMBER that fits in u32)
+/// 4. Accepted values are mapped to [0, MAX_NUMBER-1] via `val % MAX_NUMBER`, then +1
+/// 5. If a candidate is a duplicate, request next u32 from the hash stream
+/// 6. If hash bytes are exhausted, chain another round: SHA256(randomness || counter)
+/// 7. Sort the final 6 numbers
+///
+/// Why rejection sampling matters:
+/// Plain `rand % 46` has bias because 2^32 is not evenly divisible by 46.
+/// The bias is tiny (~0.0000011%) but in a high-value lottery it is a
+/// correctness issue that auditors flag. Rejection sampling eliminates it
+/// entirely by discarding values that would cause uneven mapping.
 ///
 /// # Arguments
-/// * `randomness` - 32 bytes of verified randomness
+/// * `randomness` - 32 bytes of verified Switchboard randomness
 ///
 /// # Returns
-/// * `[u8; 6]` - Sorted array of 6 unique winning numbers
+/// * `Result<[u8; 6]>` - Sorted array of 6 unique winning numbers, or error
 fn generate_winning_numbers(randomness: &[u8; 32]) -> Result<[u8; 6]> {
-    // Use SHA256 hash of randomness for better distribution
     use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(randomness);
-    let hash_result = hasher.finalize();
-    let hash_bytes = hash_result.as_slice();
 
-    // Create an array of available numbers 1-46
-    let mut available_numbers: [bool; MAX_NUMBER as usize] = [true; MAX_NUMBER as usize];
+    let n = MAX_NUMBER as u32; // 46
+
+    // Rejection threshold: largest multiple of n that fits in u32.
+    // Values at or above this threshold are rejected to eliminate modulo bias.
+    // For n=46: 46 * (2^32 / 46) = 46 * 93_368_854 = 4_294_967_284
+    // So values 4_294_967_284 ..= 4_294_967_295 (12 values) are rejected.
+    let reject_threshold: u32 = n.wrapping_mul(u32::MAX / n);
+    // NOTE: u32::MAX / 46 = 93_368_854 (integer division), 46 * 93_368_854 = 4_294_927_284
+    // Anything >= 4_294_927_284 maps unevenly and must be rejected.
+
+    let mut available = [true; MAX_NUMBER as usize]; // tracks which numbers are taken
     let mut winning_numbers = [0u8; 6];
+    let mut numbers_generated = 0usize;
 
-    // Generate 6 unique numbers
-    for i in 0..6 {
-        // Use different portions of the hash for each number
-        let hash_idx = (i * 4) % hash_bytes.len();
+    // We produce hash bytes in 32-byte chunks. Each chunk yields up to 8 u32 values.
+    // Counter for chaining additional hash rounds if we exhaust a chunk.
+    let mut hash_round: u8 = 0;
 
-        // Ensure we have at least 4 bytes available for the slice
-        let rand_val = if hash_idx + 4 <= hash_bytes.len() {
-            let hash_slice = &hash_bytes[hash_idx..hash_idx + 4];
-            // Safe to unwrap because we know slice length is exactly 4
-            u32::from_le_bytes(hash_slice.try_into().expect("Hash slice should be 4 bytes"))
-        } else {
-            // Fallback: use a deterministic value based on hash_idx
-            // Combine remaining bytes with zeros if needed
-            let mut bytes = [0u8; 4];
-            let remaining = hash_bytes.len() - hash_idx;
-            bytes[..remaining.min(4)]
-                .copy_from_slice(&hash_bytes[hash_idx..hash_idx + remaining.min(4)]);
-            u32::from_le_bytes(bytes)
-        };
+    // Produce first hash: domain-separated to avoid correlation with rolldown_decision hash
+    let mut current_hash = {
+        let mut h = Sha256::new();
+        h.update(b"winning_numbers");
+        h.update(randomness);
+        h.finalize()
+    };
+    let mut byte_offset = 0usize; // offset into current_hash
 
-        // Find an available number
-        let mut attempts = 0;
-        loop {
-            // Calculate candidate number (1-46)
-            let candidate =
-                ((rand_val.wrapping_add(attempts as u32) % MAX_NUMBER as u32) + 1) as u8;
+    // Safety: we need 6 numbers from 46 choices. Even with rejection and
+    // duplicate retries, we will almost certainly finish within a few rounds.
+    // Hard limit prevents infinite loops in pathological cases.
+    let mut total_attempts: u32 = 0;
+    const MAX_ATTEMPTS: u32 = 256;
 
-            if candidate >= 1
-                && candidate <= MAX_NUMBER
-                && available_numbers[candidate as usize - 1]
-            {
-                winning_numbers[i] = candidate;
-                available_numbers[candidate as usize - 1] = false;
-                break;
-            }
-
-            attempts += 1;
-            // Safety check: should never happen since we have 46 numbers and need only 6
-            if attempts > MAX_NUMBER as u32 * 2 {
-                // Fallback: use sequential numbers
-                for j in 0..MAX_NUMBER as usize {
-                    if available_numbers[j] {
-                        winning_numbers[i] = (j + 1) as u8;
-                        available_numbers[j] = false;
-                        break;
-                    }
-                }
-                break;
-            }
+    while numbers_generated < 6 {
+        total_attempts += 1;
+        if total_attempts > MAX_ATTEMPTS {
+            msg!(
+                "CRITICAL: generate_winning_numbers exhausted {} attempts",
+                MAX_ATTEMPTS
+            );
+            return Err(LottoError::InvalidRandomnessProof.into());
         }
+
+        // If we've consumed all bytes in current hash, chain a new round
+        if byte_offset + 4 > current_hash.len() {
+            hash_round = hash_round.wrapping_add(1);
+            let mut h = Sha256::new();
+            h.update(randomness);
+            h.update(&[hash_round]);
+            current_hash = h.finalize();
+            byte_offset = 0;
+        }
+
+        // Extract a u32 from the hash
+        let val = u32::from_le_bytes(
+            current_hash[byte_offset..byte_offset + 4]
+                .try_into()
+                .expect("4-byte slice from hash"),
+        );
+        byte_offset += 4;
+
+        // Rejection sampling: discard biased tail values
+        if val >= reject_threshold {
+            continue;
+        }
+
+        // Uniform mapping into [1, MAX_NUMBER]
+        let candidate = (val % n) as u8 + 1;
+
+        // Skip duplicates
+        if !available[candidate as usize - 1] {
+            continue;
+        }
+
+        // Accept this number
+        winning_numbers[numbers_generated] = candidate;
+        available[candidate as usize - 1] = false;
+        numbers_generated += 1;
     }
 
-    // Sort the numbers and ensure no zeros
+    // Sort ascending (protocol convention)
     winning_numbers.sort();
 
-    // Final validation: ensure all numbers are valid (1-46) and unique
+    // Final validation: all numbers valid and unique
+    let mut seen = [false; MAX_NUMBER as usize];
     for &num in &winning_numbers {
         if num < 1 || num > MAX_NUMBER {
-            // FIXED: Return an error instead of a predictable fallback.
-            // A fixed [1,2,3,4,5,6] fallback is exploitable — an attacker who
-            // can force this path would know the winning numbers in advance.
-            // Failing the draw forces admin recovery, which is far safer.
             msg!(
                 "CRITICAL: generate_winning_numbers produced invalid number {}",
                 num
             );
             return Err(LottoError::InvalidRandomnessProof.into());
         }
-    }
-
-    // Check for duplicates (shouldn't happen with our algorithm)
-    let mut seen = [false; MAX_NUMBER as usize];
-    for &num in &winning_numbers {
         if seen[num as usize - 1] {
-            // FIXED: Return an error instead of a predictable fallback.
             msg!(
                 "CRITICAL: generate_winning_numbers produced duplicate number {}",
                 num
@@ -429,6 +448,12 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
 
     // Explicitly mark as not finalized (will be set true in finalize_draw)
     draw_result.is_explicitly_finalized = false;
+
+    // Fix #3: Initialize per-draw reclaim accounting fields to zero.
+    // total_committed will be set to total_distributed during finalize_draw.
+    // total_reclaimed will be incremented by reclaim_expired_prizes.
+    draw_result.total_committed = 0;
+    draw_result.total_reclaimed = 0;
 
     // Store hash of randomness for additional verification
     use sha2::{Digest, Sha256};

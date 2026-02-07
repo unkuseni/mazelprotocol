@@ -13,6 +13,7 @@
 //! - transfer_creator: Transfer creator role to another member
 
 use anchor_lang::prelude::*;
+use anchor_lang::AccountDeserialize;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::*;
@@ -20,7 +21,7 @@ use crate::errors::LottoError;
 use crate::events::{
     BulkTicketsPurchased, SyndicateCreated, SyndicateMemberJoined, SyndicatePrizeDistributed,
 };
-use crate::state::{LotteryState, Syndicate, SyndicateMember, TicketData, UserStats};
+use crate::state::{DrawResult, LotteryState, Syndicate, SyndicateMember, TicketData, UserStats};
 
 // ============================================================================
 // CREATE SYNDICATE INSTRUCTION
@@ -1309,23 +1310,41 @@ pub fn handler_create_syndicate_ticket(
 pub struct DistributeSyndicatePrizeParams {
     /// Draw ID for which the prize is being distributed
     pub draw_id: u64,
-    /// Total prize amount to distribute (in USDC lamports)
-    pub total_prize: u64,
 }
 
 /// Accounts required for distributing a syndicate prize
+///
+/// ## Fix #7 — On-chain ticket verification
+///
+/// Previously this instruction accepted a `total_prize` parameter from the
+/// authority and blindly transferred that amount from the prize pool.  A
+/// compromised or malicious authority could inflate the amount at will.
+///
+/// Now the prize is **computed on-chain** from the actual ticket accounts
+/// passed as `remaining_accounts`.  For every ticket the instruction:
+///
+/// 1. Deserializes it as `TicketData`
+/// 2. Verifies `ticket.syndicate == Some(syndicate.key())`
+/// 3. Verifies `ticket.draw_id == params.draw_id`
+/// 4. Verifies `!ticket.is_claimed`
+/// 5. Counts matches against `draw_result.winning_numbers`
+/// 6. Looks up the per-winner prize via `draw_result.get_prize_for_matches()`
+/// 7. Marks the ticket as claimed and writes it back
+/// 8. Accumulates the batch prize total
+///
+/// The accumulated total is then transferred — no authority-supplied amount
+/// can exceed what the tickets actually won.
+///
+/// For large syndicates the instruction can be called in batches (different
+/// subsets of ticket accounts in `remaining_accounts` each call).
 #[derive(Accounts)]
 #[instruction(params: DistributeSyndicatePrizeParams)]
 pub struct DistributeSyndicatePrize<'info> {
-    /// The syndicate creator/manager
+    /// The syndicate creator/manager (must also be lottery authority)
     #[account(mut)]
     pub manager: Signer<'info>,
 
     /// Lottery state (authority for prize pool)
-    /// SECURITY FIX (Issue #4): Require caller to be lottery authority to prevent
-    /// arbitrary prize pool drain by any syndicate creator.
-    /// SECURITY FIX (Issue #3): Made mutable so we can update internal accounting
-    /// when moving tokens out of prize_pool_usdc.
     #[account(
         mut,
         seeds = [LOTTERY_SEED],
@@ -1334,8 +1353,17 @@ pub struct DistributeSyndicatePrize<'info> {
     )]
     pub lottery_state: Account<'info, LotteryState>,
 
+    /// The finalized draw result for `params.draw_id`.
+    /// Used to look up winning numbers and per-tier prize amounts.
+    #[account(
+        seeds = [DRAW_SEED, &params.draw_id.to_le_bytes()],
+        bump = draw_result.bump,
+        constraint = draw_result.draw_id == params.draw_id @ LottoError::DrawIdMismatch,
+        constraint = draw_result.is_finalized() @ LottoError::DrawNotFinalized
+    )]
+    pub draw_result: Account<'info, DrawResult>,
+
     /// The syndicate account
-    /// SECURITY FIX (Issue #1): Use original_creator for PDA seed derivation
     #[account(
         mut,
         seeds = [
@@ -1375,49 +1403,140 @@ pub struct DistributeSyndicatePrize<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-/// Distribute prize to syndicate members
+/// Distribute prize to syndicate members by verifying ticket wins on-chain.
 ///
-/// This instruction:
-/// 1. Transfers prize from prize pool to syndicate USDC account
-/// 2. Calculates manager fee (if any)
-/// 3. Updates syndicate statistics
-/// 4. Emits event for tracking
+/// ## Fix #7 — On-chain syndicate prize verification
 ///
-/// Note: Individual members must claim their shares separately via
-/// `claim_syndicate_member_prize` instruction.
+/// Syndicate ticket accounts must be passed as **writable** `remaining_accounts`.
+/// The instruction iterates over each one, verifies ownership / draw / claim
+/// state, counts matches, looks up the prize, marks the ticket claimed, and
+/// accumulates the total.  Only the verified total is transferred.
+///
+/// For syndicates with many tickets, call this instruction in batches (each
+/// batch is a different subset of remaining_accounts).
 ///
 /// # Arguments
-/// * `ctx` - The context containing required accounts
-/// * `params` - Prize distribution parameters
+/// * `ctx`    - The context containing required accounts
+/// * `params` - Distribution parameters (draw_id)
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
-pub fn handler_distribute_syndicate_prize(
-    ctx: Context<DistributeSyndicatePrize>,
+pub fn handler_distribute_syndicate_prize<'info>(
+    ctx: Context<'_, '_, 'info, 'info, DistributeSyndicatePrize<'info>>,
     params: DistributeSyndicatePrizeParams,
 ) -> Result<()> {
     let syndicate_key = ctx.accounts.syndicate.key();
-    let total_prize = params.total_prize;
-    let manager_fee_bps = ctx.accounts.syndicate.manager_fee_bps;
+    let draw_result = &ctx.accounts.draw_result;
+    let program_id = ctx.program_id;
 
-    // Validate prize amount
-    require!(total_prize > 0, LottoError::InvalidAmount);
+    // =========================================================================
+    // STEP 1: Iterate over remaining_accounts (syndicate ticket accounts),
+    //         verify each ticket, compute prize, mark claimed.
+    // =========================================================================
+    let remaining = ctx.remaining_accounts;
+    require!(!remaining.is_empty(), LottoError::NoWinningTicketsInBatch);
+
+    let mut total_prize: u64 = 0;
+    let mut tickets_processed: u32 = 0;
+    let mut tickets_won: u32 = 0;
+
+    for ticket_account_info in remaining.iter() {
+        // a) Ticket account must be writable so we can mark it claimed
+        require!(
+            ticket_account_info.is_writable,
+            LottoError::InvalidTicketAccount
+        );
+
+        // b) Ticket must be owned by this program
+        require!(
+            ticket_account_info.owner == program_id,
+            LottoError::InvalidTicketAccount
+        );
+
+        // c) Deserialize the ticket
+        let mut ticket_data_raw = ticket_account_info.try_borrow_mut_data()?;
+        let mut readable: &[u8] = &ticket_data_raw;
+        let mut ticket = TicketData::try_deserialize(&mut readable)
+            .map_err(|_| LottoError::InvalidTicketAccount)?;
+
+        // d) Verify the ticket belongs to this syndicate
+        require!(
+            ticket.syndicate == Some(syndicate_key),
+            LottoError::SyndicateTicketNotOwned
+        );
+
+        // e) Verify the ticket is for the correct draw
+        require!(
+            ticket.draw_id == params.draw_id,
+            LottoError::SyndicateTicketDrawMismatch
+        );
+
+        // f) Verify the ticket has not already been claimed
+        require!(
+            !ticket.is_claimed,
+            LottoError::SyndicateTicketAlreadyClaimed
+        );
+
+        // g) Count matches against winning numbers
+        let match_count = calculate_match_count(&ticket.numbers, &draw_result.winning_numbers);
+
+        // h) Look up prize for this match tier
+        let prize = draw_result.get_prize_for_matches(match_count);
+
+        // i) Mark ticket as claimed and record match/prize info
+        ticket.is_claimed = true;
+        ticket.match_count = match_count;
+        ticket.prize_amount = prize;
+
+        // j) Write updated ticket data back to the account
+        let mut writer: &mut [u8] = &mut ticket_data_raw;
+        ticket
+            .try_serialize(&mut writer)
+            .map_err(|_| LottoError::InvalidTicketAccount)?;
+
+        tickets_processed += 1;
+        if prize > 0 {
+            total_prize = total_prize.checked_add(prize).ok_or(LottoError::Overflow)?;
+            tickets_won += 1;
+        }
+    }
+
+    msg!(
+        "  Tickets processed: {}, winning: {}, total_prize: {}",
+        tickets_processed,
+        tickets_won,
+        total_prize
+    );
+
+    // If no winnings in this batch, nothing to transfer — still a valid call
+    // (allows processing non-winning tickets to mark them claimed).
+    if total_prize == 0 {
+        msg!("  No prize to distribute in this batch (all tickets non-winning).");
+        return Ok(());
+    }
+
+    // =========================================================================
+    // STEP 2: Verify sufficient prize pool balance
+    // =========================================================================
     require!(
         ctx.accounts.prize_pool_usdc.amount >= total_prize,
         LottoError::InsufficientFunds
     );
 
-    // Calculate manager fee
+    // =========================================================================
+    // STEP 3: Calculate manager fee and member pool
+    // =========================================================================
+    let manager_fee_bps = ctx.accounts.syndicate.manager_fee_bps;
     let manager_fee = if manager_fee_bps > 0 {
         (total_prize as u128 * manager_fee_bps as u128 / BPS_DENOMINATOR as u128) as u64
     } else {
         0
     };
-
-    // Amount to distribute to members (after manager fee)
     let member_pool = total_prize.saturating_sub(manager_fee);
 
-    // Transfer prize from prize pool to syndicate using lottery_state as authority
+    // =========================================================================
+    // STEP 4: Transfer verified total from prize pool to syndicate USDC
+    // =========================================================================
     let lottery_bump = ctx.accounts.lottery_state.bump;
     let seeds = &[LOTTERY_SEED, &[lottery_bump]];
     let signer_seeds = &[&seeds[..]];
@@ -1427,44 +1546,40 @@ pub fn handler_distribute_syndicate_prize(
         to: ctx.accounts.syndicate_usdc.to_account_info(),
         authority: ctx.accounts.lottery_state.to_account_info(),
     };
-
     let cpi_program = ctx.accounts.token_program.to_account_info();
     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-
     token::transfer(cpi_ctx, total_prize)?;
 
-    // SECURITY FIX (Issue #3): Update lottery_state internal accounting when
-    // moving tokens out of prize_pool_usdc. Previously this transfer was not
-    // reflected in lottery_state balances, causing a mismatch between the actual
-    // token balance and the internal accounting state. This breaks solvency
-    // checks and can produce false assumptions about available funds.
-    //
-    // Deduction priority: fixed_prize_balance first (syndicate prizes are
-    // typically fixed-tier wins), then reserve, then jackpot as last resort.
+    // =========================================================================
+    // STEP 5: Update lottery_state internal accounting
+    // =========================================================================
+    // Deduction priority: fixed_prize_balance → reserve → jackpot (last resort)
     {
         let lottery_state = &mut ctx.accounts.lottery_state;
-        let mut remaining = total_prize;
+        let mut remaining_deduct = total_prize;
 
         // 1. Deduct from fixed_prize_balance
-        let from_fixed = remaining.min(lottery_state.fixed_prize_balance);
+        let from_fixed = remaining_deduct.min(lottery_state.fixed_prize_balance);
         lottery_state.fixed_prize_balance =
             lottery_state.fixed_prize_balance.saturating_sub(from_fixed);
-        remaining = remaining.saturating_sub(from_fixed);
+        remaining_deduct = remaining_deduct.saturating_sub(from_fixed);
 
         // 2. Deduct from reserve_balance
-        if remaining > 0 {
-            let from_reserve = remaining.min(lottery_state.reserve_balance);
+        if remaining_deduct > 0 {
+            let from_reserve = remaining_deduct.min(lottery_state.reserve_balance);
             lottery_state.reserve_balance =
                 lottery_state.reserve_balance.saturating_sub(from_reserve);
-            remaining = remaining.saturating_sub(from_reserve);
+            remaining_deduct = remaining_deduct.saturating_sub(from_reserve);
         }
 
         // 3. Last resort: deduct from jackpot_balance
-        if remaining > 0 {
-            lottery_state.jackpot_balance = lottery_state.jackpot_balance.saturating_sub(remaining);
+        if remaining_deduct > 0 {
+            lottery_state.jackpot_balance = lottery_state
+                .jackpot_balance
+                .saturating_sub(remaining_deduct);
             msg!(
                 "WARNING: Syndicate prize distribution required {} from jackpot",
-                remaining
+                remaining_deduct
             );
         }
 
@@ -1476,17 +1591,11 @@ pub fn handler_distribute_syndicate_prize(
         );
     }
 
-    // SECURITY FIX (Issue #2): Snapshot per-member unclaimed_prize at distribution
-    // time instead of computing claims from the live token account balance.
-    // Previously, claim_syndicate_member_prize computed max claim against the
-    // current syndicate_usdc balance, which means early claimers reduce the
-    // balance for later members (front-running / ordering attack).
-    //
-    // Now, each member's share is computed once at distribution time and stored
-    // in their unclaimed_prize field. Claims simply deduct from this snapshot.
+    // =========================================================================
+    // STEP 6: Snapshot per-member unclaimed_prize
+    // =========================================================================
     let syndicate = &mut ctx.accounts.syndicate;
 
-    // Distribute member_pool across all members based on their share_percentage_bps
     let mut total_allocated = 0u64;
     for i in 0..syndicate.members.len() {
         let share_bps = syndicate.members[i].share_percentage_bps;
@@ -1513,7 +1622,9 @@ pub fn handler_distribute_syndicate_prize(
         dust
     );
 
-    // Emit event
+    // =========================================================================
+    // STEP 7: Emit event
+    // =========================================================================
     emit!(SyndicatePrizeDistributed {
         syndicate: syndicate_key,
         draw_id: params.draw_id,
@@ -1523,10 +1634,12 @@ pub fn handler_distribute_syndicate_prize(
         timestamp: Clock::get()?.unix_timestamp,
     });
 
-    msg!("Syndicate prize distributed!");
+    msg!("Syndicate prize distributed (on-chain verified)!");
     msg!("  Syndicate: {}", syndicate_key);
     msg!("  Draw ID: {}", params.draw_id);
-    msg!("  Total prize: {} USDC lamports", total_prize);
+    msg!("  Tickets processed: {}", tickets_processed);
+    msg!("  Tickets won: {}", tickets_won);
+    msg!("  Total prize (verified): {} USDC lamports", total_prize);
     msg!("  Manager fee: {} USDC lamports", manager_fee);
     msg!("  Member pool: {} USDC lamports", member_pool);
     msg!("  Members to receive: {}", syndicate.member_count);
