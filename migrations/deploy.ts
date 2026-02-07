@@ -197,9 +197,7 @@ async function deploy() {
 
   // ---- Load programs ----
   // Anchor workspace automatically reads Anchor.toml / target/idl
-  const mainProgram =
-    (anchor.workspace as any).mazelprotocol ??
-    (anchor.workspace as any).solanaLotto;
+  const mainProgram = (anchor.workspace as any).mazelprotocol;
   const qpProgram = (anchor.workspace as any).quickpick;
 
   if (!mainProgram) {

@@ -1,4 +1,4 @@
-//! SolanaLotto Protocol - State Structures
+//! MazelProtocol - State Structures
 //!
 //! This module defines all account structures (state) for the lottery protocol,
 //! including the main lottery state, draw results, tickets, user stats, and syndicates.
