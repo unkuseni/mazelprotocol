@@ -64,7 +64,9 @@ function SectionHeading({
           {title}
           <Icon size={20} className="text-emerald/60" />
         </h2>
-        {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+        {subtitle && (
+          <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+        )}
       </div>
     </div>
   );
@@ -137,7 +139,9 @@ function DataTable({
               <th
                 key={h}
                 className={`text-left py-2 px-2 font-bold ${
-                  i === highlightCol ? "text-emerald-light" : "text-muted-foreground"
+                  i === highlightCol
+                    ? "text-emerald-light"
+                    : "text-muted-foreground"
                 }`}
               >
                 {h}
@@ -186,7 +190,9 @@ function StatCard({
     <div className="glass rounded-xl p-4 text-center">
       <Icon size={18} className="text-emerald mx-auto mb-2 opacity-60" />
       <p className="text-lg sm:text-xl font-black text-foreground">{value}</p>
-      <p className="text-[11px] font-semibold text-muted-foreground mt-1">{label}</p>
+      <p className="text-[11px] font-semibold text-muted-foreground mt-1">
+        {label}
+      </p>
       {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
     </div>
   );
@@ -392,7 +398,9 @@ function RandomnessFlow() {
             </div>
             <div className="pb-4">
               <p className="text-xs font-bold text-foreground">{s.title}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{s.desc}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {s.desc}
+              </p>
             </div>
           </div>
         ))}
@@ -511,7 +519,7 @@ function WhitepaperPage() {
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-foreground mb-4">
-              SolanaLotto{" "}
+              MazelProtocol{" "}
               <span className="text-gradient-primary">Whitepaper</span>
             </h1>
 
@@ -559,7 +567,7 @@ function WhitepaperPage() {
               Abstract
             </h3>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              SolanaLotto introduces a novel lottery mechanism that
+              MazelProtocol introduces a novel lottery mechanism that
               intentionally creates windows of positive expected value (+EV) for
               players while maintaining long-term protocol sustainability. By
               implementing a rolldown mechanism inspired by the Massachusetts
@@ -568,7 +576,7 @@ function WhitepaperPage() {
               pool, followed by positive-EV rolldown events that distribute
               accumulated value to lower-tier winners. This paper presents the
               mathematical foundations, economic sustainability proofs, and
-              technical implementation details of the SolanaLotto protocol.
+              technical implementation details of the MazelProtocol protocol.
             </p>
           </div>
 
@@ -630,7 +638,7 @@ function WhitepaperPage() {
             <SectionHeading
               number="1"
               title="Introduction"
-              subtitle="The problem with traditional lotteries and how SolanaLotto solves it"
+              subtitle="The problem with traditional lotteries and how MazelProtocol solves it"
               icon={Gem}
             />
 
@@ -673,10 +681,10 @@ function WhitepaperPage() {
               {/* 1.2 The Solution */}
               <div className="glass rounded-2xl p-5 sm:p-6">
                 <h3 className="text-sm font-bold text-foreground mb-3">
-                  1.2 The SolanaLotto Solution
+                  1.2 The MazelProtocol Solution
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
-                  SolanaLotto proposes an alternative model that aligns
+                  MazelProtocol proposes an alternative model that aligns
                   incentives between the protocol and sophisticated players
                   while maintaining sustainability:
                 </p>
@@ -817,8 +825,8 @@ function WhitepaperPage() {
                 </div>
 
                 <Callout variant="info" title="Inspired by Real History">
-                  SolanaLotto takes the proven Cash WinFall mechanics and makes
-                  them transparent, decentralized, and intentional. We
+                  MazelProtocol takes the proven Cash WinFall mechanics and
+                  makes them transparent, decentralized, and intentional. We
                   <em> want</em> players to exploit the rolldown.
                 </Callout>
               </div>
@@ -829,7 +837,7 @@ function WhitepaperPage() {
                   2.2 Lessons for Protocol Design
                 </h3>
                 <DataTable
-                  headers={["Cash WinFall Issue", "SolanaLotto Solution"]}
+                  headers={["Cash WinFall Issue", "MazelProtocol Solution"]}
                   rows={[
                     [
                       "Opaque odds calculation",
@@ -878,8 +886,8 @@ function WhitepaperPage() {
                   ]}
                 />
                 <p className="text-xs text-emerald-light font-semibold mt-3">
-                  SolanaLotto is the first protocol to implement intentional +EV
-                  windows in a decentralized lottery.
+                  MazelProtocol is the first protocol to implement intentional
+                  +EV windows in a decentralized lottery.
                 </p>
               </div>
             </div>
@@ -903,9 +911,9 @@ function WhitepaperPage() {
                   3.1 Combinatorial Basis
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
-                  SolanaLotto uses a{" "}
-                  <strong className="text-foreground">6/46 matrix</strong>: players
-                  select 6 numbers from a pool of 46.
+                  MazelProtocol uses a{" "}
+                  <strong className="text-foreground">6/46 matrix</strong>:
+                  players select 6 numbers from a pool of 46.
                 </p>
                 <div className="p-4 rounded-xl bg-[#0a0f1a]/80 border border-foreground/5 text-center mb-4">
                   <p className="text-[10px] text-muted-foreground mb-1">
@@ -1010,8 +1018,8 @@ function WhitepaperPage() {
                 <div className="mt-4 mb-4">
                   <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                     During rolldown, a jackpot{" "}
-                    <strong className="text-foreground">J</strong> (where $1.75M ≤ J
-                    ≤ $2.25M) distributes to lower tiers using pari-mutuel
+                    <strong className="text-foreground">J</strong> (where $1.75M
+                    ≤ J ≤ $2.25M) distributes to lower tiers using pari-mutuel
                     pools:
                   </p>
                   <DataTable
@@ -1817,7 +1825,7 @@ pub struct Ticket {
                   7.1 Overview
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
-                  The SolanaLotto protocol implements a multi-layered fund
+                  The MazelProtocol protocol implements a multi-layered fund
                   protection system designed to ensure prize pool solvency and
                   protect player funds during edge cases and emergencies:
                 </p>
@@ -1943,7 +1951,9 @@ pub struct Ticket {
                       <p className="text-[11px] font-bold text-foreground mb-1">
                         {s.title}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">{s.desc}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {s.desc}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -2168,7 +2178,7 @@ pub struct Ticket {
                   9.1 Summary
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                  SolanaLotto represents a paradigm shift in lottery design by
+                  MazelProtocol represents a paradigm shift in lottery design by
                   embracing, rather than hiding, the mathematical realities of
                   probability games. The rolldown mechanism creates a unique
                   value proposition: for casual players, entertainment with
@@ -2242,7 +2252,7 @@ pub struct Ticket {
                   9.4 Get Involved
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                  SolanaLotto invites participation from:
+                  MazelProtocol invites participation from:
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
@@ -2444,10 +2454,10 @@ pub struct Ticket {
               Document Version: 3.0 • Last Updated: 2025
             </p>
             <p className="text-xs text-muted-foreground/60 mt-1">
-              SolanaLotto Protocol Team
+              MazelProtocol Protocol Team
             </p>
             <p className="text-[10px] text-gray-700 mt-3">
-              © 2025 SolanaLotto Protocol — Building the future of fair,
+              © 2025 MazelProtocol Protocol — Building the future of fair,
               transparent, and mathematically sound lotteries.
             </p>
           </div>
@@ -2460,7 +2470,9 @@ pub struct Ticket {
               to="/learn/rolldown"
               className="flex-1 glass rounded-xl p-4 hover:border-emerald/20 transition-all group text-center"
             >
-              <p className="text-[10px] text-muted-foreground mb-1">← Learn More</p>
+              <p className="text-[10px] text-muted-foreground mb-1">
+                ← Learn More
+              </p>
               <p className="text-sm font-bold text-foreground group-hover:text-emerald-light transition-colors">
                 How Rolldown Works
               </p>

@@ -71,7 +71,7 @@ const navLinks = [
         icon: BookOpen,
       },
       {
-        href: "https://github.com/solanalotto",
+        href: "https://github.com/mazelprotocol",
         label: "GitHub",
         description: "Open-source smart contracts",
         icon: Gem,
@@ -399,7 +399,7 @@ export default function Header() {
               <LogoMark />
               <div className="flex flex-col">
                 <span className="text-base font-bold text-foreground tracking-tight leading-none group-hover:text-emerald-light transition-colors">
-                  SolanaLotto
+                  MazelProtocol
                 </span>
                 <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase leading-none mt-0.5">
                   Protocol
@@ -494,7 +494,7 @@ export default function Header() {
           <div className="flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center gap-2.5">
               <LogoMark />
-              <span className="font-bold text-foreground">SolanaLotto</span>
+              <span className="font-bold text-foreground">MazelProtocol</span>
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggleCompact />

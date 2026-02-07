@@ -54,7 +54,9 @@ function SectionHeading({
           {title}
           <Icon size={20} className="text-emerald/60" />
         </h2>
-        {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+        {subtitle && (
+          <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+        )}
       </div>
     </div>
   );
@@ -99,7 +101,9 @@ function FlowStep({
               <h3 className="text-sm font-bold text-foreground">{title}</h3>
               <Icon
                 size={14}
-                className={highlight ? "text-emerald-light" : "text-muted-foreground"}
+                className={
+                  highlight ? "text-emerald-light" : "text-muted-foreground"
+                }
               />
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
@@ -336,8 +340,9 @@ function QuickPickExpressDiagram() {
 
       <div className="space-y-1.5 text-[10px] text-muted-foreground">
         <p>
-          <span className="font-semibold text-muted-foreground">Soft Cap:</span> $30,000
-          &bull; <span className="font-semibold text-muted-foreground">Hard Cap:</span>{" "}
+          <span className="font-semibold text-muted-foreground">Soft Cap:</span>{" "}
+          $30,000 &bull;{" "}
+          <span className="font-semibold text-muted-foreground">Hard Cap:</span>{" "}
           $50,000
         </p>
         <p>
@@ -375,7 +380,9 @@ function MathCallout({
       <div className="flex items-center justify-center mb-2">
         <span className="text-sm font-black text-gradient-gold">{result}</span>
       </div>
-      <p className="text-[10px] text-muted-foreground text-center">{explanation}</p>
+      <p className="text-[10px] text-muted-foreground text-center">
+        {explanation}
+      </p>
     </div>
   );
 }
@@ -421,7 +428,7 @@ function LearnRolldownPage() {
             </h1>
 
             <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-6">
-              The rolldown mechanism is what makes SolanaLotto unique — it
+              The rolldown mechanism is what makes MazelProtocol unique — it
               creates{" "}
               <span className="font-semibold text-emerald-light">
                 intentional positive expected value (+EV) windows
@@ -465,7 +472,7 @@ function LearnRolldownPage() {
             <SectionHeading
               number="1"
               title="The Big Idea"
-              subtitle="Why SolanaLotto is fundamentally different from traditional lotteries"
+              subtitle="Why MazelProtocol is fundamentally different from traditional lotteries"
               icon={Gem}
             />
 
@@ -497,11 +504,11 @@ function LearnRolldownPage() {
                     </ul>
                   </div>
 
-                  {/* SolanaLotto */}
+                  {/* MazelProtocol */}
                   <div>
                     <h3 className="text-sm font-bold text-emerald-light mb-3 flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald" />
-                      SolanaLotto Rolldown
+                      MazelProtocol Rolldown
                     </h3>
                     <ul className="space-y-2">
                       {[
@@ -537,10 +544,10 @@ function LearnRolldownPage() {
                       Inspired by Real History
                     </p>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      SolanaLotto&apos;s rolldown mechanism is inspired by the
+                      MazelProtocol&apos;s rolldown mechanism is inspired by the
                       Massachusetts Cash WinFall lottery (2004–2012), where
                       strategic syndicates discovered that the rolldown created
-                      consistent +EV opportunities. SolanaLotto makes this
+                      consistent +EV opportunities. MazelProtocol makes this
                       transparent and <em>intentional</em> — we want players to
                       exploit it.
                     </p>
@@ -643,13 +650,13 @@ function LearnRolldownPage() {
                     isPositive={false}
                   />
                   <EVBar
-                    label="SolanaLotto Normal Mode (6/46)"
+                    label="MazelProtocol Normal Mode (6/46)"
                     ev={-28}
                     maxEv={70}
                     isPositive={false}
                   />
                   <EVBar
-                    label="SolanaLotto Rolldown Mode (6/46)"
+                    label="MazelProtocol Rolldown Mode (6/46)"
                     ev={47.2}
                     maxEv={70}
                     isPositive={true}
@@ -893,7 +900,7 @@ function LearnRolldownPage() {
                     probabilistic. Positive expected value means the{" "}
                     <em>average</em> return is favorable over many plays, not
                     that every individual ticket will win. Never wager more than
-                    you can afford to lose. SolanaLotto is designed to be fun
+                    you can afford to lose. MazelProtocol is designed to be fun
                     and transparent, not a guaranteed income source.
                   </p>
                 </div>
@@ -921,7 +928,7 @@ function LearnRolldownPage() {
                   </h4>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                     Every other lottery keeps the unclaimed jackpot and rolls it
-                    forward forever — you never see that money. SolanaLotto{" "}
+                    forward forever — you never see that money. MazelProtocol{" "}
                     <strong>
                       caps the jackpot and forces it back to players
                     </strong>
@@ -979,7 +986,7 @@ function LearnRolldownPage() {
                       color: "text-red-400",
                     },
                     {
-                      name: "SolanaLotto",
+                      name: "MazelProtocol",
                       odds: "1 in 9.37M",
                       ev: "+47%",
                       color: "text-emerald-light",
@@ -988,7 +995,7 @@ function LearnRolldownPage() {
                     <div
                       key={lottery.name}
                       className={`p-2.5 rounded-lg text-center ${
-                        lottery.name === "SolanaLotto"
+                        lottery.name === "MazelProtocol"
                           ? "bg-emerald/[0.06] border border-emerald/20"
                           : "bg-foreground/[0.02]"
                       }`}
@@ -1094,11 +1101,11 @@ function LearnRolldownPage() {
                 },
                 {
                   q: "Does the +EV guarantee I'll make money?",
-                  a: "Positive EV is a statistical edge over many plays — not a guarantee on any single ticket. But consider this: traditional lotteries have -50% EV (you lose half on average). During rolldown, SolanaLotto has +47% EV. Over time, that mathematical edge compounds in your favor. It's the same principle professional gamblers use.",
+                  a: "Positive EV is a statistical edge over many plays — not a guarantee on any single ticket. But consider this: traditional lotteries have -50% EV (you lose half on average). During rolldown, MazelProtocol has +47% EV. Over time, that mathematical edge compounds in your favor. It's the same principle professional gamblers use.",
                 },
                 {
                   q: "Why are the odds so much better than Powerball or Mega Millions?",
-                  a: "SolanaLotto uses a 6/46 matrix (1 in 9.37 million for the jackpot) versus Powerball's 5/69+1/26 (1 in 292 million). That's 31× better odds. And during rolldown, even matching just 3 numbers (1 in 54 odds) pays ~$225 instead of $5. No traditional lottery offers anything close to this.",
+                  a: "MazelProtocol uses a 6/46 matrix (1 in 9.37 million for the jackpot) versus Powerball's 5/69+1/26 (1 in 292 million). That's 31× better odds. And during rolldown, even matching just 3 numbers (1 in 54 odds) pays ~$225 instead of $5. No traditional lottery offers anything close to this.",
                 },
                 {
                   q: "How does pari-mutuel pricing benefit me?",
@@ -1110,11 +1117,13 @@ function LearnRolldownPage() {
                 },
                 {
                   q: "How do I know the draws are fair?",
-                  a: "SolanaLotto uses Switchboard's Trusted Execution Environment (TEE) randomness with a commit-reveal pattern. The randomness is committed before ticket purchases close, then revealed to execute the draw. Everything is on-chain and verifiable. You can audit every single draw yourself.",
+                  a: "MazelProtocol uses Switchboard's Trusted Execution Environment (TEE) randomness with a commit-reveal pattern. The randomness is committed before ticket purchases close, then revealed to execute the draw. Everything is on-chain and verifiable. You can audit every single draw yourself.",
                 },
               ].map((faq) => (
                 <div key={faq.q} className="glass rounded-xl p-4 sm:p-5">
-                  <h3 className="text-xs font-bold text-foreground mb-2">{faq.q}</h3>
+                  <h3 className="text-xs font-bold text-foreground mb-2">
+                    {faq.q}
+                  </h3>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                     {faq.a}
                   </p>

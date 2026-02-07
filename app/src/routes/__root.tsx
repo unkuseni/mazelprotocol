@@ -42,11 +42,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       {
         name: "description",
         content:
-          "SolanaLotto introduces positive expected value windows through mathematical rolldown mechanics. Play smart, win bigger on Solana.",
+          "MazelProtocol introduces positive expected value windows through mathematical rolldown mechanics. Play smart, win bigger on Solana.",
       },
       {
         title:
-          "SolanaLotto Protocol | The First Intentionally Exploitable Lottery",
+          "MazelProtocol Protocol | The First Intentionally Exploitable Lottery",
       },
       {
         name: "theme-color",
@@ -59,12 +59,12 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       {
         property: "og:title",
         content:
-          "SolanaLotto Protocol | The First Intentionally Exploitable Lottery",
+          "MazelProtocol Protocol | The First Intentionally Exploitable Lottery",
       },
       {
         property: "og:description",
         content:
-          "SolanaLotto introduces positive expected value windows through mathematical rolldown mechanics. Play smart, win bigger on Solana.",
+          "MazelProtocol introduces positive expected value windows through mathematical rolldown mechanics. Play smart, win bigger on Solana.",
       },
       {
         property: "og:type",
@@ -76,7 +76,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
       {
         name: "twitter:title",
-        content: "SolanaLotto Protocol",
+        content: "MazelProtocol Protocol",
       },
       {
         name: "twitter:description",

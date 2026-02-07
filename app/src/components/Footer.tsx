@@ -39,17 +39,17 @@ const footerSections = [
     title: "Community",
     links: [
       {
-        href: "https://twitter.com/solanalotto",
+        href: "https://twitter.com/mazelprotocol",
         label: "Twitter / X",
         icon: Twitter,
       },
       {
-        href: "https://discord.gg/solanalotto",
+        href: "https://discord.gg/mazelprotocol",
         label: "Discord",
         icon: MessageCircle,
       },
       {
-        href: "https://github.com/solanalotto",
+        href: "https://github.com/mazelprotocol",
         label: "GitHub",
         icon: Github,
       },
@@ -103,7 +103,7 @@ export default function Footer() {
               <FooterLogoMark />
               <div className="flex flex-col">
                 <span className="text-lg font-bold text-foreground tracking-tight leading-none group-hover:text-emerald-light transition-colors">
-                  SolanaLotto
+                  MazelProtocol
                 </span>
                 <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase leading-none mt-1">
                   Protocol
@@ -118,7 +118,7 @@ export default function Footer() {
             {/* Social icons */}
             <div className="flex items-center gap-3 mt-5">
               <a
-                href="https://twitter.com/solanalotto"
+                href="https://twitter.com/mazelprotocol"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
@@ -127,7 +127,7 @@ export default function Footer() {
                 <Twitter size={18} />
               </a>
               <a
-                href="https://discord.gg/solanalotto"
+                href="https://discord.gg/mazelprotocol"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
@@ -136,7 +136,7 @@ export default function Footer() {
                 <MessageCircle size={18} />
               </a>
               <a
-                href="https://github.com/solanalotto"
+                href="https://github.com/mazelprotocol"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
@@ -223,7 +223,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="py-5 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground/60">
-            &copy; {currentYear} SolanaLotto Protocol. All rights reserved.
+            &copy; {currentYear} MazelProtocol Protocol. All rights reserved.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground/60">
             <a
