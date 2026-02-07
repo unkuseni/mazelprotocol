@@ -340,7 +340,7 @@ function LandingPage() {
               </h1>
 
               <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8">
-                SolanaLotto introduces{" "}
+                MazelProtocol introduces{" "}
                 <span className="text-emerald-light font-semibold">
                   positive expected value windows
                 </span>{" "}
@@ -1048,7 +1048,7 @@ function LandingPage() {
               <span className="text-gradient-emerald">Design</span>
             </h2>
             <p className="text-muted-foreground text-base max-w-2xl mx-auto">
-              Every aspect of SolanaLotto is verifiable on-chain. No black
+              Every aspect of MazelProtocol is verifiable on-chain. No black
               boxes, no hidden mechanics, no trust required.
             </p>
           </div>
@@ -1127,8 +1127,8 @@ function LandingPage() {
           </div>
 
           <p className="text-muted-foreground/60 text-xs mt-8">
-            SolanaLotto Protocol &bull; Built on Solana &bull; Fully transparent
-            &bull; Non-custodial
+            MazelProtocol Protocol &bull; Built on Solana &bull; Fully
+            transparent &bull; Non-custodial
           </p>
         </div>
       </section>

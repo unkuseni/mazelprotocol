@@ -48,7 +48,7 @@ export function initAppKit(): Promise<void> {
 
     // Metadata — origin must match your domain & subdomain
     const metadata = {
-      name: "SolanaLotto",
+      name: "MazelProtocol",
       description:
         "The first intentionally exploitable lottery on Solana. Positive expected value rolldown mechanics for strategic players.",
       url: window.location.origin,
