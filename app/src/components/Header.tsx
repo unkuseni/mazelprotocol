@@ -18,6 +18,7 @@ import {
   Check,
 } from "lucide-react";
 import { useAppKit, useAppKitAccount, useDisconnect } from "@/lib/appkit-hooks";
+import { ThemeToggleCompact } from "@/components/ThemeToggle";
 
 const navLinks = [
   {
@@ -437,6 +438,11 @@ export default function Header() {
 
             {/* Right side: Wallet + Mobile menu */}
             <div className="flex items-center gap-3">
+              {/* Theme Toggle */}
+              <div className="hidden sm:block">
+                <ThemeToggleCompact />
+              </div>
+
               {/* Live Jackpot Badge (Desktop only) */}
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold/10 border border-gold/20">
                 <div className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
@@ -488,14 +494,17 @@ export default function Header() {
               <LogoMark />
               <span className="font-bold text-white">SolanaLotto</span>
             </div>
-            <button
-              type="button"
-              onClick={() => setMobileOpen(false)}
-              className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-              aria-label="Close menu"
-            >
-              <X size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              <ThemeToggleCompact />
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                aria-label="Close menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
 
           {/* Mobile wallet connect */}
