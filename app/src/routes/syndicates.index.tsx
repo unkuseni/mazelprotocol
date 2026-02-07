@@ -23,7 +23,9 @@ import {
   AlertTriangle,
   Check,
   X,
+  Eye,
 } from "lucide-react";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
 import { Button } from "@/components/ui/button";
 import { FloatingBalls } from "@/components/LotteryBalls";
 import Footer from "@/components/Footer";
@@ -441,6 +443,8 @@ function CreateSyndicateModal({
   const [maxMembers, setMaxMembers] = useState("25");
   const [isPublic, setIsPublic] = useState(true);
   const [managerFee, setManagerFee] = useState("2");
+  const { open: openWallet } = useAppKit();
+  const { isConnected } = useAppKitAccount();
 
   if (!open) return null;
 
@@ -599,13 +603,31 @@ function CreateSyndicateModal({
           >
             Cancel
           </Button>
-          <Button
-            disabled={!name.trim()}
-            className="flex-1 h-10 text-sm font-bold bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-lg shadow-emerald/20 disabled:opacity-40 disabled:shadow-none transition-all"
-          >
-            <Wallet size={14} />
-            Connect & Create
-          </Button>
+          {isConnected ? (
+            <Button
+              disabled={!name.trim()}
+              onClick={() => {
+                alert(
+                  `Creating syndicate "${name.trim()}" with max ${maxMembers} members, ${isPublic ? "public" : "private"}, ${managerFee}% fee. Sign the transaction to create on-chain.`,
+                );
+                onClose();
+              }}
+              className="flex-1 h-10 text-sm font-bold bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-lg shadow-emerald/20 disabled:opacity-40 disabled:shadow-none transition-all"
+            >
+              <Plus size={14} />
+              Create Syndicate
+            </Button>
+          ) : (
+            <Button
+              onClick={() =>
+                openWallet({ view: "Connect", namespace: "solana" })
+              }
+              className="flex-1 h-10 text-sm font-bold bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-lg shadow-emerald/20 transition-all"
+            >
+              <Wallet size={14} />
+              Connect & Create
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -677,6 +699,8 @@ function SyndicatesPage() {
   const [filterVisibility, setFilterVisibility] =
     useState<FilterVisibility>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const { open: openWallet } = useAppKit();
+  const { isConnected } = useAppKitAccount();
 
   const filteredSyndicates = useMemo(() => {
     let result = [...MOCK_SYNDICATES];
@@ -759,11 +783,17 @@ function SyndicatesPage() {
             </div>
 
             <Button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                if (!isConnected) {
+                  openWallet({ view: "Connect", namespace: "solana" });
+                } else {
+                  setShowCreateModal(true);
+                }
+              }}
               className="h-11 px-6 bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Plus size={16} />
-              Create Syndicate
+              {isConnected ? <Plus size={16} /> : <Wallet size={16} />}
+              {isConnected ? "Create Syndicate" : "Connect to Create"}
             </Button>
           </div>
         </div>
@@ -981,6 +1011,51 @@ function SyndicatesPage() {
               </div>
             </div>
           </div>
+
+          {/* Wallet Connection CTA (when not connected) */}
+          {!isConnected && (
+            <div className="glass-strong rounded-2xl p-6 sm:p-8 border border-emerald/20 overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald/[0.04] via-transparent to-gold/[0.02]" />
+              <div className="relative z-10 flex flex-col sm:flex-row items-center gap-6">
+                <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20 shrink-0">
+                  <Wallet size={28} className="text-emerald-light" />
+                </div>
+                <div className="text-center sm:text-left flex-1">
+                  <h3 className="text-base font-black text-white mb-1">
+                    Connect Your Wallet to Get Started
+                  </h3>
+                  <p className="text-xs text-gray-400 max-w-md">
+                    Connect your Solana wallet to create syndicates, join
+                    existing ones, and start pooling resources with other
+                    players.
+                  </p>
+                </div>
+                <Button
+                  onClick={() =>
+                    openWallet({ view: "Connect", namespace: "solana" })
+                  }
+                  className="h-12 px-8 bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+                >
+                  <Wallet size={18} />
+                  Connect Wallet
+                </Button>
+              </div>
+              <div className="relative z-10 mt-4 pt-3 border-t border-white/5 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-[10px] text-gray-500">
+                <div className="flex items-center gap-1.5">
+                  <Shield size={10} className="text-emerald/60" />
+                  <span>Non-custodial</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Eye size={10} className="text-emerald/60" />
+                  <span>Read-only access</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Shield size={10} className="text-emerald/60" />
+                  <span>Sign to transact</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

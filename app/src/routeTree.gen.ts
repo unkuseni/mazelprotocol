@@ -18,6 +18,7 @@ import { Route as SyndicatesIndexRouteImport } from './routes/syndicates.index'
 import { Route as PlayIndexRouteImport } from './routes/play.index'
 import { Route as SyndicatesSyndicateIdRouteImport } from './routes/syndicates.$syndicateId'
 import { Route as PlayQuickPickRouteImport } from './routes/play.quick-pick'
+import { Route as LearnWhitepaperRouteImport } from './routes/learn.whitepaper'
 import { Route as LearnRolldownRouteImport } from './routes/learn.rolldown'
 import { Route as DemoTrpcTodoRouteImport } from './routes/demo/trpc-todo'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
@@ -79,6 +80,11 @@ const SyndicatesSyndicateIdRoute = SyndicatesSyndicateIdRouteImport.update({
 const PlayQuickPickRoute = PlayQuickPickRouteImport.update({
   id: '/play/quick-pick',
   path: '/play/quick-pick',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnWhitepaperRoute = LearnWhitepaperRouteImport.update({
+  id: '/learn/whitepaper',
+  path: '/learn/whitepaper',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LearnRolldownRoute = LearnRolldownRouteImport.update({
@@ -179,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/trpc-todo': typeof DemoTrpcTodoRoute
   '/learn/rolldown': typeof LearnRolldownRoute
+  '/learn/whitepaper': typeof LearnWhitepaperRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
   '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
   '/play/': typeof PlayIndexRoute
@@ -206,6 +213,7 @@ export interface FileRoutesByTo {
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/trpc-todo': typeof DemoTrpcTodoRoute
   '/learn/rolldown': typeof LearnRolldownRoute
+  '/learn/whitepaper': typeof LearnWhitepaperRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
   '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
   '/play': typeof PlayIndexRoute
@@ -235,6 +243,7 @@ export interface FileRoutesById {
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/trpc-todo': typeof DemoTrpcTodoRoute
   '/learn/rolldown': typeof LearnRolldownRoute
+  '/learn/whitepaper': typeof LearnWhitepaperRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
   '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
   '/play/': typeof PlayIndexRoute
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
     | '/demo/tanstack-query'
     | '/demo/trpc-todo'
     | '/learn/rolldown'
+    | '/learn/whitepaper'
     | '/play/quick-pick'
     | '/syndicates/$syndicateId'
     | '/play/'
@@ -292,6 +302,7 @@ export interface FileRouteTypes {
     | '/demo/tanstack-query'
     | '/demo/trpc-todo'
     | '/learn/rolldown'
+    | '/learn/whitepaper'
     | '/play/quick-pick'
     | '/syndicates/$syndicateId'
     | '/play'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/demo/tanstack-query'
     | '/demo/trpc-todo'
     | '/learn/rolldown'
+    | '/learn/whitepaper'
     | '/play/quick-pick'
     | '/syndicates/$syndicateId'
     | '/play/'
@@ -349,6 +361,7 @@ export interface RootRouteChildren {
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
   DemoTrpcTodoRoute: typeof DemoTrpcTodoRoute
   LearnRolldownRoute: typeof LearnRolldownRoute
+  LearnWhitepaperRoute: typeof LearnWhitepaperRoute
   PlayQuickPickRoute: typeof PlayQuickPickRoute
   PlayIndexRoute: typeof PlayIndexRoute
   ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
@@ -427,6 +440,13 @@ declare module '@tanstack/react-router' {
       path: '/play/quick-pick'
       fullPath: '/play/quick-pick'
       preLoaderRoute: typeof PlayQuickPickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/whitepaper': {
+      id: '/learn/whitepaper'
+      path: '/learn/whitepaper'
+      fullPath: '/learn/whitepaper'
+      preLoaderRoute: typeof LearnWhitepaperRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/learn/rolldown': {
@@ -577,6 +597,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   DemoTrpcTodoRoute: DemoTrpcTodoRoute,
   LearnRolldownRoute: LearnRolldownRoute,
+  LearnWhitepaperRoute: LearnWhitepaperRoute,
   PlayQuickPickRoute: PlayQuickPickRoute,
   PlayIndexRoute: PlayIndexRoute,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,

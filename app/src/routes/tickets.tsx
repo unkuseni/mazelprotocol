@@ -20,9 +20,13 @@ import {
   TrendingUp,
   ChevronDown,
   ExternalLink,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
 import { Button } from "@/components/ui/button";
+import { JackpotDisplay } from "@/components/JackpotDisplay";
+import { CountdownTimer } from "@/components/CountdownTimer";
 import { WinningNumbers, FloatingBalls } from "@/components/LotteryBalls";
 import Footer from "@/components/Footer";
 
@@ -775,6 +779,77 @@ function TicketStats({ tickets }: { tickets: TicketData[] }) {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Wallet Not Connected View                                                 */
+/* -------------------------------------------------------------------------- */
+
+function WalletNotConnected() {
+  const { open } = useAppKit();
+
+  return (
+    <div className="min-h-screen bg-background">
+      <section className="relative pt-24 pb-8 sm:pt-28 sm:pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        <div className="absolute inset-0 hero-grid opacity-30" />
+        <div className="absolute inset-0 bg-glow-emerald opacity-15" />
+        <FloatingBalls count={5} />
+
+        <div className="relative z-10 max-w-2xl mx-auto text-center mt-16 sm:mt-24">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20 mb-6 glow-emerald">
+            <Ticket size={36} className="text-emerald-light" />
+          </div>
+
+          <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white mb-3">
+            Connect Your Wallet
+          </h1>
+          <p className="text-sm sm:text-base text-gray-400 max-w-md mx-auto mb-8">
+            Connect your Solana wallet to view your tickets, track results, and
+            claim your winnings.
+          </p>
+
+          <Button
+            onClick={() => open({ view: "Connect", namespace: "solana" })}
+            className="h-12 px-8 bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] text-sm"
+          >
+            <Wallet size={18} />
+            Connect Wallet
+          </Button>
+
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-[10px] text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <Shield size={10} className="text-emerald/60" />
+              <span>Non-custodial</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Eye size={10} className="text-emerald/60" />
+              <span>Read-only access</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Shield size={10} className="text-emerald/60" />
+              <span>Sign to claim prizes</span>
+            </div>
+          </div>
+
+          {/* Still show public info */}
+          <div className="mt-16">
+            <JackpotDisplay
+              amount={1_247_832}
+              size="lg"
+              glow
+              showRolldownStatus
+              softCap={1_750_000}
+            />
+
+            <div className="mt-8">
+              <CountdownTimer size="md" label="Next Draw" />
+            </div>
+          </div>
+        </div>
+      </section>
+      <Footer />
+    </div>
+  );
+}
+
 function EmptyState({ filter }: { filter: TicketFilter }) {
   const messages: Record<TicketFilter, { title: string; desc: string }> = {
     all: {
@@ -826,6 +901,8 @@ function EmptyState({ filter }: { filter: TicketFilter }) {
 /* -------------------------------------------------------------------------- */
 
 function MyTicketsPage() {
+  const { open } = useAppKit();
+  const { isConnected } = useAppKitAccount();
   const [filter, setFilter] = useState<TicketFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("date");
@@ -889,14 +966,24 @@ function MyTicketsPage() {
   );
 
   const handleClaim = (id: string) => {
+    if (!isConnected) {
+      open({ view: "Connect", namespace: "solana" });
+      return;
+    }
+    // In a real app, this would trigger the on-chain claim transaction
     alert(
-      `Wallet connection required to claim prize for ticket ${id}. Sign the transaction to receive your USDC.`,
+      `Claiming prize for ticket ${id}. Sign the transaction to receive your USDC.`,
     );
   };
 
   const handleClaimAll = () => {
+    if (!isConnected) {
+      open({ view: "Connect", namespace: "solana" });
+      return;
+    }
+    // In a real app, this would batch-claim all prizes in a single transaction
     alert(
-      `Wallet connection required to claim all ${unclaimedTickets.length} prizes ($${MOCK_UNCLAIMED_TOTAL.toFixed(2)} USDC total). This will batch-claim in a single transaction.`,
+      `Claiming all ${unclaimedTickets.length} prizes ($${MOCK_UNCLAIMED_TOTAL.toFixed(2)} USDC total). Sign the transaction to batch-claim.`,
     );
   };
 
@@ -922,6 +1009,11 @@ function MyTicketsPage() {
       claimed: gameFiltered.filter((t) => t.status === "claimed").length,
     };
   }, [gameFilter]);
+
+  // Show wallet prompt when not connected (after all hooks)
+  if (!isConnected) {
+    return <WalletNotConnected />;
+  }
 
   return (
     <div className="min-h-screen bg-background">
