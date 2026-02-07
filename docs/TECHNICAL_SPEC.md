@@ -495,9 +495,10 @@ pub const SEED_AMOUNT: u64 = 500_000_000_000;      // $500,000
 pub const DRAW_INTERVAL: i64 = 86400;              // 24 hours in seconds
 
 // Prize Allocation (basis points of prize pool)
-pub const JACKPOT_ALLOCATION_BPS: u16 = 5760;      // 57.6%
+pub const JACKPOT_ALLOCATION_BPS: u16 = 5560;      // 55.6%
 pub const FIXED_PRIZE_ALLOCATION_BPS: u16 = 3940;  // 39.4%
 pub const RESERVE_ALLOCATION_BPS: u16 = 300;       // 3%
+pub const INSURANCE_ALLOCATION_BPS: u16 = 200;     // 2%
 
 // Fixed Prizes (Normal Mode)
 pub const MATCH_5_PRIZE: u64 = 4_000_000_000;      // $4,000
@@ -510,7 +511,7 @@ pub const ROLLDOWN_MATCH_5_BPS: u16 = 2500;        // 25%
 pub const ROLLDOWN_MATCH_4_BPS: u16 = 3500;        // 35%
 pub const ROLLDOWN_MATCH_3_BPS: u16 = 4000;        // 40%
 
-// Quick Pick Express Parameters (5/35) - With Rolldown Exploit (+59% Player Edge!)
+// Quick Pick Express Parameters (5/35) - With Rolldown Exploit (+67% Player Edge!)
 pub const QUICK_PICK_TICKET_PRICE: u64 = 1_500_000;  // $1.50
 pub const QUICK_PICK_NUMBERS: u8 = 5;                 // Pick 5 numbers
 pub const QUICK_PICK_RANGE: u8 = 35;                  // From 1-35
@@ -539,7 +540,7 @@ pub const QUICK_PICK_MATCH_4_PRIZE: u64 = 100_000_000;   // $100
 pub const QUICK_PICK_MATCH_3_PRIZE: u64 = 4_000_000;     // $4
 // No Match 2 prize in Quick Pick Express
 
-// Quick Pick Rolldown Allocation (THE EXPLOIT: +59% Player Edge)
+// Quick Pick Rolldown Allocation (THE EXPLOIT: +67% Player Edge)
 pub const QUICK_PICK_ROLLDOWN_MATCH_4_BPS: u16 = 6000;   // 60% to Match 4
 pub const QUICK_PICK_ROLLDOWN_MATCH_3_BPS: u16 = 4000;   // 40% to Match 3
 
@@ -982,7 +983,7 @@ impl UnifiedTicket {
 
 /// Quick Pick Express game state (5/35 Matrix with Rolldown Exploit)
 /// Odds: Match 5 = 1/324,632, Match 4 = 1/2,164, Match 3 = 1/74.6, Match 2 = 1/8
-/// Rolldown EV: +59% player edge when jackpot distributes!
+/// Rolldown EV: +67% player edge when jackpot distributes!
 #[account]
 pub struct QuickPickStateLegacy {
     /// Current draw number
@@ -1041,7 +1042,7 @@ pub enum MatchTier {
 }
 
 /// Quick Pick Express game state with rolldown mechanics (5/35 Matrix)
-/// THE EXPLOIT: During rolldown, players enjoy +59% positive expected value!
+/// THE EXPLOIT: During rolldown, players enjoy +67% positive expected value!
 #[account]
 pub struct QuickPickState {
     /// Current draw number
@@ -3283,10 +3284,10 @@ export const DEVNET_CONFIG = {
 | 6 | 1 | 0.000000107 | 1 : 9,366,819 |
 | 5 | 240 | 0.0000256 | 1 : 39,028 |
 | 4 | 11,700 | 0.00125 | 1 : 800 |
-| 3 | 198,400 | 0.0212 | 1 : 47 |
+| 3 | 197,600 | 0.02110 | 1 : 47.4 |
 | 2 | 1,370,850 | 0.146 | 1 : 6.8 |
-| 1 | 3,956,880 | 0.422 | 1 : 2.4 |
-| 0 | 3,829,749 | 0.409 | 1 : 2.4 |
+| 1 | 3,948,048 | 0.4215 | 1 : 2.37 |
+| 0 | 3,838,380 | 0.4098 | 1 : 2.44 |
 | **Total** | **9,366,819** | **1.000** | |
 
 ### 12.3 Economic Parameters
@@ -3294,12 +3295,14 @@ export const DEVNET_CONFIG = {
 | Parameter | Value | Notes |
 |-----------|-------|-------|
 | Ticket Price | $2.50 | Fixed in USDC |
-| House Fee | 34% | $0.85 per ticket |
-| Prize Pool | 66% | $1.65 per ticket |
-| Jackpot Allocation | 57.6% | Of prize pool |
-| Fixed Prize Allocation | 39.4% | Of prize pool |
-| Reserve Allocation | 3% | Of prize pool |
-| Jackpot Cap | $1,750,000 | Rolldown trigger |
+| House Fee | 28–40% (dynamic) | Varies by jackpot level |
+| Prize Pool | 60–72% | Remainder after house fee |
+| Jackpot Allocation | 55.6% | Of prize pool (5560 BPS) |
+| Fixed Prize Allocation | 39.4% | Of prize pool (3940 BPS) |
+| Reserve Allocation | 3% | Of prize pool (300 BPS) |
+| Insurance Allocation | 2% | Of prize pool (200 BPS) |
+| Soft Cap | $1,750,000 | Probabilistic rolldown trigger |
+| Hard Cap | $2,250,000 | Forced rolldown |
 | Seed Amount | $500,000 | Post-rolldown reset |
 
 ### 12.4 Prize Transition System — FIXED → PARI-MUTUEL
@@ -3461,7 +3464,7 @@ Quick Pick Express (5/35) uses the identical Fixed → Pari-Mutuel transition:
 | Mode | Match 4 Prize | Match 3 Prize | Operator Liability |
 |------|---------------|---------------|-------------------|
 | **Normal (FIXED)** | $100 | $4 | Variable |
-| **Rolldown (PARI-MUTUEL)** | Pool ÷ Winners (~$3,000*) | Pool ÷ Winners (~$74*) | **CAPPED at $30k-$40k** |
+| **Rolldown (PARI-MUTUEL)** | Pool ÷ Winners (~$3,247*) | Pool ÷ Winners (~$74.6*) | **CAPPED at $30k-$50k** |
 
 *Estimated at ~12,000 tickets. Actual = 60% or 40% of jackpot ÷ winner count.
 

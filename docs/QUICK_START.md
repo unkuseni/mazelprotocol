@@ -248,7 +248,7 @@ program.methods.leaveSyndicate()
 | **Match 3 Prize** | $4 fixed / ~$74* rolldown | FIXED → PARI-MUTUEL |
 | **Match 2 Prize** | No prize (no free ticket) | — |
 | **Cycle Duration** | ~2-3 days | — |
-| **🔥 Rolldown EV** | **+58.7% player edge!** | PARI-MUTUEL |
+| **🔥 Rolldown EV** | **+66.7% player edge!** | PARI-MUTUEL |
 
 *\*Rolldown prizes are pari-mutuel estimates at ~12k tickets. Actual = Pool ÷ Winners.*
 
@@ -323,7 +323,7 @@ Only play with money you can afford to lose. Verify your local laws before parti
 
 ### ✅ Implemented On-Chain
 - ✅ **Fixed → Pari-Mutuel Prize Transition** (ALL prizes start fixed, transition to pari-mutuel during rolldown to cap operator liability)
-- ✅ **Quick Pick Express** (separate program — 5/35 matrix, $1.50 tickets, **+58.7% rolldown exploit**, no free ticket, $50 gate)
+- ✅ **Quick Pick Express** (separate program — 5/35 matrix, $1.50 tickets, **+66.7% rolldown exploit**, no free ticket, $50 gate)
 - ✅ **Switchboard Randomness** (TEE-based secure randomness with commit-reveal)
 - ✅ **Dynamic House Fee** (28-40% based on jackpot)
 - ✅ **Soft/Hard Cap System** (prevents calendar gaming)

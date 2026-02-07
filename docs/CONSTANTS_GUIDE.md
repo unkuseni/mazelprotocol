@@ -293,13 +293,13 @@ let match_3_prize = match_3_pool / match_3_winners as u64; // ~$35 each
 
 ## 8. Quick Pick Express — FIXED → PARI-MUTUEL PRIZE SYSTEM
 
-5/35 mini-game with **full rolldown mechanics and +59% player edge exploit** — exclusive to committed players.
+5/35 mini-game with **full rolldown mechanics and +67% player edge exploit** — exclusive to committed players.
 
 > **🔒 PRIZE TRANSITION:** Quick Pick Express uses the same Fixed → Pari-Mutuel prize transition system as the main lottery. Normal mode prizes are FIXED; rolldown prizes are PARI-MUTUEL (operator liability CAPPED at jackpot amount).
 
 > ⚠️ **$50 Gate Requirement**: Players must have spent $50+ lifetime in the main lottery to access Quick Pick Express.
 
-**🎯 Key Feature:** During rolldown events, players enjoy **+58.7% positive expected value** using pari-mutuel prize distribution — comparable to the main lottery's optimal rolldown conditions.
+**🎯 Key Feature:** During rolldown events, players enjoy **+66.7% positive expected value** using pari-mutuel prize distribution — comparable to the main lottery's optimal rolldown conditions.
 
 ### Access Gate
 | Constant | Value | Description |
@@ -342,7 +342,7 @@ let match_3_prize = match_3_pool / match_3_winners as u64; // ~$35 each
 | `QUICK_PICK_MATCH_3_PRIZE` | `4,000,000` lamports | $4 prize for Match 3 | **FIXED** |
 | — | — | No Match 2 prize in Quick Pick Express | — |
 
-### Rolldown Allocation (THE EXPLOIT: +59% Player Edge!) — PARI-MUTUEL
+### Rolldown Allocation (THE EXPLOIT: +67% Player Edge!) — PARI-MUTUEL
 > **🔒 PRIZE MODE: PARI-MUTUEL** — During rolldown, prizes are calculated as Pool ÷ Winners. Operator liability is CAPPED at exactly the jackpot amount ($30,000-$50,000).
 
 | Constant | Value | Description | Prize Mode |
@@ -378,12 +378,12 @@ NORMAL MODE (FIXED PRIZES — 87-91% house edge):
 ├── Total EV: ~$0.15 on $1.50 ticket
 ├── Prize Mode: FIXED amounts
 
-🔥 ROLLDOWN MODE (PARI-MUTUEL PRIZES — +58.7% PLAYER EDGE):
-├── Match 4: ~$3,000* (PARI-MUTUEL) × 1/2,164 = $1.39
-├── Match 3: ~$74* (PARI-MUTUEL) × 1/74.6 = $0.99
+🔥 ROLLDOWN MODE (PARI-MUTUEL PRIZES — +66.7% PLAYER EDGE):
+├── Match 4: ~$3,247* (PARI-MUTUEL) × 1/2,164 = $1.50
+├── Match 3: ~$74.6* (PARI-MUTUEL) × 1/74.6 = $1.00
 ├── Match 2: $0 (no free ticket)
-├── Total EV: $2.38 on $1.50 ticket
-├── PROFIT: +$0.88 per ticket!
+├── Total EV: $2.50 on $1.50 ticket (EV = J/N exactly)
+├── PROFIT: +$1.00 per ticket!
 ├── Prize Mode: PARI-MUTUEL (Pool ÷ Winners)
 
 *Estimated at ~12,000 tickets. Actual = Pool ÷ Winners.
@@ -500,7 +500,7 @@ System limits and validation parameters.
 | **Normal Mode Prizes** | **FIXED** | **FIXED** |
 | **Rolldown Prizes** | **PARI-MUTUEL** | **PARI-MUTUEL** |
 | **Normal Mode Edge** | -65% (house) | -89% (house) |
-| **🔥 Rolldown EV** | **+14.6% to +62% (player)** | **+58.7% (player)** |
+| **🔥 Rolldown EV** | **+14.6% to +62% (player)** | **+66.7% (player)** |
 | **Rolldown Frequency** | ~Every 2-3 weeks | ~Every 2-3 days |
 | **🔒 Prize Transition** | **Fixed → Pari-Mutuel** | **Fixed → Pari-Mutuel** |
 

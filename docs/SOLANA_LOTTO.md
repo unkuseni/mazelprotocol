@@ -52,7 +52,7 @@ This isn't a bug—**it's the feature**.
 | **👥 Syndicate System** | Built-in pool creation with automatic prize splitting |
 | **🔥 Streak Bonuses** | Rewards for consistent players |
 | **🎰 Lucky Numbers NFT** | Win NFTs that earn 1% of future jackpots |
-| **⚡ Quick Pick Express** | 5/35 mini-lottery every 4 hours with +59% rolldown exploit (no free ticket) |
+| **⚡ Quick Pick Express** | 5/35 mini-lottery every 4 hours with +67% rolldown exploit (no free ticket) |
 | **🛡️ MEV Protection** | Jito integration prevents front-running |
 | **📊 Full Transparency** | All balances and draws verifiable on-chain |
 
@@ -103,8 +103,8 @@ This isn't a bug—**it's the feature**.
 | **6 (Jackpot)** | 1 in 9,366,819 | 0.0000107% |
 | **5** | 1 in 39,028 | 0.00256% |
 | **4** | 1 in 800 | 0.125% |
-| **3** | 1 in 47 | 2.13% |
-| **2** | 1 in 6.8 | 14.7% |
+| **3** | 1 in 47.4 | 2.11% |
+| **2** | 1 in 6.8 | 14.6% |
 
 ---
 
@@ -277,28 +277,29 @@ Instead of a fixed fee, the house fee **scales with jackpot level**:
 ### Revenue Allocation (Per $2.50 Ticket at 32% Fee)
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    TICKET: $2.50                          │
-├──────────────────────────────────────────────────────────┤
-│  ┌────────────────┐  ┌────────────────────────────────┐  │
-│  │   HOUSE FEE    │  │         PRIZE POOL             │  │
-│  │     $0.80      │  │           $1.70                │  │
-│  │   (28-40%)     │  │         (60-72%)               │  │
-│  └────────────────┘  └────────────────────────────────┘  │
-│                              │                            │
-│           ┌──────────────────┼──────────────────┐        │
-│           ▼                  ▼                  ▼        │
-│    ┌─────────────┐   ┌─────────────┐   ┌─────────────┐  │
-│    │   JACKPOT   │   │   FIXED     │   │  INSURANCE  │  │
-│    │    ~58%     │   │   PRIZES    │   │    POOL     │  │
-│    │             │   │    ~39%     │   │     ~3%     │  │
-│    └─────────────┘   └─────────────┘   └─────────────┘  │
-└──────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                        TICKET: $2.50                              │
+├───────────────────────────────────────────────────────────────────┤
+│  ┌────────────────┐  ┌─────────────────────────────────────────┐ │
+│  │   HOUSE FEE    │  │            PRIZE POOL                   │ │
+│  │     $0.80      │  │              $1.70                      │ │
+│  │     (32%)      │  │              (68%)                      │ │
+│  └────────────────┘  └─────────────────────────────────────────┘ │
+│                                    │                              │
+│         ┌──────────────┬───────────┼───────────┬──────────┐      │
+│         ▼              ▼           ▼           ▼          │      │
+│  ┌────────────┐ ┌────────────┐ ┌─────────┐ ┌──────────┐ │      │
+│  │  JACKPOT   │ │   FIXED    │ │ RESERVE │ │INSURANCE │ │      │
+│  │   55.6%    │ │  PRIZES    │ │   3%    │ │  POOL    │ │      │
+│  │   $0.95    │ │   39.4%    │ │  $0.05  │ │   2%     │ │      │
+│  │            │ │   $0.67    │ │         │ │  $0.03   │ │      │
+│  └────────────┘ └────────────┘ └─────────┘ └──────────┘ │      │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ### Insurance Pool
 
-2% of every ticket ($0.05) goes to an insurance pool that:
+2% of the prize pool (~$0.03 per ticket at 32% fee) goes to an insurance pool that:
 - Covers unexpected high-variance events
 - Tops up weak rolldowns
 - Provides emergency reserve
@@ -318,49 +319,59 @@ Instead of a fixed fee, the house fee **scales with jackpot level**:
 
 **Why This Matters:** During a rolldown with 1M+ tickets, fixed prizes could bankrupt the protocol. Pari-mutuel ensures total payout = jackpot amount (capped), regardless of volume.
 
-### 15-16 Day Cycle Profitability (With Dynamic Fees & Pari-Mutuel Protection)
+### ~15 Day Cycle Profitability (With Dynamic Fees & Pari-Mutuel Protection)
+
+> **IMPORTANT:** Operator profit = **house fees** minus **seed cost**. Fixed prize payouts and rolldown distributions are funded entirely from the **prize pool** (player funds), not from operator revenue. The prize pool is self-sustaining.
 
 ```
-Dynamic Fee Model Revenue (Corrected):
-├── Phase 1 (Days 1-5, <$500k): 100k × $2.50 × 28% = $70,000/day    [FIXED PRIZES]
-├── Phase 2 (Days 6-8, $500k-$1M): 100k × $2.50 × 32% = $80,000/day  [FIXED PRIZES]
-├── Phase 3 (Days 9-11, $1M-$1.5M): 120k × $2.50 × 36% = $108,000/day [FIXED PRIZES]
-├── Phase 4 (Days 12-13, >$1.5M): 150k × $2.50 × 40% = $150,000/day  [FIXED PRIZES]
-├── Rolldown (Day 14): 700k × $2.50 × 28% = $490,000                  [PARI-MUTUEL]
+Dynamic Fee Model — House Fee Revenue (Operator Revenue):
+├── Phase A (Days 1-5, $500k-$1M):  100k × $2.50 × 32% = $80,000/day   [FIXED PRIZES]
+├── Phase B (Days 6-11, $1M-$1.5M): 100k × $2.50 × 36% = $90,000/day   [FIXED PRIZES]
+├── Phase C (Days 12-14, >$1.5M):   100k × $2.50 × 40% = $100,000/day  [FIXED PRIZES]
+├── Rolldown (Day 15):               700k × $2.50 × 28% = $490,000      [PARI-MUTUEL]
 
-Total Cycle House Fees (Corrected): $1,704,000
+Total Cycle House Fees: ~$1,690,000
 ```
 
-> **🔒 PARI-MUTUEL PROTECTION:** During rolldown (Day 14), prizes transition from fixed to pari-mutuel. This caps operator liability at exactly $1,750,000 (the jackpot), regardless of whether 500k or 2M tickets are sold.
+> **🔒 PARI-MUTUEL PROTECTION:** During rolldown (Day 15), prizes transition from fixed to pari-mutuel. This caps operator liability at exactly $1,750,000 (the jackpot), regardless of whether 500k or 2M tickets are sold.
 
-| Period | Prize Mode | Calculation | Amount |
-|--------|------------|-------------|--------|
-| **Normal Days House Fees** | Fixed | Dynamic fee revenue | +$1,214,000 |
-| **Rolldown House Fees** | — | 700k × $2.50 × 28% | +$490,000 |
-| **Expected Fixed Prize Payouts** | Fixed | Probabilistic costs (Days 1-13) | -$989,560 |
-| **Rolldown Jackpot Distribution** | **Pari-Mutuel** | Full jackpot to winners | -$1,750,000 |
-| **Pari-Mutuel Savings** | **Protected** | Fixed would cost more at 700k volume | +$0* |
-| **Seed Reset** | — | Replenish $500k jackpot | -$500,000 |
-| **Insurance Accumulation** | — | 2% allocation | +$70,000 |
-| **CYCLE NET PROFIT (15-16 days)** | | | **+$534,440** |
-| **Daily Average** | | | **~$35,300/day** |
+**Operator Profit & Loss (Per Cycle):**
 
-*\*Pari-mutuel savings are built into the rolldown calculation — operator pays exactly $1,750,000 total, not variable based on winners.*
+| Component | Source | Amount |
+|-----------|--------|--------|
+| **Normal Days House Fees (~14 days)** | Operator Revenue | +$1,200,000 |
+| **Rolldown House Fees (1 day, 28%)** | Operator Revenue | +$490,000 |
+| **Total House Fees** | | **+$1,690,000** |
+| **Jackpot Seed (next cycle)** | Operator Cost | -$500,000 |
+| **NET OPERATOR PROFIT** | | **+$1,190,000** |
+| **Daily Average** | | **~$79,300/day** |
+
+**Prize Pool Flows (Self-Sustaining — Not Operator Cost):**
+
+| Flow | Amount |
+|------|--------|
+| Prize pool contributions (normal, ~14 days) | +$2,300,000 |
+| Prize pool contributions (rolldown day, 72%) | +$1,260,000 |
+| Expected fixed prize payouts (14 normal days) | -$1,065,700 |
+| Free ticket liability (rolldown Match 2) | -$256,410 |
+| Jackpot distribution (pari-mutuel) | -$1,750,000 |
+| Reserve accumulation (3%) | +$106,800 |
+| Insurance accumulation (2%) | +$71,200 |
 
 **Why Pari-Mutuel Protects the Operator:**
-- Fixed prizes at 700k tickets: ~$2.1M potential liability
+- Fixed prizes at 700k tickets: ~$2.1M potential liability (unbounded)
 - Pari-mutuel at 700k tickets: EXACTLY $1,750,000 liability (capped)
-- **Savings: ~$350,000 per rolldown cycle**
+- **Risk eliminated regardless of volume**
 
 ### Break-Even Analysis
 
-| Volume Scenario | Daily Tickets | Prize Mode | Cycle Profit | Annual Profit |
-|-----------------|---------------|------------|--------------|---------------|
-| **Minimum Viable** | 50,000 | Fixed | +$180,000 | +$4.7M |
-| **Target** | 100,000 | Fixed→Pari-Mutuel | +$534,440 | +$13.9M |
-| **Optimistic** | 200,000 | Fixed→Pari-Mutuel | +$1,340,000 | +$34.8M |
+| Volume Scenario | Daily Tickets | Prize Mode | Cycle Profit (Fees − Seed) | Annual Profit |
+|-----------------|---------------|------------|---------------------------|---------------|
+| **Minimum Viable** | 50,000 | Fixed→PM | +$450,000 | +$5.5M |
+| **Target** | 100,000 | Fixed→Pari-Mutuel | +$1,190,000 | +$28.9M |
+| **Optimistic** | 200,000 | Fixed→Pari-Mutuel | +$2,670,000 | +$130M |
 
-*Higher volume scenarios benefit MORE from pari-mutuel transition — operator liability stays capped while revenue scales.*
+*Higher volume scenarios benefit MORE from pari-mutuel transition — operator liability stays capped while house fee revenue scales linearly.*
 
 ---
 
@@ -757,10 +768,10 @@ High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** —
 
 *\*Estimated prizes at ~12,000 tickets. Actual = Pool ÷ Winners (pari-mutuel).*
 
-**🎯 Rolldown Player Edge: +58.7%** — Comparable to the main lottery's +62%!
+**🎯 Rolldown Player Edge: +66.7%** — Comparable to the main lottery's +62%!
 
-- Ticket costs $1.50, expected return is $2.38
-- **Profit: +$0.88 per ticket during rolldown**
+- Ticket costs $1.50, expected return is $2.50 (EV = J/N exactly, since there is no Match 2 prize)
+- **Profit: +$1.00 per ticket during rolldown**
 - Operator still profitable over the full cycle (87-91% house edge in normal mode)
 - No free ticket prize — only Match 3+ wins
 - **Pari-mutuel ensures operator liability is CAPPED at jackpot amount**

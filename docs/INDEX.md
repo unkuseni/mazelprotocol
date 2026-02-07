@@ -181,7 +181,7 @@
 | Match 2 Prize | No prize (no free ticket) | — | ADVANCED_FEATURES.md §5 |
 | Rolldown Match 4 | 60% of jackpot pool | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
 | Rolldown Match 3 | 40% of jackpot pool | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
-| **🔥 Rolldown EV** | **+58.7% player edge!** | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
+| **🔥 Rolldown EV** | **+66.7% player edge!** | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
 
 *\*Rolldown prizes are pari-mutuel estimates. Actual = Pool ÷ Winners. Operator liability CAPPED at jackpot amount.*
 
@@ -247,7 +247,7 @@
 | v3.0 | 2025 | Removed references to TOKEN MODULE, GOV MODULE, SecondChanceEntry, and separate TicketManager/DrawEngine/PrizePool programs that never existed |
 | v3.0 | 2025 | Documented newly implemented features: config timelock, 2-step authority transfer, solvency check, expired prize reclaim, draw recovery, verification hash, statistical plausibility checks |
 | v2.5 | 2025 | Removed Mega Events feature from all documentation and code |
-| v2.4 | 2025 | Updated Quick Pick Express: 5/35 matrix, $1.50 tickets, **+59% rolldown exploit**, no free ticket, $50 gate |
+| v2.4 | 2025 | Updated Quick Pick Express: 5/35 matrix, $1.50 tickets, **+67% rolldown exploit**, no free ticket, $50 gate |
 | v2.3 | 2025 | Removed $LOTTO token and staking features |
 | v2.2 | 2025 | Migrated from Chainlink VRF to Switchboard Randomness |
 | v2.2 | 2025 | Removed Second Chance Draws feature |
@@ -312,7 +312,7 @@
 
 *Complete documentation for the world's first intentionally exploitable lottery*
 
-📚 **6 Documents** | 🎰 **2 On-Chain Programs (38+ instructions)** | 💰 **$12.3M Annual Profit Target**
+📚 **6 Documents** | 🎰 **2 On-Chain Programs (38+ instructions)** | 💰 **$34M Annual Profit Target**
 
 > **🔒 CORE PROTECTION:** All prizes START as FIXED amounts, then TRANSITION to PARI-MUTUEL during rolldown events. Operator liability is ALWAYS CAPPED while players enjoy +EV windows.
 

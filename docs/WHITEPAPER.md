@@ -141,8 +141,8 @@ $$P(k) = \frac{C(6, k) \cdot C(40, 6-k)}{C(46, 6)}$$
 | 4 | $\frac{C(6,4) \cdot C(40,2)}{9,366,819}$ | 0.001249 | 800.6 |
 | 3 | $\frac{C(6,3) \cdot C(40,3)}{9,366,819}$ | 0.02109 | 47.42 |
 | 2 | $\frac{C(6,2) \cdot C(40,4)}{9,366,819}$ | 0.14635 | 6.833 |
-| 1 | $\frac{C(6,1) \cdot C(40,5)}{9,366,819}$ | 0.42232 | 2.368 |
-| 0 | $\frac{C(6,0) \cdot C(40,6)}{9,366,819}$ | 0.40871 | 2.447 |
+| 1 | $\frac{C(6,1) \cdot C(40,5)}{9,366,819}$ | 0.42153 | 2.372 |
+| 0 | $\frac{C(6,0) \cdot C(40,6)}{9,366,819}$ | 0.40982 | 2.440 |
 
 **Verification:** $\sum_{k=0}^{6} P(k) = 1.0$ ✓
 
@@ -281,23 +281,23 @@ $$N < \frac{J}{2.509}$$
                             │
             ┌───────────────┴───────────────┐
             ▼                               ▼
-      HOUSE FEE (34%)                 PRIZE POOL (66%)
-         $0.85                            $1.65
+      HOUSE FEE (28-40%)             PRIZE POOL (60-72%)
+      (dynamic by tier)              (example at 32%: $1.70)
             │                               │
-            ▼                   ┌───────────┼───────────┐
-    ┌───────────────┐           ▼           ▼           ▼
-    │  OPERATIONS   │      JACKPOT     FIXED PRIZES  RESERVE
-    │  • Team       │       $0.95        $0.65        $0.05
-    │  • Marketing  │      (57.6%)      (39.4%)       (3%)
-    │  • Infra      │           │           │           │
-    │  • Buybacks   │           ▼           ▼           ▼
-    └───────────────┘      Growing      Immediate    Buffer
-                           Pool       (FIXED MODE)   Fund
-                                           │
-                                           ▼
-                                    TRANSITION TO
-                                    PARI-MUTUEL
-                                    (when needed)
+            ▼               ┌───────────┬───┼───────┬──────────┐
+    ┌───────────────┐       ▼           ▼           ▼          ▼
+    │  OPERATIONS   │   JACKPOT    FIXED PRIZES  RESERVE   INSURANCE
+    │  • Team       │    $0.95       $0.67        $0.05      $0.03
+    │  • Marketing  │   (55.6%)     (39.4%)       (3%)       (2%)
+    │  • Infra      │       │           │           │          │
+    │  • Buybacks   │       ▼           ▼           ▼          ▼
+    └───────────────┘   Growing     Immediate    Buffer    Solvency
+                        Pool      (FIXED MODE)   Fund     Protection
+                                       │
+                                       ▼
+                                TRANSITION TO
+                                PARI-MUTUEL
+                                (when needed)
 ```
 
 ### 4.1.1 Prize Mode Transition System
@@ -319,44 +319,53 @@ $$N < \frac{J}{2.509}$$
 **Assumptions:**
 - Daily volume: 100,000 tickets
 - Ticket price: $2.50
-- House fee: 34% ($0.85)
-- Jackpot contribution: $0.95/ticket
-- Jackpot cap: $1,750,000
+- Jackpot allocation: 55.6% of prize pool (per code: `JACKPOT_ALLOCATION_BPS = 5560`)
+- Dynamic house fee: 28–40% depending on jackpot tier
+- Soft cap: $1,750,000
 - Seed: $500,000
 
-**Jackpot Growth Calculation:**
+**Jackpot Growth Calculation (Phased by Fee Tier):**
 
-Days to reach cap from seed:
-$$Days = \frac{Cap - Seed}{DailyContribution} = \frac{1,750,000 - 500,000}{100,000 \times 0.95} = \frac{1,250,000}{95,000} \approx 13.2 \text{ days}$$
+Since the seed starts at $500,000 (immediately at tier 2), the jackpot grows through three fee phases:
 
-**Normal Period (13 days) — FIXED PRIZE MODE:**
+| Phase | Jackpot Range | Fee | Prize Pool/Ticket | Jackpot/Ticket | Tickets Needed | Days |
+|-------|---------------|-----|-------------------|----------------|----------------|------|
+| A | $500k → $1M | 32% | $1.70 | $0.9452 | 529,010 | 5.3 |
+| B | $1M → $1.5M | 36% | $1.60 | $0.8896 | 562,050 | 5.6 |
+| C | $1.5M → $1.75M | 40% | $1.50 | $0.834 | 299,760 | 3.0 |
+| **Total** | **$500k → $1.75M** | | | | **~1,390,820** | **~14 days** |
 
-| Metric | Prize Mode | Calculation | Daily | 13-Day Total |
-|--------|------------|-------------|-------|--------------|
-| Revenue | — | 100k × $2.50 | $250,000 | $3,250,000 |
-| House Fee | — | 100k × $0.85 | $85,000 | $1,105,000 |
-| Prize Pool | — | 100k × $1.65 | $165,000 | $2,145,000 |
-| Fixed Prize Allocation | **FIXED** | 100k × $0.65 | $65,000 | $845,000 |
-| Expected Payout* | **FIXED** | ~$76,120 | $76,120 | $989,560 |
-| Jackpot Growth | — | 100k × $0.95 | $95,000 | $1,235,000 |
-| Reserve Accrual | — | 100k × $0.05 | $5,000 | $65,000 |
+*Jackpot per ticket = Prize Pool per ticket × 55.6%*
 
-*During normal mode, prizes are FIXED amounts. If winner count exceeds pool capacity, automatic transition to pari-mutuel occurs.
+**Normal Period (~14 days) — FIXED PRIZE MODE:**
+
+| Metric | Calculation | Daily (avg) | 14-Day Total |
+|--------|-------------|-------------|--------------|
+| Revenue | 100k × $2.50 | $250,000 | $3,500,000 |
+| House Fees (blended ~34%) | Dynamic by tier | ~$85,700 | ~$1,200,000 |
+| Prize Pool | Revenue − Fees | ~$164,300 | ~$2,300,000 |
+| Expected Fixed Prize Payouts* | 100k × $0.76/ticket | $76,120 | $1,065,700 |
+| Jackpot Growth | Phases A–C above | — | $1,250,000 |
+| Reserve Accrual (3% of pool) | 100k × ~$0.05 | ~$4,930 | ~$69,000 |
+| Insurance Accrual (2% of pool) | 100k × ~$0.03 | ~$3,290 | ~$46,000 |
+
+*Expected fixed payout per ticket: P(5)×$4,000 + P(4)×$150 + P(3)×$5 + P(2)×$2.50 = $0.1025 + $0.1874 + $0.1055 + $0.3659 = $0.7613*
+
+*During normal mode, prizes are FIXED amounts. If winner count exceeds pool capacity, automatic transition to pari-mutuel occurs.*
 
 **Rolldown Period (1 day) — PARI-MUTUEL PRIZE MODE:**
 
 > **🔒 CRITICAL: During rolldown, ALL prizes transition to PARI-MUTUEL. Operator liability is EXACTLY $1,750,000 (the jackpot) — no more, no less — regardless of ticket volume or winner count.**
 
-Assuming 700,000 tickets sold during rolldown:
+Assuming 700,000 tickets sold during rolldown (fee drops to 28%):
 
 | Metric | Prize Mode | Calculation | Amount |
 |--------|------------|-------------|--------|
 | Revenue | — | 700k × $2.50 | $1,750,000 |
-| House Fee | — | 700k × $0.85 | $595,000 |
-| Prize Pool (from sales) | — | 700k × $1.65 | $1,155,000 |
+| House Fee (28%) | — | 700k × $0.70 | $490,000 |
+| Prize Pool (from sales) | — | 700k × $1.80 | $1,260,000 |
 | Free Ticket Liability | FIXED | 700k × (1/6.833) × $2.50 | $256,410 |
 | **Jackpot Distribution** | **PARI-MUTUEL** | Full jackpot to Match 3-5 | **$1,750,000** |
-| Prize Pool Surplus | — | $1,155,000 - $256,410 | $898,590 |
 
 **Pari-Mutuel Distribution of $1,750,000 Jackpot:**
 
@@ -367,27 +376,42 @@ Assuming 700,000 tickets sold during rolldown:
 | Match 3 | 40% | $700,000 | ~14,763 | ~$47 |
 | **TOTAL** | **100%** | **$1,750,000** | — | — |
 
-*Winners estimated at 700k tickets. Actual = Pool ÷ Winner Count (pari-mutuel formula).
+*Winners estimated at 700k tickets. Actual = Pool ÷ Winner Count (pari-mutuel formula).*
 
 **🔒 OPERATOR PROTECTION:** Total payout is EXACTLY $1,750,000 regardless of:
 - Whether 500k or 2M tickets are sold
 - Whether there are 10 or 100 Match 5 winners
 - Market conditions or player behavior
 
-**Full Cycle (14 days) — Fixed + Pari-Mutuel Combined:**
+**Full Cycle (~15 days) — Operator Profit & Loss:**
 
-| Component | Prize Mode | Amount |
-|-----------|------------|--------|
-| Normal Period House Fees | — | +$1,105,000 |
-| Rolldown House Fees | — | +$595,000 |
-| Rolldown Prize Pool Surplus | — | +$898,590 |
-| Expected Fixed Prize Payouts (13 days) | **FIXED** | -$989,560 |
-| Jackpot Distribution | **PARI-MUTUEL** | -$1,750,000 |
-| Free Ticket Liability (rolldown) | FIXED | -$256,410 |
-| Seed Reset | — | -$500,000 |
-| Reserve Accumulation | — | +$65,000 |
-| **NET CYCLE PROFIT** | | **+$167,620** |
-| **Daily Average** | | **~$11,973/day** |
+> **IMPORTANT:** The operator's profit comes from **house fees** minus the **jackpot seed** cost. Fixed prize payouts and rolldown distributions are funded entirely from the prize pool (player funds), not from operator revenue. The prize pool is self-sustaining: ticket sales fund it, and prizes are paid from it.
+
+| Component | Source | Amount |
+|-----------|--------|--------|
+| Normal Period House Fees (~14 days) | Operator Revenue | +$1,200,000 |
+| Rolldown House Fees (1 day, 28%) | Operator Revenue | +$490,000 |
+| **Total House Fees** | | **+$1,690,000** |
+| Jackpot Seed (next cycle) | Operator Cost | -$500,000 |
+| **NET OPERATOR PROFIT** | | **+$1,190,000** |
+| **Daily Average** | | **~$79,300/day** |
+
+**Prize Pool Balance (Self-Sustaining — Not Operator Cost):**
+
+| Flow | Amount |
+|------|--------|
+| Prize pool contributions (normal, ~14 days) | +$2,300,000 |
+| Prize pool contributions (rolldown day) | +$1,260,000 |
+| **Total prize pool inflow** | **+$3,560,000** |
+| Expected fixed prize payouts (14 normal days) | -$1,065,700 |
+| Free ticket liability (rolldown Match 2) | -$256,410 |
+| Jackpot distribution (pari-mutuel) | -$1,750,000 |
+| **Total prize pool outflow** | **-$3,072,110** |
+| Reserve accumulation (3%) | +$106,800 |
+| Insurance accumulation (2%) | +$71,200 |
+| Surplus carried to next cycle | +$309,890 |
+
+*Note: The $500,000 seed for the next cycle can eventually be funded from accumulated reserves rather than operator capital.*
 
 **Without Pari-Mutuel Protection (Hypothetical):**
 If rolldown prizes were FIXED at high volume:
@@ -409,18 +433,18 @@ If rolldown prizes were FIXED at high volume:
 
 | Metric | Calculation | Annual |
 |--------|-------------|--------|
-| Cycles per Year | 365 / 14 | 26.07 |
-| Gross Profit (Protected) | 26.07 × $167,620 | $4,371,023 |
-| Daily Average | $4,371,023 / 365 | $11,975 |
+| Cycles per Year | 365 / 15 | ~24.3 |
+| Net Operator Profit | 24.3 × $1,190,000 | $28,917,000 |
+| Daily Average | $28,917,000 / 365 | $79,200 |
 
 **High Volume Scenario (200k daily tickets, Pari-Mutuel Protected):**
 
 | Metric | Calculation | Annual |
 |--------|-------------|--------|
-| Cycles per Year | 365 / 7 | 52.14 |
-| Cycle Profit | ~$450,000 | — |
-| Gross Profit | 52.14 × $450,000 | $23,463,000 |
-| Daily Average | | $64,283 |
+| Cycles per Year | 365 / 7.5 | ~48.7 |
+| Cycle Profit | ~$2,380,000 | — |
+| Gross Profit | 48.7 × $2,380,000 | $115,906,000 |
+| Daily Average | | $317,550 |
 
 **🔒 KEY INSIGHT:** Higher volume = faster cycles + more house fees, but operator liability ALWAYS CAPPED by pari-mutuel system during rolldown. This is the fundamental protection that makes the protocol sustainable at any scale.
 
@@ -428,14 +452,14 @@ If rolldown prizes were FIXED at high volume:
 
 **Volume Impact on Profitability:**
 
-| Daily Volume | Prize Mode | Cycle Profit | Annual Profit | Viability |
-|--------------|------------|--------------|---------------|-----------|
-| **35,000** | Fixed Only | **~$0** | **$0** | **Break-even** |
-| 50,000 | Fixed→PM | +$85,000 | +$2.2M | ✓ Minimum Sustainable |
-| 75,000 | Fixed→PM | +$125,000 | +$4.8M | ✓ Conservative |
-| 100,000 | Fixed→PM | +$167,620 | +$4.4M | ✓ Target |
-| 150,000 | Fixed→PM | +$320,000 | +$12.2M | ✓ Growth |
-| 200,000 | Fixed→PM | +$450,000 | +$23.5M | ✓ Optimistic |
+| Daily Volume | Prize Mode | Cycle House Fees | Cycle Profit (Fees − Seed) | Annual Profit | Viability |
+|--------------|------------|------------------|---------------------------|---------------|-----------|
+| **25,000** | Fixed Only | ~$500,000 | **~$0** | **$0** | **Break-even** |
+| 50,000 | Fixed→PM | ~$950,000 | +$450,000 | +$5.5M | ✓ Minimum Sustainable |
+| 75,000 | Fixed→PM | ~$1,320,000 | +$820,000 | +$13.3M | ✓ Conservative |
+| 100,000 | Fixed→PM | ~$1,690,000 | +$1,190,000 | +$28.9M | ✓ Target |
+| 150,000 | Fixed→PM | ~$2,430,000 | +$1,930,000 | +$62.5M | ✓ Growth |
+| 200,000 | Fixed→PM | ~$3,170,000 | +$2,670,000 | +$130M | ✓ Optimistic |
 
 *PM = Pari-Mutuel. All scenarios assume pari-mutuel transition during rolldown events.
 
@@ -670,11 +694,16 @@ pub fn buy_ticket(
         TICKET_PRICE, // 2,500,000 (2.5 USDC in 6 decimals)
     )?;
     
-    // Allocate funds
-    let house_fee = TICKET_PRICE * 34 / 100;        // $0.85
-    let jackpot_contribution = TICKET_PRICE * 38 / 100;  // $0.95
-    let fixed_prize_pool = TICKET_PRICE * 26 / 100;     // $0.65
-    let reserve_buffer = TICKET_PRICE * 2 / 100;        // $0.05
+    // Allocate funds (dynamic fee based on jackpot tier)
+    let house_fee_bps = calculate_house_fee_bps(lottery_state.jackpot_balance, false);
+    let house_fee = TICKET_PRICE * house_fee_bps as u64 / 10000;
+    let prize_pool = TICKET_PRICE - house_fee;
+    
+    // Prize pool split (BPS of prize pool, not ticket price)
+    let jackpot_contribution = prize_pool * 5560 / 10000;  // 55.6%
+    let fixed_prize_pool = prize_pool * 3940 / 10000;      // 39.4%
+    let reserve_buffer = prize_pool * 300 / 10000;         // 3%
+    let insurance_contribution = prize_pool * 200 / 10000; // 2%
     
     // Update state
     ctx.accounts.lottery_state.jackpot_balance += jackpot_contribution;
@@ -1415,10 +1444,10 @@ SolanaLotto invites participation from:
 | 6 | 1 | 0.000000107 | 0.000000107 |
 | 5 | 240 | 0.0000256 | 0.0000257 |
 | 4 | 11,700 | 0.00125 | 0.00128 |
-| 3 | 198,400 | 0.0212 | 0.0225 |
-| 2 | 1,370,850 | 0.146 | 0.169 |
-| 1 | 3,956,880 | 0.422 | 0.591 |
-| 0 | 3,829,749 | 0.409 | 1.000 |
+| 3 | 197,600 | 0.02110 | 0.02238 |
+| 2 | 1,370,850 | 0.14634 | 0.16872 |
+| 1 | 3,948,048 | 0.42153 | 0.59025 |
+| 0 | 3,838,380 | 0.40982 | 1.000 |
 | **Total** | **9,366,819** | **1.000** | |
 
 ### Appendix B: Economic Simulation Results
