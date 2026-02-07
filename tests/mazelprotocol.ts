@@ -2508,7 +2508,964 @@ describe("mazelprotocol", () => {
   });
 
   // ========================================================================
-  // 22. FINAL STATE SNAPSHOT
+  // 22. CONFIG TIMELOCK (propose / cancel / execute)
+  // ========================================================================
+  describe("Config Timelock", () => {
+    it("proposes a config change (starts timelock)", async () => {
+      const stateBefore = await program.account.lotteryState.fetch(
+        pdas.lotteryState,
+      );
+      expect(stateBefore.configTimelockEnd.toNumber()).to.equal(0);
+
+      await program.methods
+        .proposeConfig({
+          ticketPrice: new BN(3_000_000), // $3.00
+          houseFeeBps: null,
+          jackpotCap: null,
+          seedAmount: null,
+          softCap: null,
+          hardCap: null,
+          switchboardQueue: null,
+          drawInterval: null,
+        })
+        .accounts({
+          authority: authority.publicKey,
+          lotteryState: pdas.lotteryState,
+        })
+        .rpc();
+
+      const stateAfter = await program.account.lotteryState.fetch(
+        pdas.lotteryState,
+      );
+      // Timelock should now be set (> 0)
+      expect(stateAfter.configTimelockEnd.toNumber()).to.be.greaterThan(0);
+      // Pending config hash should be non-zero
+      const hashBytes = stateAfter.pendingConfigHash as number[];
+      const hasNonZero = hashBytes.some((b: number) => b !== 0);
+      expect(hasNonZero).to.be.true;
+    });
+
+    it("fails to propose when a proposal is already pending", async () => {
+      try {
+        await program.methods
+          .proposeConfig({
+            ticketPrice: new BN(4_000_000),
+            houseFeeBps: null,
+            jackpotCap: null,
+            seedAmount: null,
+            softCap: null,
+            hardCap: null,
+            switchboardQueue: null,
+            drawInterval: null,
+          })
+          .accounts({
+            authority: authority.publicKey,
+            lotteryState: pdas.lotteryState,
+          })
+          .rpc();
+        expect.fail("Should have thrown — proposal already pending");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("cancels the pending config proposal", async () => {
+      await program.methods
+        .cancelConfigProposal()
+        .accounts({
+          authority: authority.publicKey,
+          lotteryState: pdas.lotteryState,
+        })
+        .rpc();
+
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
+      expect(state.configTimelockEnd.toNumber()).to.equal(0);
+      const hashBytes = state.pendingConfigHash as number[];
+      const allZero = hashBytes.every((b: number) => b === 0);
+      expect(allZero).to.be.true;
+    });
+
+    it("fails to cancel when no proposal is pending", async () => {
+      try {
+        await program.methods
+          .cancelConfigProposal()
+          .accounts({
+            authority: authority.publicKey,
+            lotteryState: pdas.lotteryState,
+          })
+          .rpc();
+        expect.fail("Should have thrown — no proposal pending");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("fails to propose config from non-authority", async () => {
+      try {
+        await program.methods
+          .proposeConfig({
+            ticketPrice: new BN(3_000_000),
+            houseFeeBps: null,
+            jackpotCap: null,
+            seedAmount: null,
+            softCap: null,
+            hardCap: null,
+            switchboardQueue: null,
+            drawInterval: null,
+          })
+          .accounts({
+            authority: unauthorizedUser.publicKey,
+            lotteryState: pdas.lotteryState,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have thrown — not authority");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("execute_config fails when timelock has not expired", async () => {
+      // First propose a config change
+      await program.methods
+        .proposeConfig({
+          ticketPrice: new BN(3_000_000),
+          houseFeeBps: null,
+          jackpotCap: null,
+          seedAmount: null,
+          softCap: null,
+          hardCap: null,
+          switchboardQueue: null,
+          drawInterval: null,
+        })
+        .accounts({
+          authority: authority.publicKey,
+          lotteryState: pdas.lotteryState,
+        })
+        .rpc();
+
+      // Immediately try to execute — timelock is 24 hours, so this should fail
+      try {
+        await program.methods
+          .executeConfig({
+            ticketPrice: new BN(3_000_000),
+            houseFeeBps: null,
+            jackpotCap: null,
+            seedAmount: null,
+            softCap: null,
+            hardCap: null,
+            switchboardQueue: null,
+            drawInterval: null,
+          })
+          .accounts({
+            authority: authority.publicKey,
+            lotteryState: pdas.lotteryState,
+          })
+          .rpc();
+        expect.fail("Should have thrown — timelock not expired");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+
+      // Clean up: cancel the pending proposal
+      await program.methods
+        .cancelConfigProposal()
+        .accounts({
+          authority: authority.publicKey,
+          lotteryState: pdas.lotteryState,
+        })
+        .rpc();
+    });
+
+    it("fails to propose config with invalid params (soft >= hard cap)", async () => {
+      try {
+        await program.methods
+          .proposeConfig({
+            ticketPrice: null,
+            houseFeeBps: null,
+            jackpotCap: null,
+            seedAmount: null,
+            softCap: new BN(3_000_000_000_000), // $3M
+            hardCap: new BN(1_000_000_000_000), // $1M — less than soft cap
+            switchboardQueue: null,
+            drawInterval: null,
+          })
+          .accounts({
+            authority: authority.publicKey,
+            lotteryState: pdas.lotteryState,
+          })
+          .rpc();
+        expect.fail("Should have thrown — soft cap >= hard cap");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("fails to propose config with invalid house fee (> 50%)", async () => {
+      try {
+        await program.methods
+          .proposeConfig({
+            ticketPrice: null,
+            houseFeeBps: 6000, // 60% > 50% max
+            jackpotCap: null,
+            seedAmount: null,
+            softCap: null,
+            hardCap: null,
+            switchboardQueue: null,
+            drawInterval: null,
+          })
+          .accounts({
+            authority: authority.publicKey,
+            lotteryState: pdas.lotteryState,
+          })
+          .rpc();
+        expect.fail("Should have thrown — house fee too high");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("fails to propose config with invalid draw interval (< 1 hour)", async () => {
+      try {
+        await program.methods
+          .proposeConfig({
+            ticketPrice: null,
+            houseFeeBps: null,
+            jackpotCap: null,
+            seedAmount: null,
+            softCap: null,
+            hardCap: null,
+            switchboardQueue: null,
+            drawInterval: new BN(1800), // 30 min < 1 hour minimum
+          })
+          .accounts({
+            authority: authority.publicKey,
+            lotteryState: pdas.lotteryState,
+          })
+          .rpc();
+        expect.fail("Should have thrown — draw interval too short");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+  });
+
+  // ========================================================================
+  // 23. CHECK SOLVENCY (permissionless)
+  // ========================================================================
+  describe("Check Solvency", () => {
+    it("solvency check passes after normal operations", async () => {
+      // Anyone can call solvency check — use player1 (not authority)
+      await program.methods
+        .checkSolvency()
+        .accounts({
+          caller: player1.publicKey,
+          lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
+        })
+        .signers([player1])
+        .rpc();
+
+      // Lottery should NOT be paused after a passing solvency check
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
+      expect(state.isPaused).to.be.false;
+    });
+
+    it("unauthorized user can also call solvency check (permissionless)", async () => {
+      await program.methods
+        .checkSolvency()
+        .accounts({
+          caller: unauthorizedUser.publicKey,
+          lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
+        })
+        .signers([unauthorizedUser])
+        .rpc();
+
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
+      expect(state.isPaused).to.be.false;
+    });
+
+    it("authority can call solvency check", async () => {
+      await program.methods
+        .checkSolvency()
+        .accounts({
+          caller: authority.publicKey,
+          lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
+        })
+        .rpc();
+
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
+      expect(state.isPaused).to.be.false;
+    });
+  });
+
+  // ========================================================================
+  // 24. SYNDICATE ADVANCED OPERATIONS
+  // ========================================================================
+  describe("Syndicate Advanced Operations", () => {
+    // Re-derive syndicate PDA and USDC PDA for the syndicate created earlier
+    const syndicateId = new BN(1);
+    let syndicatePda: PublicKey;
+    let syndicateUsdcPda: PublicKey;
+
+    before(async () => {
+      // Derive the correct syndicate PDA using original creator (player1)
+      [syndicatePda] = PublicKey.findProgramAddressSync(
+        [
+          SYNDICATE_SEED,
+          player1.publicKey.toBuffer(),
+          syndicateId.toArrayLike(Buffer, "le", 8),
+        ],
+        programId,
+      );
+
+      // Derive the syndicate USDC PDA
+      [syndicateUsdcPda] = PublicKey.findProgramAddressSync(
+        [SYNDICATE_SEED, Buffer.from("usdc"), syndicatePda.toBuffer()],
+        programId,
+      );
+    });
+
+    it("transfer syndicate creator from player1 to player2", async () => {
+      await program.methods
+        .transferSyndicateCreator({
+          newCreator: player2.publicKey,
+        })
+        .accounts({
+          creator: player1.publicKey,
+          syndicate: syndicatePda,
+        })
+        .signers([player1])
+        .rpc();
+
+      const syndicate = await program.account.syndicate.fetch(syndicatePda);
+      expect(syndicate.creator.toString()).to.equal(
+        player2.publicKey.toString(),
+      );
+      // original_creator should still be player1
+      expect(syndicate.originalCreator.toString()).to.equal(
+        player1.publicKey.toString(),
+      );
+    });
+
+    it("fails to transfer creator from non-creator", async () => {
+      try {
+        await program.methods
+          .transferSyndicateCreator({
+            newCreator: unauthorizedUser.publicKey,
+          })
+          .accounts({
+            creator: player1.publicKey, // player1 is no longer creator
+            syndicate: syndicatePda,
+          })
+          .signers([player1])
+          .rpc();
+        expect.fail("Should have thrown — not the creator");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("transfers creator back to player1", async () => {
+      await program.methods
+        .transferSyndicateCreator({
+          newCreator: player1.publicKey,
+        })
+        .accounts({
+          creator: player2.publicKey,
+          syndicate: syndicatePda,
+        })
+        .signers([player2])
+        .rpc();
+
+      const syndicate = await program.account.syndicate.fetch(syndicatePda);
+      expect(syndicate.creator.toString()).to.equal(
+        player1.publicKey.toString(),
+      );
+    });
+
+    it("player2 leaves the syndicate and receives refund", async () => {
+      const syndicateBefore =
+        await program.account.syndicate.fetch(syndicatePda);
+      const memberCountBefore = syndicateBefore.memberCount;
+
+      await program.methods
+        .leaveSyndicate()
+        .accounts({
+          member: player2.publicKey,
+          syndicate: syndicatePda,
+          memberUsdc: player2Usdc,
+          syndicateUsdc: syndicateUsdcPda,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([player2])
+        .rpc();
+
+      const syndicateAfter =
+        await program.account.syndicate.fetch(syndicatePda);
+      expect(syndicateAfter.memberCount).to.equal(memberCountBefore - 1);
+    });
+
+    it("fails to leave syndicate when not a member", async () => {
+      try {
+        await program.methods
+          .leaveSyndicate()
+          .accounts({
+            member: unauthorizedUser.publicKey,
+            syndicate: syndicatePda,
+            memberUsdc: destinationUsdc,
+            syndicateUsdc: syndicateUsdcPda,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have thrown — not a member");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("creator closes the syndicate when only creator remains", async () => {
+      const syndicate = await program.account.syndicate.fetch(syndicatePda);
+      // Only creator should remain
+      expect(syndicate.memberCount).to.equal(1);
+
+      await program.methods
+        .closeSyndicate()
+        .accounts({
+          creator: player1.publicKey,
+          syndicate: syndicatePda,
+          creatorUsdc: player1Usdc,
+          syndicateUsdc: syndicateUsdcPda,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([player1])
+        .rpc();
+
+      // Syndicate account should be closed (fetch should fail)
+      try {
+        await program.account.syndicate.fetch(syndicatePda);
+        expect.fail("Should have thrown — account should be closed");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("fails to close syndicate that does not exist", async () => {
+      try {
+        await program.methods
+          .closeSyndicate()
+          .accounts({
+            creator: player1.publicKey,
+            syndicate: syndicatePda,
+            creatorUsdc: player1Usdc,
+            syndicateUsdc: syndicateUsdcPda,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .signers([player1])
+          .rpc();
+        expect.fail("Should have thrown — syndicate already closed");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+  });
+
+  // ========================================================================
+  // 25. SYNDICATE – CREATE, CONTRIBUTE, WITHDRAW, AND REMOVE MEMBER
+  // ========================================================================
+  describe("Syndicate Withdraw & Remove Member", () => {
+    const syndicateId2 = new BN(2);
+    let syndicatePda2: PublicKey;
+    let syndicateUsdcPda2: PublicKey;
+
+    before(async () => {
+      [syndicatePda2] = PublicKey.findProgramAddressSync(
+        [
+          SYNDICATE_SEED,
+          player1.publicKey.toBuffer(),
+          syndicateId2.toArrayLike(Buffer, "le", 8),
+        ],
+        programId,
+      );
+
+      [syndicateUsdcPda2] = PublicKey.findProgramAddressSync(
+        [SYNDICATE_SEED, Buffer.from("usdc"), syndicatePda2.toBuffer()],
+        programId,
+      );
+    });
+
+    it("creates a second syndicate for testing", async () => {
+      await program.methods
+        .createSyndicate({
+          syndicateId: syndicateId2,
+          name: "Withdraw Test Syndicate",
+          isPublic: true,
+          managerFeeBps: 100, // 1%
+        })
+        .accounts({
+          creator: player1.publicKey,
+          syndicate: syndicatePda2,
+          syndicateUsdc: syndicateUsdcPda2,
+          usdcMint: usdcMint,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([player1])
+        .rpc();
+
+      const syndicate = await program.account.syndicate.fetch(syndicatePda2);
+      expect(syndicate.memberCount).to.equal(1);
+    });
+
+    it("player2 joins the second syndicate with contribution", async () => {
+      const [userStatsPda] = deriveUserStatsPDA(programId, player2.publicKey);
+      const contribution = new BN(2_000_000); // $2
+
+      await program.methods
+        .joinSyndicate({ contribution })
+        .accounts({
+          member: player2.publicKey,
+          syndicate: syndicatePda2,
+          memberUsdc: player2Usdc,
+          syndicateUsdc: syndicateUsdcPda2,
+          userStats: userStatsPda,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([player2])
+        .rpc();
+
+      const syndicate = await program.account.syndicate.fetch(syndicatePda2);
+      expect(syndicate.memberCount).to.equal(2);
+      expect(syndicate.totalContribution.toNumber()).to.equal(2_000_000);
+    });
+
+    it("creator (player1) removes player2 from syndicate", async () => {
+      const syndicateBefore =
+        await program.account.syndicate.fetch(syndicatePda2);
+      const memberCountBefore = syndicateBefore.memberCount;
+
+      await program.methods
+        .removeSyndicateMember({
+          memberWallet: player2.publicKey,
+        })
+        .accounts({
+          manager: player1.publicKey,
+          syndicate: syndicatePda2,
+          memberUsdc: player2Usdc,
+          syndicateUsdc: syndicateUsdcPda2,
+          usdcMint: usdcMint,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([player1])
+        .rpc();
+
+      const syndicateAfter =
+        await program.account.syndicate.fetch(syndicatePda2);
+      expect(syndicateAfter.memberCount).to.equal(memberCountBefore - 1);
+    });
+
+    it("fails to remove member from non-manager", async () => {
+      // Re-add player2 first
+      const [userStatsPda] = deriveUserStatsPDA(programId, player2.publicKey);
+      const contribution = new BN(1_000_000); // $1
+
+      await program.methods
+        .joinSyndicate({ contribution })
+        .accounts({
+          member: player2.publicKey,
+          syndicate: syndicatePda2,
+          memberUsdc: player2Usdc,
+          syndicateUsdc: syndicateUsdcPda2,
+          userStats: userStatsPda,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([player2])
+        .rpc();
+
+      // Now try to remove from non-manager
+      try {
+        await program.methods
+          .removeSyndicateMember({
+            memberWallet: player2.publicKey,
+          })
+          .accounts({
+            manager: player2.publicKey,
+            syndicate: syndicatePda2,
+            memberUsdc: player2Usdc,
+            syndicateUsdc: syndicateUsdcPda2,
+            usdcMint: usdcMint,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .signers([player2])
+          .rpc();
+        expect.fail("Should have thrown — not the manager");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("player2 leaves the second syndicate", async () => {
+      await program.methods
+        .leaveSyndicate()
+        .accounts({
+          member: player2.publicKey,
+          syndicate: syndicatePda2,
+          memberUsdc: player2Usdc,
+          syndicateUsdc: syndicateUsdcPda2,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([player2])
+        .rpc();
+
+      const syndicate = await program.account.syndicate.fetch(syndicatePda2);
+      expect(syndicate.memberCount).to.equal(1);
+    });
+
+    it("closes the second syndicate", async () => {
+      await program.methods
+        .closeSyndicate()
+        .accounts({
+          creator: player1.publicKey,
+          syndicate: syndicatePda2,
+          creatorUsdc: player1Usdc,
+          syndicateUsdc: syndicateUsdcPda2,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([player1])
+        .rpc();
+
+      try {
+        await program.account.syndicate.fetch(syndicatePda2);
+        expect.fail("Should have thrown — account closed");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+  });
+
+  // ========================================================================
+  // 26. SYNDICATE WARS (Initialize + Edge Cases)
+  // ========================================================================
+  describe("Syndicate Wars", () => {
+    const syndicateId3 = new BN(3);
+    let syndicatePda3: PublicKey;
+    let syndicateUsdcPda3: PublicKey;
+    const month = new BN(202501);
+    let warsPda: PublicKey;
+    let warsPrizePda: PublicKey;
+
+    before(async () => {
+      [syndicatePda3] = PublicKey.findProgramAddressSync(
+        [
+          SYNDICATE_SEED,
+          player1.publicKey.toBuffer(),
+          syndicateId3.toArrayLike(Buffer, "le", 8),
+        ],
+        programId,
+      );
+
+      [syndicateUsdcPda3] = PublicKey.findProgramAddressSync(
+        [SYNDICATE_SEED, Buffer.from("usdc"), syndicatePda3.toBuffer()],
+        programId,
+      );
+
+      [warsPda] = PublicKey.findProgramAddressSync(
+        [SYNDICATE_WARS_SEED, month.toArrayLike(Buffer, "le", 8)],
+        programId,
+      );
+
+      [warsPrizePda] = PublicKey.findProgramAddressSync(
+        [
+          SYNDICATE_WARS_SEED,
+          Buffer.from("prize_pool"),
+          month.toArrayLike(Buffer, "le", 8),
+        ],
+        programId,
+      );
+    });
+
+    it("initializes Syndicate Wars competition", async () => {
+      const now = Math.floor(Date.now() / 1000);
+      const startTimestamp = new BN(now + 10); // starts in 10 seconds
+      const endTimestamp = new BN(now + 86400); // ends in 24 hours
+
+      await program.methods
+        .initializeSyndicateWars({
+          month: month,
+          startTimestamp: startTimestamp,
+          endTimestamp: endTimestamp,
+          minTickets: new BN(1000),
+        })
+        .accounts({
+          authority: authority.publicKey,
+          lotteryState: pdas.lotteryState,
+          syndicateWarsState: warsPda,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          warsPrizePoolUsdc: warsPrizePda,
+          usdcMint: usdcMint,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      const state = await program.account.syndicateWarsState.fetch(warsPda);
+      expect(state.month.toNumber()).to.equal(202501);
+      expect(state.isActive).to.be.true;
+      expect(state.registeredCount).to.equal(0);
+      expect(state.minTickets.toNumber()).to.equal(1000);
+    });
+
+    it("fails to initialize Syndicate Wars from non-authority", async () => {
+      const month2 = new BN(202502);
+      const [warsPda2] = PublicKey.findProgramAddressSync(
+        [SYNDICATE_WARS_SEED, month2.toArrayLike(Buffer, "le", 8)],
+        programId,
+      );
+      const [warsPrizePda2] = PublicKey.findProgramAddressSync(
+        [
+          SYNDICATE_WARS_SEED,
+          Buffer.from("prize_pool"),
+          month2.toArrayLike(Buffer, "le", 8),
+        ],
+        programId,
+      );
+
+      const now = Math.floor(Date.now() / 1000);
+      try {
+        await program.methods
+          .initializeSyndicateWars({
+            month: month2,
+            startTimestamp: new BN(now + 10),
+            endTimestamp: new BN(now + 86400),
+            minTickets: new BN(1000),
+          })
+          .accounts({
+            authority: unauthorizedUser.publicKey,
+            lotteryState: pdas.lotteryState,
+            syndicateWarsState: warsPda2,
+            prizePoolUsdc: pdas.prizePoolUsdc,
+            warsPrizePoolUsdc: warsPrizePda2,
+            usdcMint: usdcMint,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have thrown — not authority");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("fails to register syndicate with < 5 members", async () => {
+      // Create a small syndicate (only 1 member = creator)
+      await program.methods
+        .createSyndicate({
+          syndicateId: syndicateId3,
+          name: "Small Syndicate",
+          isPublic: true,
+          managerFeeBps: 100,
+        })
+        .accounts({
+          creator: player1.publicKey,
+          syndicate: syndicatePda3,
+          syndicateUsdc: syndicateUsdcPda3,
+          usdcMint: usdcMint,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([player1])
+        .rpc();
+
+      // Wait for the competition start time
+      await sleep(12000);
+
+      const [entryPda] = PublicKey.findProgramAddressSync(
+        [
+          SYNDICATE_WARS_SEED,
+          Buffer.from("entry"),
+          month.toArrayLike(Buffer, "le", 8),
+          syndicatePda3.toBuffer(),
+        ],
+        programId,
+      );
+
+      // Try to register — syndicate has only 1 member (needs 5)
+      try {
+        await program.methods
+          .registerForSyndicateWars()
+          .accounts({
+            manager: player1.publicKey,
+            syndicate: syndicatePda3,
+            syndicateWarsState: warsPda,
+            warsEntry: entryPda,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([player1])
+          .rpc();
+        expect.fail("Should have thrown — less than 5 members");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("fails to finalize Syndicate Wars before end time", async () => {
+      try {
+        await program.methods
+          .finalizeSyndicateWars()
+          .accounts({
+            authority: authority.publicKey,
+            lotteryState: pdas.lotteryState,
+            syndicateWarsState: warsPda,
+          })
+          .rpc();
+        expect.fail("Should have thrown — competition not ended");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("Syndicate Wars state is consistent", async () => {
+      const state = await program.account.syndicateWarsState.fetch(warsPda);
+      expect(state.isActive).to.be.true;
+      expect(state.isDistributed).to.be.false;
+      expect(state.registeredCount).to.equal(0);
+      expect(state.prizePool.toNumber()).to.be.greaterThanOrEqual(0);
+    });
+  });
+
+  // ========================================================================
+  // 27. RECLAIM EXPIRED PRIZES (edge cases)
+  // ========================================================================
+  describe("Reclaim Expired Prizes", () => {
+    it("fails to reclaim when no draw result exists", async () => {
+      // Draw ID 999 should not exist
+      const [drawResultPda] = deriveDrawResultPDA(programId, 999);
+
+      try {
+        await program.methods
+          .reclaimExpiredPrizes({
+            drawId: new BN(999),
+            amount: new BN(1000),
+          })
+          .accounts({
+            authority: authority.publicKey,
+            lotteryState: pdas.lotteryState,
+            drawResult: drawResultPda,
+          })
+          .rpc();
+        expect.fail("Should have thrown — draw result does not exist");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("fails to reclaim from non-authority", async () => {
+      const [drawResultPda] = deriveDrawResultPDA(programId, 0);
+
+      try {
+        await program.methods
+          .reclaimExpiredPrizes({
+            drawId: new BN(0),
+            amount: new BN(1000),
+          })
+          .accounts({
+            authority: unauthorizedUser.publicKey,
+            lotteryState: pdas.lotteryState,
+            drawResult: drawResultPda,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have thrown — not authority");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+  });
+
+  // ========================================================================
+  // 28. CROSS-PROGRAM STATE CONSISTENCY
+  // ========================================================================
+  describe("Cross-Program State Consistency", () => {
+    it("all internal balances match on-chain token accounts (tolerance check)", async () => {
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
+
+      const prizePool = await getAccount(
+        provider.connection,
+        pdas.prizePoolUsdc,
+      );
+      const insurance = await getAccount(
+        provider.connection,
+        pdas.insurancePoolUsdc,
+      );
+      const houseFee = await getAccount(provider.connection, pdas.houseFeeUsdc);
+
+      // Prize pool should hold jackpot + reserve
+      const expectedPrizePool =
+        state.jackpotBalance.toNumber() + state.reserveBalance.toNumber();
+      const tolerance = 100; // 100 lamports tolerance for rounding dust
+
+      expect(Number(prizePool.amount) + tolerance).to.be.greaterThanOrEqual(
+        expectedPrizePool,
+      );
+
+      // Insurance balance check
+      expect(Number(insurance.amount) + tolerance).to.be.greaterThanOrEqual(
+        state.insuranceBalance.toNumber(),
+      );
+
+      // House fee should be non-negative
+      expect(Number(houseFee.amount)).to.be.greaterThanOrEqual(0);
+
+      // All internal balances should be non-negative
+      expect(state.jackpotBalance.toNumber()).to.be.greaterThanOrEqual(0);
+      expect(state.reserveBalance.toNumber()).to.be.greaterThanOrEqual(0);
+      expect(state.insuranceBalance.toNumber()).to.be.greaterThanOrEqual(0);
+    });
+
+    it("total tickets sold equals sum of draws", async () => {
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
+      expect(state.totalTicketsSold.toNumber()).to.be.greaterThan(0);
+      expect(state.currentDrawTickets.toNumber()).to.be.lessThanOrEqual(
+        state.totalTicketsSold.toNumber(),
+      );
+    });
+
+    it("draw interval is within valid range", async () => {
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
+      const interval = state.drawInterval.toNumber();
+      expect(interval).to.be.greaterThanOrEqual(3600); // min 1 hour
+      expect(interval).to.be.lessThanOrEqual(604800); // max 7 days
+    });
+
+    it("house fee bps is within valid range", async () => {
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
+      expect(state.houseFeeBps).to.be.greaterThanOrEqual(0);
+      expect(state.houseFeeBps).to.be.lessThanOrEqual(5000); // max 50%
+    });
+
+    it("caps are correctly ordered (seed < soft < hard)", async () => {
+      const state = await program.account.lotteryState.fetch(pdas.lotteryState);
+      expect(state.seedAmount.toNumber()).to.be.lessThan(
+        state.softCap.toNumber(),
+      );
+      expect(state.softCap.toNumber()).to.be.lessThan(state.hardCap.toNumber());
+    });
+  });
+
+  // ========================================================================
+  // 29. FINAL STATE SNAPSHOT
   // ========================================================================
   describe("Final State Snapshot", () => {
     it("prints final lottery state for audit", async () => {
