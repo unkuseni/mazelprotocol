@@ -2,6 +2,178 @@
 
 @import "tw-animate-css";
 
+/* Fluid typography utility classes */
+.text-xs {
+    font-size: var(--text-xs);
+}
+.text-sm {
+    font-size: var(--text-sm);
+}
+.text-base {
+    font-size: var(--text-base);
+}
+.text-lg {
+    font-size: var(--text-lg);
+}
+.text-xl {
+    font-size: var(--text-xl);
+}
+.text-2xl {
+    font-size: var(--text-2xl);
+}
+.text-3xl {
+    font-size: var(--text-3xl);
+}
+.text-4xl {
+    font-size: var(--text-4xl);
+}
+.text-5xl {
+    font-size: var(--text-5xl);
+}
+.text-6xl {
+    font-size: var(--text-6xl);
+}
+.text-7xl {
+    font-size: var(--text-7xl);
+}
+.text-8xl {
+    font-size: var(--text-8xl);
+}
+
+.leading-none {
+    line-height: var(--leading-none);
+}
+.leading-tight {
+    line-height: var(--leading-tight);
+}
+.leading-snug {
+    line-height: var(--leading-snug);
+}
+.leading-normal {
+    line-height: var(--leading-normal);
+}
+.leading-relaxed {
+    line-height: var(--leading-relaxed);
+}
+.leading-loose {
+    line-height: var(--leading-loose);
+}
+
+/* Responsive typography utilities */
+.text-responsive-xs {
+    font-size: clamp(0.625rem, 0.55rem + 0.375vw, 0.875rem);
+}
+.text-responsive-sm {
+    font-size: clamp(0.75rem, 0.675rem + 0.375vw, 1rem);
+}
+.text-responsive-base {
+    font-size: clamp(0.875rem, 0.8rem + 0.375vw, 1.125rem);
+}
+.text-responsive-lg {
+    font-size: clamp(1rem, 0.9rem + 0.5vw, 1.375rem);
+}
+.text-responsive-xl {
+    font-size: clamp(1.125rem, 1rem + 0.625vw, 1.625rem);
+}
+.text-responsive-2xl {
+    font-size: clamp(1.25rem, 1.1rem + 0.75vw, 1.875rem);
+}
+.text-responsive-3xl {
+    font-size: clamp(1.5rem, 1.3rem + 1vw, 2.25rem);
+}
+.text-responsive-4xl {
+    font-size: clamp(1.75rem, 1.5rem + 1.25vw, 2.75rem);
+}
+.text-responsive-5xl {
+    font-size: clamp(2rem, 1.7rem + 1.5vw, 3.25rem);
+}
+.text-responsive-6xl {
+    font-size: clamp(2.25rem, 1.9rem + 1.75vw, 3.75rem);
+}
+.text-responsive-7xl {
+    font-size: clamp(2.5rem, 2.1rem + 2vw, 4.25rem);
+}
+.text-responsive-8xl {
+    font-size: clamp(3rem, 2.5rem + 2.5vw, 5rem);
+}
+
+/* Mobile-first responsive headings */
+.heading-1 {
+    font-size: clamp(2rem, 1.6rem + 2vw, 3.5rem);
+    line-height: 1.1;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+
+.heading-2 {
+    font-size: clamp(1.75rem, 1.5rem + 1.25vw, 2.75rem);
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.heading-3 {
+    font-size: clamp(1.5rem, 1.3rem + 1vw, 2.25rem);
+    line-height: 1.3;
+    font-weight: 700;
+}
+
+.heading-4 {
+    font-size: clamp(1.25rem, 1.1rem + 0.75vw, 1.875rem);
+    line-height: 1.4;
+    font-weight: 600;
+}
+
+.heading-5 {
+    font-size: clamp(1.125rem, 1rem + 0.625vw, 1.625rem);
+    line-height: 1.5;
+    font-weight: 600;
+}
+
+.heading-6 {
+    font-size: clamp(1rem, 0.9rem + 0.5vw, 1.375rem);
+    line-height: 1.5;
+    font-weight: 600;
+}
+
+/* Responsive body text */
+.body-large {
+    font-size: clamp(1.125rem, 1.05rem + 0.375vw, 1.375rem);
+    line-height: 1.625;
+}
+
+.body-base {
+    font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+    line-height: 1.6;
+}
+
+.body-small {
+    font-size: clamp(0.875rem, 0.825rem + 0.25vw, 1rem);
+    line-height: 1.5;
+}
+
+.body-xs {
+    font-size: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+    line-height: 1.4;
+}
+
+/* Responsive spacing for typography */
+.typography-spacing-tight > * + * {
+    margin-top: 0.5em;
+}
+
+.typography-spacing-normal > * + * {
+    margin-top: 0.75em;
+}
+
+.typography-spacing-relaxed > * + * {
+    margin-top: 1em;
+}
+
+.typography-spacing-loose > * + * {
+    margin-top: 1.5em;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 body {
@@ -63,6 +235,28 @@ code {
     --sidebar-accent-foreground: oklch(0.22 0.025 260);
     --sidebar-border: oklch(0.9 0.008 250);
     --sidebar-ring: oklch(0.5 0.17 160);
+
+    /* Fluid typography scale */
+    --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+    --text-sm: clamp(0.875rem, 0.825rem + 0.25vw, 1rem);
+    --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+    --text-lg: clamp(1.125rem, 1.05rem + 0.375vw, 1.375rem);
+    --text-xl: clamp(1.25rem, 1.15rem + 0.5vw, 1.625rem);
+    --text-2xl: clamp(1.5rem, 1.35rem + 0.75vw, 2rem);
+    --text-3xl: clamp(1.875rem, 1.65rem + 1.125vw, 2.5rem);
+    --text-4xl: clamp(2.25rem, 1.95rem + 1.5vw, 3rem);
+    --text-5xl: clamp(2.75rem, 2.35rem + 2vw, 4rem);
+    --text-6xl: clamp(3.25rem, 2.75rem + 2.5vw, 5rem);
+    --text-7xl: clamp(4rem, 3.3rem + 3.5vw, 6rem);
+    --text-8xl: clamp(5rem, 4rem + 5vw, 8rem);
+
+    /* Line heights */
+    --leading-none: 1;
+    --leading-tight: 1.25;
+    --leading-snug: 1.375;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.625;
+    --leading-loose: 2;
 
     /* Custom lottery tokens — deeper for light-bg contrast */
     --emerald: oklch(0.5 0.17 160);
@@ -171,6 +365,27 @@ code {
     --color-navy: var(--navy);
     --color-navy-light: var(--navy-light);
     --color-navy-deep: var(--navy-deep);
+
+    /* Fluid typography configuration */
+    --font-size-xs: var(--text-xs);
+    --font-size-sm: var(--text-sm);
+    --font-size-base: var(--text-base);
+    --font-size-lg: var(--text-lg);
+    --font-size-xl: var(--text-xl);
+    --font-size-2xl: var(--text-2xl);
+    --font-size-3xl: var(--text-3xl);
+    --font-size-4xl: var(--text-4xl);
+    --font-size-5xl: var(--text-5xl);
+    --font-size-6xl: var(--text-6xl);
+    --font-size-7xl: var(--text-7xl);
+    --font-size-8xl: var(--text-8xl);
+
+    --line-height-none: var(--leading-none);
+    --line-height-tight: var(--leading-tight);
+    --line-height-snug: var(--leading-snug);
+    --line-height-normal: var(--leading-normal);
+    --line-height-relaxed: var(--leading-relaxed);
+    --line-height-loose: var(--leading-loose);
 
     /* Extended animation tokens */
     --animate-float: float 6s ease-in-out infinite;

@@ -135,13 +135,15 @@ function ComparisonRow({
   rolldownHighlight,
 }: ComparisonRowProps) {
   return (
-    <div className="grid grid-cols-3 gap-3 py-2.5 border-b border-foreground/[0.03] last:border-0">
-      <div className="text-xs text-muted-foreground font-medium">{label}</div>
-      <div className="text-xs text-muted-foreground text-center font-semibold">
+    <div className="grid grid-cols-3 gap-2 sm:gap-3 py-2.5 border-b border-foreground/[0.03] last:border-0">
+      <div className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate">
+        {label}
+      </div>
+      <div className="text-[11px] sm:text-xs text-muted-foreground text-center font-semibold truncate">
         {normal}
       </div>
       <div
-        className={`text-xs text-center font-bold ${
+        className={`text-[11px] sm:text-xs text-center font-bold truncate ${
           rolldownHighlight ? "text-emerald-light" : "text-muted-foreground"
         }`}
       >
@@ -191,7 +193,7 @@ function EVBar({ label, ev, maxEv, isPositive }: EVBarProps) {
 
 function VisualDiagram() {
   return (
-    <div className="glass-strong rounded-2xl p-5 sm:p-8 border-gradient-emerald overflow-hidden relative">
+    <div className="glass-strong rounded-2xl p-4 sm:p-6 lg:p-8 border-gradient-emerald overflow-hidden relative">
       <div className="absolute top-0 right-0 w-64 h-64 bg-glow-emerald opacity-10" />
 
       <h3 className="text-base font-bold text-foreground mb-6 flex items-center gap-2 relative z-10">
@@ -199,25 +201,25 @@ function VisualDiagram() {
         Rolldown Prize Distribution Flow
       </h3>
 
-      <div className="relative z-10 space-y-4">
+      <div className="relative z-10 space-y-3 sm:space-y-4">
         {/* Jackpot Pool */}
         <div className="text-center">
-          <div className="inline-flex flex-col items-center">
-            <div className="px-6 py-3 rounded-xl bg-gradient-to-br from-gold/20 to-gold-dark/10 border border-gold/30 glow-gold">
-              <div className="text-[10px] text-gold/80 uppercase tracking-wider font-semibold mb-0.5">
+          <div className="inline-flex flex-col items-center max-w-full">
+            <div className="px-4 sm:px-6 py-2 sm:py-3 rounded-xl bg-gradient-to-br from-gold/20 to-gold-dark/10 border border-gold/30 glow-gold">
+              <div className="text-[10px] sm:text-[11px] text-gold/80 uppercase tracking-wider font-semibold mb-0.5">
                 Jackpot Pool
               </div>
-              <div className="text-2xl font-black text-gradient-gold">
+              <div className="text-xl sm:text-2xl font-black text-gradient-gold">
                 $1,750,000
               </div>
-              <div className="text-[10px] text-gold/60 mt-0.5">
+              <div className="text-[9px] sm:text-[10px] text-gold/60 mt-0.5">
                 Soft Cap Reached — No Match 6 Winner
               </div>
             </div>
             <div className="w-px h-6 bg-emerald/30" />
             <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-emerald/15 border border-emerald/30">
               <Zap size={10} className="text-emerald-light" />
-              <span className="text-[10px] font-bold text-emerald-light uppercase tracking-wider">
+              <span className="text-[9px] sm:text-[10px] font-bold text-emerald-light uppercase tracking-wider">
                 Rolldown Triggered
               </span>
             </div>
@@ -226,55 +228,57 @@ function VisualDiagram() {
         </div>
 
         {/* Distribution split */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Match 5 */}
-          <div className="glass rounded-xl p-3 text-center border border-gold/10">
-            <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">
-              20% → Match 5
+          <div className="glass rounded-xl p-3 sm:p-4 text-center border border-gold/10">
+            <div className="text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider mb-1">
+              25% → Match 5
             </div>
-            <div className="text-lg font-black text-gold">$350,000</div>
+            <div className="text-base sm:text-lg font-black text-gold">
+              $437,500
+            </div>
             <div className="h-px bg-foreground/5 my-2" />
-            <div className="text-[10px] text-muted-foreground">
-              ~5 winners ={" "}
-              <span className="font-bold text-gold">$70,000 each</span>
+            <div className="text-[11px] sm:text-[12px] text-muted-foreground">
+              ~20 winners ={" "}
+              <span className="font-bold text-gold">$21,875 each</span>
             </div>
-            <div className="text-[9px] text-muted-foreground/60 mt-1">
-              Normal: $1,000 fixed
+            <div className="text-[10px] sm:text-[11px] text-muted-foreground/60 mt-1">
+              Normal: $4,000 fixed
             </div>
           </div>
 
           {/* Match 4 */}
-          <div className="glass rounded-xl p-3 text-center border border-emerald/10">
-            <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">
-              40% → Match 4
+          <div className="glass rounded-xl p-3 sm:p-4 text-center border border-emerald/10">
+            <div className="text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider mb-1">
+              35% → Match 4
             </div>
-            <div className="text-lg font-black text-emerald-light">
-              $700,000
+            <div className="text-base sm:text-lg font-black text-emerald-light">
+              $612,500
             </div>
             <div className="h-px bg-foreground/5 my-2" />
-            <div className="text-[10px] text-muted-foreground">
-              ~210 winners ={" "}
-              <span className="font-bold text-emerald-light">$3,333 each</span>
+            <div className="text-[11px] sm:text-[12px] text-muted-foreground">
+              ~1,200 winners ={" "}
+              <span className="font-bold text-emerald-light">$510 each</span>
             </div>
-            <div className="text-[9px] text-muted-foreground/60 mt-1">
-              Normal: $50 fixed
+            <div className="text-[10px] sm:text-[11px] text-muted-foreground/60 mt-1">
+              Normal: $150 fixed
             </div>
           </div>
 
           {/* Match 3 */}
-          <div className="glass rounded-xl p-3 text-center border border-emerald/10">
-            <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">
+          <div className="glass rounded-xl p-3 sm:p-4 text-center border border-emerald/10">
+            <div className="text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider mb-1">
               40% → Match 3
             </div>
-            <div className="text-lg font-black text-emerald-light">
+            <div className="text-base sm:text-lg font-black text-emerald-light">
               $700,000
             </div>
             <div className="h-px bg-foreground/5 my-2" />
-            <div className="text-[10px] text-muted-foreground">
-              ~3,100 winners ={" "}
-              <span className="font-bold text-emerald-light">$225 each</span>
+            <div className="text-[11px] sm:text-[12px] text-muted-foreground">
+              ~20,000 winners ={" "}
+              <span className="font-bold text-emerald-light">$35 each</span>
             </div>
-            <div className="text-[9px] text-muted-foreground/60 mt-1">
+            <div className="text-[10px] sm:text-[11px] text-muted-foreground/60 mt-1">
               Normal: $5 fixed
             </div>
           </div>
@@ -284,13 +288,13 @@ function VisualDiagram() {
         <div className="flex items-center justify-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald/10 border border-emerald/20">
             <TrendingUp size={14} className="text-emerald-light" />
-            <span className="text-xs font-bold text-emerald-light">
-              Total Distributed: $1,750,000 — Player EV: +47.2%
+            <span className="text-[11px] sm:text-xs font-bold text-emerald-light">
+              Total Distributed: $1,750,000 — Player EV: +14.6% to +62%
             </span>
           </div>
         </div>
 
-        <p className="text-[10px] text-muted-foreground text-center">
+        <p className="text-[11px] sm:text-[12px] text-muted-foreground text-center">
           All prizes are pari-mutuel (Pool ÷ Winners) — fewer winners means
           bigger prizes for you. After rolldown, the jackpot resets to the
           $500,000 seed and the cycle begins again.
@@ -302,28 +306,32 @@ function VisualDiagram() {
 
 function QuickPickExpressDiagram() {
   return (
-    <div className="glass rounded-2xl p-5 sm:p-6 border border-emerald/10">
+    <div className="glass rounded-2xl p-4 sm:p-5 lg:p-6 border border-emerald/10">
       <h4 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
         <Zap size={14} className="text-emerald-light" />
         Quick Pick Express (5/35) Rolldown
       </h4>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="p-3 rounded-xl bg-emerald/[0.03] border border-emerald/10 text-center">
-          <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <div className="p-3 sm:p-4 rounded-xl bg-emerald/[0.03] border border-emerald/10 text-center">
+          <div className="text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider mb-1">
             60% → Match 4
           </div>
-          <div className="text-base font-black text-emerald-light">~$3,247</div>
-          <div className="text-[9px] text-muted-foreground/60 mt-0.5">
+          <div className="text-sm sm:text-base font-black text-emerald-light">
+            ~$3,247
+          </div>
+          <div className="text-[10px] sm:text-[11px] text-muted-foreground/60 mt-0.5">
             Normal: $100 fixed
           </div>
         </div>
-        <div className="p-3 rounded-xl bg-emerald/[0.03] border border-emerald/10 text-center">
-          <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">
+        <div className="p-3 sm:p-4 rounded-xl bg-emerald/[0.03] border border-emerald/10 text-center">
+          <div className="text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider mb-1">
             40% → Match 3
           </div>
-          <div className="text-base font-black text-emerald-light">~$75</div>
-          <div className="text-[9px] text-muted-foreground/60 mt-0.5">
+          <div className="text-sm sm:text-base font-black text-emerald-light">
+            ~$75
+          </div>
+          <div className="text-[10px] sm:text-[11px] text-muted-foreground/60 mt-0.5">
             Normal: $4 fixed
           </div>
         </div>
@@ -332,13 +340,13 @@ function QuickPickExpressDiagram() {
       <div className="flex items-center justify-center mb-3">
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald/15 border border-emerald/30">
           <TrendingUp size={12} className="text-emerald-light" />
-          <span className="text-[10px] font-bold text-emerald-light">
+          <span className="text-[11px] sm:text-[12px] font-bold text-emerald-light">
             Player EV: +66.7% during rolldown!
           </span>
         </div>
       </div>
 
-      <div className="space-y-1.5 text-[10px] text-muted-foreground">
+      <div className="space-y-1.5 text-[11px] sm:text-[12px] text-muted-foreground">
         <p>
           <span className="font-semibold text-muted-foreground">Soft Cap:</span>{" "}
           $30,000 &bull;{" "}
@@ -440,7 +448,7 @@ function LearnRolldownPage() {
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald/10 border border-emerald/20">
                 <TrendingUp size={12} className="text-emerald-light" />
                 <span className="text-xs font-semibold text-emerald-light">
-                  6/46: +47% EV during rolldown
+                  6/46: +62% EV during rolldown
                 </span>
               </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald/10 border border-emerald/20">
@@ -512,7 +520,7 @@ function LearnRolldownPage() {
                     </h3>
                     <ul className="space-y-2">
                       {[
-                        "Positive EV (+47%) during rolldown windows",
+                        "Positive EV (+62%) during rolldown windows",
                         "Jackpot capped — excess flows to players",
                         "Verifiable randomness (Switchboard TEE)",
                         "Pari-mutuel prizes that scale with the pool",
@@ -584,14 +592,14 @@ function LearnRolldownPage() {
               <FlowStep
                 step="3"
                 title="Draw Occurs — No Match 6 Winner"
-                description="If the draw happens and no one matches all 6 numbers (1 in 9.37 million odds), the rolldown is triggered. The entire jackpot becomes the rolldown prize pool, distributed among lower-tier winners using pari-mutuel division."
+                description="If the draw happens and no one matches all 6 numbers (1 in 9,366,819 odds), the rolldown is triggered. The entire jackpot becomes the rolldown prize pool, distributed among lower-tier winners using pari-mutuel division."
                 icon={Zap}
                 highlight
               />
               <FlowStep
                 step="4"
                 title="Pari-Mutuel Distribution"
-                description="The jackpot is split: 20% to Match 5, 40% to Match 4, and 40% to Match 3 winners. Each tier's prize = (Pool × Share%) ÷ Number of Winners. This means Match 3 winners might get $225 instead of the normal $5 — a 45× increase!"
+                description="The jackpot is split: 25% to Match 5, 35% to Match 4, and 40% to Match 3 winners. Each tier's prize = (Pool × Share%) ÷ Number of Winners. This means Match 3 winners might get $35 instead of the normal $5 — a 7× increase!"
                 icon={Users}
                 highlight
               />
@@ -651,13 +659,13 @@ function LearnRolldownPage() {
                   />
                   <EVBar
                     label="MazelProtocol Normal Mode (6/46)"
-                    ev={-28}
+                    ev={-65}
                     maxEv={70}
                     isPositive={false}
                   />
                   <EVBar
                     label="MazelProtocol Rolldown Mode (6/46)"
-                    ev={47.2}
+                    ev={62}
                     maxEv={70}
                     isPositive={true}
                   />
@@ -675,9 +683,9 @@ function LearnRolldownPage() {
                       Positive EV means the math favors players.
                     </span>{" "}
                     For every $1 wagered during a 6/46 rolldown, the average
-                    return is $1.47. For Quick Pick Express, it&apos;s $1.67.
-                    This is unprecedented in lottery design — most lotteries
-                    return $0.50 or less per dollar.
+                    return is up to $1.62. For Quick Pick Express, it&apos;s
+                    $1.67. This is unprecedented in lottery design — most
+                    lotteries return $0.50 or less per dollar.
                   </p>
                 </div>
               </div>
@@ -687,14 +695,14 @@ function LearnRolldownPage() {
                 <MathCallout
                   title="Normal Mode EV (6/46)"
                   formula="EV = Σ(P(match) × Prize) - $2.50"
-                  result="–$0.70 per ticket"
-                  explanation="In normal mode, the house has a 28% edge. This is still better than most lotteries."
+                  result="–$1.63 per ticket"
+                  explanation="In normal mode, the house has a 65% edge. This is still better than most lotteries."
                 />
                 <MathCallout
                   title="Rolldown Mode EV (6/46)"
                   formula="EV = Σ(P(match) × PoolShare/Winners) - $2.50"
-                  result="+$1.18 per ticket"
-                  explanation="During rolldown, expected return exceeds ticket cost. Players have a +47.2% mathematical edge."
+                  result="+$1.55 per ticket"
+                  explanation="During rolldown, expected return exceeds ticket cost. Players have up to a +62% mathematical edge."
                 />
               </div>
 
@@ -704,34 +712,34 @@ function LearnRolldownPage() {
                   <DollarSign size={14} className="text-gold" />
                   Break-Even Point
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="text-center p-3 rounded-xl bg-foreground/[0.02]">
-                    <div className="text-lg font-black text-gold tabular-nums">
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="text-center p-3 sm:p-4 rounded-xl bg-foreground/[0.02]">
+                    <div className="text-base sm:text-lg font-black text-gold tabular-nums">
                       $1.75M
                     </div>
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
+                    <div className="text-[11px] sm:text-[12px] text-muted-foreground uppercase tracking-wider mt-0.5">
                       6/46 Soft Cap
                     </div>
                     <div className="text-[10px] text-muted-foreground/60 mt-0.5">
                       Rolldown eligible
                     </div>
                   </div>
-                  <div className="text-center p-3 rounded-xl bg-foreground/[0.02]">
-                    <div className="text-lg font-black text-gold tabular-nums">
+                  <div className="text-center p-3 sm:p-4 rounded-xl bg-foreground/[0.02]">
+                    <div className="text-base sm:text-lg font-black text-gold tabular-nums">
                       $2.25M
                     </div>
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
+                    <div className="text-[11px] sm:text-[12px] text-muted-foreground uppercase tracking-wider mt-0.5">
                       6/46 Hard Cap
                     </div>
                     <div className="text-[10px] text-muted-foreground/60 mt-0.5">
                       Forced rolldown
                     </div>
                   </div>
-                  <div className="text-center p-3 rounded-xl bg-foreground/[0.02]">
+                  <div className="text-center p-3 sm:p-4 rounded-xl bg-foreground/[0.02]">
                     <div className="text-lg font-black text-emerald-light tabular-nums">
                       ~15 days
                     </div>
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
+                    <div className="text-[11px] sm:text-[12px] text-muted-foreground uppercase tracking-wider mt-0.5">
                       Avg Cycle Length
                     </div>
                     <div className="text-[10px] text-muted-foreground/60 mt-0.5">
@@ -760,14 +768,14 @@ function LearnRolldownPage() {
               </h3>
 
               {/* Table header */}
-              <div className="grid grid-cols-3 gap-3 pb-2 border-b border-foreground/[0.06]">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 pb-2 border-b border-foreground/[0.06]">
+                <div className="text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider font-semibold truncate">
                   Tier
                 </div>
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold text-center">
+                <div className="text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider font-semibold text-center truncate">
                   Normal (Fixed)
                 </div>
-                <div className="text-[10px] text-emerald-light/70 uppercase tracking-wider font-semibold text-center">
+                <div className="text-[10px] sm:text-[11px] text-emerald-light/70 uppercase tracking-wider font-semibold text-center truncate">
                   Rolldown (Pari-Mutuel)
                 </div>
               </div>
@@ -779,20 +787,20 @@ function LearnRolldownPage() {
               />
               <ComparisonRow
                 label="Match 5"
-                normal="$1,000"
-                rolldown="~$70,000"
+                normal="$4,000"
+                rolldown="~$21,875"
                 rolldownHighlight
               />
               <ComparisonRow
                 label="Match 4"
-                normal="$50"
-                rolldown="~$3,333"
+                normal="$150"
+                rolldown="~$510"
                 rolldownHighlight
               />
               <ComparisonRow
                 label="Match 3"
                 normal="$5"
-                rolldown="~$225"
+                rolldown="~$35"
                 rolldownHighlight
               />
               <ComparisonRow
@@ -808,10 +816,10 @@ function LearnRolldownPage() {
                 />
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
                   <span className="font-bold text-emerald-light">
-                    Match 5 rolldown prize is ~70× normal.
+                    Match 5 rolldown prize is ~5.5× normal.
                   </span>{" "}
-                  Match 4 is ~67×. Match 3 is ~45×. The largest group of winners
-                  (Match 3 at 1:54 odds) gets 40% of the pool, making the
+                  Match 4 is ~3.4×. Match 3 is ~7×. The largest group of winners
+                  (Match 3 at 1:47 odds) gets 40% of the pool, making the
                   rolldown valuable even for common outcomes. This is
                   intentional — we want the benefit to reach the widest number
                   of players.
@@ -843,7 +851,7 @@ function LearnRolldownPage() {
                 {
                   title: "Buy More During Rolldown",
                   description:
-                    "When the rolldown is active, every ticket has positive expected value. Strategic players increase their ticket purchases during these windows. Even Match 3 (1:54 odds) pays ~$225 instead of $5.",
+                    "When the rolldown is active, every ticket has positive expected value. Strategic players increase their ticket purchases during these windows. Even Match 3 (1:47 odds) pays ~$35 instead of $5.",
                   icon: TrendingUp,
                   tip: "Use bulk buy (up to 20 tickets) for max coverage",
                 },
@@ -965,7 +973,7 @@ function LearnRolldownPage() {
                   <Target size={11} className="text-emerald" />
                   Your Odds vs Other Lotteries
                 </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                   {[
                     {
                       name: "Powerball",
@@ -988,7 +996,7 @@ function LearnRolldownPage() {
                     {
                       name: "MazelProtocol",
                       odds: "1 in 9.37M",
-                      ev: "+47%",
+                      ev: "+62%",
                       color: "text-emerald-light",
                     },
                   ].map((lottery) => (
@@ -1022,23 +1030,23 @@ function LearnRolldownPage() {
                   <Sparkles size={11} className="text-gold" />
                   What This Means For You
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-3 rounded-xl bg-emerald/[0.04] border border-emerald/10">
-                    <div className="text-sm font-black text-emerald-light">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="p-3 sm:p-4 rounded-xl bg-emerald/[0.04] border border-emerald/10">
+                    <div className="text-base sm:text-lg font-black text-emerald-light">
                       31× Better
                     </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                    <div className="text-[11px] sm:text-[12px] text-muted-foreground mt-0.5">
                       Jackpot Odds vs Powerball
                     </div>
                     <div className="text-[9px] text-muted-foreground/60 mt-0.5">
                       1:9.37M vs 1:292M
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-emerald/[0.04] border border-emerald/10">
-                    <div className="text-sm font-black text-emerald-light">
-                      1 in 54
+                  <div className="p-3 sm:p-4 rounded-xl bg-emerald/[0.04] border border-emerald/10">
+                    <div className="text-base sm:text-lg font-black text-emerald-light">
+                      1 in 47
                     </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                    <div className="text-[11px] sm:text-[12px] text-muted-foreground mt-0.5">
                       Match 3 Odds
                     </div>
                     <div className="text-[9px] text-muted-foreground/60 mt-0.5">
@@ -1047,7 +1055,7 @@ function LearnRolldownPage() {
                   </div>
                   <div className="p-3 rounded-xl bg-gold/[0.04] border border-gold/10">
                     <div className="text-sm font-black text-gold">~15 Days</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                    <div className="text-[11px] sm:text-[12px] text-muted-foreground mt-0.5">
                       Average Rolldown Cycle
                     </div>
                     <div className="text-[9px] text-muted-foreground/60 mt-0.5">
@@ -1105,7 +1113,7 @@ function LearnRolldownPage() {
                 },
                 {
                   q: "Why are the odds so much better than Powerball or Mega Millions?",
-                  a: "MazelProtocol uses a 6/46 matrix (1 in 9.37 million for the jackpot) versus Powerball's 5/69+1/26 (1 in 292 million). That's 31× better odds. And during rolldown, even matching just 3 numbers (1 in 54 odds) pays ~$225 instead of $5. No traditional lottery offers anything close to this.",
+                  a: "MazelProtocol uses a 6/46 matrix (1 in 9.37 million for the jackpot) versus Powerball's 5/69+1/26 (1 in 292 million). That's 31× better odds. And during rolldown, even matching just 3 numbers (1 in 47 odds) pays ~$35 instead of $5. No traditional lottery offers anything close to this.",
                 },
                 {
                   q: "How does pari-mutuel pricing benefit me?",

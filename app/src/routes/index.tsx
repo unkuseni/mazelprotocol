@@ -117,9 +117,7 @@ function StatItem({
   return (
     <div className="flex flex-col items-center text-center px-4 py-3">
       <Icon size={18} className={`mb-2 ${iconColors[accent]}`} />
-      <div
-        className={`text-xl sm:text-2xl font-bold tracking-tight ${accentColors[accent]}`}
-      >
+      <div className={`heading-5 tracking-tight ${accentColors[accent]}`}>
         {value}
       </div>
       <div className="text-[11px] text-muted-foreground mt-1 uppercase tracking-wider font-medium">
@@ -185,7 +183,7 @@ function LandingPage() {
       icon: TrendingUp,
       title: "Positive-EV Rolldown",
       description:
-        "When the jackpot hits $1.75M, prizes roll down to lower tiers creating +11.2% expected value per ticket. By design.",
+        "When the jackpot hits $1.75M, prizes roll down to lower tiers creating up to +62% expected value per ticket. By design.",
       highlight: true,
     },
     {
@@ -210,7 +208,7 @@ function LandingPage() {
       icon: Zap,
       title: "Quick Pick Express",
       description:
-        "5/35 mini-lottery every 4 hours with +59% rolldown exploit. $1.50 tickets with a $50 lifetime spend gate.",
+        "5/35 mini-lottery every 4 hours with +66.7% rolldown exploit. $1.50 tickets with a $50 lifetime spend gate.",
     },
     {
       icon: Lock,
@@ -239,7 +237,7 @@ function LandingPage() {
       step: 3,
       title: "+EV Window Opens",
       description:
-        "Expected value per $2.50 ticket becomes +11.2% — that's +$0.28 profit per ticket on average. The odds flip in your favor.",
+        "Expected value per $2.50 ticket becomes up to +62% — that's +$1.55 profit per ticket on average. The odds flip in your favor.",
       icon: Sparkles,
     },
     {
@@ -255,28 +253,28 @@ function LandingPage() {
     {
       match: "6 Numbers",
       prize: "Jackpot (55.6%)",
-      odds: "1 in 9.37M",
+      odds: "1 in 9,366,819",
       rolldown: "Entire pool cascades down",
       color: "gold" as const,
     },
     {
       match: "5 Numbers",
-      prize: "$10,000 fixed",
-      odds: "1 in 54,201",
+      prize: "$4,000 fixed",
+      odds: "1 in 39,028",
       rolldown: "Pari-mutuel share",
       color: "emerald" as const,
     },
     {
       match: "4 Numbers",
-      prize: "$100 fixed",
-      odds: "1 in 1,032",
+      prize: "$150 fixed",
+      odds: "1 in 800",
       rolldown: "Pari-mutuel share",
       color: "emerald" as const,
     },
     {
       match: "3 Numbers",
-      prize: "$4 fixed",
-      odds: "1 in 57",
+      prize: "$5 fixed",
+      odds: "1 in 47",
       rolldown: "Pari-mutuel share",
       color: "emerald" as const,
     },
@@ -331,7 +329,7 @@ function LandingPage() {
                 </span>
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight leading-[1.05] mb-6">
+              <h1 className="heading-1 tracking-tight mb-6">
                 <span className="block text-foreground">The First</span>
                 <span className="block text-gradient-primary mt-1">
                   Intentionally Exploitable
@@ -339,7 +337,7 @@ function LandingPage() {
                 <span className="block text-foreground mt-1">Lottery</span>
               </h1>
 
-              <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8">
+              <p className="body-base text-muted-foreground max-w-xl mx-auto lg:mx-0 mb-8">
                 MazelProtocol introduces{" "}
                 <span className="text-emerald-light font-semibold">
                   positive expected value windows
@@ -468,10 +466,10 @@ function LandingPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight mb-3">
+            <h2 className="heading-2 text-foreground tracking-tight mb-3">
               Two Ways to <span className="text-gradient-primary">Play</span>
             </h2>
-            <p className="text-muted-foreground text-base max-w-2xl mx-auto">
+            <p className="body-base text-muted-foreground max-w-2xl mx-auto">
               Choose the main 6/46 lottery for massive jackpots or Quick Pick
               Express for faster action with even higher rolldown EV.
             </p>
@@ -493,15 +491,13 @@ function LandingPage() {
                       <Trophy size={12} />
                       Main Game
                     </div>
-                    <h3 className="text-2xl font-bold text-foreground">
-                      6/46 Lottery
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <h3 className="heading-4 text-foreground">6/46 Lottery</h3>
+                    <p className="body-small text-muted-foreground mt-1">
                       Pick 6 from 46 numbers
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-black text-gradient-gold">
+                    <div className="heading-4 font-black text-gradient-gold">
                       $2.50
                     </div>
                     <div className="text-[10px] text-gray-500 uppercase tracking-wider">
@@ -572,15 +568,13 @@ function LandingPage() {
                       <Zap size={12} />
                       Express
                     </div>
-                    <h3 className="text-2xl font-bold text-foreground">
-                      Quick Pick
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <h3 className="heading-4 text-foreground">Quick Pick</h3>
+                    <p className="body-small text-muted-foreground mt-1">
                       Pick 5 from 35 numbers
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-black text-gradient-gold">
+                    <div className="heading-4 font-black text-gradient-gold">
                       $1.50
                     </div>
                     <div className="text-[10px] text-gray-500 uppercase tracking-wider">
@@ -651,11 +645,11 @@ function LandingPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight mb-3">
+            <h2 className="heading-2 text-foreground tracking-tight mb-3">
               How the <span className="text-gradient-emerald">Rolldown</span>{" "}
               Works
             </h2>
-            <p className="text-muted-foreground text-base max-w-2xl mx-auto">
+            <p className="body-base text-muted-foreground max-w-2xl mx-auto">
               The mathematical mechanism that creates guaranteed profit
               opportunities for strategic players.
             </p>
@@ -677,7 +671,7 @@ function LandingPage() {
             <div className="lg:sticky lg:top-24">
               <div className="rounded-2xl overflow-hidden">
                 <div className="bg-gradient-to-br from-card to-muted dark:from-navy-light dark:to-navy border border-border rounded-2xl p-6 sm:p-8">
-                  <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+                  <h3 className="heading-5 text-foreground mb-6 flex items-center gap-2">
                     <BarChart3 size={20} className="text-emerald" />
                     Economic Advantage
                   </h3>
@@ -729,8 +723,8 @@ function LandingPage() {
 
                   {/* Profit highlight */}
                   <div className="text-center">
-                    <div className="text-3xl sm:text-4xl font-black text-gradient-emerald tracking-tight">
-                      +$0.28
+                    <div className="heading-3 font-black text-gradient-emerald tracking-tight">
+                      +$1.55
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
                       Average profit per $2.50 ticket during rolldown
@@ -744,7 +738,7 @@ function LandingPage() {
                         Buy 1,000 Normal
                       </div>
                       <div className="text-base font-bold text-red-400">
-                        -$700 to -$1,000
+                        -$1,625
                       </div>
                     </div>
                     <div className="text-center p-3 rounded-xl bg-emerald/5 border border-emerald/10">
@@ -752,7 +746,7 @@ function LandingPage() {
                         Buy 1,000 Rolldown
                       </div>
                       <div className="text-base font-bold text-emerald-light">
-                        +$280
+                        +$1,550
                       </div>
                     </div>
                   </div>
@@ -773,10 +767,8 @@ function LandingPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
-              Built Different
-            </h2>
-            <p className="text-muted-foreground text-base max-w-2xl mx-auto">
+            <h2 className="heading-2 tracking-tight mb-3">Built Different</h2>
+            <p className="body-base text-muted-foreground max-w-2xl mx-auto">
               Everything you need for a fair, transparent, and strategic lottery
               experience on Solana.
             </p>
@@ -799,10 +791,10 @@ function LandingPage() {
 
         <div className="relative z-10 max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight mb-3">
+            <h2 className="heading-2 text-foreground tracking-tight mb-3">
               Prize <span className="text-gradient-gold">Structure</span>
             </h2>
-            <p className="text-muted-foreground text-base max-w-2xl mx-auto">
+            <p className="body-base text-muted-foreground max-w-2xl mx-auto">
               Four tiers of prizes with a hybrid fixed → pari-mutuel system.
               During rolldown, all prizes become pari-mutuel and scale with the
               pool.
@@ -838,7 +830,7 @@ function LandingPage() {
                     Match
                   </div>
                   <div
-                    className={`text-2xl font-black mt-0.5 ${
+                    className={`heading-4 font-black mt-0.5 ${
                       i === 0 ? "text-gold" : "text-foreground"
                     }`}
                   >
@@ -912,7 +904,7 @@ function LandingPage() {
                 </span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight mb-4">
+              <h2 className="heading-2 text-foreground tracking-tight mb-4">
                 Stronger <span className="text-gradient-primary">Together</span>
               </h2>
 
@@ -1043,11 +1035,11 @@ function LandingPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight mb-3">
+            <h2 className="heading-2 text-foreground tracking-tight mb-3">
               Transparent by{" "}
               <span className="text-gradient-emerald">Design</span>
             </h2>
-            <p className="text-muted-foreground text-base max-w-2xl mx-auto">
+            <p className="body-base text-muted-foreground max-w-2xl mx-auto">
               Every aspect of MazelProtocol is verifiable on-chain. No black
               boxes, no hidden mechanics, no trust required.
             </p>
@@ -1090,11 +1082,11 @@ function LandingPage() {
             <Trophy size={28} className="text-emerald-light" />
           </div>
 
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-foreground tracking-tight mb-4">
+          <h2 className="heading-2 text-foreground tracking-tight mb-4">
             Ready to Play <span className="text-gradient-primary">Smart</span>?
           </h2>
 
-          <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-8 max-w-xl mx-auto">
+          <p className="body-base text-muted-foreground mb-8 max-w-xl mx-auto">
             Join the revolution where mathematics gives players the edge.
             Monitor rolldown windows, maximize EV, and win bigger.
           </p>

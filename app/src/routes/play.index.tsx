@@ -38,10 +38,10 @@ const MAX_TICKETS = 20;
 
 const PRIZE_TIERS = [
   { match: 6, prize: "Jackpot", odds: "1 in 9,366,819", color: "gold" },
-  { match: 5, prize: "$1,000", odds: "1 in 39,028", color: "emerald" },
-  { match: 4, prize: "$50", odds: "1 in 985", color: "emerald" },
-  { match: 3, prize: "$5", odds: "1 in 54", color: "emerald" },
-  { match: 2, prize: "Free Ticket", odds: "1 in 7.4", color: "muted" },
+  { match: 5, prize: "$4,000", odds: "1 in 39,028", color: "emerald" },
+  { match: 4, prize: "$150", odds: "1 in 800", color: "emerald" },
+  { match: 3, prize: "$5", odds: "1 in 47", color: "emerald" },
+  { match: 2, prize: "Free Ticket", odds: "1 in 6.8", color: "muted" },
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -419,7 +419,9 @@ function PlayMainLottery() {
                       >
                         {selectedNumbers.size}
                       </span>
-                      <span className="text-muted-foreground">/{PICK_COUNT}</span>
+                      <span className="text-muted-foreground">
+                        /{PICK_COUNT}
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -542,9 +544,14 @@ function PlayMainLottery() {
                 {tickets.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground/[0.03] border border-foreground/[0.06] mb-4">
-                      <ShoppingCart size={24} className="text-muted-foreground/60" />
+                      <ShoppingCart
+                        size={24}
+                        className="text-muted-foreground/60"
+                      />
                     </div>
-                    <p className="text-sm text-muted-foreground mb-1">No tickets yet</p>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      No tickets yet
+                    </p>
                     <p className="text-xs text-muted-foreground/60">
                       Pick your numbers above or use Quick Pick to generate
                       random selections
