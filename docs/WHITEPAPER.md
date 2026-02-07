@@ -1,6 +1,6 @@
 # SolanaLotto Protocol
 
-## Technical Whitepaper v1.0
+## Technical Whitepaper v3.0
 
 ### A Provably Fair Decentralized Lottery with Intentional Positive Expected Value Windows
 

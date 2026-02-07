@@ -24,7 +24,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="p-4 flex items-center bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-lg border-b border-slate-700">
+      <header className="p-4 flex items-center bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-lg border-b border-slate-700">
         <button
           type="button"
           onClick={() => setIsOpen(true)}
@@ -34,11 +34,11 @@ export default function Header() {
           <Menu size={24} />
         </button>
         <div className="ml-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-500 to-cyan-500 flex items-center justify-center">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold bg-linear-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
               SolanaLotto
             </h1>
             <p className="text-xs text-gray-400">Protocol v2.4</p>
@@ -47,7 +47,7 @@ export default function Header() {
         <div className="ml-auto flex items-center gap-4">
           <button
             type="button"
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg shadow-purple-500/50"
+            className="px-4 py-2 bg-linear-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg shadow-purple-500/50"
           >
             Connect Wallet
           </button>
@@ -55,13 +55,12 @@ export default function Header() {
       </header>
 
       <aside
-        className={`fixed top-0 left-0 h-full w-80 bg-gradient-to-b from-slate-900 to-slate-800 text-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed top-0 left-0 h-full w-80 bg-linear-to-b from-slate-900 to-slate-800 text-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="flex items-center justify-between p-4 border-b border-slate-700">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-500 to-cyan-500 flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
