@@ -44,7 +44,7 @@ const LIFETIME_GATE = 50; // $50 lifetime spend required
 const PRIZE_TIERS = [
   { match: 5, prize: "Jackpot", odds: "1 in 324,632", color: "gold" as const },
   { match: 4, prize: "$100", odds: "1 in 2,164", color: "emerald" as const },
-  { match: 3, prize: "$4", odds: "1 in 75", color: "emerald" as const },
+  { match: 3, prize: "$4", odds: "1 in 74.6", color: "emerald" as const },
   { match: 2, prize: "—", odds: "1 in 8.6", color: "muted" as const },
 ];
 
@@ -332,7 +332,10 @@ function PlayQuickPickExpress() {
               Home
             </Link>
             <ChevronRight size={12} />
-            <Link to="/play" className="hover:text-foreground transition-colors">
+            <Link
+              to="/play"
+              className="hover:text-foreground transition-colors"
+            >
               Play
             </Link>
             <ChevronRight size={12} />
@@ -482,7 +485,9 @@ function PlayQuickPickExpress() {
                         >
                           {selectedNumbers.size}
                         </span>
-                        <span className="text-muted-foreground">/{PICK_COUNT}</span>
+                        <span className="text-muted-foreground">
+                          /{PICK_COUNT}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -659,7 +664,9 @@ function PlayQuickPickExpress() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Price each</span>
+                        <span className="text-muted-foreground">
+                          Price each
+                        </span>
                         <span className="font-semibold text-foreground">
                           ${TICKET_PRICE.toFixed(2)} USDC
                         </span>
@@ -742,13 +749,17 @@ function PlayQuickPickExpress() {
                           key={row.label}
                           className="flex items-center justify-between text-[11px]"
                         >
-                          <span className="text-muted-foreground">{row.label}</span>
+                          <span className="text-muted-foreground">
+                            {row.label}
+                          </span>
                           <div className="flex items-center gap-3">
                             <span className="font-bold text-emerald-light">
                               {row.qp}
                             </span>
                             <span className="text-muted-foreground/60">vs</span>
-                            <span className="text-muted-foreground">{row.main}</span>
+                            <span className="text-muted-foreground">
+                              {row.main}
+                            </span>
                           </div>
                         </div>
                       ))}
