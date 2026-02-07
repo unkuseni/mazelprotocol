@@ -14,6 +14,8 @@ import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import "../lib/appkit";
 import { AppKitProvider } from "../lib/appkit-hooks";
 
+import { ThemeProvider } from "@/lib/theme";
+
 import appCss from "../styles.css?url";
 
 import type { QueryClient } from "@tanstack/react-query";
@@ -52,7 +54,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
       {
         name: "color-scheme",
-        content: "dark",
+        content: "dark light",
       },
       {
         property: "og:title",
@@ -108,27 +110,29 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased">
-        <AppKitProvider>
-          <Header />
-          {children}
-        </AppKitProvider>
-        <TanStackDevtools
-          config={{
-            position: "bottom-right",
-          }}
-          plugins={[
-            {
-              name: "Tanstack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-            TanStackQueryDevtools,
-          ]}
-        />
+        <ThemeProvider>
+          <AppKitProvider>
+            <Header />
+            {children}
+          </AppKitProvider>
+          <TanStackDevtools
+            config={{
+              position: "bottom-right",
+            }}
+            plugins={[
+              {
+                name: "Tanstack Router",
+                render: <TanStackRouterDevtoolsPanel />,
+              },
+              TanStackQueryDevtools,
+            ]}
+          />
+        </ThemeProvider>
         <Scripts />
       </body>
     </html>
