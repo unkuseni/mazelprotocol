@@ -1,4 +1,4 @@
-//! SolanaLotto Protocol - Instructions Module
+//! MazelProtocol - Instructions Module
 //!
 //! This module aggregates all instruction handlers for the lottery protocol.
 

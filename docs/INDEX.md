@@ -301,8 +301,8 @@
 | [Discord](https://discord.gg/mazelprotocol) | Community chat, support |
 | [Twitter](https://twitter.com/MazelProtocol) | Announcements, updates |
 | [GitHub](https://github.com/mazelprotocol) | Code, issues, PRs |
-| security@solanalotto.io | Security vulnerabilities |
-| hello@solanalotto.io | General inquiries |
+| security@mazelprotocol.io | Security vulnerabilities |
+| hello@mazelprotocol.io | General inquiries |
 
 ---
 

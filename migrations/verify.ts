@@ -173,9 +173,7 @@ async function verify() {
   console.log(`  Time:    ${new Date().toISOString()}`);
 
   // Load programs
-  const mainProgram =
-    (anchor.workspace as any).mazelprotocol ??
-    (anchor.workspace as any).solanaLotto;
+  const mainProgram = (anchor.workspace as any).mazelprotocol;
   const qpProgram = (anchor.workspace as any).quickpick;
 
   if (!mainProgram || !qpProgram) {

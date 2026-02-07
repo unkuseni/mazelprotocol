@@ -1,6 +1,6 @@
-//! SolanaLotto Protocol - Main Program Entry Point
+//! MazelProtocol - Main Program Entry Point
 //!
-//! SolanaLotto is a decentralized lottery protocol built on Solana featuring:
+//! MazelProtocol is a decentralized lottery protocol built on Solana featuring:
 //! - Provably fair randomness via Switchboard's commit-reveal pattern
 //! - Positive-EV rolldown mechanics when jackpot reaches caps
 //! - Dynamic house fee based on jackpot level
@@ -77,7 +77,7 @@ pub use instructions::syndicate_wars::*;
 // Program ID - Update this after deployment
 declare_id!("7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF");
 
-/// SolanaLotto Protocol Program
+/// MazelProtocol Program
 #[program]
 pub mod solana_lotto {
     use super::*;

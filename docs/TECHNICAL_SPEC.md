@@ -3472,11 +3472,11 @@ Quick Pick Express (5/35) uses the identical Fixed → Pari-Mutuel transition:
 
 | Resource | Link |
 |----------|------|
-| Documentation | https://docs.solanalotto.io |
+| Documentation | https://docs.mazelprotocol.io |
 | GitHub | https://github.com/mazelprotocol |
 | Discord | https://discord.gg/mazelprotocol |
 | Twitter | https://twitter.com/MazelProtocol |
-| Bug Bounty | https://solanalotto.io/security |
+| Bug Bounty | https://mazelprotocol.io/security |
 
 ---
 
