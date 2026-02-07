@@ -14,17 +14,17 @@ const footerSections = [
   {
     title: "Play",
     links: [
-      { to: "/demo/tanstack-query", label: "6/46 Main Lottery", icon: Trophy },
-      { to: "/demo/form/simple", label: "Quick Pick Express", icon: Zap },
-      { to: "/demo/start/server-funcs", label: "Syndicates", icon: Users },
+      { to: "/play", label: "6/46 Main Lottery", icon: Trophy },
+      { to: "/play/quick-pick", label: "Quick Pick Express", icon: Zap },
+      { to: "/syndicates", label: "Syndicates", icon: Users },
     ],
   },
   {
     title: "Learn",
     links: [
-      { to: "/demo/start/ssr", label: "Documentation", icon: BookOpen },
+      { to: "/results", label: "Draw Results", icon: BookOpen },
       {
-        to: "/demo/start/api-request",
+        to: "/learn/rolldown",
         label: "How Rolldown Works",
         icon: Zap,
       },
@@ -226,22 +226,13 @@ export default function Footer() {
             &copy; {currentYear} SolanaLotto Protocol. All rights reserved.
           </p>
           <div className="flex items-center gap-4 text-xs text-gray-600">
-            <a
-              href="#"
-              className="hover:text-gray-400 transition-colors"
-            >
+            <a href="#" className="hover:text-gray-400 transition-colors">
               Terms of Service
             </a>
-            <a
-              href="#"
-              className="hover:text-gray-400 transition-colors"
-            >
+            <a href="#" className="hover:text-gray-400 transition-colors">
               Privacy Policy
             </a>
-            <a
-              href="#"
-              className="hover:text-gray-400 transition-colors"
-            >
+            <a href="#" className="hover:text-gray-400 transition-colors">
               Responsible Gaming
             </a>
           </div>

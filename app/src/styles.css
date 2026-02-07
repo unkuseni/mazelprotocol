@@ -196,11 +196,6 @@ code {
     /* Force dark mode by default */
     html {
         color-scheme: dark;
-        @apply dark;
-    }
-
-    /* Smooth scrolling */
-    html {
         scroll-behavior: smooth;
     }
 

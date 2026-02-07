@@ -343,7 +343,7 @@ function LandingPage() {
               {/* CTA buttons */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
                 <Link
-                  to="/demo/tanstack-query"
+                  to="/play"
                   className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-lg shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <Trophy size={18} />
@@ -351,7 +351,7 @@ function LandingPage() {
                   <ArrowRight size={16} />
                 </Link>
                 <Link
-                  to="/demo/start/ssr"
+                  to="/learn/rolldown"
                   className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-semibold text-gray-300 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300"
                 >
                   <span>Read the Docs</span>
@@ -522,7 +522,7 @@ function LandingPage() {
 
                 {/* CTA */}
                 <Link
-                  to="/demo/tanstack-query"
+                  to="/play"
                   className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-md shadow-emerald/15 hover:shadow-emerald/25"
                 >
                   <span>Play 6/46 Lottery</span>
@@ -602,7 +602,7 @@ function LandingPage() {
 
                 {/* CTA */}
                 <Link
-                  to="/demo/form/simple"
+                  to="/play/quick-pick"
                   className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-navy bg-gradient-to-r from-gold-light to-gold hover:from-gold-light hover:to-gold-dark rounded-xl transition-all duration-300 shadow-md shadow-gold/15 hover:shadow-gold/25"
                 >
                   <span>Play Quick Pick</span>
@@ -914,7 +914,7 @@ function LandingPage() {
               </div>
 
               <Link
-                to="/demo/start/server-funcs"
+                to="/syndicates"
                 className="inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald/30 rounded-xl transition-all duration-300"
               >
                 <Users size={16} />
@@ -1072,14 +1072,14 @@ function LandingPage() {
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              to="/demo/tanstack-query"
+              to="/play"
               className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
             >
               <Trophy size={18} />
               <span>Connect Wallet & Play</span>
             </Link>
             <Link
-              to="/demo/start/ssr"
+              to="/learn/rolldown"
               className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-semibold text-emerald-light bg-transparent border-2 border-emerald/30 hover:border-emerald/50 hover:bg-emerald/5 rounded-xl transition-all duration-300"
             >
               <span>View Documentation</span>

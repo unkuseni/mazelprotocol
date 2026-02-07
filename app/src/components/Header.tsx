@@ -21,13 +21,13 @@ const navLinks = [
     icon: Ticket,
     children: [
       {
-        to: "/demo/tanstack-query" as const,
+        to: "/play" as const,
         label: "6/46 Main Lottery",
         description: "Daily draws · $2.50 tickets",
         icon: Trophy,
       },
       {
-        to: "/demo/form/simple" as const,
+        to: "/play/quick-pick" as const,
         label: "Quick Pick Express",
         description: "Every 4 hours · $1.50 tickets",
         icon: Zap,
@@ -35,17 +35,17 @@ const navLinks = [
     ],
   },
   {
-    to: "/demo/start/server-funcs" as const,
+    to: "/syndicates" as const,
     label: "Syndicates",
     icon: Users,
   },
   {
-    to: "/demo/db-chat" as const,
+    to: "/dashboard" as const,
     label: "Dashboard",
     icon: BarChart3,
   },
   {
-    to: "/demo/trpc-todo" as const,
+    to: "/tickets" as const,
     label: "My Tickets",
     icon: Wallet,
   },
@@ -54,13 +54,13 @@ const navLinks = [
     icon: BookOpen,
     children: [
       {
-        to: "/demo/start/ssr" as const,
-        label: "Documentation",
-        description: "Guides and references",
-        icon: BookOpen,
+        to: "/results" as const,
+        label: "Draw Results",
+        description: "Past draws and winners",
+        icon: BarChart3,
       },
       {
-        to: "/demo/start/api-request" as const,
+        to: "/learn/rolldown" as const,
         label: "How Rolldown Works",
         description: "The math behind +EV",
         icon: Gem,
