@@ -20,7 +20,7 @@
 
 ### 1.1 Overview
 
-Replace the fixed 34% house fee with a jackpot-linked sliding scale that optimizes revenue extraction based on player psychology and jackpot excitement levels.
+Replace a fixed house fee with a jackpot-linked sliding scale (28–40%) that optimizes revenue extraction based on player psychology and jackpot excitement levels.
 
 ### 1.2 Fee Schedule
 

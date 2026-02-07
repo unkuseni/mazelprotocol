@@ -25,8 +25,8 @@ Between $1.75M and $2.25M, each draw has a chance to trigger rolldown:
 During full rolldown events:
 
 - **Ticket Cost:** $2.50
-- **Expected Value Range:** $2.87 to $4.06 (depends on tickets sold)
-- **Player Edge:** +14.6% to +62% (optimal conditions: 475k tickets)
+- **Expected Value Range:** $2.87 to $5.10 (depends on jackpot level and tickets sold)
+- **Player Edge:** +14.8% to +104% (optimal conditions: 475k tickets at hard cap)
 
 This isn't a bug—it's the core feature that drives engagement and volume.
 
@@ -244,8 +244,8 @@ program.methods.leaveSyndicate()
 | **Jackpot Seed** | $5,000 | — |
 | **Soft Cap** | $30,000 (probabilistic rolldown) | → PARI-MUTUEL |
 | **Hard Cap** | $50,000 (forced rolldown) | PARI-MUTUEL |
-| **Match 4 Prize** | $100 fixed / ~$3,000* rolldown | FIXED → PARI-MUTUEL |
-| **Match 3 Prize** | $4 fixed / ~$74* rolldown | FIXED → PARI-MUTUEL |
+| **Match 4 Prize** | $100 fixed / ~$3,247* rolldown | FIXED → PARI-MUTUEL |
+| **Match 3 Prize** | $4 fixed / ~$75* rolldown | FIXED → PARI-MUTUEL |
 | **Match 2 Prize** | No prize (no free ticket) | — |
 | **Cycle Duration** | ~2-3 days | — |
 | **🔥 Rolldown EV** | **+66.7% player edge!** | PARI-MUTUEL |

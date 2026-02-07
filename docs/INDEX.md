@@ -176,8 +176,8 @@
 | Jackpot Seed | $5,000 | — | ADVANCED_FEATURES.md §5 |
 | Soft Cap | $30,000 | → PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
 | Hard Cap | $50,000 | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
-| **Match 4 Prize** | $100 fixed / ~$3,000* rolldown | **FIXED → PM** | ADVANCED_FEATURES.md §5 |
-| **Match 3 Prize** | $4 fixed / ~$74* rolldown | **FIXED → PM** | ADVANCED_FEATURES.md §5 |
+| **Match 4 Prize** | $100 fixed / ~$3,247* rolldown | **FIXED → PM** | ADVANCED_FEATURES.md §5 |
+| **Match 3 Prize** | $4 fixed / ~$75* rolldown | **FIXED → PM** | ADVANCED_FEATURES.md §5 |
 | Match 2 Prize | No prize (no free ticket) | — | ADVANCED_FEATURES.md §5 |
 | Rolldown Match 4 | 60% of jackpot pool | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |
 | Rolldown Match 3 | 40% of jackpot pool | PARI-MUTUEL | ADVANCED_FEATURES.md §5 |

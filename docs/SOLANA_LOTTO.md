@@ -148,8 +148,9 @@ When the jackpot caps and no one hits the jackpot, **everything changes**:
 **Total Player EV: ~$2.87** on a $2.50 ticket (at 700k volume)  
 **Player Edge: +14.8%** 🎯
 
-**Higher Edge at Lower Volume:** With optimal volume (~475k tickets at $2.25M hard cap):
-- **Total EV: ~$4.06** → **Player Edge: +62%** 🚀
+**Higher Edge at Lower Volume:**
+- At soft cap ($1.75M) with ~475k tickets: **Total EV: ~$4.05** → **Player Edge: +62%** 🚀
+- At hard cap ($2.25M) with ~475k tickets: **Total EV: ~$5.10** → **Player Edge: +104%** 🚀
 
 ### Why Match 3 Gets the Most (40% of Rolldown Pool)
 
@@ -763,8 +764,8 @@ High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** —
 
 | Match | Pool Share | Est. Prize* | Formula | Expected Value |
 |-------|------------|-------------|---------|----------------|
-| **4** | 60% | ~$3,000* | `$18,000 ÷ ~6 winners` | $1.39 |
-| **3** | 40% | ~$74* | `$12,000 ÷ ~161 winners` | $0.99 |
+| **4** | 60% | ~$3,247* | `$18,000 ÷ ~5.5 winners` | $1.50 |
+| **3** | 40% | ~$74.6* | `$12,000 ÷ ~161 winners` | $1.00 |
 
 *\*Estimated prizes at ~12,000 tickets. Actual = Pool ÷ Winners (pari-mutuel).*
 
@@ -1099,7 +1100,7 @@ A: With an 11.2% edge and sufficient volume, sophisticated players historically 
 A: Any Solana-compatible wallet works. We recommend Phantom or Solflare for the best experience.
 
 **Q: Are there transaction fees?**  
-A: Solana network fees are minimal (~$0.001 per transaction). There are no additional platform fees beyond the built-in 34% house fee.
+A: Solana network fees are minimal (~$0.001 per transaction). There are no additional platform fees beyond the built-in 28–40% dynamic house fee (varies by jackpot level).
 
 **Q: Can I use a bot to buy tickets?**  
 A: Yes, the SDK supports programmatic ticket purchases. However, there are rate limits (max 100 tickets per wallet per draw) to prevent abuse.

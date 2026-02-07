@@ -57,7 +57,7 @@ This creates a "game within a game" where casual players enjoy entertainment val
 |-----------|----------------|
 | **Transparency** | All parameters, odds, and balances on-chain |
 | **Fairness** | Switchboard Randomness with TEE for verifiable randomness |
-| **Sustainability** | 34% house fee guarantees operator profitability |
+| **Sustainability** | 28–40% dynamic house fee guarantees operator profitability |
 | **Accessibility** | $2.50 ticket price on low-fee Solana |
 | **Intentional Exploitability** | Rolldown mechanism creates +EV windows |
 
