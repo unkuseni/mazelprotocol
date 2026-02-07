@@ -399,7 +399,7 @@ export default function Header() {
               <LogoMark />
               <div className="flex flex-col">
                 <span className="text-base font-bold text-foreground tracking-tight leading-none group-hover:text-emerald-light transition-colors">
-                  MazelProtocol
+                  Mazel
                 </span>
                 <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase leading-none mt-0.5">
                   Protocol
