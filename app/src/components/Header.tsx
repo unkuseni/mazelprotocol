@@ -23,58 +23,58 @@ import { ThemeToggleCompact } from "@/components/ThemeToggle";
 const navLinks = [
   {
     label: "Play",
-    icon: Ticket,
+    icon: Trophy,
     children: [
       {
-        to: "/play" as const,
+        to: "/play",
         label: "6/46 Main Lottery",
-        description: "Daily draws · $2.50 tickets",
+        description: "Daily draws with rolldown mechanics",
         icon: Trophy,
       },
       {
-        to: "/play/quick-pick" as const,
+        to: "/play/quick-pick",
         label: "Quick Pick Express",
-        description: "Every 4 hours · $1.50 tickets",
+        description: "5/35 mini-lottery every 4 hours",
         icon: Zap,
       },
     ],
   },
   {
-    to: "/syndicates" as const,
+    to: "/syndicates",
     label: "Syndicates",
     icon: Users,
   },
   {
-    to: "/dashboard" as const,
-    label: "Dashboard",
+    to: "/results",
+    label: "Results",
     icon: BarChart3,
   },
   {
-    to: "/tickets" as const,
+    to: "/tickets",
     label: "My Tickets",
-    icon: Wallet,
+    icon: Ticket,
   },
   {
     label: "Learn",
     icon: BookOpen,
     children: [
       {
-        to: "/results" as const,
-        label: "Draw Results",
-        description: "Past draws and winners",
-        icon: BarChart3,
-      },
-      {
-        to: "/learn/rolldown" as const,
+        to: "/learn/rolldown",
         label: "How Rolldown Works",
-        description: "The math behind +EV",
-        icon: Gem,
+        description: "The math behind positive-EV windows",
+        icon: Zap,
       },
       {
-        to: "/learn/whitepaper" as const,
+        to: "/learn/whitepaper",
         label: "Whitepaper",
-        description: "Technical deep dive",
+        description: "Full protocol specification",
         icon: BookOpen,
+      },
+      {
+        href: "https://github.com/solanalotto",
+        label: "GitHub",
+        description: "Open-source smart contracts",
+        icon: Gem,
       },
     ],
   },
@@ -132,7 +132,7 @@ function DesktopDropdown({ label, icon: Icon, children }: DropdownProps) {
     >
       <button
         type="button"
-        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/5"
         onClick={() => setOpen(!open)}
       >
         <Icon size={16} className="opacity-70" />
@@ -145,7 +145,7 @@ function DesktopDropdown({ label, icon: Icon, children }: DropdownProps) {
 
       {open && (
         <div className="absolute top-full left-0 pt-2 z-50">
-          <div className="w-72 rounded-xl glass-strong p-2 shadow-2xl shadow-black/40 animate-slide-down">
+          <div className="w-72 rounded-xl glass-strong p-2 shadow-2xl shadow-black/20 dark:shadow-black/40 animate-slide-down">
             {children.map((child) => {
               const ChildIcon = child.icon;
 
@@ -156,19 +156,19 @@ function DesktopDropdown({ label, icon: Icon, children }: DropdownProps) {
                     href={child.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors group"
+                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-foreground/5 transition-colors group"
                     onClick={() => setOpen(false)}
                   >
                     <div className="mt-0.5 p-1.5 rounded-md bg-emerald/10 text-emerald group-hover:bg-emerald/20 transition-colors">
                       <ChildIcon size={16} />
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-white flex items-center gap-1.5">
+                      <div className="text-sm font-medium text-foreground flex items-center gap-1.5">
                         {child.label}
                         <ExternalLink size={11} className="opacity-40" />
                       </div>
                       {child.description && (
-                        <div className="text-xs text-gray-400 mt-0.5">
+                        <div className="text-xs text-muted-foreground mt-0.5">
                           {child.description}
                         </div>
                       )}
@@ -181,18 +181,18 @@ function DesktopDropdown({ label, icon: Icon, children }: DropdownProps) {
                 <Link
                   key={child.label}
                   to={child.to!}
-                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors group"
+                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-foreground/5 transition-colors group"
                   onClick={() => setOpen(false)}
                 >
                   <div className="mt-0.5 p-1.5 rounded-md bg-emerald/10 text-emerald group-hover:bg-emerald/20 transition-colors">
                     <ChildIcon size={16} />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-white">
+                    <div className="text-sm font-medium text-foreground">
                       {child.label}
                     </div>
                     {child.description && (
-                      <div className="text-xs text-gray-400 mt-0.5">
+                      <div className="text-xs text-muted-foreground mt-0.5">
                         {child.description}
                       </div>
                     )}
@@ -232,7 +232,7 @@ function WalletButton() {
         <button
           type="button"
           onClick={() => setShowDropdown((p) => !p)}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-emerald/10 border border-emerald/20 hover:border-emerald/40 rounded-lg transition-all duration-200"
+          className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-foreground bg-emerald/10 border border-emerald/20 hover:border-emerald/40 rounded-lg transition-all duration-200"
         >
           <div className="w-2 h-2 rounded-full bg-emerald animate-pulse" />
           <span className="font-mono text-xs">{truncatedAddress}</span>
@@ -248,11 +248,11 @@ function WalletButton() {
               className="fixed inset-0 z-40"
               onClick={() => setShowDropdown(false)}
             />
-            <div className="absolute right-0 mt-2 w-56 z-50 rounded-xl bg-navy-deep/95 backdrop-blur-xl border border-white/10 shadow-xl shadow-black/30 p-2 space-y-1">
+            <div className="absolute right-0 mt-2 w-56 z-50 rounded-xl bg-card/95 backdrop-blur-xl border border-border shadow-xl shadow-black/10 dark:shadow-black/30 p-2 space-y-1">
               <button
                 type="button"
                 onClick={handleCopy}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
               >
                 {copied ? (
                   <Check size={14} className="text-emerald" />
@@ -267,12 +267,12 @@ function WalletButton() {
                   open({ view: "Account" });
                   setShowDropdown(false);
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
               >
                 <Wallet size={14} className="opacity-60" />
                 <span>Wallet Details</span>
               </button>
-              <div className="h-px bg-white/5 my-1" />
+              <div className="h-px bg-border my-1" />
               <button
                 type="button"
                 onClick={() => {
@@ -325,7 +325,7 @@ function MobileWalletButton() {
           <button
             type="button"
             onClick={() => open({ view: "Account" })}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-300 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-foreground bg-foreground/5 hover:bg-foreground/10 rounded-lg transition-colors"
           >
             <Wallet size={13} />
             <span>Details</span>
@@ -387,7 +387,9 @@ export default function Header() {
       {/* Main Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
-          scrolled ? "glass-strong shadow-lg shadow-black/20" : "bg-transparent"
+          scrolled
+            ? "glass-strong shadow-lg shadow-black/10 dark:shadow-black/20"
+            : "bg-transparent"
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -396,10 +398,10 @@ export default function Header() {
             <Link to="/" className="flex items-center gap-2.5 group">
               <LogoMark />
               <div className="flex flex-col">
-                <span className="text-base font-bold text-white tracking-tight leading-none group-hover:text-emerald-light transition-colors">
+                <span className="text-base font-bold text-foreground tracking-tight leading-none group-hover:text-emerald-light transition-colors">
                   SolanaLotto
                 </span>
-                <span className="text-[10px] text-gray-500 font-medium tracking-wider uppercase leading-none mt-0.5">
+                <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase leading-none mt-0.5">
                   Protocol
                 </span>
               </div>
@@ -423,7 +425,7 @@ export default function Header() {
                   <Link
                     key={link.label}
                     to={(link as { to: string }).to}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/5"
                     activeProps={{
                       className:
                         "flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg",
@@ -460,7 +462,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="lg:hidden p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                className="lg:hidden p-2 text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                 aria-label={mobileOpen ? "Close menu" : "Open menu"}
               >
                 {mobileOpen ? <X size={22} /> : <Menu size={22} />}
@@ -476,7 +478,7 @@ export default function Header() {
       {/* Mobile Menu Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -487,19 +489,19 @@ export default function Header() {
           mobileOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="h-full flex flex-col bg-navy-deep/95 backdrop-blur-xl border-l border-white/5">
+        <div className="h-full flex flex-col bg-card/95 dark:bg-navy-deep/95 backdrop-blur-xl border-l border-border">
           {/* Mobile header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/5">
+          <div className="flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center gap-2.5">
               <LogoMark />
-              <span className="font-bold text-white">SolanaLotto</span>
+              <span className="font-bold text-foreground">SolanaLotto</span>
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggleCompact />
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
-                className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                className="p-2 text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                 aria-label="Close menu"
               >
                 <X size={20} />
@@ -525,7 +527,7 @@ export default function Header() {
             <Link
               to="/"
               onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
               activeProps={{
                 className:
                   "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg",
@@ -548,7 +550,7 @@ export default function Header() {
                           [link.label]: !prev[link.label],
                         }))
                       }
-                      className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <link.icon size={18} className="opacity-70" />
@@ -562,7 +564,7 @@ export default function Header() {
                       />
                     </button>
                     {isExpanded && (
-                      <div className="ml-4 mt-1 space-y-1 border-l border-white/5 pl-3">
+                      <div className="ml-4 mt-1 space-y-1 border-l border-border pl-3">
                         {link.children.map((child) => {
                           const ChildIcon = child.icon;
 
@@ -574,7 +576,7 @@ export default function Header() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={() => setMobileOpen(false)}
-                                className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                                className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                               >
                                 <ChildIcon size={15} className="opacity-60" />
                                 <span>{child.label}</span>
@@ -591,7 +593,7 @@ export default function Header() {
                               key={child.label}
                               to={child.to!}
                               onClick={() => setMobileOpen(false)}
-                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                               activeProps={{
                                 className:
                                   "flex items-center gap-2.5 px-3 py-2 text-sm text-emerald-light bg-emerald/10 rounded-lg",
@@ -613,7 +615,7 @@ export default function Header() {
                   key={link.label}
                   to={(link as { to: string }).to}
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                   activeProps={{
                     className:
                       "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg",
@@ -627,12 +629,12 @@ export default function Header() {
           </nav>
 
           {/* Mobile footer */}
-          <div className="p-4 border-t border-white/5">
-            <div className="flex items-center justify-center gap-4 text-gray-500 text-xs">
+          <div className="p-4 border-t border-border">
+            <div className="flex items-center justify-center gap-4 text-muted-foreground text-xs">
               <span>Built on Solana</span>
-              <span className="w-1 h-1 rounded-full bg-gray-600" />
+              <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
               <span>Non-custodial</span>
-              <span className="w-1 h-1 rounded-full bg-gray-600" />
+              <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
               <span>Provably Fair</span>
             </div>
           </div>

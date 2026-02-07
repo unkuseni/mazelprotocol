@@ -379,8 +379,8 @@ function StatusBadge({ status }: { status: TicketStatus }) {
     },
     lost: {
       label: "No Win",
-      bg: "bg-white/[0.03] border-white/[0.06]",
-      text: "text-gray-500",
+      bg: "bg-foreground/[0.03] border-foreground/[0.06]",
+      text: "text-muted-foreground",
       icon: X,
     },
     claimed: {
@@ -463,7 +463,7 @@ function TicketRow({
       <button
         type="button"
         onClick={onToggleExpand}
-        className="w-full p-4 flex items-center gap-3 sm:gap-4 text-left hover:bg-white/[0.01] transition-colors rounded-xl"
+        className="w-full p-4 flex items-center gap-3 sm:gap-4 text-left hover:bg-foreground/[0.01] transition-colors rounded-xl"
       >
         {/* Status indicator dot */}
         <div
@@ -492,7 +492,7 @@ function TicketRow({
           <div className="flex items-center gap-2 flex-wrap">
             <GameBadge gameType={ticket.gameType} />
             {ticket.isQuickPick && (
-              <span className="text-[9px] text-gray-500 font-medium flex items-center gap-0.5">
+              <span className="text-[9px] text-muted-foreground font-medium flex items-center gap-0.5">
                 <Zap size={7} />
                 Quick Pick
               </span>
@@ -514,8 +514,8 @@ function TicketRow({
 
         {/* Draw info */}
         <div className="hidden sm:block text-right shrink-0">
-          <div className="text-[10px] text-gray-500">Draw #{ticket.drawId}</div>
-          <div className="text-[10px] text-gray-600">{ticket.drawDate}</div>
+          <div className="text-[10px] text-muted-foreground">Draw #{ticket.drawId}</div>
+          <div className="text-[10px] text-muted-foreground/60">{ticket.drawDate}</div>
         </div>
 
         {/* Match count / Prize */}
@@ -530,7 +530,7 @@ function TicketRow({
                     ? "text-gold"
                     : ticket.matchCount >= 3
                       ? "text-emerald-light"
-                      : "text-gray-400"
+                      : "text-muted-foreground"
                 }`}
               >
                 {ticket.matchCount} match{ticket.matchCount !== 1 ? "es" : ""}
@@ -542,7 +542,7 @@ function TicketRow({
               )}
             </>
           ) : (
-            <div className="text-xs text-gray-600">No match</div>
+            <div className="text-xs text-muted-foreground/60">No match</div>
           )}
         </div>
 
@@ -554,7 +554,7 @@ function TicketRow({
         {/* Expand chevron */}
         <ChevronDown
           size={14}
-          className={`shrink-0 text-gray-600 transition-transform duration-200 ${
+          className={`shrink-0 text-muted-foreground/60 transition-transform duration-200 ${
             expanded ? "rotate-180" : ""
           }`}
         />
@@ -562,14 +562,14 @@ function TicketRow({
 
       {/* Expanded details */}
       {expanded && (
-        <div className="px-4 pb-4 border-t border-white/5 pt-3 space-y-3 animate-slide-down">
+        <div className="px-4 pb-4 border-t border-foreground/5 pt-3 space-y-3 animate-slide-down">
           {/* Mobile-only status & draw info */}
           <div className="flex items-center justify-between sm:hidden">
             <div>
-              <div className="text-[10px] text-gray-500">
+              <div className="text-[10px] text-muted-foreground">
                 Draw #{ticket.drawId}
               </div>
-              <div className="text-[10px] text-gray-600">{ticket.drawDate}</div>
+              <div className="text-[10px] text-muted-foreground/60">{ticket.drawDate}</div>
             </div>
             <StatusBadge status={ticket.status} />
           </div>
@@ -577,7 +577,7 @@ function TicketRow({
           {/* Winning numbers comparison */}
           {ticket.winningNumbers && (
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">
                 Winning Numbers
               </div>
               <WinningNumbers numbers={ticket.winningNumbers} size="sm" />
@@ -586,11 +586,11 @@ function TicketRow({
 
           {/* Details grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="p-2 rounded-lg bg-white/[0.02]">
-              <div className="text-[9px] text-gray-500 uppercase tracking-wider">
+            <div className="p-2 rounded-lg bg-foreground/[0.02]">
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">
                 Purchased
               </div>
-              <div className="text-[10px] text-white font-medium mt-0.5">
+              <div className="text-[10px] text-foreground font-medium mt-0.5">
                 {new Date(ticket.purchaseTime).toLocaleString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -599,18 +599,18 @@ function TicketRow({
                 })}
               </div>
             </div>
-            <div className="p-2 rounded-lg bg-white/[0.02]">
-              <div className="text-[9px] text-gray-500 uppercase tracking-wider">
+            <div className="p-2 rounded-lg bg-foreground/[0.02]">
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">
                 Game
               </div>
-              <div className="text-[10px] text-white font-medium mt-0.5">
+              <div className="text-[10px] text-foreground font-medium mt-0.5">
                 {ticket.gameType === "main"
                   ? "6/46 Main Lottery"
                   : "Quick Pick Express 5/35"}
               </div>
             </div>
-            <div className="p-2 rounded-lg bg-white/[0.02]">
-              <div className="text-[9px] text-gray-500 uppercase tracking-wider">
+            <div className="p-2 rounded-lg bg-foreground/[0.02]">
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">
                 Matches
               </div>
               <div
@@ -619,7 +619,7 @@ function TicketRow({
                     ? "text-blue-400"
                     : ticket.matchCount >= 3
                       ? "text-emerald-light"
-                      : "text-gray-400"
+                      : "text-muted-foreground"
                 }`}
               >
                 {ticket.status === "pending"
@@ -627,13 +627,13 @@ function TicketRow({
                   : `${ticket.matchCount} / ${ticket.numbers.length}`}
               </div>
             </div>
-            <div className="p-2 rounded-lg bg-white/[0.02]">
-              <div className="text-[9px] text-gray-500 uppercase tracking-wider">
+            <div className="p-2 rounded-lg bg-foreground/[0.02]">
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">
                 Prize
               </div>
               <div
                 className={`text-[10px] font-bold mt-0.5 ${
-                  ticket.prize > 0 ? "text-gold" : "text-gray-500"
+                  ticket.prize > 0 ? "text-gold" : "text-muted-foreground"
                 }`}
               >
                 {ticket.status === "pending"
@@ -653,7 +653,7 @@ function TicketRow({
               href={`https://solscan.io/tx/${ticket.txSignature}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-emerald-light transition-colors"
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-emerald-light transition-colors"
             >
               <ExternalLink size={9} />
               <span className="font-mono">{ticket.txSignature}</span>
@@ -705,14 +705,14 @@ function UnclaimedBanner({
             <Gift size={22} className="text-gold" />
           </div>
           <div>
-            <h3 className="text-base font-black text-white">
+            <h3 className="text-base font-black text-foreground">
               You have{" "}
               <span className="text-gradient-gold">
                 ${total.toFixed(2)} USDC
               </span>{" "}
               to claim!
             </h3>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               {count} winning ticket{count !== 1 ? "s" : ""} with unclaimed
               prizes. Prizes expire after 30 days.
             </p>
@@ -742,20 +742,20 @@ function TicketStats({ tickets }: { tickets: TicketData[] }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
       <div className="glass rounded-xl p-3 text-center">
-        <div className="text-lg font-black text-white">{totalTickets}</div>
-        <div className="text-[10px] text-gray-500 uppercase tracking-wider">
+        <div className="text-lg font-black text-foreground">{totalTickets}</div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
           Total Tickets
         </div>
       </div>
       <div className="glass rounded-xl p-3 text-center">
         <div className="text-lg font-black text-blue-400">{pendingCount}</div>
-        <div className="text-[10px] text-gray-500 uppercase tracking-wider">
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
           Pending
         </div>
       </div>
       <div className="glass rounded-xl p-3 text-center">
         <div className="text-lg font-black text-gold">{wonCount}</div>
-        <div className="text-[10px] text-gray-500 uppercase tracking-wider">
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
           Wins
         </div>
       </div>
@@ -763,7 +763,7 @@ function TicketStats({ tickets }: { tickets: TicketData[] }) {
         <div className="text-lg font-black text-gradient-gold">
           ${totalPrizes.toFixed(0)}
         </div>
-        <div className="text-[10px] text-gray-500 uppercase tracking-wider">
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
           Total Prizes
         </div>
       </div>
@@ -771,7 +771,7 @@ function TicketStats({ tickets }: { tickets: TicketData[] }) {
         <div className="text-lg font-black text-emerald-light">
           {MOCK_FREE_TICKET_CREDITS}
         </div>
-        <div className="text-[10px] text-gray-500 uppercase tracking-wider">
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
           Free Credits
         </div>
       </div>
@@ -798,10 +798,10 @@ function WalletNotConnected() {
             <Ticket size={36} className="text-emerald-light" />
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white mb-3">
+          <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground mb-3">
             Connect Your Wallet
           </h1>
-          <p className="text-sm sm:text-base text-gray-400 max-w-md mx-auto mb-8">
+          <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto mb-8">
             Connect your Solana wallet to view your tickets, track results, and
             claim your winnings.
           </p>
@@ -814,7 +814,7 @@ function WalletNotConnected() {
             Connect Wallet
           </Button>
 
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-[10px] text-gray-500">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-[10px] text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <Shield size={10} className="text-emerald/60" />
               <span>Non-custodial</span>
@@ -878,11 +878,11 @@ function EmptyState({ filter }: { filter: TicketFilter }) {
 
   return (
     <div className="glass rounded-2xl p-12 text-center">
-      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.06] mb-4">
-        <Ticket size={24} className="text-gray-600" />
+      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground/[0.03] border border-foreground/[0.06] mb-4">
+        <Ticket size={24} className="text-muted-foreground/60" />
       </div>
-      <p className="text-sm text-gray-400 mb-1">{msg.title}</p>
-      <p className="text-xs text-gray-600 mb-4">{msg.desc}</p>
+      <p className="text-sm text-muted-foreground mb-1">{msg.title}</p>
+      <p className="text-xs text-muted-foreground/60 mb-4">{msg.desc}</p>
       {filter === "all" && (
         <Link
           to="/play"
@@ -1027,8 +1027,8 @@ function MyTicketsPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-xs text-gray-500 mb-6">
-            <Link to="/" className="hover:text-white transition-colors">
+          <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
+            <Link to="/" className="hover:text-foreground transition-colors">
               Home
             </Link>
             <ChevronRight size={12} />
@@ -1042,10 +1042,10 @@ function MyTicketsPage() {
                   <Ticket size={24} className="text-emerald-light" />
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
                     My Tickets
                   </h1>
-                  <p className="text-sm text-gray-400 mt-0.5">
+                  <p className="text-sm text-muted-foreground mt-0.5">
                     View, track, and claim your lottery tickets
                   </p>
                 </div>
@@ -1096,14 +1096,14 @@ function MyTicketsPage() {
               <div className="relative flex-1 w-full">
                 <Search
                   size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                 />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by draw #, ticket ID, numbers, or syndicate..."
-                  className="w-full h-9 pl-9 pr-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+                  className="w-full h-9 pl-9 pr-3 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08] text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
                 />
               </div>
 
@@ -1123,7 +1123,7 @@ function MyTicketsPage() {
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       gameFilter === key
                         ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                        : "text-gray-500 hover:text-white hover:bg-white/5"
+                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                     }`}
                   >
                     {label}
@@ -1136,7 +1136,7 @@ function MyTicketsPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               {/* Status filter tabs */}
               <div className="flex items-center gap-1">
-                <Filter size={12} className="text-gray-500 mr-1" />
+                <Filter size={12} className="text-muted-foreground mr-1" />
                 {(
                   [
                     { key: "all" as TicketFilter, label: "All" },
@@ -1153,7 +1153,7 @@ function MyTicketsPage() {
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
                       filter === key
                         ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                        : "text-gray-500 hover:text-white hover:bg-white/5"
+                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                     }`}
                   >
                     {label}
@@ -1161,7 +1161,7 @@ function MyTicketsPage() {
                       className={`text-[9px] tabular-nums ${
                         filter === key
                           ? "text-emerald-light/70"
-                          : "text-gray-600"
+                          : "text-muted-foreground/60"
                       }`}
                     >
                       {filterCounts[key]}
@@ -1172,7 +1172,7 @@ function MyTicketsPage() {
 
               {/* Sort */}
               <div className="flex items-center gap-1 shrink-0">
-                <ArrowUpDown size={12} className="text-gray-500 mr-1" />
+                <ArrowUpDown size={12} className="text-muted-foreground mr-1" />
                 {(
                   [
                     { field: "date" as SortField, label: "Date" },
@@ -1188,7 +1188,7 @@ function MyTicketsPage() {
                     className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
                       sortField === field
                         ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                        : "text-gray-500 hover:text-white hover:bg-white/5"
+                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                     }`}
                   >
                     {label}
@@ -1205,9 +1205,9 @@ function MyTicketsPage() {
 
           {/* Results count */}
           <div className="flex items-center justify-between">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Showing{" "}
-              <span className="font-bold text-white">
+              <span className="font-bold text-foreground">
                 {filteredTickets.length}
               </span>{" "}
               ticket{filteredTickets.length !== 1 ? "s" : ""}
@@ -1224,7 +1224,7 @@ function MyTicketsPage() {
               <button
                 type="button"
                 onClick={() => setExpandedTicket(null)}
-                className="text-[10px] text-gray-500 hover:text-white transition-colors"
+                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
               >
                 Collapse all
               </button>
@@ -1254,38 +1254,38 @@ function MyTicketsPage() {
 
           {/* Bottom info */}
           <div className="glass rounded-2xl p-5 sm:p-6">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
               <Shield size={16} className="text-emerald" />
               Ticket Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <h4 className="text-xs font-semibold text-white mb-1 flex items-center gap-1.5">
-                  <Clock size={11} className="text-gray-500" />
+                <h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
+                  <Clock size={11} className="text-muted-foreground" />
                   Prize Expiry
                 </h4>
-                <p className="text-[10px] text-gray-500 leading-relaxed">
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
                   Unclaimed prizes expire 30 days after the draw. Expired prizes
                   are returned to the prize pool. Claim as soon as possible!
                 </p>
               </div>
               <div>
-                <h4 className="text-xs font-semibold text-white mb-1 flex items-center gap-1.5">
+                <h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
                   <Sparkles size={11} className="text-gold" />
                   Free Ticket Credits
                 </h4>
-                <p className="text-[10px] text-gray-500 leading-relaxed">
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
                   Match 2 numbers in the 6/46 lottery to earn a free ticket
                   credit. Use it on your next purchase to save $2.50 USDC. Quick
                   Pick Express does not award free tickets.
                 </p>
               </div>
               <div>
-                <h4 className="text-xs font-semibold text-white mb-1 flex items-center gap-1.5">
+                <h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
                   <TrendingUp size={11} className="text-emerald" />
                   Rolldown Prizes
                 </h4>
-                <p className="text-[10px] text-gray-500 leading-relaxed">
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
                   During rolldown events, prizes transition to pari-mutuel mode.
                   Match 3+ prizes are calculated as Pool &divide; Winners, which
                   can be significantly higher than fixed prizes.
@@ -1293,7 +1293,7 @@ function MyTicketsPage() {
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-white/5 flex flex-wrap items-center gap-4 text-[10px] text-gray-500">
+            <div className="mt-4 pt-3 border-t border-foreground/5 flex flex-wrap items-center gap-4 text-[10px] text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <Shield size={10} className="text-emerald/60" />
                 <span>All tickets stored on-chain</span>

@@ -100,7 +100,7 @@ function TimeUnitBox({ value, label, size, isUrgent }: TimeUnitBoxProps) {
           ${
             isUrgent
               ? "bg-gradient-to-b from-red-500/15 to-red-600/10 border border-red-500/30 shadow-sm shadow-red-500/10"
-              : "bg-white/[0.03] border border-white/[0.06]"
+              : "bg-foreground/[0.03] border border-foreground/[0.06]"
           }
         `}
       >
@@ -108,7 +108,7 @@ function TimeUnitBox({ value, label, size, isUrgent }: TimeUnitBoxProps) {
           className={`
             ${config.digitClass}
             tabular-nums tracking-tight leading-none
-            ${isUrgent ? "text-red-400" : "text-white"}
+            ${isUrgent ? "text-red-400" : "text-foreground"}
             transition-colors duration-300
           `}
         >
@@ -119,7 +119,7 @@ function TimeUnitBox({ value, label, size, isUrgent }: TimeUnitBoxProps) {
         className={`
           ${config.labelClass}
           mt-1.5 uppercase tracking-wider font-medium
-          ${isUrgent ? "text-red-400/60" : "text-gray-500"}
+          ${isUrgent ? "text-red-400/60" : "text-muted-foreground"}
         `}
       >
         {label}
@@ -143,7 +143,7 @@ function TimeSeparator({
         className={`
           ${config.separatorClass}
           font-bold leading-none
-          ${isUrgent ? "text-red-400/50 animate-pulse" : "text-gray-600"}
+          ${isUrgent ? "text-red-400/50 animate-pulse" : "text-muted-foreground/60"}
           transition-colors duration-300
         `}
       >
@@ -168,7 +168,9 @@ export function CountdownTimer({
 
   const config = sizeConfig[size];
   const isUrgent =
-    showUrgency && timeLeft.total > 0 && timeLeft.total / 1000 <= urgencyThreshold;
+    showUrgency &&
+    timeLeft.total > 0 &&
+    timeLeft.total / 1000 <= urgencyThreshold;
 
   const handleComplete = useCallback(() => {
     if (!completed) {
@@ -196,7 +198,10 @@ export function CountdownTimer({
     return (
       <div className={`flex flex-col items-center ${className}`}>
         <div className="flex items-center gap-2 mb-3">
-          <Zap size={config.iconSize} className="text-emerald-light animate-pulse" />
+          <Zap
+            size={config.iconSize}
+            className="text-emerald-light animate-pulse"
+          />
           <span
             className={`${config.headerClass} font-semibold text-emerald-light uppercase tracking-wider`}
           >
@@ -219,13 +224,13 @@ export function CountdownTimer({
       <div className="flex items-center gap-1.5 mb-3">
         <Clock
           size={config.iconSize}
-          className={`${isUrgent ? "text-red-400" : "text-gray-500"} transition-colors`}
+          className={`${isUrgent ? "text-red-400" : "text-muted-foreground"} transition-colors`}
         />
         <span
           className={`
             ${config.headerClass}
             font-semibold uppercase tracking-wider
-            ${isUrgent ? "text-red-400/80" : "text-gray-500"}
+            ${isUrgent ? "text-red-400/80" : "text-muted-foreground"}
             transition-colors
           `}
         >
@@ -265,7 +270,7 @@ export function CountdownTimer({
 
       {/* Sub-label with draw time */}
       {size !== "sm" && (
-        <p className="mt-3 text-[10px] text-gray-600">
+        <p className="mt-3 text-[10px] text-muted-foreground/60">
           Daily at 00:00 UTC
         </p>
       )}
@@ -300,7 +305,9 @@ export function InlineCountdown({
 
   if (timeLeft.total <= 0) {
     return (
-      <span className={`inline-flex items-center gap-1.5 text-emerald-light ${className}`}>
+      <span
+        className={`inline-flex items-center gap-1.5 text-emerald-light ${className}`}
+      >
         <div className="w-1.5 h-1.5 rounded-full bg-emerald animate-ping" />
         <span className="text-xs font-semibold">Drawing now...</span>
       </span>
@@ -309,10 +316,10 @@ export function InlineCountdown({
 
   return (
     <span className={`inline-flex items-center gap-1.5 ${className}`}>
-      <Clock size={12} className="text-gray-500" />
-      <span className="text-xs text-gray-400">
+      <Clock size={12} className="text-muted-foreground" />
+      <span className="text-xs text-muted-foreground">
         {label}:{" "}
-        <span className="font-semibold text-white tabular-nums">
+        <span className="font-semibold text-foreground tabular-nums">
           {padZero(timeLeft.hours)}:{padZero(timeLeft.minutes)}:
           {padZero(timeLeft.seconds)}
         </span>
@@ -385,10 +392,12 @@ export function QuickPickCountdown({
         size={size === "sm" ? 12 : 14}
         className={isUrgent ? "text-red-400" : "text-emerald"}
       />
-      <span className={`${size === "sm" ? "text-xs" : "text-sm"} text-gray-400`}>
+      <span
+        className={`${size === "sm" ? "text-xs" : "text-sm"} text-muted-foreground`}
+      >
         Quick Pick:{" "}
         <span
-          className={`font-semibold tabular-nums ${isUrgent ? "text-red-400" : "text-white"}`}
+          className={`font-semibold tabular-nums ${isUrgent ? "text-red-400" : "text-foreground"}`}
         >
           {padZero(timeLeft.hours)}:{padZero(timeLeft.minutes)}:
           {padZero(timeLeft.seconds)}

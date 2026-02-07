@@ -161,7 +161,7 @@ export function JackpotDisplay({
         `}
       >
         {/* Background with gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-navy-light/80 via-navy/60 to-navy-deep/80 backdrop-blur-sm border border-gold/10 rounded-2xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-card/80 via-muted/60 to-card/80 dark:from-navy-light/80 dark:via-navy/60 dark:to-navy-deep/80 backdrop-blur-sm border border-gold/10 rounded-2xl" />
 
         {/* Subtle shimmer overlay */}
         <div
@@ -178,10 +178,7 @@ export function JackpotDisplay({
         <div className="relative z-10 flex flex-col items-center text-center">
           {/* Label row */}
           <div className="flex items-center gap-2 mb-2">
-            <Trophy
-              size={config.iconSize}
-              className="text-gold"
-            />
+            <Trophy size={config.iconSize} className="text-gold" />
             <span
               className={`${config.labelClass} font-semibold text-gold/80 uppercase tracking-wider`}
             >
@@ -198,7 +195,7 @@ export function JackpotDisplay({
 
           {/* Sub-info */}
           {size !== "sm" && (
-            <div className="mt-2 text-xs text-gray-500">
+            <div className="mt-2 text-xs text-muted-foreground">
               {formatCurrency(amount)} USDC
             </div>
           )}
@@ -215,9 +212,9 @@ export function JackpotDisplay({
                   <TrendingUp size={12} className="text-emerald-light" />
                 </div>
               ) : (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-                  <div className="w-1.5 h-1.5 rounded-full bg-gray-500" />
-                  <span className="text-xs font-medium text-gray-500">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-foreground/5 border border-foreground/10">
+                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">
                     Normal Draw Mode
                   </span>
                 </div>
@@ -228,13 +225,13 @@ export function JackpotDisplay({
           {/* Progress bar to soft cap */}
           {softCap > 0 && size !== "sm" && (
             <div className="w-full max-w-xs mt-4">
-              <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1.5">
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
                 <span>Rolldown at {formatCurrency(softCap)}</span>
                 <span className="text-gold/70 font-medium">
                   {progress.toFixed(1)}%
                 </span>
               </div>
-              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-foreground/5 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-1000 ease-out"
                   style={{
@@ -291,7 +288,7 @@ export function JackpotStat({
 }: JackpotStatProps) {
   return (
     <div className={`flex flex-col items-center ${className}`}>
-      <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
         {label}
       </span>
       <span className="text-lg font-bold text-gradient-gold">

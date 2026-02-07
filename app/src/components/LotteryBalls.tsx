@@ -197,7 +197,7 @@ export function WinningNumbers({
               ${
                 isMatched
                   ? "bg-gradient-to-br from-gold-light to-gold text-navy shadow-sm shadow-gold/20"
-                  : "bg-white/5 text-gray-400 border border-white/10"
+                  : "bg-foreground/5 text-muted-foreground border border-foreground/10"
               }
             `}
           >

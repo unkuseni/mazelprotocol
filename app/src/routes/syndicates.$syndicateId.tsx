@@ -334,7 +334,7 @@ function StatCard({
   label,
   value,
   icon: Icon,
-  color = "text-white",
+  color = "text-foreground",
   subtext,
 }: {
   label: string;
@@ -347,11 +347,11 @@ function StatCard({
     <div className="glass rounded-xl p-3 text-center">
       <Icon size={14} className={`${color} mx-auto mb-1 opacity-70`} />
       <div className={`text-base sm:text-lg font-black ${color}`}>{value}</div>
-      <div className="text-[9px] text-gray-500 uppercase tracking-wider mt-0.5">
+      <div className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">
         {label}
       </div>
       {subtext && (
-        <div className="text-[9px] text-gray-600 mt-0.5">{subtext}</div>
+        <div className="text-[9px] text-muted-foreground/60 mt-0.5">{subtext}</div>
       )}
     </div>
   );
@@ -390,7 +390,7 @@ function SyndicateInfoPanel({
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-lg font-black text-white">
+              <h2 className="text-lg font-black text-foreground">
                 {syndicate.name}
               </h2>
               {syndicate.isPublic ? (
@@ -412,7 +412,7 @@ function SyndicateInfoPanel({
                           ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
                           : tag === "New"
                             ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                            : "bg-white/5 text-gray-400 border border-white/[0.06]"
+                            : "bg-foreground/5 text-muted-foreground border border-foreground/[0.06]"
                   }`}
                 >
                   {tag}
@@ -427,19 +427,19 @@ function SyndicateInfoPanel({
               <button
                 type="button"
                 onClick={() => setShowSettings((v) => !v)}
-                className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 <MoreVertical size={16} />
               </button>
               {showSettings && (
-                <div className="absolute right-0 top-full mt-1 w-44 glass-strong rounded-xl border border-white/10 py-1 z-20 shadow-xl shadow-black/30">
+                <div className="absolute right-0 top-full mt-1 w-44 glass-strong rounded-xl border border-foreground/10 py-1 z-20 shadow-xl shadow-black/30">
                   <button
                     type="button"
                     onClick={() => {
                       setNotifications((v) => !v);
                       setShowSettings(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-300 hover:bg-white/5 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-foreground/5 transition-colors"
                   >
                     {notifications ? <BellOff size={12} /> : <Bell size={12} />}
                     {notifications
@@ -464,26 +464,26 @@ function SyndicateInfoPanel({
         </div>
 
         {/* Description */}
-        <p className="text-xs text-gray-400 leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           {syndicate.description}
         </p>
 
         {/* Creator */}
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
             Manager
           </span>
           <button
             type="button"
             onClick={handleCopyAddress}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs font-mono text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-foreground/[0.03] border border-foreground/[0.06] text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors"
           >
             <Crown size={10} className="text-gold" />
             {syndicate.creatorShort}
             {copied ? (
               <Check size={10} className="text-emerald-light" />
             ) : (
-              <Copy size={10} className="text-gray-600" />
+              <Copy size={10} className="text-muted-foreground/60" />
             )}
           </button>
         </div>
@@ -491,17 +491,17 @@ function SyndicateInfoPanel({
         {/* Members bar */}
         <div>
           <div className="flex items-center justify-between text-[10px] mb-1.5">
-            <span className="text-gray-500 flex items-center gap-1">
+            <span className="text-muted-foreground flex items-center gap-1">
               <Users size={10} />
               Members
             </span>
             <span
-              className={`font-bold ${isFull ? "text-red-400" : "text-white"}`}
+              className={`font-bold ${isFull ? "text-red-400" : "text-foreground"}`}
             >
               {syndicate.members}/{syndicate.maxMembers}
             </span>
           </div>
-          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-foreground/5 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
                 isFull
@@ -517,19 +517,19 @@ function SyndicateInfoPanel({
 
         {/* Quick stats */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-            <Clock size={12} className="text-gray-500 shrink-0" />
+          <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-foreground/[0.02] border border-foreground/[0.04]">
+            <Clock size={12} className="text-muted-foreground shrink-0" />
             <div>
-              <div className="text-[10px] text-gray-500">Next draw</div>
-              <div className="text-xs font-bold text-white">
+              <div className="text-[10px] text-muted-foreground">Next draw</div>
+              <div className="text-xs font-bold text-foreground">
                 {syndicate.nextDrawIn}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+          <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-foreground/[0.02] border border-foreground/[0.04]">
             <TrendingUp size={12} className="text-emerald/60 shrink-0" />
             <div>
-              <div className="text-[10px] text-gray-500">Current EV</div>
+              <div className="text-[10px] text-muted-foreground">Current EV</div>
               <div className="text-xs font-bold text-emerald-light">
                 {syndicate.currentEV}
               </div>
@@ -538,10 +538,10 @@ function SyndicateInfoPanel({
         </div>
 
         {/* Manager fee & pool */}
-        <div className="flex items-center justify-between text-[10px] text-gray-500 px-1">
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
           <span>
             Fee:{" "}
-            <span className="text-white font-semibold">
+            <span className="text-foreground font-semibold">
               {syndicate.managerFeeBps === 0
                 ? "None"
                 : `${syndicate.managerFeeBps / 100}%`}
@@ -561,7 +561,7 @@ function SyndicateInfoPanel({
             {isFull ? (
               <Button
                 disabled
-                className="w-full h-10 text-xs font-semibold border-white/10 text-gray-400 cursor-not-allowed"
+                className="w-full h-10 text-xs font-semibold border-foreground/10 text-muted-foreground cursor-not-allowed"
                 variant="outline"
               >
                 <Lock size={12} />
@@ -596,11 +596,11 @@ function SyndicateInfoPanel({
         )}
 
         {/* Meta info */}
-        <div className="flex items-center justify-between text-[9px] text-gray-600 pt-1 border-t border-white/5">
+        <div className="flex items-center justify-between text-[9px] text-muted-foreground/60 pt-1 border-t border-foreground/5">
           <span>Active since {syndicate.activeSince}</span>
           <button
             type="button"
-            className="flex items-center gap-1 text-gray-500 hover:text-emerald-light transition-colors"
+            className="flex items-center gap-1 text-muted-foreground hover:text-emerald-light transition-colors"
             onClick={() => {
               /* TODO: link to on-chain explorer */
             }}
@@ -624,13 +624,13 @@ function NotConnectedView() {
         <FloatingBalls count={4} />
 
         <div className="relative z-10 max-w-2xl mx-auto text-center mt-16 sm:mt-24">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.06] mb-6">
-            <Users size={28} className="text-gray-500" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-foreground/[0.04] border border-foreground/[0.06] mb-6">
+            <Users size={28} className="text-muted-foreground" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white mb-3">
+          <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-3">
             Connect to View Syndicate
           </h1>
-          <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto">
+          <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto">
             Connect your wallet to view syndicate details, join the group chat,
             and coordinate ticket purchases with other players.
           </p>
@@ -657,13 +657,13 @@ function SyndicateNotFound() {
         <FloatingBalls count={3} />
 
         <div className="relative z-10 max-w-2xl mx-auto text-center mt-16 sm:mt-24">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.06] mb-6">
-            <Shield size={28} className="text-gray-500" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-foreground/[0.04] border border-foreground/[0.06] mb-6">
+            <Shield size={28} className="text-muted-foreground" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white mb-3">
+          <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-3">
             Syndicate Not Found
           </h1>
-          <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto">
+          <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto">
             This syndicate doesn&apos;t exist or may have been dissolved. Browse
             available syndicates to find a group to join.
           </p>
@@ -730,14 +730,14 @@ function SyndicateDetailPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-xs text-gray-500 mb-4">
-            <Link to="/" className="hover:text-white transition-colors">
+          <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+            <Link to="/" className="hover:text-foreground transition-colors">
               Home
             </Link>
             <ChevronRight size={12} />
             <Link
               to="/syndicates"
-              className="hover:text-white transition-colors"
+              className="hover:text-foreground transition-colors"
             >
               Syndicates
             </Link>
@@ -785,20 +785,20 @@ function SyndicateDetailPage() {
                   label="This Draw"
                   value={`${syndicate.ticketsThisDraw}`}
                   icon={Target}
-                  color="text-white"
+                  color="text-foreground"
                   subtext="tickets"
                 />
                 <StatCard
                   label="Total Tickets"
                   value={syndicate.totalTickets.toLocaleString()}
                   icon={BarChart3}
-                  color="text-gray-300"
+                  color="text-muted-foreground"
                 />
               </div>
 
               {/* On-chain badges */}
               <div className="glass rounded-xl p-3">
-                <div className="flex flex-wrap items-center gap-3 text-[9px] text-gray-500">
+                <div className="flex flex-wrap items-center gap-3 text-[9px] text-muted-foreground">
                   <div className="flex items-center gap-1.5">
                     <Shield size={9} className="text-emerald/60" />
                     <span>Non-custodial</span>
@@ -832,13 +832,13 @@ function SyndicateDetailPage() {
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full px-6 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-4">
-                      <Lock size={24} className="text-gray-500" />
+                    <div className="w-16 h-16 rounded-2xl bg-foreground/[0.03] border border-foreground/[0.06] flex items-center justify-center mb-4">
+                      <Lock size={24} className="text-muted-foreground" />
                     </div>
-                    <h3 className="text-base font-bold text-white mb-2">
+                    <h3 className="text-base font-bold text-foreground mb-2">
                       Members Only Chat
                     </h3>
-                    <p className="text-xs text-gray-500 max-w-sm mb-6">
+                    <p className="text-xs text-muted-foreground max-w-sm mb-6">
                       Join this syndicate to access the group chat, coordinate
                       ticket purchases, and discuss rolldown strategies with
                       other members.

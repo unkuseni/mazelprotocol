@@ -87,8 +87,8 @@ function NumberGrid({ selected, onToggle, disabled }: NumberGridProps) {
                 isSelected
                   ? "bg-gradient-to-br from-emerald-light to-emerald text-white shadow-lg shadow-emerald/30 scale-105 ring-2 ring-emerald-light/50"
                   : isFull
-                    ? "bg-white/[0.02] text-gray-600 cursor-not-allowed border border-white/[0.03]"
-                    : "bg-white/[0.04] text-gray-300 border border-white/[0.06] hover:bg-white/[0.08] hover:border-emerald/30 hover:text-white hover:scale-105 active:scale-95"
+                    ? "bg-foreground/[0.02] text-muted-foreground/60 cursor-not-allowed border border-foreground/[0.03]"
+                    : "bg-foreground/[0.04] text-muted-foreground border border-foreground/[0.06] hover:bg-foreground/[0.08] hover:border-emerald/30 hover:text-foreground hover:scale-105 active:scale-95"
               }
             `}
           >
@@ -122,7 +122,7 @@ function TicketCard({
     <div className="group relative glass rounded-xl p-3 sm:p-4 transition-all hover:border-emerald/20">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
             Ticket #{index + 1}
           </span>
           {isQuickPick && (
@@ -135,7 +135,7 @@ function TicketCard({
         <button
           type="button"
           onClick={onRemove}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+          className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all"
           aria-label="Remove ticket"
         >
           <Trash2 size={14} />
@@ -170,25 +170,25 @@ function CartSummary({
 }: CartSummaryProps) {
   return (
     <div className="glass-strong rounded-2xl p-5 sm:p-6 border-gradient-emerald">
-      <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+      <h3 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
         <ShoppingCart size={16} className="text-emerald" />
         Your Cart
       </h3>
 
       <div className="space-y-3 mb-4">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">Tickets</span>
-          <span className="font-semibold text-white">{ticketCount}</span>
+          <span className="text-muted-foreground">Tickets</span>
+          <span className="font-semibold text-foreground">{ticketCount}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">Price each</span>
-          <span className="font-semibold text-white">
+          <span className="text-muted-foreground">Price each</span>
+          <span className="font-semibold text-foreground">
             ${TICKET_PRICE.toFixed(2)} USDC
           </span>
         </div>
-        <div className="h-px bg-white/5" />
+        <div className="h-px bg-foreground/5" />
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-white">Total</span>
+          <span className="text-sm font-semibold text-foreground">Total</span>
           <span className="text-lg font-black text-gradient-gold">
             ${totalCost.toFixed(2)} USDC
           </span>
@@ -218,7 +218,7 @@ function CartSummary({
         </Button>
       )}
 
-      <p className="text-[10px] text-gray-600 text-center mt-3">
+      <p className="text-[10px] text-muted-foreground/60 text-center mt-3">
         Non-custodial &bull; Provably fair &bull; On-chain verification
       </p>
     </div>
@@ -319,8 +319,8 @@ function PlayMainLottery() {
 
         <div className="relative z-10 max-w-7xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-xs text-gray-500 mb-6">
-            <Link to="/" className="hover:text-white transition-colors">
+          <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
+            <Link to="/" className="hover:text-foreground transition-colors">
               Home
             </Link>
             <ChevronRight size={12} />
@@ -336,10 +336,10 @@ function PlayMainLottery() {
                   <Trophy size={24} className="text-emerald-light" />
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
                     6/46 Main Lottery
                   </h1>
-                  <p className="text-sm text-gray-400 mt-0.5">
+                  <p className="text-sm text-muted-foreground mt-0.5">
                     Pick 6 numbers from 1-46 &bull; Daily draws at 00:00 UTC
                   </p>
                 </div>
@@ -356,9 +356,9 @@ function PlayMainLottery() {
                     <TrendingUp size={12} className="text-emerald-light" />
                   </div>
                 ) : (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-foreground/5 border border-foreground/10">
                     <div className="w-1.5 h-1.5 rounded-full bg-gray-500" />
-                    <span className="text-xs font-medium text-gray-400">
+                    <span className="text-xs font-medium text-muted-foreground">
                       Normal Mode
                     </span>
                   </div>
@@ -400,11 +400,11 @@ function PlayMainLottery() {
               <div className="glass rounded-2xl p-5 sm:p-6">
                 <div className="flex items-center justify-between mb-5">
                   <div>
-                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                       <Star size={18} className="text-gold" />
                       Pick Your Numbers
                     </h2>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Select {PICK_COUNT} numbers from 1 to {TOTAL_NUMBERS}
                     </p>
                   </div>
@@ -414,18 +414,18 @@ function PlayMainLottery() {
                         className={
                           selectedNumbers.size === PICK_COUNT
                             ? "text-emerald-light"
-                            : "text-white"
+                            : "text-foreground"
                         }
                       >
                         {selectedNumbers.size}
                       </span>
-                      <span className="text-gray-500">/{PICK_COUNT}</span>
+                      <span className="text-muted-foreground">/{PICK_COUNT}</span>
                     </span>
                   </div>
                 </div>
 
                 {/* Selection progress bar */}
-                <div className="h-1 bg-white/5 rounded-full mb-5 overflow-hidden">
+                <div className="h-1 bg-foreground/5 rounded-full mb-5 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-300 ease-out"
                     style={{
@@ -464,13 +464,13 @@ function PlayMainLottery() {
                     disabled={selectedNumbers.size === 0}
                     variant="ghost"
                     size="lg"
-                    className="text-gray-400 hover:text-white"
+                    className="text-muted-foreground hover:text-foreground"
                   >
                     <RotateCcw size={14} />
                     Clear
                   </Button>
 
-                  <div className="hidden sm:block h-6 w-px bg-white/10 mx-1" />
+                  <div className="hidden sm:block h-6 w-px bg-foreground/10 mx-1" />
 
                   <Button
                     onClick={() => addQuickPick(1)}
@@ -497,9 +497,9 @@ function PlayMainLottery() {
 
                 {/* Selected numbers preview */}
                 {selectedNumbers.size > 0 && (
-                  <div className="mt-4 pt-4 border-t border-white/5">
+                  <div className="mt-4 pt-4 border-t border-foreground/5">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                         Your Selection
                       </span>
                     </div>
@@ -518,7 +518,7 @@ function PlayMainLottery() {
               {/* Tickets List */}
               <div className="glass rounded-2xl p-5 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <ShoppingCart size={18} className="text-emerald" />
                     Your Tickets
                     {tickets.length > 0 && (
@@ -531,7 +531,7 @@ function PlayMainLottery() {
                     <button
                       type="button"
                       onClick={clearAllTickets}
-                      className="text-xs text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1"
+                      className="text-xs text-muted-foreground hover:text-red-400 transition-colors flex items-center gap-1"
                     >
                       <Trash2 size={12} />
                       Clear All
@@ -541,11 +541,11 @@ function PlayMainLottery() {
 
                 {tickets.length === 0 ? (
                   <div className="text-center py-12">
-                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.06] mb-4">
-                      <ShoppingCart size={24} className="text-gray-600" />
+                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground/[0.03] border border-foreground/[0.06] mb-4">
+                      <ShoppingCart size={24} className="text-muted-foreground/60" />
                     </div>
-                    <p className="text-sm text-gray-500 mb-1">No tickets yet</p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-sm text-muted-foreground mb-1">No tickets yet</p>
+                    <p className="text-xs text-muted-foreground/60">
                       Pick your numbers above or use Quick Pick to generate
                       random selections
                     </p>
@@ -565,7 +565,7 @@ function PlayMainLottery() {
                 )}
 
                 {tickets.length > 0 && tickets.length < MAX_TICKETS && (
-                  <p className="text-[10px] text-gray-600 mt-3 text-center">
+                  <p className="text-[10px] text-muted-foreground/60 mt-3 text-center">
                     {MAX_TICKETS - tickets.length} more ticket
                     {MAX_TICKETS - tickets.length !== 1 ? "s" : ""} available
                     (max {MAX_TICKETS} per transaction)
@@ -592,13 +592,13 @@ function PlayMainLottery() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Sparkles size={14} className="text-gold" />
-                      <span className="text-xs font-semibold text-white">
+                      <span className="text-xs font-semibold text-foreground">
                         Free Tickets Available
                       </span>
                     </div>
                     <span className="text-sm font-bold text-gold">0</span>
                   </div>
-                  <p className="text-[10px] text-gray-500 mt-1.5">
+                  <p className="text-[10px] text-muted-foreground mt-1.5">
                     Match 2 numbers in any draw to earn a free ticket credit
                   </p>
                 </div>
@@ -610,13 +610,13 @@ function PlayMainLottery() {
                     onClick={() => setShowPrizeInfo(!showPrizeInfo)}
                     className="w-full flex items-center justify-between"
                   >
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Info size={14} className="text-emerald" />
                       Prize Tiers
                     </h3>
                     <ChevronRight
                       size={14}
-                      className={`text-gray-500 transition-transform duration-200 ${
+                      className={`text-muted-foreground transition-transform duration-200 ${
                         showPrizeInfo ? "rotate-90" : ""
                       }`}
                     />
@@ -627,7 +627,7 @@ function PlayMainLottery() {
                       {PRIZE_TIERS.map((tier) => (
                         <div
                           key={tier.match}
-                          className="flex items-center justify-between py-2 px-3 rounded-lg bg-white/[0.02]"
+                          className="flex items-center justify-between py-2 px-3 rounded-lg bg-foreground/[0.02]"
                         >
                           <div className="flex items-center gap-2">
                             <div
@@ -636,12 +636,12 @@ function PlayMainLottery() {
                                   ? "bg-gold/20 text-gold"
                                   : tier.color === "emerald"
                                     ? "bg-emerald/20 text-emerald-light"
-                                    : "bg-white/5 text-gray-400"
+                                    : "bg-foreground/5 text-muted-foreground"
                               }`}
                             >
                               {tier.match}
                             </div>
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-muted-foreground">
                               Match {tier.match}
                             </span>
                           </div>
@@ -652,20 +652,20 @@ function PlayMainLottery() {
                                   ? "text-gold"
                                   : tier.color === "emerald"
                                     ? "text-emerald-light"
-                                    : "text-gray-400"
+                                    : "text-muted-foreground"
                               }`}
                             >
                               {tier.prize}
                             </span>
-                            <div className="text-[9px] text-gray-600">
+                            <div className="text-[9px] text-muted-foreground/60">
                               {tier.odds}
                             </div>
                           </div>
                         </div>
                       ))}
 
-                      <div className="pt-2 border-t border-white/5">
-                        <div className="flex items-start gap-2 text-[10px] text-gray-500">
+                      <div className="pt-2 border-t border-foreground/5">
+                        <div className="flex items-start gap-2 text-[10px] text-muted-foreground">
                           <AlertTriangle
                             size={10}
                             className="mt-0.5 shrink-0 text-gold/60"
@@ -685,56 +685,56 @@ function PlayMainLottery() {
                 <div className="glass rounded-xl p-4 mt-4 space-y-2">
                   <Link
                     to="/play/quick-pick"
-                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white/[0.03] transition-colors group"
+                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-foreground/[0.03] transition-colors group"
                   >
                     <div className="flex items-center gap-2">
                       <Zap
                         size={14}
                         className="text-emerald group-hover:text-emerald-light transition-colors"
                       />
-                      <span className="text-xs text-gray-400 group-hover:text-white transition-colors">
+                      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                         Quick Pick Express (5/35)
                       </span>
                     </div>
                     <ChevronRight
                       size={12}
-                      className="text-gray-600 group-hover:text-gray-400 transition-colors"
+                      className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
                     />
                   </Link>
                   <Link
                     to="/syndicates"
-                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white/[0.03] transition-colors group"
+                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-foreground/[0.03] transition-colors group"
                   >
                     <div className="flex items-center gap-2">
                       <Star
                         size={14}
                         className="text-gold/60 group-hover:text-gold transition-colors"
                       />
-                      <span className="text-xs text-gray-400 group-hover:text-white transition-colors">
+                      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                         Join a Syndicate
                       </span>
                     </div>
                     <ChevronRight
                       size={12}
-                      className="text-gray-600 group-hover:text-gray-400 transition-colors"
+                      className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
                     />
                   </Link>
                   <Link
                     to="/results"
-                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white/[0.03] transition-colors group"
+                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-foreground/[0.03] transition-colors group"
                   >
                     <div className="flex items-center gap-2">
                       <Clock
                         size={14}
-                        className="text-gray-500 group-hover:text-gray-300 transition-colors"
+                        className="text-muted-foreground group-hover:text-muted-foreground transition-colors"
                       />
-                      <span className="text-xs text-gray-400 group-hover:text-white transition-colors">
+                      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                         Past Results
                       </span>
                     </div>
                     <ChevronRight
                       size={12}
-                      className="text-gray-600 group-hover:text-gray-400 transition-colors"
+                      className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
                     />
                   </Link>
                 </div>
