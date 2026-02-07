@@ -18,8 +18,10 @@ import {
   Sparkles,
   ArrowLeft,
   ArrowRight,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
 import { Button } from "@/components/ui/button";
 import { WinningNumbers, FloatingBalls } from "@/components/LotteryBalls";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
@@ -1057,6 +1059,8 @@ function Pagination({
 /* -------------------------------------------------------------------------- */
 
 function ResultsPage() {
+  const { open } = useAppKit();
+  const { isConnected } = useAppKitAccount();
   const [gameFilter, setGameFilter] = useState<GameFilter>("all");
   const [rolldownFilter, setRolldownFilter] = useState<RolldownFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -1160,7 +1164,7 @@ function ResultsPage() {
               </div>
             </div>
 
-            {/* Current Jackpot + Countdown */}
+            {/* Current Jackpot + Countdown + Check Tickets */}
             <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6">
               <JackpotDisplay
                 amount={1_247_832}
@@ -1170,6 +1174,24 @@ function ResultsPage() {
                 softCap={1_750_000}
               />
               <CountdownTimer size="sm" label="Next Draw" />
+              {isConnected ? (
+                <Link
+                  to="/tickets"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+                >
+                  <Ticket size={16} />
+                  Check My Tickets
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => open({ view: "Connect", namespace: "solana" })}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+                >
+                  <Wallet size={16} />
+                  Connect to Check Tickets
+                </button>
+              )}
             </div>
           </div>
         </div>

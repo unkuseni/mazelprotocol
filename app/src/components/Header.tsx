@@ -70,10 +70,10 @@ const navLinks = [
         icon: Gem,
       },
       {
-        href: "https://docs.solanalotto.io/whitepaper",
+        to: "/learn/whitepaper" as const,
         label: "Whitepaper",
         description: "Technical deep dive",
-        icon: ExternalLink,
+        icon: BookOpen,
       },
     ],
   },
@@ -561,7 +561,7 @@ export default function Header() {
                             return (
                               <a
                                 key={child.label}
-                                href={child.href}
+                                href={child.href as string}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={() => setMobileOpen(false)}

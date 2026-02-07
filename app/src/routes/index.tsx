@@ -17,8 +17,10 @@ import {
   Gem,
   Star,
   ChevronRight,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import {
   CountdownTimer,
@@ -169,6 +171,8 @@ function StepCard({
 /* -------------------------------------------------------------------------- */
 
 function LandingPage() {
+  const { open } = useAppKit();
+  const { isConnected } = useAppKitAccount();
   const sampleNumbers = [7, 14, 22, 31, 38, 45];
   const quickPickNumbers = [3, 11, 19, 27, 33];
 
@@ -342,14 +346,28 @@ function LandingPage() {
 
               {/* CTA buttons */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-                <Link
-                  to="/play"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-lg shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <Trophy size={18} />
-                  <span>Start Playing</span>
-                  <ArrowRight size={16} />
-                </Link>
+                {isConnected ? (
+                  <Link
+                    to="/play"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-lg shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Trophy size={18} />
+                    <span>Start Playing</span>
+                    <ArrowRight size={16} />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      open({ view: "Connect", namespace: "solana" })
+                    }
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-lg shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Wallet size={18} />
+                    <span>Connect Wallet & Play</span>
+                    <ArrowRight size={16} />
+                  </button>
+                )}
                 <Link
                   to="/learn/rolldown"
                   className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-semibold text-gray-300 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300"
@@ -1070,13 +1088,24 @@ function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              to="/play"
-              className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Trophy size={18} />
-              <span>Connect Wallet & Play</span>
-            </Link>
+            {isConnected ? (
+              <Link
+                to="/play"
+                className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Trophy size={18} />
+                <span>Start Playing Now</span>
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => open({ view: "Connect", namespace: "solana" })}
+                className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Wallet size={18} />
+                <span>Connect Wallet & Play</span>
+              </button>
+            )}
             <Link
               to="/learn/rolldown"
               className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-semibold text-emerald-light bg-transparent border-2 border-emerald/30 hover:border-emerald/50 hover:bg-emerald/5 rounded-xl transition-all duration-300"

@@ -29,9 +29,9 @@ const footerSections = [
         icon: Zap,
       },
       {
-        href: "https://docs.solanalotto.io/whitepaper",
+        to: "/learn/whitepaper",
         label: "Whitepaper",
-        icon: ExternalLink,
+        icon: BookOpen,
       },
     ],
   },
