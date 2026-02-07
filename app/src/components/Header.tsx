@@ -1,345 +1,495 @@
 import { Link } from "@tanstack/react-router";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  ChevronDown,
-  ChevronRight,
-  Home,
   Menu,
+  X,
   Trophy,
   Zap,
   Users,
   BookOpen,
-  BarChart3,
   Wallet,
-  X,
-  Sparkles,
+  ChevronDown,
+  ExternalLink,
+  Ticket,
+  BarChart3,
+  Gem,
 } from "lucide-react";
 
+const navLinks = [
+  {
+    label: "Play",
+    icon: Ticket,
+    children: [
+      {
+        to: "/demo/tanstack-query" as const,
+        label: "6/46 Main Lottery",
+        description: "Daily draws · $2.50 tickets",
+        icon: Trophy,
+      },
+      {
+        to: "/demo/form/simple" as const,
+        label: "Quick Pick Express",
+        description: "Every 4 hours · $1.50 tickets",
+        icon: Zap,
+      },
+    ],
+  },
+  {
+    to: "/demo/start/server-funcs" as const,
+    label: "Syndicates",
+    icon: Users,
+  },
+  {
+    to: "/demo/db-chat" as const,
+    label: "Dashboard",
+    icon: BarChart3,
+  },
+  {
+    to: "/demo/trpc-todo" as const,
+    label: "My Tickets",
+    icon: Wallet,
+  },
+  {
+    label: "Learn",
+    icon: BookOpen,
+    children: [
+      {
+        to: "/demo/start/ssr" as const,
+        label: "Documentation",
+        description: "Guides and references",
+        icon: BookOpen,
+      },
+      {
+        to: "/demo/start/api-request" as const,
+        label: "How Rolldown Works",
+        description: "The math behind +EV",
+        icon: Gem,
+      },
+      {
+        href: "https://docs.solanalotto.io/whitepaper",
+        label: "Whitepaper",
+        description: "Technical deep dive",
+        icon: ExternalLink,
+      },
+    ],
+  },
+];
+
+function LogoMark() {
+  return (
+    <div className="relative w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald to-emerald-dark">
+      <svg
+        viewBox="0 0 32 32"
+        className="w-5 h-5"
+        fill="none"
+        stroke="white"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="16" cy="16" r="10" />
+        <path d="M16 6v20" />
+        <path d="M6 16h20" />
+        <circle
+          cx="16"
+          cy="16"
+          r="4"
+          fill="white"
+          fillOpacity="0.3"
+          stroke="none"
+        />
+      </svg>
+      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/20 pointer-events-none" />
+    </div>
+  );
+}
+
+interface DropdownProps {
+  label: string;
+  icon: React.ComponentType<{ className?: string; size?: number }>;
+  children: Array<{
+    to?: string;
+    href?: string;
+    label: string;
+    description?: string;
+    icon: React.ComponentType<{ className?: string; size?: number }>;
+  }>;
+}
+
+function DesktopDropdown({ label, icon: Icon, children }: DropdownProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+        onClick={() => setOpen(!open)}
+      >
+        <Icon size={16} className="opacity-70" />
+        <span>{label}</span>
+        <ChevronDown
+          size={14}
+          className={`opacity-50 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 pt-2 z-50">
+          <div className="w-72 rounded-xl glass-strong p-2 shadow-2xl shadow-black/40 animate-slide-down">
+            {children.map((child) => {
+              const ChildIcon = child.icon;
+
+              if (child.href) {
+                return (
+                  <a
+                    key={child.label}
+                    href={child.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors group"
+                    onClick={() => setOpen(false)}
+                  >
+                    <div className="mt-0.5 p-1.5 rounded-md bg-emerald/10 text-emerald group-hover:bg-emerald/20 transition-colors">
+                      <ChildIcon size={16} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-white flex items-center gap-1.5">
+                        {child.label}
+                        <ExternalLink size={11} className="opacity-40" />
+                      </div>
+                      {child.description && (
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {child.description}
+                        </div>
+                      )}
+                    </div>
+                  </a>
+                );
+              }
+
+              return (
+                <Link
+                  key={child.label}
+                  to={child.to!}
+                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors group"
+                  onClick={() => setOpen(false)}
+                >
+                  <div className="mt-0.5 p-1.5 rounded-md bg-emerald/10 text-emerald group-hover:bg-emerald/20 transition-colors">
+                    <ChildIcon size={16} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-white">
+                      {child.label}
+                    </div>
+                    {child.description && (
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {child.description}
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Header() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [groupedExpanded, setGroupedExpanded] = useState<
-    Record<string, boolean>
-  >({});
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState<Record<string, boolean>>(
+    {},
+  );
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileOpen]);
 
   return (
     <>
-      <header className="p-4 flex items-center bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-lg border-b border-slate-700">
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-          aria-label="Open menu"
-        >
-          <Menu size={24} />
-        </button>
-        <div className="ml-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-500 to-cyan-500 flex items-center justify-center">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold bg-linear-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-              SolanaLotto
-            </h1>
-            <p className="text-xs text-gray-400">Protocol v2.4</p>
+      {/* Main Header */}
+      <header
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
+          scrolled ? "glass-strong shadow-lg shadow-black/20" : "bg-transparent"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <LogoMark />
+              <div className="flex flex-col">
+                <span className="text-base font-bold text-white tracking-tight leading-none group-hover:text-emerald-light transition-colors">
+                  SolanaLotto
+                </span>
+                <span className="text-[10px] text-gray-500 font-medium tracking-wider uppercase leading-none mt-0.5">
+                  Protocol
+                </span>
+              </div>
+            </Link>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center gap-1">
+              {navLinks.map((link) => {
+                if ("children" in link && link.children) {
+                  return (
+                    <DesktopDropdown
+                      key={link.label}
+                      label={link.label}
+                      icon={link.icon}
+                      children={link.children}
+                    />
+                  );
+                }
+
+                return (
+                  <Link
+                    key={link.label}
+                    to={(link as { to: string }).to}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+                    activeProps={{
+                      className:
+                        "flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg",
+                    }}
+                  >
+                    <link.icon size={16} className="opacity-70" />
+                    <span>{link.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Right side: Wallet + Mobile menu */}
+            <div className="flex items-center gap-3">
+              {/* Live Jackpot Badge (Desktop only) */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold/10 border border-gold/20">
+                <div className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
+                <span className="text-xs font-semibold text-gold">
+                  Jackpot: $1.2M
+                </span>
+              </div>
+
+              {/* Wallet Connect Button */}
+              <button
+                type="button"
+                className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-lg transition-all duration-300 shadow-lg shadow-emerald/20 hover:shadow-emerald/30 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Wallet size={16} />
+                <span>Connect Wallet</span>
+              </button>
+
+              {/* Mobile Menu Toggle */}
+              <button
+                type="button"
+                onClick={() => setMobileOpen(!mobileOpen)}
+                className="lg:hidden p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                aria-label={mobileOpen ? "Close menu" : "Open menu"}
+              >
+                {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
+            </div>
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-4">
-          <button
-            type="button"
-            className="px-4 py-2 bg-linear-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg shadow-purple-500/50"
-          >
-            Connect Wallet
-          </button>
-        </div>
+
+        {/* Gradient border at bottom when scrolled */}
+        {scrolled && <div className="section-divider" />}
       </header>
 
+      {/* Mobile Menu Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile Menu Panel */}
       <aside
-        className={`fixed top-0 left-0 h-full w-80 bg-linear-to-b from-slate-900 to-slate-800 text-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+        className={`fixed top-0 right-0 h-full w-80 max-w-[85vw] z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${
+          mobileOpen ? "translate-x-0" : "translate-x-full"
+        }`}
       >
-        <div className="flex items-center justify-between p-4 border-b border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-500 to-cyan-500 flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
+        <div className="h-full flex flex-col bg-navy-deep/95 backdrop-blur-xl border-l border-white/5">
+          {/* Mobile header */}
+          <div className="flex items-center justify-between p-4 border-b border-white/5">
+            <div className="flex items-center gap-2.5">
+              <LogoMark />
+              <span className="font-bold text-white">SolanaLotto</span>
             </div>
-            <div>
-              <h2 className="text-xl font-bold">SolanaLotto</h2>
-              <p className="text-xs text-gray-400">Navigation</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsOpen(false)}
-            className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-            aria-label="Close menu"
-          >
-            <X size={24} />
-          </button>
-        </div>
-
-        <nav className="flex-1 p-4 overflow-y-auto">
-          <Link
-            to="/"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2"
-            activeProps={{
-              className:
-                "flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-500/30 hover:border-purple-500/50 transition-colors mb-2",
-            }}
-          >
-            <Home size={20} />
-            <span className="font-medium">Home</span>
-          </Link>
-
-          {/* Main Lottery Navigation */}
-          <div className="flex flex-row justify-between">
-            <Link
-              to="/demo/tanstack-query"
-              onClick={() => setIsOpen(false)}
-              className="flex-1 flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2"
-              activeProps={{
-                className:
-                  "flex-1 flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-500/30 hover:border-purple-500/50 transition-colors mb-2",
-              }}
-            >
-              <Trophy size={20} />
-              <span className="font-medium">Play Lottery</span>
-            </Link>
             <button
               type="button"
-              className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-              onClick={() =>
-                setGroupedExpanded((prev) => ({
-                  ...prev,
-                  Lottery: !prev.Lottery,
-                }))
-              }
+              onClick={() => setMobileOpen(false)}
+              className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              aria-label="Close menu"
             >
-              {groupedExpanded.Lottery ? (
-                <ChevronDown size={20} />
-              ) : (
-                <ChevronRight size={20} />
-              )}
+              <X size={20} />
             </button>
           </div>
-          {groupedExpanded.Lottery && (
-            <div className="flex flex-col ml-4 mb-2">
-              <Link
-                to="/demo/table"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2 text-sm"
-                activeProps={{
-                  className:
-                    "flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-cyan-500/50 transition-colors mb-2 text-sm",
-                }}
-              >
-                <span className="ml-2">• 6/46 Main Lottery</span>
-              </Link>
-              <Link
-                to="/demo/form/simple"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2 text-sm"
-                activeProps={{
-                  className:
-                    "flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-cyan-500/50 transition-colors mb-2 text-sm",
-                }}
-              >
-                <span className="ml-2">• Quick Pick Express</span>
-              </Link>
-            </div>
-          )}
 
-          {/* Syndicate System */}
-          <Link
-            to="/demo/start/server-funcs"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2"
-            activeProps={{
-              className:
-                "flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-500/30 hover:border-purple-500/50 transition-colors mb-2",
-            }}
-          >
-            <Users size={20} />
-            <span className="font-medium">Syndicates</span>
-          </Link>
-
-          {/* Dashboard */}
-          <Link
-            to="/demo/db-chat"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2"
-            activeProps={{
-              className:
-                "flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-500/30 hover:border-purple-500/50 transition-colors mb-2",
-            }}
-          >
-            <BarChart3 size={20} />
-            <span className="font-medium">My Dashboard</span>
-          </Link>
-
-          {/* My Wallet/Tickets */}
-          <Link
-            to="/demo/trpc-todo"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2"
-            activeProps={{
-              className:
-                "flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-500/30 hover:border-purple-500/50 transition-colors mb-2",
-            }}
-          >
-            <Wallet size={20} />
-            <span className="font-medium">My Tickets</span>
-          </Link>
-
-          {/* Documentation */}
-          <div className="flex flex-row justify-between mt-8">
-            <Link
-              to="/demo/start/ssr"
-              onClick={() => setIsOpen(false)}
-              className="flex-1 flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2"
-              activeProps={{
-                className:
-                  "flex-1 flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-500/30 hover:border-purple-500/50 transition-colors mb-2",
-              }}
-            >
-              <BookOpen size={20} />
-              <span className="font-medium">Documentation</span>
-            </Link>
+          {/* Mobile wallet connect */}
+          <div className="px-4 pt-4">
             <button
               type="button"
-              className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-              onClick={() =>
-                setGroupedExpanded((prev) => ({
-                  ...prev,
-                  Docs: !prev.Docs,
-                }))
-              }
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald to-emerald-dark rounded-lg shadow-lg shadow-emerald/20"
             >
-              {groupedExpanded.Docs ? (
-                <ChevronDown size={20} />
-              ) : (
-                <ChevronRight size={20} />
-              )}
+              <Wallet size={16} />
+              <span>Connect Wallet</span>
             </button>
           </div>
-          {groupedExpanded.Docs && (
-            <div className="flex flex-col ml-4 mb-2">
-              <a
-                href="https://docs.solanalotto.io/whitepaper"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2 text-sm"
-              >
-                <span className="ml-2">• Whitepaper</span>
-              </a>
-              <a
-                href="https://docs.solanalotto.io/technical"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2 text-sm"
-              >
-                <span className="ml-2">• Technical Specs</span>
-              </a>
-              <a
-                href="https://docs.solanalotto.io/quick-start"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2 text-sm"
-              >
-                <span className="ml-2">• Quick Start Guide</span>
-              </a>
-            </div>
-          )}
 
-          {/* About */}
-          <Link
-            to="/demo/start/api-request"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2"
-            activeProps={{
-              className:
-                "flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-500/30 hover:border-purple-500/50 transition-colors mb-2",
-            }}
-          >
-            <Zap size={20} />
-            <span className="font-medium">About Rolldown</span>
-          </Link>
-
-          {/* Demo Section (Keep for reference but collapse by default) */}
-          <div className="mt-8 pt-6 border-t border-slate-700">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs text-gray-500 font-medium">
-                DEMO CONTENT
-              </span>
-            </div>
-            <div className="flex flex-row justify-between">
-              <button
-                type="button"
-                className="flex-1 flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2 text-sm"
-                onClick={() =>
-                  setGroupedExpanded((prev) => ({
-                    ...prev,
-                    Demo: !prev.Demo,
-                  }))
-                }
-              >
-                <span className="font-medium">Show Demo Routes</span>
-              </button>
-              <button
-                type="button"
-                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-                onClick={() =>
-                  setGroupedExpanded((prev) => ({
-                    ...prev,
-                    Demo: !prev.Demo,
-                  }))
-                }
-              >
-                {groupedExpanded.Demo ? (
-                  <ChevronDown size={20} />
-                ) : (
-                  <ChevronRight size={20} />
-                )}
-              </button>
-            </div>
-            {groupedExpanded.Demo && (
-              <div className="flex flex-col ml-4 mb-2">
-                <Link
-                  to="/demo/tanstack-query"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2 text-sm"
-                >
-                  <span className="ml-2">• TanStack Query Demo</span>
-                </Link>
-                <Link
-                  to="/demo/table"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2 text-sm"
-                >
-                  <span className="ml-2">• TanStack Table Demo</span>
-                </Link>
-                <Link
-                  to="/demo/form/simple"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors mb-2 text-sm"
-                >
-                  <span className="ml-2">• Form Demo</span>
-                </Link>
-              </div>
-            )}
+          {/* Jackpot badge mobile */}
+          <div className="mx-4 mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gold/10 border border-gold/20">
+            <div className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
+            <span className="text-xs font-semibold text-gold">
+              Live Jackpot: $1,247,832
+            </span>
           </div>
-        </nav>
 
-        <div className="p-4 border-t border-slate-700">
-          <div className="text-center text-sm text-gray-500">
-            <p>Built on Solana • Fully transparent • Non-custodial</p>
+          {/* Mobile nav links */}
+          <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+            <Link
+              to="/"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              activeProps={{
+                className:
+                  "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg",
+              }}
+            >
+              <Trophy size={18} className="opacity-70" />
+              <span>Home</span>
+            </Link>
+
+            {navLinks.map((link) => {
+              if ("children" in link && link.children) {
+                const isExpanded = mobileExpanded[link.label];
+                return (
+                  <div key={link.label}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMobileExpanded((prev) => ({
+                          ...prev,
+                          [link.label]: !prev[link.label],
+                        }))
+                      }
+                      className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <link.icon size={18} className="opacity-70" />
+                        <span>{link.label}</span>
+                      </div>
+                      <ChevronDown
+                        size={16}
+                        className={`opacity-50 transition-transform duration-200 ${
+                          isExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {isExpanded && (
+                      <div className="ml-4 mt-1 space-y-1 border-l border-white/5 pl-3">
+                        {link.children.map((child) => {
+                          const ChildIcon = child.icon;
+
+                          if ("href" in child && child.href) {
+                            return (
+                              <a
+                                key={child.label}
+                                href={child.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => setMobileOpen(false)}
+                                className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                              >
+                                <ChildIcon size={15} className="opacity-60" />
+                                <span>{child.label}</span>
+                                <ExternalLink
+                                  size={11}
+                                  className="ml-auto opacity-30"
+                                />
+                              </a>
+                            );
+                          }
+
+                          return (
+                            <Link
+                              key={child.label}
+                              to={child.to!}
+                              onClick={() => setMobileOpen(false)}
+                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                              activeProps={{
+                                className:
+                                  "flex items-center gap-2.5 px-3 py-2 text-sm text-emerald-light bg-emerald/10 rounded-lg",
+                              }}
+                            >
+                              <ChildIcon size={15} className="opacity-60" />
+                              <span>{child.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={link.label}
+                  to={(link as { to: string }).to}
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                  activeProps={{
+                    className:
+                      "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg",
+                  }}
+                >
+                  <link.icon size={18} className="opacity-70" />
+                  <span>{link.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Mobile footer */}
+          <div className="p-4 border-t border-white/5">
+            <div className="flex items-center justify-center gap-4 text-gray-500 text-xs">
+              <span>Built on Solana</span>
+              <span className="w-1 h-1 rounded-full bg-gray-600" />
+              <span>Non-custodial</span>
+              <span className="w-1 h-1 rounded-full bg-gray-600" />
+              <span>Provably Fair</span>
+            </div>
           </div>
         </div>
       </aside>
+
+      {/* Spacer for fixed header */}
+      <div className="h-16" />
     </>
   );
 }
