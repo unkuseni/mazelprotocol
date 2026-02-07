@@ -1,0 +1,84 @@
+# ============================================================================
+# MazelProtocol Draw Lifecycle Bot — Cloudflare Worker Configuration
+# ============================================================================
+
+name = "mazelprotocol-draw-bot"
+main = "src/worker.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Account ID — set via CLOUDFLARE_ACCOUNT_ID env var or uncomment below
+# account_id = ""
+
+# ---------------------------------------------------------------------------
+# Cron Triggers — scheduled polling for draw readiness
+# ---------------------------------------------------------------------------
+# Every minute: checks if a draw is due and advances the lifecycle
+[triggers]
+crons = ["* * * * *"]
+
+# ---------------------------------------------------------------------------
+# KV Namespace — persists draw state between Worker invocations
+# ---------------------------------------------------------------------------
+# Create with: wrangler kv namespace create "DRAW_STATE"
+[[kv_namespaces]]
+binding = "DRAW_STATE"
+id = ""
+preview_id = ""
+
+# ---------------------------------------------------------------------------
+# Environment Variables (non-secret)
+# ---------------------------------------------------------------------------
+[vars]
+RPC_URL = "https://api.devnet.solana.com"
+COMMITMENT = "confirmed"
+MAIN_PROGRAM_ID = "7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF"
+QP_PROGRAM_ID = "7XC1KT5mvsHHXbR2mH6er138fu2tJ4L2fAgmpjLnnZK2"
+SWITCHBOARD_QUEUE = ""
+USDC_MINT = ""
+MODE = "both"
+POLL_INTERVAL_MS = "15000"
+COMMIT_EXECUTE_DELAY_MS = "4000"
+MAX_RETRIES = "3"
+RETRY_DELAY_MS = "2000"
+DRY_RUN = "false"
+GPA_BATCH_SIZE = "1000"
+PRIORITY_FEE_MICRO_LAMPORTS = "1000"
+SKIP_PREFLIGHT = "false"
+TX_CONFIRM_TIMEOUT_MS = "60000"
+LOG_LEVEL = "info"
+
+# ---------------------------------------------------------------------------
+# Secrets — set via `wrangler secret put <NAME>`
+# ---------------------------------------------------------------------------
+# AUTHORITY_KEYPAIR_JSON  — JSON array of the authority keypair bytes (e.g. "[1,2,3,...]")
+# TELEGRAM_BOT_TOKEN      — Telegram bot API token from @BotFather
+# TELEGRAM_CHAT_ID        — Chat ID to send notifications to
+# SWITCHBOARD_PROGRAM_ID  — (optional) Switchboard program ID override
+
+# ---------------------------------------------------------------------------
+# Staging / Production environments
+# ---------------------------------------------------------------------------
+
+# [env.staging]
+# vars = { RPC_URL = "https://api.devnet.solana.com", DRY_RUN = "true" }
+# [[env.staging.kv_namespaces]]
+# binding = "DRAW_STATE"
+# id = ""
+
+# [env.production]
+# vars = { RPC_URL = "https://api.mainnet-beta.solana.com", DRY_RUN = "false" }
+# [[env.production.kv_namespaces]]
+# binding = "DRAW_STATE"
+# id = ""
+
+# ---------------------------------------------------------------------------
+# Build settings
+# ---------------------------------------------------------------------------
+[build]
+command = ""
+
+# Worker limits
+# - Paid plan: 30s CPU time per invocation for scheduled events
+# - Each cron tick should complete within this limit
+# - Draw phases are split across invocations to stay within bounds
