@@ -1,0 +1,32 @@
+{
+  "name": "mazelprotocol-draw-bot",
+  "version": "2.0.0",
+  "description": "Draw lifecycle bot for MazelProtocol (SolanaLotto) — Cloudflare Worker with Telegram bot integration. Handles commit, execute, index, and finalize phases for both Main Lottery and Quick Pick Express.",
+  "main": "src/worker.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "tail": "wrangler tail",
+    "kv:create": "wrangler kv namespace create DRAW_STATE",
+    "kv:create:preview": "wrangler kv namespace create DRAW_STATE --preview",
+    "secret:keypair": "wrangler secret put AUTHORITY_KEYPAIR_JSON",
+    "secret:telegram-token": "wrangler secret put TELEGRAM_BOT_TOKEN",
+    "secret:telegram-chat": "wrangler secret put TELEGRAM_CHAT_ID",
+    "telegram:set-webhook": "node scripts/set-telegram-webhook.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.98.4",
+    "@switchboard-xyz/on-demand": "^3.8.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "@types/node": "^25.2.1",
+    "typescript": "^5.9.3",
+    "wrangler": "^3.99.0"
+  }
+}
