@@ -101,8 +101,8 @@ SolanaLotto incorporates Cash WinFall's successful mechanics while addressing it
 | Opaque odds calculation | All math published in smart contracts |
 | Manual prize claiming | Automatic on-chain distribution |
 | Geographic restriction | Global access via Solana |
-| No player governance | DAO-controlled parameters |
-| Single operator risk | Decentralized protocol |
+| No player governance | Timelocked config changes (24h delay) with permissionless solvency checks |
+| Single operator risk | Multi-sig authority recommended; all state verifiable on-chain |
 
 ### 2.3 Existing Crypto Lottery Protocols
 
@@ -592,6 +592,11 @@ With target $V_{normal} = 100,000$, the compatible region spans $100,000$ to $82
 
 ### 6.1 System Architecture
 
+> **Note (v3.0):** The protocol consists of **two Anchor programs** — not
+> separate TicketManager/DrawEngine/PrizePool programs. There is no on-chain
+> Governance DAO; the authority is a single signer (multi-sig recommended)
+> with an inline 24-hour config timelock.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    APPLICATION LAYER                         │
@@ -602,18 +607,25 @@ With target $V_{normal} = 100,000$, the compatible region spans $100,000$ to $82
        └───────────────┴────────┬────────┴─────────────┘
                                 │
 ┌───────────────────────────────┴─────────────────────────────┐
-│                    PROTOCOL LAYER                            │
+│              MAIN LOTTERY PROGRAM (solana_lotto)             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
 │  │   TICKET     │ │    DRAW      │ │    PRIZE     │        │
-│  │   MANAGER    │ │   ENGINE     │ │    POOL      │        │
+│  │   MODULE     │ │   MODULE     │ │   MODULE     │        │
 │  └──────────────┘ └──────────────┘ └──────────────┘        │
 │                                                              │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
-│  │  GOVERNANCE  │ │              │ │  SYNDICATE   │        │
-│  │     DAO      │ │              │ │   MANAGER    │        │
+│  │    ADMIN     │ │  SYNDICATE   │ │  SYNDICATE   │        │
+│  │   MODULE     │ │   MODULE     │ │    WARS      │        │
 │  └──────────────┘ └──────────────┘ └──────────────┘        │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│            QUICK PICK EXPRESS PROGRAM (quickpick)            │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
+│  │  ADMIN   │ │  TICKET  │ │   DRAW   │ │  PRIZE   │       │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
 │                                                              │
 └─────────────────────────────┬───────────────────────────────┘
                               │
@@ -631,7 +643,7 @@ With target $V_{normal} = 100,000$, the compatible region spans $100,000$ to $82
 
 ### 6.2 Smart Contract Specifications
 
-#### 6.2.1 TicketManager Program
+#### 6.2.1 Ticket Module (within solana_lotto program)
 
 **Purpose:** Handle all ticket purchases, validation, and storage
 
@@ -739,7 +751,7 @@ pub struct Ticket {
 }
 ```
 
-#### 6.2.2 DrawEngine Program
+#### 6.2.2 Draw Module (within solana_lotto program)
 
 **Purpose:** Execute draws using verifiable randomness
 
@@ -952,7 +964,7 @@ fn trigger_rolldown_internal(
 }
 ```
 
-#### 6.2.3 PrizePool Program
+#### 6.2.3 Prize Module (within solana_lotto program)
 
 **Purpose:** Manage fund custody and prize claims
 
@@ -1269,24 +1281,30 @@ This ensures the protocol can withstand:
 |--------|---------------|------------|
 | **RNG Manipulation** | Compromised oracle | Switchboard TEE ensures oracle cannot see/alter randomness |
 | **Selective Revelation** | Only reveal favorable outcomes | Commit-reveal pattern - must commit before randomness known |
-| **Front-Running** | MEV bots see winning numbers | Ticket sales close before commit, Jito integration |
+| **Front-Running** | MEV bots see winning numbers | Ticket sales close before commit; 10-slot reveal window minimizes MEV |
 | **Smart Contract Exploit** | Code vulnerability | Multiple audits, formal verification, bug bounty |
-| **Governance Attack** | Malicious proposal | Timelock, quorum requirements, guardian multi-sig |
-| **Oracle Manipulation** | Fake winner counts | On-chain verification of ticket-number matches |
-| **Sybil Attack** | Fake volume inflation | USDC payment requirement, rate limits |
+| **Authority Abuse** | Malicious config change | 24-hour inline config timelock (propose → execute); two-step authority transfer; permissionless solvency checks |
+| **Oracle Manipulation** | Fake winner counts | SHA256 verification hash; statistical plausibility checks; per-tier upper bounds |
+| **Sybil Attack** | Fake volume inflation | USDC payment requirement, per-user ticket limits (5000/draw) |
 | **Denial of Service** | Transaction spam | Priority fee market, rate limiting |
 
 ### 7.2 Access Control Matrix
 
-| Function | Public | Ticket Holder | DAO | Admin Multi-sig |
-|----------|--------|---------------|-----|-----------------|
-| Buy ticket | ✓ | ✓ | ✓ | ✓ |
-| Claim prize | | ✓ | | |
-| Initialize draw | | | | ✓ |
-| Execute draw | | | | ✓ (automated) |
-| Change parameters | | | ✓ | |
-| Emergency pause | | | | ✓ |
-| Upgrade contracts | | | ✓ (+ timelock) | |
+> **Note:** There is no on-chain DAO. Authority is a single signer (multi-sig wallet recommended).
+
+| Function | Public | Ticket Holder | Authority |
+|----------|--------|---------------|-----------|
+| Buy ticket | ✓ | ✓ | ✓ |
+| Claim prize | | ✓ | |
+| Check solvency | ✓ | ✓ | ✓ |
+| Commit/execute draw | | | ✓ |
+| Finalize draw | | | ✓ |
+| Propose config (24h timelock) | | | ✓ |
+| Execute config (after timelock) | | | ✓ |
+| Emergency pause | | | ✓ |
+| Emergency fund transfer | | | ✓ (daily cap enforced) |
+| Propose authority transfer | | | ✓ |
+| Accept authority transfer | | ✓ (proposed authority only) | |
 
 ### 7.3 Invariants
 
@@ -1416,13 +1434,14 @@ SolanaLotto invites participation from:
 
 ### Appendix C: Smart Contract Addresses
 
-| Contract | Address | Network |
-|----------|---------|---------|
-| LotteryState | `Lotto...TBD` | Mainnet |
-| TicketManager | `Ticket...TBD` | Mainnet |
-| DrawEngine | `Draw...TBD` | Mainnet |
-| PrizePool | `Prize...TBD` | Mainnet |
-| Governance | `Gov...TBD` | Mainnet |
+| Program | Address | Network |
+|---------|---------|---------|
+| Main Lottery (solana_lotto) | `7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF` | Devnet |
+| Quick Pick Express (quickpick) | `7XC1KT5mvsHHXbR2mH6er138fu2tJ4L2fAgmpjLnnZK2` | Devnet |
+
+> **Note:** Mainnet addresses TBD after audit and deployment. There are no separate
+> TicketManager, DrawEngine, PrizePool, or Governance programs — all logic lives
+> within the two programs above.
 
 ### Appendix D: Glossary
 

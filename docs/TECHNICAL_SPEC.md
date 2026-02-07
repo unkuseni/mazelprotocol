@@ -1,6 +1,6 @@
 # SolanaLotto Technical Specification
 
-## Version 2.1.0
+## Version 3.0.0
 
 ---
 
@@ -102,10 +102,15 @@ solana-sdk = "1.17.0"
 
 ### 3.1 Program Overview
 
+The protocol consists of **two on-chain Anchor programs**:
+
+1. **Main Lottery Program (`solana_lotto`)** — 6/46 matrix lottery with syndicates, syndicate wars, and full admin suite
+2. **Quick Pick Express Program (`quickpick`)** — Standalone 5/35 high-frequency lottery
+
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        SOLANALOTTO PROGRAM                           │
-│                      Program ID: LOTTO...xxxx                        │
+│                  MAIN LOTTERY PROGRAM (solana_lotto)                  │
+│                Program ID: 7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  ┌─────────────────────────────────────────────────────────────┐   │
@@ -119,65 +124,146 @@ solana-sdk = "1.17.0"
 │  │  TICKET  │         │   DRAW   │         │  PRIZE   │            │
 │  │  MODULE  │         │  MODULE  │         │  MODULE  │            │
 │  │          │         │          │         │          │            │
-│  │ • buy    │         │ • init   │         │ • claim  │            │
-│  │ • bulk   │         │ • request│         │ • redeem │            │
-│  │ • cancel │         │ • execute│         │ • auto   │            │
+│  │ • buy    │         │ • commit │         │ • claim  │            │
+│  │ • bulk   │         │ • execute│         │ • bulk   │            │
+│  │ • free   │         │ • final. │         │ • all    │            │
 │  └──────────┘         └──────────┘         └──────────┘            │
 │                                                                      │
 │  ┌──────────┐         ┌──────────┐         ┌──────────┐            │
-│  │  TOKEN   │         │   GOV    │         │ SYNDICATE│            │
-│  │  MODULE  │         │  MODULE  │         │  MODULE  │            │
+│  │  ADMIN   │         │ SYNDICATE│         │ SYND.    │            │
+│  │  MODULE  │         │  MODULE  │         │  WARS    │            │
 │  │          │         │          │         │          │            │
-│  │ • stake  │         │ • propose│         │ • create │            │
-│  │ • unstake│         │ • vote   │         │ • join   │            │
-│  │ • claim  │         │ • execute│         │ • leave  │            │
+│  │ • pause  │         │ • create │         │ • init   │            │
+│  │ • config │         │ • join   │         │ • register│           │
+│  │ • solvncy│         │ • leave  │         │ • finalize│           │
+│  │ • emerg. │         │ • tickets│         │ • prizes │            │
 │  └──────────┘         └──────────┘         └──────────┘            │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                  QUICK PICK EXPRESS PROGRAM (quickpick)               │
+│                Program ID: 7XC1KT5mvsHHXbR2mH6er138fu2tJ4L2fAgmpjLnnZK2 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐           │
+│  │  ADMIN   │  │  TICKET  │  │   DRAW   │  │  PRIZE   │           │
+│  │          │  │          │  │          │  │          │           │
+│  │ • init   │  │ • buy    │  │ • commit │  │ • claim  │           │
+│  │ • pause  │  │  ($50    │  │ • execute│  │          │           │
+│  │ • config │  │   gate)  │  │ • final. │  │          │           │
+│  │ • emerg. │  │          │  │          │  │          │           │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘           │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+> **Note:** There is no separate TOKEN, GOV, or DAO module. Authority is a single signer
+> (intended to be a multi-sig wallet in production). Configuration changes use an inline
+> 24-hour timelock (propose → execute) stored in `LotteryState`.
+
 ### 3.2 Account Hierarchy
+
+> **Updated v3.0** — Reflects actual on-chain account structures. Removed `SecondChanceEntry`
+> (feature was removed in v2.2). `LuckyNumbersNFT` data structure exists but has no
+> instructions yet (design only).
 
 ```
 LotteryState (PDA: ["lottery"])
+├── Authority
+│   ├── authority: Pubkey
+│   └── pending_authority: Option<Pubkey>
+│
+├── Randomness
+│   ├── switchboard_queue: Pubkey
+│   ├── current_randomness_account: Pubkey
+│   ├── commit_slot: u64
+│   └── commit_timestamp: i64
+│
 ├── Config
 │   ├── ticket_price: u64
 │   ├── house_fee_bps: u16
 │   ├── jackpot_cap: u64
 │   ├── seed_amount: u64
+│   ├── soft_cap: u64
+│   ├── hard_cap: u64
 │   └── draw_interval: i64
 │
 ├── Balances
 │   ├── jackpot_balance: u64
 │   ├── reserve_balance: u64
-│   └── insurance_balance: u64
+│   ├── insurance_balance: u64
+│   └── fixed_prize_balance: u64
 │
 ├── Counters
 │   ├── current_draw_id: u64
+│   ├── current_draw_tickets: u64
 │   ├── total_tickets_sold: u64
-│   └── total_prizes_paid: u64
+│   ├── total_prizes_paid: u64
+│   └── total_prizes_committed: u64
 │
-└── Timestamps
-    ├── last_draw_timestamp: i64
-    └── next_draw_timestamp: i64
+├── State Flags
+│   ├── is_draw_in_progress: bool
+│   ├── is_rolldown_active: bool
+│   ├── is_paused: bool
+│   └── is_funded: bool
+│
+├── Timelock
+│   ├── config_timelock_end: i64
+│   └── pending_config_hash: [u8; 32]
+│
+├── Emergency
+│   ├── emergency_transfer_total: u64
+│   └── emergency_transfer_window_start: i64
+│
+├── Timestamps
+│   └── next_draw_timestamp: i64
+│
+└── bump: u8
 
-DrawResult (PDA: ["draw", draw_id])
+DrawResult (PDA: ["draw", draw_id.to_le_bytes()])
 ├── draw_id: u64
 ├── winning_numbers: [u8; 6]
-├── vrf_proof: [u8; 64]
+├── randomness_proof: [u8; 32]
 ├── timestamp: i64
+├── total_tickets: u64
 ├── was_rolldown: bool
-├── winner_counts: WinnerCounts
-└── prize_amounts: PrizeAmounts
+├── match_6_winners: u32
+├── match_5_winners: u32
+├── match_4_winners: u32
+├── match_3_winners: u32
+├── match_2_winners: u32
+├── match_6_prize_per_winner: u64
+├── match_5_prize_per_winner: u64
+├── match_4_prize_per_winner: u64
+├── match_3_prize_per_winner: u64
+├── match_2_prize_per_winner: u64
+├── is_explicitly_finalized: bool
+├── total_committed: u64
+├── total_reclaimed: u64
+└── bump: u8
 
-Ticket (PDA: ["ticket", draw_id, ticket_index])
+TicketData (PDA: ["ticket", draw_id.to_le_bytes(), ticket_index.to_le_bytes()])
 ├── owner: Pubkey
 ├── draw_id: u64
 ├── numbers: [u8; 6]
 ├── purchase_timestamp: i64
 ├── is_claimed: bool
 ├── match_count: u8
-└── prize_amount: u64
+├── prize_amount: u64
+├── syndicate: Option<Pubkey>
+└── bump: u8
+
+UnifiedTicket (PDA: ["ticket", draw_id.to_le_bytes(), start_ticket_id.to_le_bytes()])
+├── owner: Pubkey
+├── draw_id: u64
+├── start_ticket_id: u64
+├── ticket_count: u32
+├── numbers: Vec<[u8; 6]>    (one set per ticket)
+├── purchase_timestamp: i64
+├── syndicate: Option<Pubkey>
+├── claimed_bitmap: Vec<u8>  (bitfield tracking claimed tickets)
+└── bump: u8
 
 UserStats (PDA: ["user", wallet])
 ├── wallet: Pubkey
@@ -185,49 +271,119 @@ UserStats (PDA: ["user", wallet])
 ├── total_spent: u64
 ├── total_won: u64
 ├── current_streak: u32
-├── longest_streak: u32
-└── last_draw_participated: u64
+├── best_streak: u32
+├── jackpot_wins: u32
+├── last_draw_participated: u64
+├── tickets_this_draw: u64
+├── free_tickets_available: u32
+└── bump: u8
 
-LuckyNumbersNFT (PDA: ["lucky_numbers", mint])
+Syndicate (PDA: ["syndicate", creator, syndicate_id.to_le_bytes()])
+├── creator: Pubkey
+├── original_creator: Pubkey
+├── syndicate_id: u64
+├── name: String (max 32 bytes)
+├── is_public: bool
+├── member_count: u32
+├── total_contribution: u64
+├── manager_fee_bps: u16
+├── usdc_account: Pubkey
+├── members: Vec<SyndicateMember>
+└── bump: u8
+
+SyndicateWarsState (PDA: ["syndicate_wars", month.to_le_bytes()])
+├── month: u64
+├── start_timestamp: i64
+├── end_timestamp: i64
+├── prize_pool: u64
+├── registered_count: u32
+├── min_tickets: u64
+├── is_active: bool
+├── is_distributed: bool
+└── bump: u8
+
+SyndicateWarsEntry (PDA: ["syndicate_wars", month.to_le_bytes(), syndicate])
+├── syndicate: Pubkey
+├── month: u64
+├── tickets_purchased: u64
+├── prizes_won: u64
+├── win_count: u32
+├── win_rate: u64
+├── final_rank: u32
+├── prize_claimed: bool
+└── bump: u8
+
+LuckyNumbersNFT (PDA: ["lucky_numbers", mint])  ❌ DATA STRUCTURE ONLY — no instructions
 ├── mint: Pubkey
 ├── owner: Pubkey
 ├── numbers: [u8; 6]
 ├── original_draw_id: u64
 ├── original_match_tier: u8
+├── original_winner: Pubkey
+├── created_at: i64
 ├── total_bonuses_claimed: u64
 ├── jackpot_hits: u32
-└── is_active: bool
+├── is_active: bool
+└── bump: u8
+```
 
-SecondChanceEntry (PDA: ["second_chance", week_id, ticket])
-├── ticket: Pubkey
-├── player: Pubkey
-├── week_id: u64
-└── entry_count: u32
+**Quick Pick Express accounts** (separate program):
 
-QuickPickState (PDA: ["quick_pick"])
+```
+QuickPickState (PDA: ["quick_pick"], quickpick program)
 ├── current_draw: u64
 ├── ticket_price: u64
+├── pick_count: u8
+├── number_range: u8
+├── house_fee_bps: u16
+├── draw_interval: i64
 ├── next_draw_timestamp: i64
+├── jackpot_balance: u64
+├── soft_cap: u64
+├── hard_cap: u64
+├── seed_amount: u64
+├── match_4_prize: u64
+├── match_3_prize: u64
+├── current_draw_tickets: u64
 ├── prize_pool_balance: u64
-└── is_paused: bool
+├── insurance_balance: u64
+├── reserve_balance: u64
+├── total_tickets_sold: u64
+├── total_prizes_paid: u64
+├── current_randomness_account: Pubkey
+├── commit_slot: u64
+├── commit_timestamp: i64
+├── is_draw_in_progress: bool
+├── is_rolldown_pending: bool
+├── is_paused: bool
+├── is_funded: bool
+└── bump: u8
 
-SyndicateWarsEntry (PDA: ["syndicate_wars", month, syndicate])
-├── syndicate: Pubkey
-├── month: u64
-├── tickets_purchased: u64
-├── prizes_won: u64
-├── win_rate: u64
-└── final_rank: Option<u32>
+QuickPickTicket (PDA: ["quick_pick_ticket", draw_id, ticket_index])
+├── owner: Pubkey
+├── draw_id: u64
+├── numbers: [u8; 5]
+├── purchase_timestamp: i64
+├── is_claimed: bool
+├── match_count: u8
+├── prize_amount: u64
+└── bump: u8
 
-Syndicate (PDA: ["syndicate", creator, syndicate_id])
-├── creator: Pubkey
-├── syndicate_id: u64
-├── name: [u8; 32]
-├── is_public: bool
-├── member_count: u32
-├── total_contribution: u64
-├── manager_fee_bps: u16
-└── members: Vec<SyndicateMember>
+QuickPickDrawResult (PDA: ["quick_pick_draw", draw_id])
+├── draw_id: u64
+├── winning_numbers: [u8; 5]
+├── randomness_proof: [u8; 32]
+├── timestamp: i64
+├── total_tickets: u64
+├── was_rolldown: bool
+├── match_5_winners: u32
+├── match_4_winners: u32
+├── match_3_winners: u32
+├── match_5_prize_per_winner: u64
+├── match_4_prize_per_winner: u64
+├── match_3_prize_per_winner: u64
+├── is_explicitly_finalized: bool
+└── bump: u8
 ```
 
 ### 3.3 PDA Derivation
@@ -437,11 +593,16 @@ pub const SYNDICATE_MEMBER_SIZE: usize = 48;
 
 ### 5.1 Core Structures
 
+> **Updated v3.0** — All structs below match the actual on-chain implementation.
+
 ```rust
 #[account]
 pub struct LotteryState {
-    /// Admin authority (multi-sig wallet)
+    /// Admin authority (multi-sig wallet recommended for production)
     pub authority: Pubkey,
+
+    /// Pending authority for two-step transfer (propose → accept)
+    pub pending_authority: Option<Pubkey>,
 
     /// Switchboard queue for randomness requests
     pub switchboard_queue: Pubkey,
@@ -460,6 +621,9 @@ pub struct LotteryState {
 
     /// Insurance fund for guaranteed payouts
     pub insurance_balance: u64,
+
+    /// Fixed prize balance (39.4% of ticket revenue, earmarked for Match 3/4/5)
+    pub fixed_prize_balance: u64,
 
     /// Ticket price in USDC lamports
     pub ticket_price: u64,
@@ -482,8 +646,26 @@ pub struct LotteryState {
     /// Unix timestamp of next scheduled draw
     pub next_draw_timestamp: i64,
 
+    /// Draw interval in seconds
+    pub draw_interval: i64,
+
     /// Slot when current randomness was committed
     pub commit_slot: u64,
+
+    /// Timestamp when randomness was committed (for timeout detection)
+    pub commit_timestamp: i64,
+
+    /// Number of tickets sold for the current draw
+    pub current_draw_tickets: u64,
+
+    /// Lifetime total tickets sold
+    pub total_tickets_sold: u64,
+
+    /// Lifetime total prizes paid out
+    pub total_prizes_paid: u64,
+
+    /// Total prizes committed but not yet claimed (for solvency accounting)
+    pub total_prizes_committed: u64,
 
     /// Whether a draw is currently in progress
     pub is_draw_in_progress: bool,
@@ -494,8 +676,27 @@ pub struct LotteryState {
     /// Whether the lottery is paused
     pub is_paused: bool,
 
+    /// Whether the lottery has been funded (seed deposited)
+    pub is_funded: bool,
+
     /// PDA bump seed
     pub bump: u8,
+
+    // -- Timelock fields (for propose_config / execute_config) --
+
+    /// Unix timestamp when config proposal timelock expires (0 = no active proposal)
+    pub config_timelock_end: i64,
+
+    /// SHA256 hash of the pending config change (zeroed = no active proposal)
+    pub pending_config_hash: [u8; 32],
+
+    // -- Emergency fund transfer accounting --
+
+    /// Cumulative emergency transfer amount in current window
+    pub emergency_transfer_total: u64,
+
+    /// Start of the current emergency transfer window
+    pub emergency_transfer_window_start: i64,
 }
 
 /// Lottery numbers wrapper with validation
@@ -659,6 +860,10 @@ pub struct Syndicate {
 }
 ```
 
+> **Note on `UnifiedTicket`:** Bulk purchases create a single `UnifiedTicket` account
+> instead of individual `TicketData` accounts. This is more storage-efficient and
+> uses a claimed bitmap to track which tickets in the batch have been claimed.
+
 ### 5.2 Supporting Structures
 
 ```rust
@@ -733,24 +938,7 @@ pub struct LuckyNumbersNFT {
     pub bump: u8,
 }
 
-/// Second Chance Draw entry
-#[account]
-pub struct SecondChanceEntry {
-    /// Original ticket reference
-    pub ticket: Pubkey,
-    
-    /// Player wallet
-    pub player: Pubkey,
-    
-    /// Week number for this entry
-    pub week_id: u64,
-    
-    /// Number of entries
-    pub entry_count: u32,
-    
-    /// PDA bump
-    pub bump: u8,
-}
+// NOTE: SecondChanceEntry was removed in v2.2. This struct no longer exists in the on-chain program.
 
 /// Unified ticket account for bulk purchases
 #[account]
@@ -1081,9 +1269,57 @@ pub struct InitializeParams {
 }
 ```
 
-#### `update_config`
+#### `fund_seed`
 
-Updates lottery configuration parameters. Requires timelock.
+Transfers the seed amount from authority to prize pool, sets jackpot balance, and unpauses the lottery. Must be called after `initialize` before the lottery can operate.
+
+```rust
+#[derive(Accounts)]
+pub struct FundSeed<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    #[account(mut, seeds = [LOTTERY_SEED], bump = lottery_state.bump,
+        constraint = lottery_state.authority == authority.key())]
+    pub lottery_state: Account<'info, LotteryState>,
+    
+    #[account(mut)]
+    pub authority_usdc: Account<'info, TokenAccount>,
+    
+    #[account(mut, seeds = [b"prize_pool_usdc"], bump)]
+    pub prize_pool_usdc: Account<'info, TokenAccount>,
+    
+    pub token_program: Program<'info, Token>,
+}
+```
+
+#### `add_reserve_funds`
+
+Adds additional funds to the reserve pool.
+
+```rust
+#[derive(Accounts)]
+pub struct AddReserveFunds<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    #[account(mut, seeds = [LOTTERY_SEED], bump = lottery_state.bump,
+        constraint = lottery_state.authority == authority.key())]
+    pub lottery_state: Account<'info, LotteryState>,
+    
+    #[account(mut)]
+    pub authority_usdc: Account<'info, TokenAccount>,
+    
+    #[account(mut, seeds = [b"prize_pool_usdc"], bump)]
+    pub prize_pool_usdc: Account<'info, TokenAccount>,
+    
+    pub token_program: Program<'info, Token>,
+}
+```
+
+#### `update_config` (legacy immediate mode)
+
+Updates configuration parameters immediately. Refuses to run if a timelock proposal is active. For production use, prefer the `propose_config` → `execute_config` flow.
 
 ```rust
 #[derive(Accounts)]
@@ -1098,9 +1334,7 @@ pub struct UpdateConfig<'info> {
         constraint = lottery_state.authority == authority.key()
     )]
     pub lottery_state: Account<'info, LotteryState>,
-    
-    /// Timelock account proving delay has passed
-    pub timelock: Account<'info, Timelock>,
+    // Note: No separate Timelock account — timelock is inline on LotteryState
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -1109,13 +1343,46 @@ pub struct UpdateConfigParams {
     pub house_fee_bps: Option<u16>,
     pub jackpot_cap: Option<u64>,
     pub seed_amount: Option<u64>,
+    pub soft_cap: Option<u64>,
+    pub hard_cap: Option<u64>,
+    pub switchboard_queue: Option<Pubkey>,
     pub draw_interval: Option<i64>,
+}
+```
+
+#### `propose_config` → `execute_config` → `cancel_config_proposal` (Timelock Flow)
+
+Three-step configuration change with a 24-hour delay:
+
+1. **`propose_config(params)`** — Computes `SHA256(params)` and stores it in `lottery_state.pending_config_hash`. Sets `config_timelock_end` to `now + 24 hours`. Does NOT apply changes.
+2. **`execute_config(params)`** — After the timelock expires, verifies that `SHA256(params)` matches the stored hash. If it matches and the timelock has elapsed, applies the changes and clears the proposal.
+3. **`cancel_config_proposal()`** — Clears `pending_config_hash` and `config_timelock_end`, cancelling the pending proposal.
+
+All three use the same `UpdateConfig` accounts context and `UpdateConfigParams` struct shown above.
+
+#### `check_solvency` (permissionless)
+
+Allows **anyone** to verify that on-chain token balances match internal accounting. If a mismatch is detected, the lottery is automatically paused.
+
+```rust
+#[derive(Accounts)]
+pub struct CheckSolvency<'info> {
+    pub caller: Signer<'info>,
+    
+    #[account(mut, seeds = [LOTTERY_SEED], bump = lottery_state.bump)]
+    pub lottery_state: Account<'info, LotteryState>,
+    
+    #[account(seeds = [b"prize_pool_usdc"], bump)]
+    pub prize_pool_usdc: Account<'info, TokenAccount>,
+    
+    #[account(seeds = [b"insurance_pool_usdc"], bump)]
+    pub insurance_pool_usdc: Account<'info, TokenAccount>,
 }
 ```
 
 #### `pause` / `unpause`
 
-Emergency pause controls.
+Emergency pause controls. Only the authority can pause/unpause.
 
 ```rust
 #[derive(Accounts)]
@@ -1131,7 +1398,64 @@ pub struct Pause<'info> {
     )]
     pub lottery_state: Account<'info, LotteryState>,
 }
+// Unpause uses a separate struct with the same shape
 ```
+
+#### `withdraw_house_fees`
+
+Transfers accumulated house fees to a destination USDC account. Authority only.
+
+```rust
+#[derive(Accounts)]
+pub struct WithdrawHouseFees<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    #[account(mut, seeds = [LOTTERY_SEED], bump = lottery_state.bump,
+        constraint = lottery_state.authority == authority.key())]
+    pub lottery_state: Account<'info, LotteryState>,
+    
+    #[account(mut, seeds = [b"house_fee_usdc"], bump)]
+    pub house_fee_usdc: Account<'info, TokenAccount>,
+    
+    #[account(mut)]
+    pub destination_usdc: Account<'info, TokenAccount>,
+    
+    pub token_program: Program<'info, Token>,
+}
+```
+
+#### `propose_authority` → `accept_authority` → `cancel_authority_transfer`
+
+Two-step authority transfer preventing accidental loss of control:
+
+1. **`propose_authority(new_authority)`** — Current authority proposes a new authority. Stores `new_authority` in `lottery_state.pending_authority`.
+2. **`accept_authority()`** — The proposed authority signs to accept. Sets `lottery_state.authority = pending_authority` and clears pending.
+3. **`cancel_authority_transfer()`** — Current authority cancels the proposal.
+
+#### `cancel_draw`
+
+Cancels a draw that has timed out (>1 hour since commit). Recovery mechanism for oracle failures.
+
+#### `force_finalize_draw`
+
+Emergency instruction that forces a draw to complete with zero prizes. Tickets affected will not receive prizes (may need off-chain compensation).
+
+#### `emergency_fund_transfer`
+
+Transfers funds between reserve/insurance/prize pools during emergencies. Enforces a daily cap (50% of source per 24-hour window) with rolling window tracking.
+
+```rust
+pub enum FundSource {
+    Reserve,
+    Insurance,
+    PrizePool,
+}
+```
+
+#### `reclaim_expired_prizes`
+
+Sweeps unclaimed committed prizes back into `reserve_balance` after the 90-day claim expiration window. Prevents "zombie" committed funds from distorting solvency metrics.
 
 ### 6.2 Ticket Instructions
 

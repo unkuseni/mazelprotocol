@@ -11,7 +11,7 @@
 //! # Key Features
 //! - **Ticket Price**: $1.50
 //! - **Jackpot Soft Cap ($30k)**: Probabilistic rolldown begins
-//! - **Jackpot Hard Cap ($40k)**: Forced rolldown to lower tiers
+//! - **Jackpot Hard Cap ($50k)**: Forced rolldown to lower tiers
 //! - **Pari-mutuel Rolldown**: 60% to Match 4, 40% to Match 3
 //! - **Fixed Prizes (Normal Mode)**: Match 4 = $100, Match 3 = $4
 //! - **Dynamic Fees**: 28-38% based on jackpot level

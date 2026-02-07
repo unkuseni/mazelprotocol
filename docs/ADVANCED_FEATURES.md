@@ -1,6 +1,6 @@
 # SolanaLotto Advanced Features Specification
 
-## Version 2.0.0
+## Version 3.0.0
 
 ---
 
@@ -306,6 +306,8 @@ Players get increasing +EV as jackpot grows, with guaranteed +EV at hard cap.
 
 ## 3. Lucky Numbers NFT System
 
+> ❌ **NOT YET IMPLEMENTED** — Only the `LuckyNumbersNFT` data structure, constants (`LUCKY_NUMBERS_BONUS_BPS`, `LUCKY_NUMBERS_MIN_MATCH`), events (`LuckyNumbersNFTMinted`, `LuckyNumbersBonusClaimed`), and error codes exist in the on-chain program. **No instructions have been written** to mint NFTs, claim bonuses, or manage governance controls. The specification below is a design document for future implementation.
+
 ### 3.1 Overview
 
 Award NFTs to Match 4+ winners containing their winning combination. These NFTs grant a 1% bonus if those exact numbers ever hit the jackpot in the future.
@@ -568,6 +570,8 @@ pub struct LuckyNumbersConfig {
 ---
 
 ## 4. MEV Protection
+
+> ⚠️ **PARTIALLY IMPLEMENTED** — The only MEV protection currently on-chain is a **tightened slot window** (10 slots / ~4 seconds) between randomness commit and reveal, which limits the window for MEV actors to observe randomness. The **Jito tip integration** (§4.4) and **threshold encryption** (§4.2–4.3) described below are **NOT YET IMPLEMENTED** — they are design documents for future phases.
 
 ### 4.1 Threat Model
 
@@ -1761,56 +1765,89 @@ pub fn distribute_syndicate_wars_prizes(
 
 ## 7. Implementation Priority
 
-### 7.1 Priority Matrix
+### 7.1 Implementation Status
 
-| Feature | Impact | Complexity | Priority |
-|---------|--------|------------|----------|
-| **MEV Protection (Jito)** | Critical | Low | P0 - Launch |
-| **Dynamic House Fee** | High | Low | P1 - Month 1 |
-| **Soft/Hard Caps** | High | Medium | P1 - Month 1 |
-| **Syndicate Wars** | Medium | Medium | P2 - Month 3 |
-| **Second Chance Draws** | Medium | Medium | P2 - Month 3 |
-| **Quick Pick Express** | High | Medium | P2 - Month 4 |
-| **Lucky Numbers NFT** | Medium | High | P3 - Month 6 |
+| Feature | Impact | Complexity | Status |
+|---------|--------|------------|--------|
+| **Dynamic House Fee** | High | Low | ✅ Complete (on-chain) |
+| **Soft/Hard Caps** | High | Medium | ✅ Complete (on-chain) |
+| **Switchboard Randomness** | Critical | Medium | ✅ Complete (on-chain) |
+| **Insurance Pool (2%)** | High | Low | ✅ Complete (on-chain) |
+| **Quick Pick Express** | High | Medium | ✅ Complete (separate program) |
+| **Syndicate Wars** | Medium | Medium | ✅ Complete (on-chain) |
+| **Config Timelock (24h)** | High | Low | ✅ Complete (on-chain) |
+| **Two-Step Authority Transfer** | High | Low | ✅ Complete (on-chain) |
+| **Permissionless Solvency Check** | High | Low | ✅ Complete (on-chain) |
+| **Emergency Fund Transfer** | High | Medium | ✅ Complete (on-chain, daily cap) |
+| **Expired Prize Reclaim** | Medium | Low | ✅ Complete (on-chain) |
+| **Verification Hash** | High | Low | ✅ Complete (on-chain) |
+| **Statistical Plausibility Checks** | High | Low | ✅ Complete (on-chain) |
+| **Streak Tracking** | Low | Low | ⚠️ Tracked only — bonus never applied to prizes |
+| **MEV Protection (slot window)** | Medium | Low | ⚠️ Partial — 10-slot window only |
+| **Lucky Numbers NFT** | Medium | High | ❌ Data structure only — no instructions |
+| **MEV Protection (Jito)** | Critical | Low | ❌ Not started |
+| **MEV Protection (Threshold)** | Medium | High | ❌ Not started |
+| **Client SDK** | Medium | Medium | ❌ Not started |
+| **Governance DAO** | Low | High | ❌ Not started |
 
-| **MEV Protection (Threshold)** | Medium | High | P4 - Month 9 |
-
-### 7.2 Implementation Timeline
+### 7.2 What's Been Built
 
 ```
-PHASE 1: Security & Core (Months 1-2)
-├── Jito MEV protection
-├── Dynamic house fee system
-├── Soft/hard rolldown caps
-├── Switchboard Randomness integration
+✅ COMPLETED — On-Chain Programs
+├── Main Lottery Program (solana_lotto) — 32 instructions
+│   ├── Ticket: buy_ticket, buy_bulk
+│   ├── Draw: commit_randomness, execute_draw, finalize_draw
+│   ├── Prize: claim_prize, claim_bulk_prize, claim_all_bulk_prizes
+│   ├── Admin: initialize, fund_seed, pause/unpause, update_config,
+│   │         propose_config, execute_config, cancel_config_proposal,
+│   │         check_solvency, withdraw_house_fees, propose_authority,
+│   │         accept_authority, cancel_authority_transfer, cancel_draw,
+│   │         force_finalize_draw, emergency_fund_transfer,
+│   │         reclaim_expired_prizes, add_reserve_funds
+│   ├── Syndicate: create, join, leave, close, withdraw_creator_contribution,
+│   │             buy_syndicate_tickets, create_syndicate_ticket,
+│   │             distribute_syndicate_prize, claim_syndicate_member_prize,
+│   │             update_syndicate_config, remove_syndicate_member,
+│   │             transfer_syndicate_creator
+│   └── Syndicate Wars: initialize, register, update_stats,
+│                       finalize, distribute_prizes, claim_prize
+│
+└── Quick Pick Express Program (quickpick) — 12 instructions
+    ├── Admin: initialize, fund_seed, pause/unpause, update_config,
+    │         withdraw_house_fees, add_reserve_funds, cancel_draw,
+    │         force_finalize_draw, emergency_fund_transfer
+    ├── Ticket: buy_ticket ($50 spend gate)
+    ├── Draw: commit_randomness, execute_draw, finalize_draw
+    └── Prize: claim_prize
+```
 
-PHASE 2: Engagement (Months 3-5)
-├── Syndicate Wars competition
-├── Quick Pick Express game
-├── Enhanced dashboards
+### 7.3 Next Priority
 
-PHASE 3: Premium Features (Months 6-9)
-├── Lucky Numbers NFT system
-├── Advanced MEV protection
-├── Cross-chain preparation
+```
+🔜 NEXT — Requires Implementation
+├── Apply streak bonus to prize calculations (logic exists, not wired in)
+├── Lucky Numbers NFT instructions (data structure & constants ready)
+├── Jito MEV tip integration
+├── Client SDK package (@solanalotto/sdk)
+└── Security audit
 
-PHASE 4: Scale (Months 10-12)
+🔮 FUTURE
+├── Threshold encryption MEV protection
+├── On-chain governance DAO
 ├── White-label platform
-├── Cross-chain deployment
-├── Advanced analytics
-├── DAO transition
+└── Cross-chain deployment
 ```
 
-### 8.3 Resource Requirements
+### 7.4 Resource Requirements (Remaining Work)
 
 | Feature | Engineering | Design | Marketing |
 |---------|-------------|--------|-----------|
-| MEV Protection (Jito) | 1 week | - | - |
-| Dynamic House Fee | 1 week | 2 days | - |
-| Soft/Hard Caps | 2 weeks | 3 days | - |
-| Syndicate Wars | 3 weeks | 1 week | 1 week |
-| Quick Pick Express | 3 weeks | 1 week | 1 week |
-| Lucky Numbers NFT | 4 weeks | 2 weeks | 2 weeks |
+| Apply streak bonus | 1 day | - | - |
+| Lucky Numbers NFT instructions | 3 weeks | 2 weeks | 2 weeks |
+| Jito MEV integration | 1 week | - | - |
+| Client SDK | 2 weeks | 1 week | - |
+| Threshold encryption | 4 weeks | - | - |
+| Governance DAO | 6 weeks | 1 week | 1 week |
 
 ### 7.5 Success Metrics
 

@@ -368,18 +368,20 @@ Total Cycle House Fees (Corrected): $1,704,000
 
 ### Smart Contract Overview
 
+The protocol is implemented as **two separate Anchor programs** on Solana. There is no on-chain governance DAO — the authority is a single signer (intended to be a multi-sig wallet in production). Configuration changes use an inline 24-hour timelock.
+
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  SOLANALOTTO PROTOCOL                    │
+│           MAIN LOTTERY PROGRAM (solana_lotto)            │
+│      Program ID: 7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5… │
 ├─────────────────────────────────────────────────────────┤
 │                                                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
 │  │   TICKET    │  │    DRAW     │  │    PRIZE    │     │
-│  │   MANAGER   │  │   ENGINE    │  │    POOL     │     │
 │  │             │  │             │  │             │     │
-│  │ • buy()     │  │ • init()    │  │ • deposit() │     │
-│  │ • bulkBuy() │  │ • draw()    │  │ • claim()   │     │
-│  │ • redeem()  │  │ • rolldown()│  │ • rolldown()│     │
+│  │ • buy       │  │ • commit   │  │ • claim     │     │
+│  │ • buy_bulk  │  │ • execute  │  │ • bulk claim│     │
+│  │ • free tkt  │  │ • finalize │  │ • all claim │     │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘     │
 │         │                │                │             │
 │         └────────────────┼────────────────┘             │
@@ -391,83 +393,149 @@ Total Cycle House Fees (Corrected): $1,704,000
 │                   └─────────────┘                       │
 │                                                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
-│  │ GOVERNANCE  │  │             │  │  SYNDICATE  │     │
-│  │     DAO     │  │             │  │   MANAGER   │     │
-│  │             │  │             │  │             │     │
-│  │ • propose() │  │             │  │ • create()  │     │
-│  │ • vote()    │  │             │  │ • join()    │     │
-│  │ • execute() │  │             │  │ • split()   │     │
+│  │    ADMIN    │  │  SYNDICATE  │  │  SYNDICATE  │     │
+│  │             │  │             │  │    WARS     │     │
+│  │ • pause     │  │ • create   │  │ • init      │     │
+│  │ • config    │  │ • join     │  │ • register  │     │
+│  │ • solvency  │  │ • leave    │  │ • finalize  │     │
+│  │ • emergency │  │ • tickets  │  │ • prizes    │     │
+│  │ • authority │  │ • prizes   │  │ • claim     │     │
 │  └─────────────┘  └─────────────┘  └─────────────┘     │
+│                                                          │
+├─────────────────────────────────────────────────────────┤
+│           QUICK PICK EXPRESS PROGRAM (quickpick)         │
+│      Program ID: 7XC1KT5mvsHHXbR2mH6er138fu2tJ4L2fAgm… │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐  │
+│  │  ADMIN   │  │  TICKET  │  │   DRAW   │  │ PRIZE  │  │
+│  │ • init   │  │ • buy    │  │ • commit │  │ • claim│  │
+│  │ • pause  │  │  ($50    │  │ • execute│  │        │  │
+│  │ • config │  │   gate)  │  │ • final. │  │        │  │
+│  │ • emerg. │  │          │  │          │  │        │  │
+│  └──────────┘  └──────────┘  └──────────┘  └────────┘  │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Core Programs (Rust/Anchor)
+### Main Program Instructions (solana_lotto)
 
-#### 1. TicketManager
-
-```rust
-// Handles all ticket purchases and redemptions
-pub mod ticket_manager {
-    pub fn buy_ticket(ctx: Context<BuyTicket>, numbers: [u8; 6]) -> Result<()>;
-    pub fn buy_bulk(ctx: Context<BuyBulk>, tickets: Vec<[u8; 6]>) -> Result<()>;
-    pub fn redeem_free_ticket(ctx: Context<Redeem>, nft_mint: Pubkey) -> Result<()>;
-}
-```
-
-#### 2. DrawEngine
+All instructions live within a single `solana_lotto` Anchor program module:
 
 ```rust
-// Manages draw execution and winner calculation
-pub mod draw_engine {
-    pub fn initialize_draw(ctx: Context<InitDraw>, draw_id: u64) -> Result<()>;
-    pub fn request_randomness(ctx: Context<RequestRandom>) -> Result<()>;
-    pub fn execute_draw(ctx: Context<Execute>, vrf_result: [u8; 32]) -> Result<()>;
-    pub fn trigger_rolldown(ctx: Context<Rolldown>, draw_id: u64) -> Result<()>;
-}
-```
+pub mod solana_lotto {
+    // --- Initialization ---
+    pub fn initialize(ctx, params) -> Result<()>;
+    pub fn fund_seed(ctx) -> Result<()>;
+    pub fn add_reserve_funds(ctx, amount) -> Result<()>;
 
-#### 3. PrizePool
+    // --- Admin ---
+    pub fn pause(ctx, reason) -> Result<()>;
+    pub fn unpause(ctx) -> Result<()>;
+    pub fn update_config(ctx, params) -> Result<()>;       // immediate (legacy)
+    pub fn propose_config(ctx, params) -> Result<()>;      // 24h timelock step 1
+    pub fn execute_config(ctx, params) -> Result<()>;      // 24h timelock step 2
+    pub fn cancel_config_proposal(ctx) -> Result<()>;
+    pub fn check_solvency(ctx) -> Result<()>;              // permissionless
+    pub fn withdraw_house_fees(ctx, amount) -> Result<()>;
+    pub fn propose_authority(ctx, new_authority) -> Result<()>;
+    pub fn accept_authority(ctx) -> Result<()>;
+    pub fn cancel_authority_transfer(ctx) -> Result<()>;
+    pub fn cancel_draw(ctx) -> Result<()>;                 // stuck draw recovery
+    pub fn force_finalize_draw(ctx, reason) -> Result<()>; // emergency
+    pub fn emergency_fund_transfer(ctx, source, amount, reason) -> Result<()>;
+    pub fn reclaim_expired_prizes(ctx, params) -> Result<()>;
 
-```rust
-// Manages all fund allocations and distributions
-pub mod prize_pool {
-    pub fn deposit_to_jackpot(ctx: Context<Deposit>, amount: u64) -> Result<()>;
-    pub fn claim_prize(ctx: Context<Claim>, ticket_id: u64) -> Result<()>;
-    pub fn distribute_rolldown(ctx: Context<DistributeRolldown>) -> Result<()>;
+    // --- Tickets ---
+    pub fn buy_ticket(ctx, params) -> Result<()>;          // single ticket
+    pub fn buy_bulk(ctx, params) -> Result<()>;            // up to 50 tickets
+
+    // --- Draw Lifecycle ---
+    pub fn commit_randomness(ctx) -> Result<()>;           // commit phase
+    pub fn execute_draw(ctx) -> Result<()>;                // reveal phase
+    pub fn finalize_draw(ctx, params) -> Result<()>;       // set winners & prizes
+
+    // --- Prize Claims ---
+    pub fn claim_prize(ctx) -> Result<()>;                 // single ticket
+    pub fn claim_bulk_prize(ctx, params) -> Result<()>;    // one from bulk
+    pub fn claim_all_bulk_prizes(ctx) -> Result<()>;       // all from bulk
+
+    // --- Syndicates ---
+    pub fn create_syndicate(ctx, params) -> Result<()>;
+    pub fn join_syndicate(ctx, params) -> Result<()>;
+    pub fn leave_syndicate(ctx) -> Result<()>;
+    pub fn close_syndicate(ctx) -> Result<()>;
+    pub fn withdraw_creator_contribution(ctx, amount) -> Result<()>;
+    pub fn buy_syndicate_tickets(ctx, params) -> Result<()>;
+    pub fn create_syndicate_ticket(ctx, numbers) -> Result<()>;
+    pub fn distribute_syndicate_prize(ctx, params) -> Result<()>;
+    pub fn claim_syndicate_member_prize(ctx, params) -> Result<()>;
+    pub fn update_syndicate_config(ctx, params) -> Result<()>;
+    pub fn remove_syndicate_member(ctx, params) -> Result<()>;
+    pub fn transfer_syndicate_creator(ctx, params) -> Result<()>;
+
+    // --- Syndicate Wars ---
+    pub fn initialize_syndicate_wars(ctx, params) -> Result<()>;
+    pub fn register_for_syndicate_wars(ctx) -> Result<()>;
+    pub fn update_syndicate_wars_stats(ctx, params) -> Result<()>;
+    pub fn finalize_syndicate_wars(ctx) -> Result<()>;
+    pub fn distribute_syndicate_wars_prizes(ctx, params) -> Result<()>;
+    pub fn claim_syndicate_wars_prize(ctx, params) -> Result<()>;
 }
 ```
 
 ### Data Structures
 
+> **Updated v3.0** — Reflects actual on-chain account fields.
+
 ```rust
 #[account]
 pub struct LotteryState {
     pub authority: Pubkey,
+    pub pending_authority: Option<Pubkey>,   // two-step transfer
+    pub switchboard_queue: Pubkey,
+    pub current_randomness_account: Pubkey,
     pub current_draw_id: u64,
     pub jackpot_balance: u64,
     pub reserve_balance: u64,
     pub insurance_balance: u64,
-    pub ticket_price: u64,           // In USDC lamports
-    pub house_fee_bps: u16,          // 3400 = 34%
+    pub fixed_prize_balance: u64,            // 39.4% allocation
+    pub ticket_price: u64,                   // in USDC lamports
+    pub house_fee_bps: u16,                  // dynamic: 2800-4000
     pub jackpot_cap: u64,
     pub seed_amount: u64,
+    pub soft_cap: u64,
+    pub hard_cap: u64,
+    pub next_draw_timestamp: i64,
+    pub draw_interval: i64,
+    pub commit_slot: u64,
+    pub commit_timestamp: i64,
+    pub current_draw_tickets: u64,
     pub total_tickets_sold: u64,
     pub total_prizes_paid: u64,
-    pub last_draw_timestamp: i64,
+    pub total_prizes_committed: u64,
+    pub is_draw_in_progress: bool,
     pub is_rolldown_active: bool,
+    pub is_paused: bool,
+    pub is_funded: bool,
     pub bump: u8,
+    pub config_timelock_end: i64,            // inline timelock
+    pub pending_config_hash: [u8; 32],
+    pub emergency_transfer_total: u64,       // daily cap tracking
+    pub emergency_transfer_window_start: i64,
 }
 
 #[account]
-pub struct Ticket {
+pub struct TicketData {
     pub owner: Pubkey,
     pub draw_id: u64,
     pub numbers: [u8; 6],
     pub purchase_timestamp: i64,
     pub is_claimed: bool,
-    pub prize_amount: u64,
     pub match_count: u8,
+    pub prize_amount: u64,
+    pub syndicate: Option<Pubkey>,
+    pub bump: u8,
 }
 
 #[account]
@@ -483,7 +551,15 @@ pub struct DrawResult {
     pub match_4_winners: u32,
     pub match_3_winners: u32,
     pub match_2_winners: u32,
-    pub total_prizes_distributed: u64,
+    pub match_6_prize_per_winner: u64,
+    pub match_5_prize_per_winner: u64,
+    pub match_4_prize_per_winner: u64,
+    pub match_3_prize_per_winner: u64,
+    pub match_2_prize_per_winner: u64,
+    pub is_explicitly_finalized: bool,
+    pub total_committed: u64,     // for expired prize reclaim accounting
+    pub total_reclaimed: u64,
+    pub bump: u8,
 }
 ```
 
@@ -550,10 +626,14 @@ SolanaLotto uses **Switchboard Randomness** with Trusted Execution Environments 
 #### Smart Contract Security
 
 - ✅ **Reentrancy guards** on all state-changing functions
-- ✅ **Overflow protection** via checked math
-- ✅ **Access control** with multi-sig admin keys
-- ✅ **Timelock** (48h) on all parameter changes
+- ✅ **Overflow protection** via checked/saturating math throughout
+- ✅ **Access control** — single-signer authority (multi-sig wallet recommended for production)
+- ✅ **Config timelock** (24h propose → execute flow with SHA256 hash verification)
+- ✅ **Two-step authority transfer** (propose → accept, prevents accidental loss of control)
 - ✅ **Emergency pause** functionality
+- ✅ **Permissionless solvency check** — anyone can verify on-chain balances match internal accounting; auto-pauses on mismatch
+- ✅ **Emergency fund transfer** with daily cap (50% of source per 24h rolling window)
+- ✅ **Expired prize reclaim** — sweep unclaimed prizes after 90-day expiration window
 
 #### Randomness Security
 
@@ -585,54 +665,63 @@ Report vulnerabilities to: `security@solanalotto.io`
 
 ## 🗺️ Roadmap
 
-### Phase 1: Foundation (Q1 2025)
+### ✅ Completed: Core Programs
 
 - [x] Economic model design
 - [x] Smart contract architecture
-- [ ] Core contract development
-- [ ] Internal testing
-- [ ] Security audit #1 (OtterSec)
-- [ ] Testnet deployment
+- [x] Main lottery program (solana_lotto) — 6/46, 32 instructions
+- [x] Quick Pick Express program (quickpick) — 5/35, 12 instructions
+- [x] Ticket purchasing (single + bulk up to 50)
+- [x] Draw lifecycle (commit → execute → finalize)
+- [x] Prize claiming (single, bulk, claim-all)
+- [x] Dynamic house fee system (28–40%)
+- [x] Soft/hard cap rolldown (probabilistic + forced)
+- [x] Fixed → pari-mutuel prize transition
+- [x] Insurance pool (2% allocation, emergency access with daily caps)
+- [x] Reserve pool (3% allocation)
+- [x] Fixed prize pool (39.4% allocation)
+- [x] Switchboard commit-reveal randomness with entropy validation
+- [x] Free ticket credits for Match 2
+- [x] Per-user ticket limits (5,000/draw)
+- [x] Syndicate system (full CRUD: create, join, leave, close, buy tickets, distribute & claim prizes, config, remove members, transfer creator)
+- [x] Syndicate Wars competition (initialize, register, update stats, finalize, distribute & claim prizes)
+- [x] Config timelock (24h propose → execute with SHA256 hash)
+- [x] Two-step authority transfer (propose → accept)
+- [x] Permissionless solvency check (auto-pauses on mismatch)
+- [x] Emergency fund transfer (with 50% daily cap per rolling window)
+- [x] Expired prize reclaim (90-day window)
+- [x] Draw recovery (cancel stuck draws, force finalize)
+- [x] Verification hash (SHA256 tamper-resistant winner count auditing)
+- [x] Statistical plausibility checks on winner counts
+- [x] MEV mitigation via tightened slot window (10 slots / ~4s)
+- [x] Streak tracking on UserStats
+- [x] Internal testing (unit tests + integration tests)
 
-### Phase 2: Launch (Q2 2025)
+### 🔜 Next Priority
 
-- [ ] Security audit #2 (Neodyme)
+- [ ] Apply streak bonus to prize calculations (logic exists, just not wired in)
+- [ ] Lucky Numbers NFT instructions (data structure & constants ready)
+- [ ] Jito MEV protection integration
+- [ ] Client SDK package (`@solanalotto/sdk`)
+- [ ] Security audit #1
+- [ ] Devnet deployment & public testnet
+
+### 📋 Future Phases
+
+- [ ] Security audit #2
 - [ ] Mainnet deployment
 - [ ] UI/UX launch
-- [ ] Initial liquidity provision
-- [ ] Marketing campaign
-- [ ] Target: 25,000 tickets/day
-
-### Phase 3: Growth (Q3 2025)
-
-
-- [ ] Syndicate feature release
-- [ ] Streak bonus implementation
-- [ ] **Syndicate Wars Competition** (monthly)
+- [ ] Threshold encryption MEV protection
+- [ ] On-chain governance DAO (replace single-signer authority)
 - [ ] Mobile app (iOS/Android)
-- [ ] Target: 75,000 tickets/day
-
-### Phase 4: Expansion (Q4 2025)
-
-- [ ] **Quick Pick Express** (5/35, every 4 hours, +59% rolldown exploit, no free ticket)
-- [ ] **Lucky Numbers NFT** system launch
-- [ ] API/SDK public release
 - [ ] White-label partnerships
-- [ ] Target: 125,000 tickets/day
-
-### Phase 5: Scale (2026)
-
-- [ ] Cross-chain expansion (Arbitrum, Base)
-- [ ] **Threshold encryption MEV protection**
-- [ ] DAO governance transition
-- [ ] Advanced features (prediction markets, etc.)
-- [ ] Target: 200,000+ tickets/day
+- [ ] Cross-chain expansion
 
 ---
 
 ## 🎰 Additional Game Modes
 
-### Quick Pick Express (5/35) — PARI-MUTUEL ROLLDOWN
+### Quick Pick Express (5/35) — PARI-MUTUEL ROLLDOWN ✅ Implemented (Separate Program)
 
 High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** — exclusive to committed players:
 
@@ -679,7 +768,9 @@ High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** —
 
 ---
 
-## 🏆 Lucky Numbers NFT System
+## 🏆 Lucky Numbers NFT System ❌ *Not Yet Implemented*
+
+> **Design only** — The `LuckyNumbersNFT` data structure, constants, events, and error codes exist in the main program, but **no instructions** have been written to mint NFTs, claim bonuses, or manage governance controls. The description below is the planned design.
 
 When you win Match 4 or higher, you receive a **Lucky Numbers NFT** containing your winning combination:
 
@@ -699,7 +790,7 @@ Example:
 
 ---
 
-## 🏅 Syndicate Wars
+## 🏅 Syndicate Wars ✅ Implemented
 
 Monthly competition where syndicates compete for the best win rate:
 
@@ -720,21 +811,28 @@ Monthly competition where syndicates compete for the best win rate:
 
 ## 🛡️ MEV Protection
 
-SolanaLotto implements multiple layers of MEV protection:
+SolanaLotto implements MEV protection with one measure currently on-chain and two planned for future phases:
 
-### Phase 1: Jito Integration (Launch)
+### ✅ Implemented: Tightened Reveal Window
 
-- All ticket purchases routed through Jito bundles
-- Guarantees FIFO ordering
-- Prevents validator front-running
+- Randomness reveal must occur within **10 slots (~4 seconds)** of commit
+- Previously was 50 slots (~20s) — tightened to minimize the window for MEV actors to observe randomness before the reveal transaction lands
+- Authority-only execution of `execute_draw` prevents permissionless front-running of the reveal
 
-### Phase 2: Threshold Encryption (Future)
+### ❌ Planned: Jito Integration (Future)
 
-- Ticket numbers encrypted at purchase
+- Ticket purchases routed through Jito bundles for FIFO ordering
+- Prevents validator front-running of ticket purchases
+- **Not yet implemented** — no Jito tip accounts or bundle logic exists in the on-chain programs
+
+### ❌ Planned: Threshold Encryption (Future)
+
+- Ticket numbers encrypted at purchase time
 - Decryption only after winning numbers committed
 - Even validators cannot see ticket contents
+- **Not yet implemented** — no encrypted ticket structs, key management, or decryption logic exists
 
-> 📚 **See [ADVANCED_FEATURES.md](./ADVANCED_FEATURES.md) for technical implementation details.**
+> 📚 **See [ADVANCED_FEATURES.md](./ADVANCED_FEATURES.md) for the full design specification of planned MEV features.**
 
 ---
 
@@ -769,71 +867,100 @@ SolanaLotto implements multiple layers of MEV protection:
 3. Select your numbers or use Quick Pick
 4. Confirm transaction in wallet
 
-// Via SDK
-import { SolanaLotto } from '@solanalotto/sdk';
+// Via Anchor client (SDK not yet published)
+import { Program, AnchorProvider } from '@coral-xyz/anchor';
 
-const lotto = new SolanaLotto(connection, wallet);
-await lotto.buyTicket([4, 12, 23, 31, 38, 45]);
+const program = new Program(IDL, PROGRAM_ID, provider);
+await program.methods
+  .buyTicket({ numbers: [4, 12, 23, 31, 38, 45], useFreeTicket: false })
+  .accounts({ /* ...required accounts */ })
+  .rpc();
 ```
 
 #### 4. Check Results
 
 ```javascript
 // Results published daily at 00:05 UTC
-const result = await lotto.getDrawResult(drawId);
+const [drawResultPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("draw"), new BN(drawId).toArrayLike(Buffer, "le", 8)],
+  program.programId
+);
+const result = await program.account.drawResult.fetch(drawResultPda);
 console.log('Winning numbers:', result.winningNumbers);
-console.log('Your matches:', result.yourMatches);
 ```
 
 ### For Developers
 
 #### Installation
 
+> ⚠️ **SDK NOT YET PUBLISHED** — The `@solanalotto/sdk` NPM package does not exist yet. For now, interact with the on-chain programs directly via Anchor's generated client.
+
 ```bash
-# NPM
-npm install @solanalotto/sdk
-
-# Yarn
-yarn add @solanalotto/sdk
-
-# PNPM
-pnpm add @solanalotto/sdk
+# Use Anchor directly:
+npm install @coral-xyz/anchor @solana/web3.js @solana/spl-token
 ```
 
 #### Quick Start
 
 ```typescript
 import { Connection, PublicKey } from '@solana/web3.js';
-import { SolanaLotto, Ticket } from '@solanalotto/sdk';
+import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
+import { IDL } from './idl/solana_lotto'; // Generated by `anchor build`
+
+const PROGRAM_ID = new PublicKey('7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF');
 
 // Initialize
-const connection = new Connection('https://api.mainnet-beta.solana.com');
-const lotto = new SolanaLotto(connection);
+const connection = new Connection('https://api.devnet.solana.com');
+const provider = new AnchorProvider(connection, wallet, {});
+const program = new Program(IDL, PROGRAM_ID, provider);
 
 // Get current lottery state
-const state = await lotto.getLotteryState();
-console.log('Current jackpot:', state.jackpotBalance);
-console.log('Next draw in:', state.timeUntilDraw);
+const [lotteryStatePda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("lottery")], PROGRAM_ID
+);
+const state = await program.account.lotteryState.fetch(lotteryStatePda);
+console.log('Current jackpot:', state.jackpotBalance.toNumber() / 1e6, 'USDC');
+console.log('Current draw ID:', state.currentDrawId.toNumber());
 
-// Buy a ticket (requires wallet)
-const wallet = useWallet(); // or your wallet adapter
-const ticket = await lotto.buyTicket(
-  wallet,
-  [7, 14, 21, 28, 35, 42], // Your numbers
-  { 
-    priorityFee: 1000,     // Optional priority fee
-    referrer: 'ABC123'     // Optional referral code
-  }
+// Buy a ticket (requires wallet and derived PDAs)
+const drawId = state.currentDrawId;
+const ticketIndex = state.currentDrawTickets; // next ticket index
+const [ticketPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("ticket"),
+   drawId.toArrayLike(Buffer, "le", 8),
+   ticketIndex.toArrayLike(Buffer, "le", 8)],
+  PROGRAM_ID
+);
+const [userStatsPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("user"), wallet.publicKey.toBuffer()], PROGRAM_ID
 );
 
-// Check ticket status
-const status = await lotto.checkTicket(ticket.publicKey);
-console.log('Match count:', status.matchCount);
-console.log('Prize amount:', status.prizeAmount);
+await program.methods
+  .buyTicket({ numbers: [7, 14, 21, 28, 35, 42], useFreeTicket: false })
+  .accounts({
+    player: wallet.publicKey,
+    lotteryState: lotteryStatePda,
+    ticket: ticketPda,
+    playerUsdc: playerUsdcAta,       // player's USDC ATA
+    prizePoolUsdc: prizePoolUsdcPda, // PDA token account
+    houseFeeUsdc: houseFeeUsdcPda,   // PDA token account
+    insurancePoolUsdc: insurancePoolUsdcPda,
+    userStats: userStatsPda,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    systemProgram: SystemProgram.programId,
+  })
+  .rpc();
 
-// Claim prize (if winner)
-if (status.prizeAmount > 0 && !status.isClaimed) {
-  await lotto.claimPrize(wallet, ticket.publicKey);
+// Fetch ticket and check status
+const ticket = await program.account.ticketData.fetch(ticketPda);
+console.log('Match count:', ticket.matchCount);
+console.log('Prize amount:', ticket.prizeAmount.toNumber() / 1e6, 'USDC');
+
+// Claim prize (if winner and not yet claimed)
+if (ticket.prizeAmount.toNumber() > 0 && !ticket.isClaimed) {
+  await program.methods.claimPrize()
+    .accounts({ /* ...required accounts */ })
+    .rpc();
 }
 ```
 
@@ -841,119 +968,92 @@ if (status.prizeAmount > 0 && !status.isClaimed) {
 
 ## 📚 API Reference
 
-### Core Methods
+> ⚠️ **SDK NOT YET PUBLISHED** — The `@solanalotto/sdk` NPM package does not exist yet.
+> The API interfaces below describe the **planned SDK design**. For now, interact with the
+> on-chain programs directly via Anchor's generated client or the IDL.
+>
+> See the [Quick Start § For Developers](#for-developers) section above for working Anchor examples.
 
-#### `getLotteryState()`
+### On-Chain Program Instructions (Main Lottery)
 
-Returns current lottery state including jackpot, next draw time, etc.
+All instructions are called via Anchor's `program.methods.<instruction>()` pattern.
 
-```typescript
-interface LotteryState {
-  jackpotBalance: number;      // Current jackpot in USDC
-  reserveBalance: number;      // Reserve fund balance
-  currentDrawId: number;       // Current draw number
-  nextDrawTimestamp: number;   // Unix timestamp of next draw
-  totalTicketsSold: number;    // Lifetime tickets sold
-  isRolldownPending: boolean;  // Whether next draw is rolldown
-}
-```
+| Category | Instruction | Description |
+|----------|------------|-------------|
+| **Init** | `initialize(params)` | Create lottery state (once) |
+| **Init** | `fund_seed()` | Deposit seed USDC, unpause |
+| **Init** | `add_reserve_funds(amount)` | Add funds to reserve |
+| **Admin** | `pause(reason)` / `unpause()` | Emergency stop |
+| **Admin** | `propose_config(params)` | Start 24h timelock |
+| **Admin** | `execute_config(params)` | Apply config after timelock |
+| **Admin** | `cancel_config_proposal()` | Cancel pending config |
+| **Admin** | `check_solvency()` | Permissionless balance check |
+| **Admin** | `withdraw_house_fees(amount)` | Withdraw operator fees |
+| **Admin** | `propose_authority(pubkey)` | Step 1 of authority transfer |
+| **Admin** | `accept_authority()` | Step 2 of authority transfer |
+| **Admin** | `cancel_authority_transfer()` | Cancel pending transfer |
+| **Admin** | `cancel_draw()` | Recover stuck draw (timeout) |
+| **Admin** | `force_finalize_draw(reason)` | Emergency finalize (no prizes) |
+| **Admin** | `emergency_fund_transfer(source, amount, reason)` | Move funds between pools |
+| **Admin** | `reclaim_expired_prizes(params)` | Sweep unclaimed prizes (90d) |
+| **Ticket** | `buy_ticket(params)` | Buy single ticket (6 numbers) |
+| **Ticket** | `buy_bulk(params)` | Buy up to 50 tickets |
+| **Draw** | `commit_randomness()` | Commit phase (Switchboard) |
+| **Draw** | `execute_draw()` | Reveal phase (winning numbers) |
+| **Draw** | `finalize_draw(params)` | Set winner counts & prizes |
+| **Prize** | `claim_prize()` | Claim single ticket prize |
+| **Prize** | `claim_bulk_prize(params)` | Claim one from bulk ticket |
+| **Prize** | `claim_all_bulk_prizes()` | Claim all from bulk ticket |
+| **Syndicate** | `create_syndicate(params)` | Create group pool |
+| **Syndicate** | `join_syndicate(params)` | Join with USDC contribution |
+| **Syndicate** | `leave_syndicate()` | Leave and get refund |
+| **Syndicate** | `close_syndicate()` | Close (creator only, empty) |
+| **Syndicate** | `buy_syndicate_tickets(params)` | Buy tickets with pool funds |
+| **Syndicate** | `distribute_syndicate_prize(params)` | Distribute prize to members |
+| **Syndicate** | `claim_syndicate_member_prize(params)` | Member claims their share |
+| **Syndicate** | `update_syndicate_config(params)` | Update name/public/fee |
+| **Syndicate** | `remove_syndicate_member(params)` | Creator removes member |
+| **Syndicate** | `transfer_syndicate_creator(params)` | Transfer creator role |
+| **Wars** | `initialize_syndicate_wars(params)` | Start monthly competition |
+| **Wars** | `register_for_syndicate_wars()` | Register syndicate |
+| **Wars** | `update_syndicate_wars_stats(params)` | Update stats (authority) |
+| **Wars** | `finalize_syndicate_wars()` | End competition |
+| **Wars** | `distribute_syndicate_wars_prizes(params)` | Set ranks for top 10 |
+| **Wars** | `claim_syndicate_wars_prize(params)` | Claim competition prize |
 
-#### `buyTicket(wallet, numbers, options?)`
+### On-Chain Program Instructions (Quick Pick Express)
 
-Purchase a single ticket.
+| Instruction | Description |
+|------------|-------------|
+| `initialize(params)` | Create Quick Pick state |
+| `fund_seed()` | Deposit seed USDC, unpause |
+| `pause(reason)` / `unpause()` | Emergency stop |
+| `update_config(params)` | Update configuration |
+| `withdraw_house_fees(amount)` | Withdraw operator fees |
+| `add_reserve_funds(amount)` | Add reserve funds |
+| `cancel_draw(reason)` | Cancel stuck draw |
+| `force_finalize_draw(reason)` | Emergency finalize |
+| `emergency_fund_transfer(source, amount, reason)` | Move funds between pools |
+| `buy_ticket(params)` | Buy ticket (5 numbers, $50 gate) |
+| `commit_randomness()` | Commit phase |
+| `execute_draw()` | Reveal phase |
+| `finalize_draw(params)` | Set winners & prizes |
+| `claim_prize()` | Claim winning ticket |
 
-```typescript
-interface BuyTicketOptions {
-  priorityFee?: number;   // Lamports for priority
-  referrer?: string;      // Referral code
-  syndicate?: PublicKey;  // Syndicate pool address
-}
+### Planned SDK Methods (Future)
 
-// Returns
-interface TicketReceipt {
-  publicKey: PublicKey;   // Ticket account address
-  drawId: number;         // Draw this ticket is for
-  numbers: number[];      // Selected numbers
-  txSignature: string;    // Transaction signature
-}
-```
-
-#### `buyBulk(wallet, tickets, options?)`
-
-Purchase multiple tickets in one transaction.
-
-```typescript
-const tickets = [
-  [1, 2, 3, 4, 5, 6],
-  [7, 8, 9, 10, 11, 12],
-  // ... up to 10 tickets per transaction
-];
-
-const receipts = await lotto.buyBulk(wallet, tickets);
-```
-
-#### `getDrawResult(drawId)`
-
-Get results for a specific draw.
-
-```typescript
-interface DrawResult {
-  drawId: number;
-  winningNumbers: number[];
-  timestamp: number;
-  wasRolldown: boolean;
-  statistics: {
-    totalTickets: number;
-    match6Winners: number;
-    match5Winners: number;
-    match4Winners: number;
-    match3Winners: number;
-    match2Winners: number;
-    totalPrizesPaid: number;
-  };
-  randomnessProof: string;  // Switchboard randomness proof
-}
-```
-
-#### `claimPrize(wallet, ticketPubkey)`
-
-Claim winnings for a winning ticket.
+The following methods describe the **planned** `@solanalotto/sdk` API. These do **not exist yet**.
 
 ```typescript
-const result = await lotto.claimPrize(wallet, ticketPubkey);
-// Prize automatically transferred to wallet
-```
+// Planned — NOT YET IMPLEMENTED
+import { SolanaLotto } from '@solanalotto/sdk';
 
-### Syndicate Methods
-
-#### `createSyndicate(wallet, config)`
-
-Create a new syndicate pool.
-
-```typescript
-interface SyndicateConfig {
-  name: string;
-  isPublic: boolean;
-  minContribution: number;  // Minimum USDC to join
-  maxMembers: number;
-  managerFeeBps: number;    // Manager's cut (max 500 = 5%)
-}
-
-const syndicate = await lotto.createSyndicate(wallet, {
-  name: "Diamond Hands Pool",
-  isPublic: true,
-  minContribution: 100,
-  maxMembers: 100,
-  managerFeeBps: 200  // 2% manager fee
-});
-```
-
-#### `joinSyndicate(wallet, syndicatePubkey, amount)`
-
-Join an existing syndicate.
-
-```typescript
-await lotto.joinSyndicate(wallet, syndicatePubkey, 500); // Contribute $500
+const lotto = new SolanaLotto(connection);
+const state = await lotto.getLotteryState();
+await lotto.buyTicket(wallet, [7, 14, 21, 28, 35, 42]);
+await lotto.claimPrize(wallet, ticketPubkey);
+await lotto.createSyndicate(wallet, { name: "Alpha", isPublic: true, managerFeeBps: 200 });
+await lotto.joinSyndicate(wallet, syndicatePubkey, 500_000_000);
 ```
 
 ---
@@ -1042,6 +1142,38 @@ Nothing in this documentation constitutes financial, investment, legal, or tax a
 | 📧 Email | hello@solanalotto.io |
 | 🔒 Security | security@solanalotto.io |
 | 📄 GitHub | [github.com/solanalotto](https://github.com/solanalotto) |
+
+---
+
+## 📊 Implementation Status Summary
+
+| Category | Feature | Status |
+|----------|---------|--------|
+| **Core** | 6/46 Lottery (buy, bulk, claim) | ✅ |
+| **Core** | Quick Pick Express 5/35 (separate program) | ✅ |
+| **Core** | Switchboard commit-reveal randomness | ✅ |
+| **Core** | Dynamic house fee (28–40%) | ✅ |
+| **Core** | Soft/hard cap rolldown | ✅ |
+| **Core** | Fixed → pari-mutuel prize transition | ✅ |
+| **Core** | Insurance pool (2%) | ✅ |
+| **Syndicate** | Full CRUD + tickets + prizes | ✅ |
+| **Syndicate** | Syndicate Wars competition | ✅ |
+| **Admin** | Config timelock (24h) | ✅ |
+| **Admin** | Two-step authority transfer | ✅ |
+| **Admin** | Permissionless solvency check | ✅ |
+| **Admin** | Emergency fund transfer (daily cap) | ✅ |
+| **Admin** | Expired prize reclaim | ✅ |
+| **Admin** | Draw recovery (cancel / force finalize) | ✅ |
+| **Security** | Verification hash (SHA256) | ✅ |
+| **Security** | Statistical plausibility checks | ✅ |
+| **Security** | Entropy validation on randomness | ✅ |
+| **Partial** | Streak tracking | ⚠️ Tracked, bonus not applied |
+| **Partial** | MEV protection | ⚠️ Slot window only |
+| **Future** | Lucky Numbers NFT | ❌ Data struct only |
+| **Future** | Jito MEV integration | ❌ |
+| **Future** | Threshold encryption | ❌ |
+| **Future** | SDK (`@solanalotto/sdk`) | ❌ |
+| **Future** | Governance DAO | ❌ |
 
 ---
 

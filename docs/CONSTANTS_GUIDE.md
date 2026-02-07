@@ -444,6 +444,8 @@ pub fn should_quick_pick_rolldown(jackpot_balance: u64, random_value: u64) -> bo
 
 ## 9. Lucky Numbers NFT
 
+> ❌ **NOT YET IMPLEMENTED** — These constants exist in the on-chain program, but no instructions have been written to mint NFTs or claim bonuses. This is a design-only feature awaiting future implementation.
+
 Lucky Numbers NFT configuration for Match 4+ winners.
 
 | Constant | Value | Description |

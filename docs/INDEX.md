@@ -62,31 +62,61 @@
 
 ## 📋 Feature Implementation Status
 
-### ✅ Core Features (Documented & Specified)
+### ✅ Core Features (Implemented On-Chain)
 
 | Feature | Main Doc | Technical Spec | Status |
 |---------|----------|----------------|--------|
-| 6/46 Lottery | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
-| Rolldown Mechanism | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
-| Syndicate System | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
-| Streak Bonuses | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
-| Switchboard Randomness | WHITEPAPER.md | TECHNICAL_SPEC.md | ✅ Complete |
-| Insurance Pool System | WHITEPAPER.md | TECHNICAL_SPEC.md | ✅ Complete |
-| Emergency Fund Transfer | TECHNICAL_SPEC.md | TECHNICAL_SPEC.md | ✅ Complete |
+| 6/46 Lottery (buy, bulk buy, claim) | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Rolldown Mechanism (soft/hard cap) | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Syndicate System (full CRUD + tickets + prizes) | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Streak Tracking | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ⚠️ Tracked only — bonus never applied to prizes |
+| Switchboard Randomness (commit-reveal) | WHITEPAPER.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Insurance Pool System (2% allocation) | WHITEPAPER.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Emergency Fund Transfer (with daily cap) | TECHNICAL_SPEC.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Free Tickets (Match 2 credit) | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Two-Step Authority Transfer (propose/accept) | — | TECHNICAL_SPEC.md | ✅ Complete |
+| Config Timelock (propose/execute with 24h delay) | — | TECHNICAL_SPEC.md | ✅ Complete |
+| On-Chain Solvency Check (permissionless) | — | TECHNICAL_SPEC.md | ✅ Complete |
+| Expired Prize Reclaim | — | TECHNICAL_SPEC.md | ✅ Complete |
+| Draw Recovery (cancel_draw, force_finalize_draw) | — | TECHNICAL_SPEC.md | ✅ Complete |
+| Verification Hash (tamper-resistant winner counts) | — | TECHNICAL_SPEC.md | ✅ Complete |
+| Statistical Plausibility Checks | — | TECHNICAL_SPEC.md | ✅ Complete |
 
-### ✅ Advanced Features (v2.0 - Documented & Specified)
+### ✅ Advanced Features (Implemented On-Chain)
 
 | Feature | Specification | Technical Spec | Status |
 |---------|---------------|----------------|--------|
 | **🔒 Prize Transition System** | **Fixed → Pari-Mutuel** | **TECHNICAL_SPEC.md §12.4** | **✅ Complete** |
 | Dynamic House Fee | ADVANCED_FEATURES.md §1 | TECHNICAL_SPEC.md | ✅ Complete |
 | Soft/Hard Caps | ADVANCED_FEATURES.md §2 | TECHNICAL_SPEC.md | ✅ Complete |
-| Insurance Pool System | WHITEPAPER.md §8 | TECHNICAL_SPEC.md | ✅ Complete |
-| Emergency Fund Transfer | TECHNICAL_SPEC.md §6.1.12 | TECHNICAL_SPEC.md | ✅ Complete |
-| Lucky Numbers NFT | ADVANCED_FEATURES.md §3 | TECHNICAL_SPEC.md | ✅ Complete |
-| MEV Protection | ADVANCED_FEATURES.md §4 | TECHNICAL_SPEC.md | ✅ Complete |
-| Quick Pick Express | ADVANCED_FEATURES.md §5 | TECHNICAL_SPEC.md | ✅ Complete |
-| Syndicate Wars | ADVANCED_FEATURES.md §6 | TECHNICAL_SPEC.md | ✅ Complete |
+| Quick Pick Express (separate program) | ADVANCED_FEATURES.md §5 | TECHNICAL_SPEC.md | ✅ Complete |
+| Syndicate Wars (init, register, stats, finalize, prizes) | ADVANCED_FEATURES.md §6 | TECHNICAL_SPEC.md | ✅ Complete |
+
+### ⚠️ Partially Implemented
+
+| Feature | Specification | What Exists | What's Missing |
+|---------|---------------|-------------|----------------|
+| Streak Bonuses | SOLANA_LOTTO.md | `update_streak()` tracks streaks; `get_streak_bonus_bps()` computes bonus | Bonus is **never applied** in any prize calculation or ticket purchase |
+| MEV Protection | ADVANCED_FEATURES.md §4 | Slot window tightened to 10 slots (~4s) on randomness reveal | No Jito tip integration; no threshold encryption |
+
+### ❌ Not Yet Implemented (Design Only)
+
+| Feature | Specification | What Exists in Code | What's Missing |
+|---------|---------------|---------------------|----------------|
+| Lucky Numbers NFT | ADVANCED_FEATURES.md §3 | Data structure (`LuckyNumbersNFT`), constants, events, error codes | **No instructions** — cannot mint, claim bonuses, or govern NFTs |
+| Threshold Encryption MEV | ADVANCED_FEATURES.md §4.2-4.3 | Nothing | Entire feature — encrypted tickets, key management, decryption |
+| Jito Integration | ADVANCED_FEATURES.md §4.4 | Nothing | Jito tip accounts, bundle integration |
+| SDK (`@solanalotto/sdk`) | QUICK_START.md, SOLANA_LOTTO.md | Nothing | No NPM package exists; API examples in docs are aspirational |
+| Governance DAO | WHITEPAPER.md §6.1 | Nothing | No on-chain governance — authority is a single signer |
+| White-label / Cross-chain / DAO Transition | Roadmap | Nothing | Future roadmap items |
+
+### 🗑️ Removed Features (Documented as Removed)
+
+| Feature | Previously In | Removal Note |
+|---------|---------------|--------------|
+| Mega Events | ADVANCED_FEATURES.md | Removed in v2.5 |
+| $LOTTO Token & Staking | WHITEPAPER.md, TECHNICAL_SPEC.md | Removed in v2.3 |
+| Second Chance Draws | TECHNICAL_SPEC.md | Removed in v2.2 (struct reference cleaned up in v3.0) |
 
 > **🔒 CRITICAL DESIGN FEATURE:** All prizes START as FIXED amounts during normal operation, then TRANSITION to PARI-MUTUEL (shared pool) during rolldown events and high-volume draws. This hybrid system ensures **operator liability is ALWAYS CAPPED** while maintaining attractive +EV windows for players.
 
@@ -181,28 +211,31 @@
 
 ## 📈 Implementation Roadmap
 
-From [ADVANCED_FEATURES.md §8](./ADVANCED_FEATURES.md#8-implementation-priority):
+### ✅ Completed (On-Chain Programs Deployed/Deployable)
+- Main lottery program: initialize, fund, buy, bulk buy, draw lifecycle, claim, syndicate, syndicate wars, admin, emergency, solvency, timelock config, authority transfer, expired prize reclaim
+- Quick Pick Express program: initialize, fund, buy, draw lifecycle, claim, admin, emergency
+- Dynamic house fee system ✅
+- Soft/hard rolldown caps ✅
+- Insurance pool system ✅
+- Emergency fund transfer ✅
+- Syndicate Wars competition ✅
+- Quick Pick Express game ✅
+- Verification hash & statistical plausibility checks ✅
+- Two-step authority transfer ✅
+- Config timelock (propose/execute) ✅
+- On-chain solvency verification ✅
 
-### Phase 1: Security & Core (Months 1-2)
-- Jito MEV protection
-- Dynamic house fee system
-- Soft/hard rolldown caps
-- Insurance pool system ✅ **COMPLETE**
-- Emergency fund transfer ✅ **COMPLETE**
+### 🔜 Next Priority
+- Apply streak bonus to prize calculations (logic exists, just not wired up)
+- Lucky Numbers NFT instructions (data structure ready)
+- Jito MEV protection integration
+- Client SDK package (`@solanalotto/sdk`)
 
-### Phase 2: Engagement (Months 3-5)
-- Syndicate Wars competition
-- Quick Pick Express game
-- Enhanced dashboards
-
-### Phase 3: Premium Features (Months 6-9)
-- Lucky Numbers NFT system
-- Advanced MEV protection (Threshold Encryption)
-
-### Phase 4: Scale (Months 10-12)
+### 🔮 Future
+- Threshold encryption MEV protection
+- On-chain governance DAO (replace single-signer authority)
 - White-label platform
 - Cross-chain deployment
-- DAO transition
 
 ---
 
@@ -210,6 +243,9 @@ From [ADVANCED_FEATURES.md §8](./ADVANCED_FEATURES.md#8-implementation-priority
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v3.0 | 2025 | **Docs audit**: Corrected implementation status for all features; marked Lucky Numbers NFT, MEV (Jito/Threshold), SDK, and DAO as NOT YET IMPLEMENTED; marked streak bonus as tracked-only |
+| v3.0 | 2025 | Removed references to TOKEN MODULE, GOV MODULE, SecondChanceEntry, and separate TicketManager/DrawEngine/PrizePool programs that never existed |
+| v3.0 | 2025 | Documented newly implemented features: config timelock, 2-step authority transfer, solvency check, expired prize reclaim, draw recovery, verification hash, statistical plausibility checks |
 | v2.5 | 2025 | Removed Mega Events feature from all documentation and code |
 | v2.4 | 2025 | Updated Quick Pick Express: 5/35 matrix, $1.50 tickets, **+59% rolldown exploit**, no free ticket, $50 gate |
 | v2.3 | 2025 | Removed $LOTTO token and staking features |
@@ -272,14 +308,14 @@ From [ADVANCED_FEATURES.md §8](./ADVANCED_FEATURES.md#8-implementation-priority
 
 <div align="center">
 
-**SolanaLotto Protocol v2.4**
+**SolanaLotto Protocol v3.0**
 
 *Complete documentation for the world's first intentionally exploitable lottery*
 
-📚 **5 Documents** | 🎰 **9 Advanced Features** | 💰 **$12.3M Annual Profit Target**
+📚 **6 Documents** | 🎰 **2 On-Chain Programs (38+ instructions)** | 💰 **$12.3M Annual Profit Target**
 
 > **🔒 CORE PROTECTION:** All prizes START as FIXED amounts, then TRANSITION to PARI-MUTUEL during rolldown events. Operator liability is ALWAYS CAPPED while players enjoy +EV windows.
 
-> **🛡️ FUND PROTECTION:** 5% safety buffer (3% reserve + 2% insurance) protects against insolvency. Emergency transfers require multi-sig approval with full audit trail.
+> **🛡️ FUND PROTECTION:** 5% safety buffer (3% reserve + 2% insurance) protects against insolvency. Emergency transfers require authority approval with daily caps and full audit trail.
 
 </div>
