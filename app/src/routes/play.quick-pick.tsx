@@ -44,7 +44,7 @@ const LIFETIME_GATE = 50; // $50 lifetime spend required
 const PRIZE_TIERS = [
   { match: 5, prize: "Jackpot", odds: "1 in 324,632", color: "gold" as const },
   { match: 4, prize: "$100", odds: "1 in 2,164", color: "emerald" as const },
-  { match: 3, prize: "$4", odds: "1 in 74.6", color: "emerald" as const },
+  { match: 3, prize: "$4", odds: "1 in 75", color: "emerald" as const },
   { match: 2, prize: "—", odds: "1 in 8.6", color: "muted" as const },
 ];
 
