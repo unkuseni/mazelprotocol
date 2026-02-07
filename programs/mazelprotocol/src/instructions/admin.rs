@@ -1247,6 +1247,12 @@ pub fn handler_force_finalize_draw(ctx: Context<ForceFinalizeDraw>, reason: Stri
     draw_result.match_2_prize_per_winner = 0;
     draw_result.is_explicitly_finalized = true;
 
+    // Fix #3: Force-finalized draws have zero committed prizes and zero reclaimed.
+    // This ensures reclaim_expired_prizes cannot extract anything from a
+    // force-finalized draw (total_committed = 0 → reclaimable = 0).
+    draw_result.total_committed = 0;
+    draw_result.total_reclaimed = 0;
+
     let lottery_state = &mut ctx.accounts.lottery_state;
 
     let draw_id = lottery_state.current_draw_id;
@@ -1712,7 +1718,10 @@ pub struct ReclaimExpiredPrizes<'info> {
     /// The DrawResult for the expired draw.
     /// Used to verify the draw exists, is finalized, and its claim window
     /// has expired based on TICKET_CLAIM_EXPIRATION.
+    /// Fix #3: Made mutable so we can increment `total_reclaimed` to enforce
+    /// per-draw reclaim bounds and prevent cross-draw theft / double-reclaiming.
     #[account(
+        mut,
         seeds = [DRAW_SEED, &params.draw_id.to_le_bytes()],
         bump = draw_result.bump,
         constraint = draw_result.draw_id == params.draw_id @ LottoError::DrawIdMismatch
@@ -1768,15 +1777,42 @@ pub fn handler_reclaim_expired_prizes(
     // 3. Validate amount
     require!(params.amount > 0, LottoError::InvalidAmount);
 
-    let lottery_state = &mut ctx.accounts.lottery_state;
+    // =========================================================================
+    // Fix #3: Per-draw reclaim safety — enforce per-draw bounds BEFORE the
+    // global check. This prevents cross-draw theft where the authority could
+    // reclaim more than what was committed for THIS specific draw by exploiting
+    // the global total_prizes_committed across multiple draws.
+    // =========================================================================
 
-    // 4. Ensure reclaim does not exceed total committed
+    // 4a. Per-draw bound: reclaim cannot exceed what remains for this draw
+    let reclaimable = draw_result.get_reclaimable_amount();
+    require!(
+        params.amount <= reclaimable,
+        LottoError::ReclaimAmountExceedsCommitted
+    );
+
+    // 4b. Defense-in-depth: also enforce the global bound
+    let lottery_state = &mut ctx.accounts.lottery_state;
     require!(
         params.amount <= lottery_state.total_prizes_committed,
         LottoError::ReclaimAmountExceedsCommitted
     );
 
-    // 5. Decrement total_prizes_committed and credit reserve_balance
+    // 5. Increment per-draw total_reclaimed (must happen before global update)
+    let draw_result = &mut ctx.accounts.draw_result;
+    draw_result.total_reclaimed = draw_result
+        .total_reclaimed
+        .checked_add(params.amount)
+        .ok_or(LottoError::Overflow)?;
+
+    msg!(
+        "  Per-draw accounting: committed={}, reclaimed={} (reclaimable_before={})",
+        draw_result.total_committed,
+        draw_result.total_reclaimed,
+        reclaimable
+    );
+
+    // 6. Decrement global total_prizes_committed and credit reserve_balance
     lottery_state.total_prizes_committed = lottery_state
         .total_prizes_committed
         .saturating_sub(params.amount);
@@ -1785,7 +1821,7 @@ pub fn handler_reclaim_expired_prizes(
         .checked_add(params.amount)
         .ok_or(LottoError::Overflow)?;
 
-    // 6. Emit audit event
+    // 7. Emit audit event
     emit!(ExpiredPrizesReclaimed {
         draw_id: params.draw_id,
         amount_reclaimed: params.amount,

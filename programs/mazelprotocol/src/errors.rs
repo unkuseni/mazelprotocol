@@ -619,6 +619,33 @@ pub enum LottoError {
     /// Distribution already completed for this competition
     #[msg("Prizes have already been distributed for this competition.")]
     AlreadyDistributed,
+
+    // ==========================================================================
+    // SYNDICATE PRIZE VERIFICATION (Audit Fix #7)
+    // ==========================================================================
+    /// Ticket does not belong to the specified syndicate
+    #[msg("Ticket does not belong to this syndicate.")]
+    SyndicateTicketNotOwned,
+
+    /// Ticket draw ID does not match the distribution draw ID
+    #[msg("Ticket draw ID does not match the distribution draw ID.")]
+    SyndicateTicketDrawMismatch,
+
+    /// Ticket has already been processed for syndicate distribution
+    #[msg("Ticket has already been claimed/processed for syndicate distribution.")]
+    SyndicateTicketAlreadyClaimed,
+
+    /// The draw result has not been finalized yet
+    #[msg("Draw result must be finalized before distributing syndicate prizes.")]
+    DrawNotFinalized,
+
+    /// No winning tickets found in the provided batch
+    #[msg("No winning tickets found in the provided remaining accounts batch.")]
+    NoWinningTicketsInBatch,
+
+    /// Failed to deserialize a ticket account from remaining_accounts
+    #[msg("Failed to deserialize ticket account from remaining_accounts.")]
+    InvalidTicketAccount,
 }
 
 impl From<LottoError> for ProgramError {

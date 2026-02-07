@@ -612,8 +612,8 @@ pub mod solana_lotto {
     /// # Arguments
     /// * `ctx` - DistributeSyndicatePrize accounts context
     /// * `params` - Prize distribution parameters
-    pub fn distribute_syndicate_prize(
-        ctx: Context<DistributeSyndicatePrize>,
+    pub fn distribute_syndicate_prize<'info>(
+        ctx: Context<'_, '_, 'info, 'info, DistributeSyndicatePrize<'info>>,
         params: DistributeSyndicatePrizeParams,
     ) -> Result<()> {
         instructions::syndicate::handler_distribute_syndicate_prize(ctx, params)

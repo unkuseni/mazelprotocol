@@ -845,6 +845,11 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         .total_prizes_committed
         .saturating_add(prize_calc.total_distributed);
 
+    // Fix #3: Snapshot total_committed on the DrawResult so that
+    // reclaim_expired_prizes can enforce per-draw reclaim bounds.
+    // total_reclaimed was already initialized to 0 in execute_draw.
+    draw_result.total_committed = prize_calc.total_distributed;
+
     // Reset for next draw using helper method
     lottery_state.reset_draw_state();
     lottery_state.current_draw_id = lottery_state.current_draw_id.saturating_add(1);

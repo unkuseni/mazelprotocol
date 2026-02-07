@@ -15,6 +15,7 @@
 //! - No free tickets (Match 2 doesn't exist)
 
 use anchor_lang::prelude::*;
+use anchor_lang::AccountDeserialize;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::*;
@@ -187,8 +188,33 @@ fn validate_quick_pick_numbers_internal(numbers: &[u8; 5]) -> Result<()> {
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
-/// Manually verify the UserStats account from the main lottery program
-/// and extract the total_spent value for the $50 gate check.
+/// Verify the UserStats account from the main lottery program and extract
+/// the `total_spent` value for the $50 gate check.
+///
+/// ## Fix #4 — Type-safe cross-program deserialization
+///
+/// Previously this function extracted `total_spent` via a hard-coded byte
+/// offset (`data[48..56]`). That is fragile: if the main lottery ever
+/// reorders fields, adds a field before `total_spent`, or changes a field's
+/// size, the offset silently reads garbage and the gate check produces
+/// incorrect results (either blocking legitimate users or allowing
+/// unqualified ones through).
+///
+/// The new implementation uses Anchor's `UserStats::try_deserialize` which:
+/// 1. Validates the 8-byte Anchor discriminator (`sha256("account:UserStats")[..8]`)
+/// 2. Borsh-deserializes every field in declared order
+/// 3. Fails loudly with a clear error if the struct layout doesn't match
+///
+/// We still perform the two manual checks that Anchor can't do for a
+/// cross-program account:
+/// - **Owner check**: account must be owned by the main lottery program
+/// - **PDA derivation**: account address must equal the expected PDA
+///
+/// ### Coordination note
+/// The QuickPick `UserStats` struct (in `state.rs`) must stay in sync with
+/// the main lottery's `UserStats` (same field order, types, sizes). This is
+/// safer than raw offsets because any mismatch causes a deserialization
+/// error rather than silent corruption.
 fn verify_main_lottery_user_stats(
     user_stats_info: &AccountInfo,
     player_key: &Pubkey,
@@ -212,40 +238,21 @@ fn verify_main_lottery_user_stats(
         QuickPickError::InsufficientMainLotterySpend
     );
 
-    // 3. Read account data and verify discriminator
+    // 3. Deserialize using Anchor's typed deserialization.
+    //    `try_deserialize` checks the 8-byte discriminator and then
+    //    Borsh-deserializes all fields. If the struct layout doesn't match
+    //    (e.g. a field was added/removed/reordered in the main program),
+    //    this will return an error instead of silently reading wrong data.
     let data = user_stats_info.try_borrow_data()?;
+    let mut data_slice: &[u8] = &data;
 
-    // Minimum size: 8 (discriminator) + 32 (wallet) + 8 (total_tickets) + 8 (total_spent) = 56
-    require!(
-        data.len() >= 56,
+    let user_stats = crate::state::UserStats::try_deserialize(&mut data_slice).map_err(|_| {
+        msg!("Failed to deserialize main-lottery UserStats account");
         QuickPickError::InsufficientMainLotterySpend
-    );
+    })?;
 
-    // Verify Anchor discriminator for "account:UserStats"
-    // sha256("account:UserStats")[..8]
-    let expected_discriminator: [u8; 8] = {
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        hasher.update(b"account:UserStats");
-        let result = hasher.finalize();
-        let mut disc = [0u8; 8];
-        disc.copy_from_slice(&result[..8]);
-        disc
-    };
-
-    require!(
-        data[..8] == expected_discriminator,
-        QuickPickError::InsufficientMainLotterySpend
-    );
-
-    // 4. Extract total_spent (offset: 8 disc + 32 wallet + 8 total_tickets = 48)
-    let total_spent = u64::from_le_bytes(
-        data[48..56]
-            .try_into()
-            .map_err(|_| QuickPickError::InsufficientMainLotterySpend)?,
-    );
-
-    Ok(total_spent)
+    // 4. Return total_spent via typed field access (no byte offsets!)
+    Ok(user_stats.total_spent)
 }
 
 pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParams) -> Result<()> {

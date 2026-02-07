@@ -483,6 +483,16 @@ pub struct DrawResult {
     /// Explicit flag set when draw is finalized (handles edge cases)
     pub is_explicitly_finalized: bool,
 
+    /// Total prizes committed for this draw at finalization time (in USDC lamports).
+    /// Set to `total_distributed` during `finalize_draw`. Used by `reclaim_expired_prizes`
+    /// to enforce per-draw reclaim bounds and prevent cross-draw theft.
+    pub total_committed: u64,
+
+    /// Total prizes reclaimed from this draw so far (in USDC lamports).
+    /// Incremented by `reclaim_expired_prizes`. The invariant
+    /// `total_reclaimed <= total_committed` is enforced on every reclaim.
+    pub total_reclaimed: u64,
+
     /// PDA bump seed
     pub bump: u8,
 }
@@ -510,6 +520,13 @@ impl DrawResult {
             || self.match_5_prize_per_winner > 0
             || self.match_4_prize_per_winner > 0
             || self.match_3_prize_per_winner > 0
+    }
+
+    /// Returns the maximum amount that can still be reclaimed from this draw.
+    /// This is `total_committed - total_reclaimed`, i.e. whatever was promised
+    /// at finalization minus what has already been swept back into reserve.
+    pub fn get_reclaimable_amount(&self) -> u64 {
+        self.total_committed.saturating_sub(self.total_reclaimed)
     }
 }
 

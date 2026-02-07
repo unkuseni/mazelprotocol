@@ -279,8 +279,10 @@ pub const DRAW_RESULT_SIZE: usize = 8 + // discriminator
     8 +  // match_3_prize_per_winner
     8 +  // match_2_prize_per_winner
     1 +  // is_explicitly_finalized
+    8 +  // total_committed (Fix #3: per-draw reclaim accounting)
+    8 +  // total_reclaimed (Fix #3: per-draw reclaim accounting)
     1 +  // bump
-    32; // padding
+    16; // padding (reduced from 32 to accommodate new fields)
 
 /// Ticket account size
 pub const TICKET_SIZE: usize = 8 + // discriminator
