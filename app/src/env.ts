@@ -17,9 +17,9 @@ export const env = createEnv({
    */
   server: {
     // // Application configuration
-    // NODE_ENV: z
-    //   .enum(["development", "test", "production"])
-    //   .default("development"),
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
 
     // // Server URLs
     // SERVER_URL: z.string().url().optional(),
@@ -108,6 +108,7 @@ export type EnvSchema = typeof env;
 
 // Server environment variables (from the server schema)
 export type ServerEnv = {
+  NODE_ENV: string;
   REOWN_PROJECT_ID?: string;
 };
 
@@ -133,9 +134,9 @@ export function getCloudflareEnv(
   // Create a server-only env validation
   const serverEnv = createEnv({
     server: {
-      // NODE_ENV: z
-      //   .enum(["development", "test", "production"])
-      //   .default("development"),
+      NODE_ENV: z
+        .enum(["development", "test", "production"])
+        .default("development"),
       // SERVER_URL: z.string().url().optional(),
       // API_BASE_URL: z.string().url().optional(),
       // DATABASE_URL: z.string().url().optional(),
@@ -170,19 +171,19 @@ export function isCloudflareWorker(): boolean {
   );
 }
 
-// /**
-//  * Helper to check if we're running in development mode.
-//  */
-// export function isDevelopment(): boolean {
-//   return env.NODE_ENV === "development";
-// }
+/**
+ * Helper to check if we're running in development mode.
+ */
+export function isDevelopment(): boolean {
+  return env.NODE_ENV === "development";
+}
 
-// /**
-//  * Helper to check if we're running in production mode.
-//  */
-// export function isProduction(): boolean {
-//   return env.NODE_ENV === "production";
-// }
+/**
+ * Helper to check if we're running in production mode.
+ */
+export function isProduction(): boolean {
+  return env.NODE_ENV === "production";
+}
 
 /**
  * Helper to get the appropriate API base URL.
