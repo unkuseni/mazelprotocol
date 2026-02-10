@@ -11,3 +11,4 @@ test-ledger
 .dev.vars
 bot/src/idl/*.json
 bot/dist
+app-backup

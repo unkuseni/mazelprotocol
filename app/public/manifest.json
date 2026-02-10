@@ -1,7 +1,6 @@
 {
-  "short_name": "MazelProtocol",
-  "name": "MazelProtocol",
-  "description": "The world's first intentionally exploitable lottery with positive expected value windows",
+  "short_name": "TanStack App",
+  "name": "Create TanStack App Sample",
   "icons": [
     {
       "src": "favicon.ico",
@@ -21,10 +20,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#7c3aed",
-  "background_color": "#0f172a",
-  "categories": ["finance", "entertainment"],
-  "orientation": "portrait",
-  "scope": "/",
-  "lang": "en"
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
 }
