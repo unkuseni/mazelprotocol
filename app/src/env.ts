@@ -69,7 +69,7 @@ export const env = createEnv({
     // VITE_WS_URL: z.string().url().optional(),
 
     // Third-party services (public keys only)
-    VITE_REOWN_PROJECT_ID: z.string().min(1).optional(),
+    VITE_REOWN_PROJECT_ID: z.string().min(1),
     // VITE_GOOGLE_ANALYTICS_ID: z.string().optional(),
 
     // Feature flags for client-side
