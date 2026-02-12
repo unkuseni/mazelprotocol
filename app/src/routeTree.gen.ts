@@ -10,11 +10,35 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SyndicatesIndexRouteImport } from './routes/syndicates/index'
+import { Route as PlayIndexRouteImport } from './routes/play/index'
+import { Route as PlayQuickPickRouteImport } from './routes/play/quick-pick'
+import { Route as LearnRolldownRouteImport } from './routes/learn/rolldown'
 import { Route as ApiTrpcSplatRouteImport } from './routes/api/trpc/$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyndicatesIndexRoute = SyndicatesIndexRouteImport.update({
+  id: '/syndicates/',
+  path: '/syndicates/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayIndexRoute = PlayIndexRouteImport.update({
+  id: '/play/',
+  path: '/play/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayQuickPickRoute = PlayQuickPickRouteImport.update({
+  id: '/play/quick-pick',
+  path: '/play/quick-pick',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnRolldownRoute = LearnRolldownRouteImport.update({
+  id: '/learn/rolldown',
+  path: '/learn/rolldown',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiTrpcSplatRoute = ApiTrpcSplatRouteImport.update({
@@ -25,27 +49,62 @@ const ApiTrpcSplatRoute = ApiTrpcSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/learn/rolldown': typeof LearnRolldownRoute
+  '/play/quick-pick': typeof PlayQuickPickRoute
+  '/play/': typeof PlayIndexRoute
+  '/syndicates/': typeof SyndicatesIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/learn/rolldown': typeof LearnRolldownRoute
+  '/play/quick-pick': typeof PlayQuickPickRoute
+  '/play': typeof PlayIndexRoute
+  '/syndicates': typeof SyndicatesIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/learn/rolldown': typeof LearnRolldownRoute
+  '/play/quick-pick': typeof PlayQuickPickRoute
+  '/play/': typeof PlayIndexRoute
+  '/syndicates/': typeof SyndicatesIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/trpc/$'
+  fullPaths:
+    | '/'
+    | '/learn/rolldown'
+    | '/play/quick-pick'
+    | '/play/'
+    | '/syndicates/'
+    | '/api/trpc/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/trpc/$'
-  id: '__root__' | '/' | '/api/trpc/$'
+  to:
+    | '/'
+    | '/learn/rolldown'
+    | '/play/quick-pick'
+    | '/play'
+    | '/syndicates'
+    | '/api/trpc/$'
+  id:
+    | '__root__'
+    | '/'
+    | '/learn/rolldown'
+    | '/play/quick-pick'
+    | '/play/'
+    | '/syndicates/'
+    | '/api/trpc/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LearnRolldownRoute: typeof LearnRolldownRoute
+  PlayQuickPickRoute: typeof PlayQuickPickRoute
+  PlayIndexRoute: typeof PlayIndexRoute
+  SyndicatesIndexRoute: typeof SyndicatesIndexRoute
   ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
 }
 
@@ -56,6 +115,34 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/syndicates/': {
+      id: '/syndicates/'
+      path: '/syndicates'
+      fullPath: '/syndicates/'
+      preLoaderRoute: typeof SyndicatesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/play/': {
+      id: '/play/'
+      path: '/play'
+      fullPath: '/play/'
+      preLoaderRoute: typeof PlayIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/play/quick-pick': {
+      id: '/play/quick-pick'
+      path: '/play/quick-pick'
+      fullPath: '/play/quick-pick'
+      preLoaderRoute: typeof PlayQuickPickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/rolldown': {
+      id: '/learn/rolldown'
+      path: '/learn/rolldown'
+      fullPath: '/learn/rolldown'
+      preLoaderRoute: typeof LearnRolldownRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/trpc/$': {
@@ -70,6 +157,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LearnRolldownRoute: LearnRolldownRoute,
+  PlayQuickPickRoute: PlayQuickPickRoute,
+  PlayIndexRoute: PlayIndexRoute,
+  SyndicatesIndexRoute: SyndicatesIndexRoute,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,
 }
 export const routeTree = rootRouteImport

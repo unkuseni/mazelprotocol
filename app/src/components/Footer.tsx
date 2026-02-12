@@ -60,6 +60,7 @@ const footerSections = [
 function FooterLogoMark() {
   return (
     <div className="relative w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-linear-to-br from-emerald to-emerald-dark">
+      {/** biome-ignore lint/a11y/noSvgWithoutTitle: <Does not have a title> */}
       <svg
         viewBox="0 0 32 32"
         className="w-6 h-6"
@@ -81,7 +82,7 @@ function FooterLogoMark() {
           stroke="none"
         />
       </svg>
-      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/20 pointer-events-none" />
+      <div className="absolute inset-0 bg-linear-to-tr from-transparent via-white/10 to-white/20 pointer-events-none" />
     </div>
   );
 }
