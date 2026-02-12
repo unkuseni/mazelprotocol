@@ -28,6 +28,7 @@ import {
 } from "@/components/CountdownTimer";
 import { LotteryBallRow, FloatingBalls } from "@/components/LotteryBalls";
 import Footer from "@/components/Footer";
+import { useId } from "react";
 
 export const Route = createFileRoute("/")({ component: LandingPage });
 
@@ -305,6 +306,8 @@ function LandingPage() {
     },
   ];
 
+  const memberAvatarIds = [useId(), useId(), useId(), useId(), useId()];
+
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* ================================================================== */}
@@ -351,7 +354,7 @@ function LandingPage() {
                 {isConnected ? (
                   <Link
                     to="/play"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-white dark:text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-lg shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-white dark:text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-lg shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <Trophy size={18} />
                     <span>Start Playing</span>
@@ -363,7 +366,7 @@ function LandingPage() {
                     onClick={() =>
                       open({ view: "Connect", namespace: "solana" })
                     }
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-white dark:text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-lg shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-white dark:text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-lg shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <Wallet size={18} />
                     <span>Connect Wallet & Play</span>
@@ -477,9 +480,9 @@ function LandingPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
             {/* Main Lottery Card */}
-            <div className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:translate-y-[-2px]">
+            <div className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5">
               {/* Border gradient */}
-              <div className="absolute inset-0 rounded-2xl p-px bg-gradient-to-br from-emerald/30 via-emerald/10 to-transparent">
+              <div className="absolute inset-0 rounded-2xl p-px bg-linear-to-br from-emerald/30 via-emerald/10 to-transparent">
                 <div className="w-full h-full rounded-2xl bg-card dark:bg-navy-light/90" />
               </div>
 
@@ -518,7 +521,7 @@ function LandingPage() {
 
                 {/* Stats grid */}
                 <div className="grid grid-cols-3 gap-3 mb-5">
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.04]">
+                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
                     <div className="text-sm font-bold text-foreground">
                       Daily
                     </div>
@@ -526,13 +529,13 @@ function LandingPage() {
                       Draw Freq
                     </div>
                   </div>
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.04]">
+                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
                     <div className="text-sm font-bold text-gold">+11.2%</div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
                       Rolldown EV
                     </div>
                   </div>
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.04]">
+                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
                     <div className="text-sm font-bold text-foreground">
                       $1.75M
                     </div>
@@ -545,7 +548,7 @@ function LandingPage() {
                 {/* CTA */}
                 <Link
                   to="/play"
-                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white dark:text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-md shadow-emerald/15 hover:shadow-emerald/25"
+                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white dark:text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-md shadow-emerald/15 hover:shadow-emerald/25"
                 >
                   <span>Play 6/46 Lottery</span>
                   <ArrowRight size={16} />
@@ -554,9 +557,9 @@ function LandingPage() {
             </div>
 
             {/* Quick Pick Card */}
-            <div className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:translate-y-[-2px]">
+            <div className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5">
               {/* Border gradient */}
-              <div className="absolute inset-0 rounded-2xl p-px bg-gradient-to-br from-gold/30 via-gold/10 to-transparent">
+              <div className="absolute inset-0 rounded-2xl p-px bg-linear-to-br from-gold/30 via-gold/10 to-transparent">
                 <div className="w-full h-full rounded-2xl bg-card dark:bg-navy-light/90" />
               </div>
 
@@ -595,7 +598,7 @@ function LandingPage() {
 
                 {/* Stats grid */}
                 <div className="grid grid-cols-3 gap-3 mb-5">
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.04]">
+                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
                     <div className="text-sm font-bold text-foreground">
                       4 hrs
                     </div>
@@ -603,13 +606,13 @@ function LandingPage() {
                       Draw Freq
                     </div>
                   </div>
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.04]">
+                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
                     <div className="text-sm font-bold text-gold">+59%</div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
                       Rolldown EV
                     </div>
                   </div>
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.04]">
+                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
                     <div className="text-sm font-bold text-foreground">$50</div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
                       Spend Gate
@@ -618,14 +621,14 @@ function LandingPage() {
                 </div>
 
                 {/* Quick Pick countdown */}
-                <div className="flex items-center justify-center mb-4 p-2 rounded-lg bg-foreground/[0.02] border border-foreground/[0.05]">
+                <div className="flex items-center justify-center mb-4 p-2 rounded-lg bg-foreground/2 border border-foreground/5">
                   <QuickPickCountdown size="sm" />
                 </div>
 
                 {/* CTA */}
                 <Link
                   to="/play/quick-pick"
-                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-navy bg-gradient-to-r from-gold-light to-gold hover:from-gold-light hover:to-gold-dark rounded-xl transition-all duration-300 shadow-md shadow-gold/15 hover:shadow-gold/25"
+                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-navy bg-linear-to-r from-gold-light to-gold hover:from-gold-light hover:to-gold-dark rounded-xl transition-all duration-300 shadow-md shadow-gold/15 hover:shadow-gold/25"
                 >
                   <span>Play Quick Pick</span>
                   <Zap size={16} />
@@ -670,7 +673,7 @@ function LandingPage() {
             {/* EV Comparison Visual */}
             <div className="lg:sticky lg:top-24">
               <div className="rounded-2xl overflow-hidden">
-                <div className="bg-gradient-to-br from-card to-muted dark:from-navy-light dark:to-navy border border-border rounded-2xl p-6 sm:p-8">
+                <div className="bg-linear-to-br from-card to-muted dark:from-navy-light dark:to-navy border border-border rounded-2xl p-6 sm:p-8">
                   <h3 className="heading-5 text-foreground mb-6 flex items-center gap-2">
                     <BarChart3 size={20} className="text-emerald" />
                     Economic Advantage
@@ -688,7 +691,7 @@ function LandingPage() {
                     </div>
                     <div className="h-2.5 bg-foreground/5 rounded-full overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-red-500/80 to-red-600/80 transition-all duration-1000"
+                        className="h-full rounded-full bg-linear-to-r from-red-500/80 to-red-600/80 transition-all duration-1000"
                         style={{ width: "34%" }}
                       />
                     </div>
@@ -709,7 +712,7 @@ function LandingPage() {
                     </div>
                     <div className="h-2.5 bg-foreground/5 rounded-full overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-emerald to-emerald-light transition-all duration-1000"
+                        className="h-full rounded-full bg-linear-to-r from-emerald to-emerald-light transition-all duration-1000"
                         style={{ width: "100%" }}
                       />
                     </div>
@@ -811,15 +814,15 @@ function LandingPage() {
                   transition-all duration-300 hover:translate-x-1
                   ${
                     i === 0
-                      ? "bg-gradient-to-r from-gold/10 via-gold/5 to-transparent border border-gold/15 hover:border-gold/30"
-                      : "bg-foreground/[0.02] border border-foreground/[0.06] hover:border-emerald/20"
+                      ? "bg-linear-to-r from-gold/10 via-gold/5 to-transparent border border-gold/15 hover:border-gold/30"
+                      : "bg-foreground/2 border border-foreground/6 hover:border-emerald/20"
                   }
                 `}
               >
                 {/* Tier badge */}
                 <div
                   className={`
-                    flex-shrink-0 w-20 text-center
+                    shrink-0 w-20 text-center
                   `}
                 >
                   <div
@@ -849,7 +852,7 @@ function LandingPage() {
                 </div>
 
                 {/* Odds */}
-                <div className="flex-shrink-0 text-right">
+                <div className="shrink-0 text-right">
                   <div className="text-sm font-medium text-foreground/80">
                     {tier.odds}
                   </div>
@@ -871,7 +874,7 @@ function LandingPage() {
             ].map((param) => (
               <div
                 key={param.label}
-                className="text-center p-3 rounded-xl bg-foreground/[0.02] border border-foreground/[0.06]"
+                className="text-center p-3 rounded-xl bg-foreground/2 border border-foreground/6"
               >
                 <div className="text-xs text-muted-foreground mb-0.5">
                   {param.label}
@@ -925,7 +928,7 @@ function LandingPage() {
                   <div key={item} className="flex items-start gap-2.5">
                     <CheckCircle
                       size={16}
-                      className="text-emerald mt-0.5 flex-shrink-0"
+                      className="text-emerald mt-0.5 shrink-0"
                     />
                     <span className="text-sm text-foreground/80">{item}</span>
                   </div>
@@ -945,10 +948,10 @@ function LandingPage() {
             {/* Right: Syndicate visual card */}
             <div className="flex justify-center">
               <div className="w-full max-w-sm rounded-2xl overflow-hidden">
-                <div className="bg-gradient-to-br from-card to-muted dark:from-navy-light dark:to-navy border border-border rounded-2xl p-6">
+                <div className="bg-linear-to-br from-card to-muted dark:from-navy-light dark:to-navy border border-border rounded-2xl p-6">
                   {/* Syndicate header */}
                   <div className="flex items-center gap-3 mb-5">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald to-emerald-dark flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald to-emerald-dark flex items-center justify-center">
                       <Star size={18} className="text-white" />
                     </div>
                     <div>
@@ -963,7 +966,7 @@ function LandingPage() {
 
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-3 mb-5">
-                    <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.05]">
+                    <div className="p-3 rounded-xl bg-foreground/3 border border-foreground/5">
                       <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
                         Total Pooled
                       </div>
@@ -971,7 +974,7 @@ function LandingPage() {
                         $4,832
                       </div>
                     </div>
-                    <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.05]">
+                    <div className="p-3 rounded-xl bg-foreground/3 border border-foreground/5">
                       <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
                         Wins This Month
                       </div>
@@ -979,7 +982,7 @@ function LandingPage() {
                         12
                       </div>
                     </div>
-                    <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.05]">
+                    <div className="p-3 rounded-xl bg-foreground/3 border border-foreground/5">
                       <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
                         Total Won
                       </div>
@@ -987,7 +990,7 @@ function LandingPage() {
                         $18,450
                       </div>
                     </div>
-                    <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.05]">
+                    <div className="p-3 rounded-xl bg-foreground/3 border border-foreground/5">
                       <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
                         Wars Rank
                       </div>
@@ -1006,14 +1009,16 @@ function LandingPage() {
                         "from-gold to-orange-500",
                         "from-pink-500 to-red-500",
                         "from-indigo-500 to-purple-500",
-                      ].map((gradient, i) => (
-                        <div
-                          key={i}
-                          className={`w-7 h-7 rounded-full bg-gradient-to-br ${gradient} border-2 border-card dark:border-navy-light flex items-center justify-center text-[10px] font-bold text-white dark:text-white`}
-                        >
-                          {String.fromCharCode(65 + i)}
-                        </div>
-                      ))}
+                      ].map((gradient, i) => {
+                        return (
+                          <div
+                            key={memberAvatarIds[i]}
+                            className={`w-7 h-7 rounded-full bg-linear-to-br ${gradient} border-2 border-card dark:border-navy-light flex items-center justify-center text-[10px] font-bold text-white dark:text-white`}
+                          >
+                            {String.fromCharCode(65 + i)}
+                          </div>
+                        );
+                      })}
                     </div>
                     <span className="text-xs text-muted-foreground">
                       +18 more
@@ -1049,7 +1054,7 @@ function LandingPage() {
             {trustBadges.map((badge) => (
               <div
                 key={badge.title}
-                className="group flex flex-col items-center text-center p-6 rounded-2xl bg-foreground/[0.02] border border-foreground/[0.06] hover:border-emerald/20 transition-all duration-300"
+                className="group flex flex-col items-center text-center p-6 rounded-2xl bg-foreground/2 border border-foreground/6 hover:border-emerald/20 transition-all duration-300"
               >
                 <div className="w-12 h-12 rounded-xl bg-emerald/10 flex items-center justify-center mb-4 group-hover:bg-emerald/20 transition-colors">
                   <badge.icon size={22} className="text-emerald" />
@@ -1078,7 +1083,7 @@ function LandingPage() {
 
         <div className="relative z-10 max-w-3xl mx-auto text-center">
           {/* Decorative icon */}
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald/20 to-gold/10 border border-emerald/20 mb-6 glow-emerald">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-emerald/20 to-gold/10 border border-emerald/20 mb-6 glow-emerald">
             <Trophy size={28} className="text-emerald-light" />
           </div>
 
@@ -1095,7 +1100,7 @@ function LandingPage() {
             {isConnected ? (
               <Link
                 to="/play"
-                className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold text-white dark:text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
+                className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold text-white dark:text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Trophy size={18} />
                 <span>Start Playing Now</span>
@@ -1104,7 +1109,7 @@ function LandingPage() {
               <button
                 type="button"
                 onClick={() => open({ view: "Connect", namespace: "solana" })}
-                className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold text-white dark:text-white bg-gradient-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
+                className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold text-white dark:text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Wallet size={18} />
                 <span>Connect Wallet & Play</span>

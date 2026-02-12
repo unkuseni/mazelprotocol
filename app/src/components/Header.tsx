@@ -83,6 +83,7 @@ const navLinks = [
 function LogoMark() {
   return (
     <div className="relative w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center bg-linear-to-br from-emerald to-emerald-dark">
+      {/** biome-ignore lint/a11y/noSvgWithoutTitle: <Does not need a title> */}
       <svg
         viewBox="0 0 32 32"
         className="w-5 h-5"
@@ -180,6 +181,7 @@ function DesktopDropdown({ label, icon: Icon, children }: DropdownProps) {
               return (
                 <Link
                   key={child.label}
+                  // biome-ignore lint/style/noNonNullAssertion: <demo>
                   to={child.to!}
                   className="flex items-start gap-3 p-3 rounded-lg hover:bg-foreground/5 transition-colors group"
                   onClick={() => setOpen(false)}
