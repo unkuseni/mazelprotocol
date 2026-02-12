@@ -10,9 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TicketsIndexRouteImport } from './routes/tickets/index'
 import { Route as SyndicatesIndexRouteImport } from './routes/syndicates/index'
+import { Route as ResultsIndexRouteImport } from './routes/results/index'
 import { Route as PlayIndexRouteImport } from './routes/play/index'
+import { Route as DashobardIndexRouteImport } from './routes/dashobard/index'
+import { Route as SyndicatesSyndicateIdRouteImport } from './routes/syndicates/$syndicateId'
 import { Route as PlayQuickPickRouteImport } from './routes/play/quick-pick'
+import { Route as LearnWhitepaperRouteImport } from './routes/learn/whitepaper'
 import { Route as LearnRolldownRouteImport } from './routes/learn/rolldown'
 import { Route as ApiTrpcSplatRouteImport } from './routes/api/trpc/$'
 
@@ -21,9 +26,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TicketsIndexRoute = TicketsIndexRouteImport.update({
+  id: '/tickets/',
+  path: '/tickets/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SyndicatesIndexRoute = SyndicatesIndexRouteImport.update({
   id: '/syndicates/',
   path: '/syndicates/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultsIndexRoute = ResultsIndexRouteImport.update({
+  id: '/results/',
+  path: '/results/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlayIndexRoute = PlayIndexRouteImport.update({
@@ -31,9 +46,24 @@ const PlayIndexRoute = PlayIndexRouteImport.update({
   path: '/play/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashobardIndexRoute = DashobardIndexRouteImport.update({
+  id: '/dashobard/',
+  path: '/dashobard/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyndicatesSyndicateIdRoute = SyndicatesSyndicateIdRouteImport.update({
+  id: '/syndicates/$syndicateId',
+  path: '/syndicates/$syndicateId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlayQuickPickRoute = PlayQuickPickRouteImport.update({
   id: '/play/quick-pick',
   path: '/play/quick-pick',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnWhitepaperRoute = LearnWhitepaperRouteImport.update({
+  id: '/learn/whitepaper',
+  path: '/learn/whitepaper',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LearnRolldownRoute = LearnRolldownRouteImport.update({
@@ -50,26 +80,41 @@ const ApiTrpcSplatRoute = ApiTrpcSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/learn/rolldown': typeof LearnRolldownRoute
+  '/learn/whitepaper': typeof LearnWhitepaperRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
+  '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
+  '/dashobard/': typeof DashobardIndexRoute
   '/play/': typeof PlayIndexRoute
+  '/results/': typeof ResultsIndexRoute
   '/syndicates/': typeof SyndicatesIndexRoute
+  '/tickets/': typeof TicketsIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/learn/rolldown': typeof LearnRolldownRoute
+  '/learn/whitepaper': typeof LearnWhitepaperRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
+  '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
+  '/dashobard': typeof DashobardIndexRoute
   '/play': typeof PlayIndexRoute
+  '/results': typeof ResultsIndexRoute
   '/syndicates': typeof SyndicatesIndexRoute
+  '/tickets': typeof TicketsIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/learn/rolldown': typeof LearnRolldownRoute
+  '/learn/whitepaper': typeof LearnWhitepaperRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
+  '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
+  '/dashobard/': typeof DashobardIndexRoute
   '/play/': typeof PlayIndexRoute
+  '/results/': typeof ResultsIndexRoute
   '/syndicates/': typeof SyndicatesIndexRoute
+  '/tickets/': typeof TicketsIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
 }
 export interface FileRouteTypes {
@@ -77,34 +122,54 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/learn/rolldown'
+    | '/learn/whitepaper'
     | '/play/quick-pick'
+    | '/syndicates/$syndicateId'
+    | '/dashobard/'
     | '/play/'
+    | '/results/'
     | '/syndicates/'
+    | '/tickets/'
     | '/api/trpc/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/learn/rolldown'
+    | '/learn/whitepaper'
     | '/play/quick-pick'
+    | '/syndicates/$syndicateId'
+    | '/dashobard'
     | '/play'
+    | '/results'
     | '/syndicates'
+    | '/tickets'
     | '/api/trpc/$'
   id:
     | '__root__'
     | '/'
     | '/learn/rolldown'
+    | '/learn/whitepaper'
     | '/play/quick-pick'
+    | '/syndicates/$syndicateId'
+    | '/dashobard/'
     | '/play/'
+    | '/results/'
     | '/syndicates/'
+    | '/tickets/'
     | '/api/trpc/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LearnRolldownRoute: typeof LearnRolldownRoute
+  LearnWhitepaperRoute: typeof LearnWhitepaperRoute
   PlayQuickPickRoute: typeof PlayQuickPickRoute
+  SyndicatesSyndicateIdRoute: typeof SyndicatesSyndicateIdRoute
+  DashobardIndexRoute: typeof DashobardIndexRoute
   PlayIndexRoute: typeof PlayIndexRoute
+  ResultsIndexRoute: typeof ResultsIndexRoute
   SyndicatesIndexRoute: typeof SyndicatesIndexRoute
+  TicketsIndexRoute: typeof TicketsIndexRoute
   ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
 }
 
@@ -117,11 +182,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tickets/': {
+      id: '/tickets/'
+      path: '/tickets'
+      fullPath: '/tickets/'
+      preLoaderRoute: typeof TicketsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/syndicates/': {
       id: '/syndicates/'
       path: '/syndicates'
       fullPath: '/syndicates/'
       preLoaderRoute: typeof SyndicatesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/results/': {
+      id: '/results/'
+      path: '/results'
+      fullPath: '/results/'
+      preLoaderRoute: typeof ResultsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/play/': {
@@ -131,11 +210,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashobard/': {
+      id: '/dashobard/'
+      path: '/dashobard'
+      fullPath: '/dashobard/'
+      preLoaderRoute: typeof DashobardIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/syndicates/$syndicateId': {
+      id: '/syndicates/$syndicateId'
+      path: '/syndicates/$syndicateId'
+      fullPath: '/syndicates/$syndicateId'
+      preLoaderRoute: typeof SyndicatesSyndicateIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/play/quick-pick': {
       id: '/play/quick-pick'
       path: '/play/quick-pick'
       fullPath: '/play/quick-pick'
       preLoaderRoute: typeof PlayQuickPickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/whitepaper': {
+      id: '/learn/whitepaper'
+      path: '/learn/whitepaper'
+      fullPath: '/learn/whitepaper'
+      preLoaderRoute: typeof LearnWhitepaperRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/learn/rolldown': {
@@ -158,9 +258,14 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LearnRolldownRoute: LearnRolldownRoute,
+  LearnWhitepaperRoute: LearnWhitepaperRoute,
   PlayQuickPickRoute: PlayQuickPickRoute,
+  SyndicatesSyndicateIdRoute: SyndicatesSyndicateIdRoute,
+  DashobardIndexRoute: DashobardIndexRoute,
   PlayIndexRoute: PlayIndexRoute,
+  ResultsIndexRoute: ResultsIndexRoute,
   SyndicatesIndexRoute: SyndicatesIndexRoute,
+  TicketsIndexRoute: TicketsIndexRoute,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,
 }
 export const routeTree = rootRouteImport

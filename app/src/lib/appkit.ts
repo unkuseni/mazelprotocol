@@ -8,6 +8,7 @@
 
 import { env } from "@/env";
 
+// Safe browser detection for SSR compatibility
 const isBrowser =
   typeof window !== "undefined" && typeof document !== "undefined";
 
@@ -45,6 +46,8 @@ export function initAppKit(): Promise<void> {
         "[AppKit] Missing VITE_REOWN_PROJECT_ID — wallet connection will not work.\n" +
           "Get one at https://dashboard.reown.com",
       );
+      // Return early if no project ID to avoid initialization errors
+      return;
     }
 
     // Metadata — origin must match your domain & subdomain
@@ -94,10 +97,12 @@ export function isAppKitInitialized(): boolean {
 }
 
 // Fire immediately on import — the async function no-ops on the server
-// Wrap in try-catch to prevent module import errors in SSR
-try {
-  initAppKit();
-} catch (error) {
-  // Silently catch initialization errors during SSR/import
-  console.debug("[AppKit] Initialization error during import:", error);
+// Only attempt initialization in browser environment
+if (isBrowser) {
+  try {
+    initAppKit();
+  } catch (error) {
+    // Silently catch initialization errors during import
+    console.debug("[AppKit] Initialization error during import:", error);
+  }
 }
