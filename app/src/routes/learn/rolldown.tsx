@@ -1178,7 +1178,7 @@ function LearnRolldownPage() {
                 </Link>
                 <Link
                   to="/dashboard"
-                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-semibold text-muted-foreground bg-transparent border border-foreground/10 hover:border-foreground/20 hover:bg-foreground/[0.03] rounded-xl transition-all duration-300"
+                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-semibold text-muted-foreground bg-transparent border border-foreground/10 hover:border-foreground/20 hover:bg-foreground/3 rounded-xl transition-all duration-300"
                 >
                   <BarChart3 size={16} />
                   Monitor Rolldown

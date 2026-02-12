@@ -30,7 +30,7 @@ import {
 import { WinningNumbers, FloatingBalls } from "@/components/LotteryBalls";
 import Footer from "@/components/Footer";
 
-export const Route = createFileRoute("/dashobard/")({
+export const Route = createFileRoute("/dashboard/")({
   component: DashboardPage,
 });
 
@@ -605,7 +605,7 @@ function Plus({ size, className }: { size: number; className?: string }) {
       <path d="M5 12h14" />
       <path d="M12 5v14" />
     </svg>
-  );
+  )
 }
 
 function SyndicateMemberships() {
