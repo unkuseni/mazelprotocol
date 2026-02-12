@@ -702,7 +702,7 @@ function UnclaimedBanner({
 
   return (
     <div className="relative glass-strong rounded-2xl p-5 sm:p-6 overflow-hidden border border-gold/20">
-      <div className="absolute inset-0 bg-gradient-to-br from-gold/4 via-transparent to-emerald/2" />
+      <div className="absolute inset-0 bg-linear-to-br from-gold/4 via-transparent to-emerald/2" />
       <div className="absolute top-0 right-0 w-40 h-40 bg-glow-gold opacity-15" />
 
       <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

@@ -40,6 +40,24 @@ const navLinks = [
     ],
   },
   {
+    label: "Dashboard",
+    icon: Trophy,
+    children: [
+      {
+        to: "/dashboard",
+        label: "Dashboard",
+        description: "View your account details",
+        icon: Trophy,
+      },
+      // {
+      //   to: "/dashboard/transactions",
+      //   label: "Transactions",
+      //   description: "View your transaction history",
+      //   icon: Zap,
+      // },
+    ],
+  },
+  {
     to: "/syndicates",
     label: "Syndicates",
     icon: Users,

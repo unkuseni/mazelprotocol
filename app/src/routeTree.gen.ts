@@ -14,7 +14,7 @@ import { Route as TicketsIndexRouteImport } from './routes/tickets/index'
 import { Route as SyndicatesIndexRouteImport } from './routes/syndicates/index'
 import { Route as ResultsIndexRouteImport } from './routes/results/index'
 import { Route as PlayIndexRouteImport } from './routes/play/index'
-import { Route as DashobardIndexRouteImport } from './routes/dashobard/index'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as SyndicatesSyndicateIdRouteImport } from './routes/syndicates/$syndicateId'
 import { Route as PlayQuickPickRouteImport } from './routes/play/quick-pick'
 import { Route as LearnWhitepaperRouteImport } from './routes/learn/whitepaper'
@@ -46,9 +46,9 @@ const PlayIndexRoute = PlayIndexRouteImport.update({
   path: '/play/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashobardIndexRoute = DashobardIndexRouteImport.update({
-  id: '/dashobard/',
-  path: '/dashobard/',
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/dashboard/',
+  path: '/dashboard/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SyndicatesSyndicateIdRoute = SyndicatesSyndicateIdRouteImport.update({
@@ -83,7 +83,7 @@ export interface FileRoutesByFullPath {
   '/learn/whitepaper': typeof LearnWhitepaperRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
   '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
-  '/dashobard/': typeof DashobardIndexRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/play/': typeof PlayIndexRoute
   '/results/': typeof ResultsIndexRoute
   '/syndicates/': typeof SyndicatesIndexRoute
@@ -96,7 +96,7 @@ export interface FileRoutesByTo {
   '/learn/whitepaper': typeof LearnWhitepaperRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
   '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
-  '/dashobard': typeof DashobardIndexRoute
+  '/dashboard': typeof DashboardIndexRoute
   '/play': typeof PlayIndexRoute
   '/results': typeof ResultsIndexRoute
   '/syndicates': typeof SyndicatesIndexRoute
@@ -110,7 +110,7 @@ export interface FileRoutesById {
   '/learn/whitepaper': typeof LearnWhitepaperRoute
   '/play/quick-pick': typeof PlayQuickPickRoute
   '/syndicates/$syndicateId': typeof SyndicatesSyndicateIdRoute
-  '/dashobard/': typeof DashobardIndexRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/play/': typeof PlayIndexRoute
   '/results/': typeof ResultsIndexRoute
   '/syndicates/': typeof SyndicatesIndexRoute
@@ -125,7 +125,7 @@ export interface FileRouteTypes {
     | '/learn/whitepaper'
     | '/play/quick-pick'
     | '/syndicates/$syndicateId'
-    | '/dashobard/'
+    | '/dashboard/'
     | '/play/'
     | '/results/'
     | '/syndicates/'
@@ -138,7 +138,7 @@ export interface FileRouteTypes {
     | '/learn/whitepaper'
     | '/play/quick-pick'
     | '/syndicates/$syndicateId'
-    | '/dashobard'
+    | '/dashboard'
     | '/play'
     | '/results'
     | '/syndicates'
@@ -151,7 +151,7 @@ export interface FileRouteTypes {
     | '/learn/whitepaper'
     | '/play/quick-pick'
     | '/syndicates/$syndicateId'
-    | '/dashobard/'
+    | '/dashboard/'
     | '/play/'
     | '/results/'
     | '/syndicates/'
@@ -165,7 +165,7 @@ export interface RootRouteChildren {
   LearnWhitepaperRoute: typeof LearnWhitepaperRoute
   PlayQuickPickRoute: typeof PlayQuickPickRoute
   SyndicatesSyndicateIdRoute: typeof SyndicatesSyndicateIdRoute
-  DashobardIndexRoute: typeof DashobardIndexRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
   PlayIndexRoute: typeof PlayIndexRoute
   ResultsIndexRoute: typeof ResultsIndexRoute
   SyndicatesIndexRoute: typeof SyndicatesIndexRoute
@@ -210,11 +210,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashobard/': {
-      id: '/dashobard/'
-      path: '/dashobard'
-      fullPath: '/dashobard/'
-      preLoaderRoute: typeof DashobardIndexRouteImport
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/dashboard'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/syndicates/$syndicateId': {
@@ -261,7 +261,7 @@ const rootRouteChildren: RootRouteChildren = {
   LearnWhitepaperRoute: LearnWhitepaperRoute,
   PlayQuickPickRoute: PlayQuickPickRoute,
   SyndicatesSyndicateIdRoute: SyndicatesSyndicateIdRoute,
-  DashobardIndexRoute: DashobardIndexRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
   PlayIndexRoute: PlayIndexRoute,
   ResultsIndexRoute: ResultsIndexRoute,
   SyndicatesIndexRoute: SyndicatesIndexRoute,
