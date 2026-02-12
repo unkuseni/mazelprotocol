@@ -7,6 +7,7 @@ import appCss from "../styles.css?url";
 import { ThemeProvider } from "@/lib/theme";
 import { AppKitProvider } from "@/lib/appkit-hooks";
 import "@/lib/appkit"; // Import to initialize AppKit singleton
+import { initAppKit } from "@/lib/appkit";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -30,6 +31,13 @@ export const Route = createRootRoute({
     ],
   }),
 
+  loader: async () => {
+    // Initialize AppKit singleton only on client
+    // This loader runs on both server and client, so we need to check
+    if (typeof window !== "undefined") {
+      await initAppKit();
+    }
+  },
   shellComponent: RootDocument,
 });
 
