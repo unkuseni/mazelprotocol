@@ -17,16 +17,68 @@ export const Route = createRootRoute({
       },
       {
         name: "viewport",
-        content: "width=device-width, initial-scale=1",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
       {
-        title: "TanStack Start Starter",
+        name: "description",
+        content:
+          "MazelProtocol introduces positive expected value windows through mathematical rolldown mechanics. Play smart, win bigger on Solana.",
+      },
+      {
+        title: "MazelProtocol | The First Intentionally Exploitable Lottery",
+      },
+      {
+        name: "theme-color",
+        content: "#0a0f1a",
+      },
+      {
+        name: "color-scheme",
+        content: "dark light",
+      },
+      {
+        property: "og:title",
+        content: "MazelProtocol | The First Intentionally Exploitable Lottery",
+      },
+      {
+        property: "og:description",
+        content:
+          "MazelProtocol introduces positive expected value windows through mathematical rolldown mechanics. Play smart, win bigger on Solana.",
+      },
+      {
+        property: "og:type",
+        content: "website",
+      },
+      {
+        name: "twitter:card",
+        content: "summary_large_image",
+      },
+      {
+        name: "twitter:title",
+        content: "MazelProtocol",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "The first intentionally exploitable lottery on Solana. +EV rolldown mechanics for strategic players.",
       },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "preconnect",
+        href: "https://fonts.googleapis.com",
+      },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap",
       },
     ],
   }),
