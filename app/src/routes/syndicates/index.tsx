@@ -1,34 +1,34 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
 import {
-  Users,
-  Plus,
-  Trophy,
-  TrendingUp,
-  ChevronRight,
-  Search,
-  Filter,
-  Shield,
-  Crown,
-  Lock,
-  Unlock,
-  ArrowUpDown,
-  Wallet,
-  BarChart3,
-  Target,
-  Clock,
-  Sparkles,
-  UserPlus,
-  Settings,
   AlertTriangle,
+  ArrowUpDown,
+  BarChart3,
   Check,
-  X,
+  ChevronRight,
+  Clock,
+  Crown,
   Eye,
+  Filter,
+  Lock,
+  Plus,
+  Search,
+  Settings,
+  Shield,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Trophy,
+  Unlock,
+  UserPlus,
+  Users,
+  Wallet,
+  X,
 } from "lucide-react";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
-import { Button } from "@/components/ui/button";
-import { FloatingBalls } from "@/components/LotteryBalls";
+import { useMemo, useState } from "react";
 import Footer from "@/components/Footer";
+import { FloatingBalls } from "@/components/LotteryBalls";
+import { Button } from "@/components/ui/button";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 export const Route = createFileRoute("/syndicates/")({
   component: SyndicatesPage,

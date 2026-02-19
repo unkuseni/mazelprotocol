@@ -1,34 +1,34 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
 import {
-  Ticket,
-  Trophy,
-  Clock,
-  ChevronRight,
-  Zap,
-  Filter,
-  Search,
-  ArrowUpDown,
-  Shield,
-  Eye,
-  Check,
-  X,
-  Gift,
   AlertTriangle,
-  Star,
-  Sparkles,
-  TrendingUp,
+  ArrowUpDown,
+  Check,
   ChevronDown,
+  ChevronRight,
+  Clock,
   ExternalLink,
-  Wallet,
+  Eye,
+  Filter,
+  Gift,
   type LucideIcon,
+  Search,
+  Shield,
+  Sparkles,
+  Star,
+  Ticket,
+  TrendingUp,
+  Trophy,
+  Wallet,
+  X,
+  Zap,
 } from "lucide-react";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
-import { Button } from "@/components/ui/button";
-import { JackpotDisplay } from "@/components/JackpotDisplay";
+import { useMemo, useState } from "react";
 import { CountdownTimer } from "@/components/CountdownTimer";
-import { WinningNumbers, FloatingBalls } from "@/components/LotteryBalls";
 import Footer from "@/components/Footer";
+import { JackpotDisplay } from "@/components/JackpotDisplay";
+import { FloatingBalls, WinningNumbers } from "@/components/LotteryBalls";
+import { Button } from "@/components/ui/button";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 export const Route = createFileRoute("/tickets/")({
   component: MyTicketsPage,

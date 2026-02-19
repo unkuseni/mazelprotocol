@@ -1,33 +1,33 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
 import {
-  ChevronRight,
-  ChevronLeft,
-  Users,
-  Trophy,
-  TrendingUp,
-  Shield,
-  Crown,
-  Lock,
-  Unlock,
-  Wallet,
   BarChart3,
-  Target,
-  Clock,
-  Copy,
-  Check,
-  ExternalLink,
-  Settings,
   Bell,
   BellOff,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Copy,
+  Crown,
+  ExternalLink,
+  Lock,
   LogOut,
   MoreVertical,
+  Settings,
+  Shield,
+  Target,
+  TrendingUp,
+  Trophy,
+  Unlock,
+  Users,
+  Wallet,
 } from "lucide-react";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
-import { Button } from "@/components/ui/button";
-import { FloatingBalls } from "@/components/LotteryBalls";
+import { useState } from "react";
 import Footer from "@/components/Footer";
+import { FloatingBalls } from "@/components/LotteryBalls";
 import SyndicateChat, { type ChatMember } from "@/components/SyndicateChat";
+import { Button } from "@/components/ui/button";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 export const Route = createFileRoute("/syndicates/$syndicateId")({
   component: SyndicateDetailPage,

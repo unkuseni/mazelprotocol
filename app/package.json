@@ -14,6 +14,7 @@
   "dependencies": {
     "@biomejs/biome": "^2.3.14",
     "@cloudflare/vite-plugin": "^1.13.8",
+    "@coral-xyz/anchor": "^0.32.1",
     "@reown/appkit": "^1.8.17",
     "@reown/appkit-adapter-solana": "^1.8.17",
     "@solana/web3.js": "^1.98.4",

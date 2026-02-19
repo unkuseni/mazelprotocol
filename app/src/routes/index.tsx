@@ -20,15 +20,15 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
-import { JackpotDisplay } from "@/components/JackpotDisplay";
+import { useId } from "react";
 import {
   CountdownTimer,
   QuickPickCountdown,
 } from "@/components/CountdownTimer";
-import { LotteryBallRow, FloatingBalls } from "@/components/LotteryBalls";
 import Footer from "@/components/Footer";
-import { useId } from "react";
+import { JackpotDisplay } from "@/components/JackpotDisplay";
+import { FloatingBalls, LotteryBallRow } from "@/components/LotteryBalls";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 export const Route = createFileRoute("/")({ component: LandingPage });
 

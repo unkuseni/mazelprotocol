@@ -20,15 +20,15 @@ import {
   Flame,
   type LucideIcon,
 } from "lucide-react";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
-import { Button } from "@/components/ui/button";
-import { JackpotDisplay } from "@/components/JackpotDisplay";
 import {
   CountdownTimer,
   QuickPickCountdown,
 } from "@/components/CountdownTimer";
-import { WinningNumbers, FloatingBalls } from "@/components/LotteryBalls";
 import Footer from "@/components/Footer";
+import { JackpotDisplay } from "@/components/JackpotDisplay";
+import { FloatingBalls, WinningNumbers } from "@/components/LotteryBalls";
+import { Button } from "@/components/ui/button";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 export const Route = createFileRoute("/dashboard/")({
   component: DashboardPage,
@@ -605,7 +605,7 @@ function Plus({ size, className }: { size: number; className?: string }) {
       <path d="M5 12h14" />
       <path d="M12 5v14" />
     </svg>
-  )
+  );
 }
 
 function SyndicateMemberships() {

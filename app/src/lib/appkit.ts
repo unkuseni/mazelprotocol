@@ -1,108 +1,111 @@
 // Reown AppKit initialization — client-only singleton
 //
-// AppKit uses Lit web components internally which require `document`.
-// We guard all initialization behind a browser check for SSR compatibility.
+// Provides a single `initAppKit()` function that lazily creates the AppKit
+// instance exactly once. Safe to call from SSR (no-ops on the server).
 //
-// This module is imported at the top level in `__root.tsx` to trigger
-// initialization as early as possible during client hydration.
+// Call this from your root route loader (client-only guard) so AppKit is
+// ready before any wallet UI renders.
 
+import type { SolanaAdapter } from "@reown/appkit-adapter-solana/react";
 import { env } from "@/env";
 
-// Safe browser detection for SSR compatibility
 const isBrowser =
   typeof window !== "undefined" && typeof document !== "undefined";
 
-let initialized = false;
 let initPromise: Promise<void> | null = null;
+let solanaAdapter: SolanaAdapter | null = null;
 
 /**
  * Lazily initialize AppKit exactly once.
- * Returns a promise that resolves when the modal is ready (or immediately on
- * the server where it no-ops).
+ *
+ * Returns a promise that resolves when the modal is ready, or resolves
+ * immediately on the server (no-op).
+ *
+ * Safe to call multiple times — only the first call triggers initialization.
  */
 export function initAppKit(): Promise<void> {
   if (!isBrowser) return Promise.resolve();
   if (initPromise) return initPromise;
 
-  initialized = true;
-
   initPromise = (async () => {
-    const [{ createAppKit }, { SolanaAdapter }, networks] = await Promise.all([
-      import("@reown/appkit/react"),
-      import("@reown/appkit-adapter-solana/react"),
-      import("@reown/appkit/networks"),
-    ]);
-
-    const { solana, solanaTestnet, solanaDevnet } = networks;
-
-    // Solana adapter
-    const solanaWeb3JsAdapter = new SolanaAdapter();
-
-    // Project ID from Reown Dashboard
-    const projectId = env.VITE_REOWN_PROJECT_ID;
-
-    if (!projectId) {
-      console.warn(
-        "[AppKit] Missing VITE_REOWN_PROJECT_ID — wallet connection will not work.\n" +
-          "Get one at https://dashboard.reown.com",
+    console.log("[AppKit] Initializing...");
+    try {
+      const [{ createAppKit }, { SolanaAdapter }, networks] = await Promise.all(
+        [
+          import("@reown/appkit/react"),
+          import("@reown/appkit-adapter-solana/react"),
+          import("@reown/appkit/networks"),
+        ],
       );
-      // Return early if no project ID to avoid initialization errors
-      return;
+
+      const { solana, solanaTestnet, solanaDevnet } = networks;
+
+      const solanaWeb3JsAdapter = new SolanaAdapter();
+      solanaAdapter = solanaWeb3JsAdapter;
+
+      console.log("[AppKit] Environment check:", {
+        hasEnv: !!env,
+        hasViteReownProjectId: !!env?.VITE_REOWN_PROJECT_ID,
+        envKeys: env ? Object.keys(env).filter((k) => k.includes("VITE")) : [],
+      });
+
+      const projectId = env.VITE_REOWN_PROJECT_ID;
+      console.log(
+        "[AppKit] Project ID:",
+        projectId ? "present" : "missing",
+        projectId,
+      );
+
+      if (!projectId) {
+        console.warn(
+          "[AppKit] Missing VITE_REOWN_PROJECT_ID — wallet connection will not work.\n" +
+            "Get one at https://dashboard.reown.com",
+        );
+        return;
+      }
+
+      const metadata = {
+        name: "MazelProtocol",
+        description:
+          "The first intentionally exploitable lottery on Solana. Positive expected value rolldown mechanics for strategic players.",
+        url: window.location.origin,
+        icons: ["https://avatars.githubusercontent.com/u/179229932"],
+      };
+
+      createAppKit({
+        adapters: [solanaWeb3JsAdapter],
+        networks: [solana, solanaTestnet, solanaDevnet],
+        metadata,
+        projectId,
+        features: {
+          email: true,
+          socials: ["google", "x", "discord", "github", "apple", "facebook"],
+          emailShowWallets: true,
+          analytics: true,
+        },
+        allWallets: "SHOW",
+        themeMode: "dark" as const,
+        themeVariables: {
+          "--w3m-color-mix": "#00BB7F",
+          "--w3m-color-mix-strength": 15,
+          "--w3m-border-radius-master": "2px",
+          "--w3m-accent": "#00BB7F",
+          "--w3m-font-family": "Inter, sans-serif",
+        },
+      });
+    } catch (error) {
+      console.error("[AppKit] Initialization failed:", error);
+      throw error;
     }
-
-    // Metadata — origin must match your domain & subdomain
-    const metadata = {
-      name: "MazelProtocol",
-      description:
-        "The first intentionally exploitable lottery on Solana. Positive expected value rolldown mechanics for strategic players.",
-      url:
-        typeof window !== "undefined"
-          ? window.location.origin
-          : "https://mazelprotocol.elimarko024.workers.dev",
-      icons: ["https://avatars.githubusercontent.com/u/179229932"],
-    };
-
-    // Create AppKit singleton — must be called once, outside React components
-    createAppKit({
-      adapters: [solanaWeb3JsAdapter],
-      networks: [solana, solanaTestnet, solanaDevnet],
-      metadata,
-      projectId,
-      features: {
-        email: true,
-        socials: ["google", "x", "discord", "github", "apple", "facebook"],
-        emailShowWallets: true,
-        analytics: true,
-      },
-      allWallets: "SHOW",
-      themeMode: "dark" as const,
-      themeVariables: {
-        "--w3m-color-mix": "#00BB7F",
-        "--w3m-color-mix-strength": 15,
-        "--w3m-border-radius-master": "2px",
-        "--w3m-accent": "#00BB7F",
-        "--w3m-font-family": "Inter, sans-serif",
-      },
-    });
   })();
 
   return initPromise;
 }
 
 /**
- * Whether `initAppKit()` has already been called.
+ * Get the Solana adapter instance for transaction signing
+ * Note: Only available after `initAppKit()` has been called
  */
-export function isAppKitInitialized(): boolean {
-  return initialized;
-}
-
-// Fire immediately on import — the async function no-ops on the server
-// Only attempt initialization in browser environment
-if (isBrowser) {
-  try {
-    initAppKit();
-  } catch (error) {
-    // Silently catch initialization errors during import
-    console.debug("[AppKit] Initialization error during import:", error);
-  }
+export function getSolanaAdapter() {
+  return solanaAdapter;
 }

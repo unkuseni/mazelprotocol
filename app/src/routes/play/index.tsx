@@ -1,29 +1,29 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useCallback, useMemo } from "react";
 import {
-  Trophy,
-  Zap,
-  Shuffle,
-  Trash2,
-  Plus,
-  ShoppingCart,
-  Wallet,
-  Info,
-  ChevronRight,
-  Sparkles,
-  TrendingUp,
-  Clock,
-  Star,
-  RotateCcw,
-  Check,
   AlertTriangle,
+  Check,
+  ChevronRight,
+  Clock,
+  Info,
+  Plus,
+  RotateCcw,
+  ShoppingCart,
+  Shuffle,
+  Sparkles,
+  Star,
+  Trash2,
+  TrendingUp,
+  Trophy,
+  Wallet,
+  Zap,
 } from "lucide-react";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
-import { Button } from "@/components/ui/button";
-import { JackpotDisplay } from "@/components/JackpotDisplay";
+import { useCallback, useMemo, useState } from "react";
 import { CountdownTimer } from "@/components/CountdownTimer";
-import { LotteryBallRow, FloatingBalls } from "@/components/LotteryBalls";
 import Footer from "@/components/Footer";
+import { JackpotDisplay } from "@/components/JackpotDisplay";
+import { FloatingBalls, LotteryBallRow } from "@/components/LotteryBalls";
+import { Button } from "@/components/ui/button";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 export const Route = createFileRoute("/play/")({ component: PlayMainLottery });
 
