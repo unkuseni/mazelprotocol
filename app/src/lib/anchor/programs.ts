@@ -1,9 +1,4 @@
-import {
-  Program,
-  AnchorProvider,
-  type Idl,
-  type Wallet,
-} from "@coral-xyz/anchor";
+import { Program, AnchorProvider, type Idl } from "@coral-xyz/anchor";
 import { type Connection, PublicKey, Keypair } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 
@@ -45,12 +40,12 @@ export interface ProgramClients {
 
 /** Get the main lottery IDL */
 export function getMainLotteryIdl(): Idl {
-  return mainLotteryIdl as Idl;
+  return mainLotteryIdl as unknown as Idl;
 }
 
 /** Get the Quick Pick IDL */
 export function getQuickPickIdl(): Idl {
-  return quickPickIdl as Idl;
+  return quickPickIdl as unknown as Idl;
 }
 
 // ---------------------------------------------------------------------------
@@ -68,14 +63,16 @@ export function createReadOnlyProvider(
 ): AnchorProvider {
   const conn = connection || getConnection();
 
-  // Dummy wallet for read-only operations
+  // Dummy wallet for read-only operations — Anchor requires a valid publicKey
+  const dummyKeypair = Keypair.generate();
   const readOnlyWallet = {
-    publicKey: Keypair.generate().publicKey,
+    publicKey: dummyKeypair.publicKey,
+    payer: dummyKeypair,
     signTransaction: () =>
       Promise.reject(new Error("Read-only wallet cannot sign")),
     signAllTransactions: () =>
       Promise.reject(new Error("Read-only wallet cannot sign")),
-  } as Wallet;
+  } as unknown as ConstructorParameters<typeof AnchorProvider>[1];
 
   return new AnchorProvider(conn, readOnlyWallet, {
     commitment: "confirmed",
@@ -99,15 +96,18 @@ export function createMainLotteryProgram(
 ): MainLotteryProgram {
   const provider = createReadOnlyProvider(connection);
   const idl = getMainLotteryIdl();
-  return new Program(idl, MAIN_LOTTERY_PROGRAM_ID, provider);
+  return new Program(idl, provider);
 }
 
+/**
+ * Create a Main Lottery program client with a specific provider
+ */
 export function createMainLotteryProgramWithProvider(
   provider: AnchorProvider,
-  programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+  _programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): MainLotteryProgram {
   const idl = getMainLotteryIdl();
-  return new Program(idl, programId, provider);
+  return new Program(idl, provider);
 }
 
 /**
@@ -121,15 +121,18 @@ export function createQuickPickProgram(
 ): QuickPickProgram {
   const provider = createReadOnlyProvider(connection);
   const idl = getQuickPickIdl();
-  return new Program(idl, QUICK_PICK_PROGRAM_ID, provider);
+  return new Program(idl, provider);
 }
 
+/**
+ * Create a Quick Pick program client with a specific provider
+ */
 export function createQuickPickProgramWithProvider(
   provider: AnchorProvider,
-  programId: PublicKey = QUICK_PICK_PROGRAM_ID,
+  _programId: PublicKey = QUICK_PICK_PROGRAM_ID,
 ): QuickPickProgram {
   const idl = getQuickPickIdl();
-  return new Program(idl, programId, provider);
+  return new Program(idl, provider);
 }
 
 /**
@@ -146,6 +149,71 @@ export function createProgramClients(connection?: Connection): ProgramClients {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: fetch an account by name from a Program<Idl>
+// ---------------------------------------------------------------------------
+
+/**
+ * Safely fetch an account from a program's account namespace.
+ * Because `Program<Idl>` has an untyped `AccountNamespace`, we need to
+ * access it dynamically by name.
+ */
+async function fetchAccount(
+  program: Program<Idl>,
+  accountName: string,
+  address: PublicKey,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const ns = program.account as Record<
+      string,
+      { fetch: (addr: PublicKey) => Promise<unknown> } | undefined
+    >;
+    const accessor = ns[accountName];
+    if (!accessor) {
+      console.warn(
+        `[Programs] Account "${accountName}" not found in program IDL`,
+      );
+      return null;
+    }
+    return (await accessor.fetch(address)) as Record<string, unknown>;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Safely fetch all accounts matching filters from a program's account namespace.
+ */
+async function fetchAllAccounts(
+  program: Program<Idl>,
+  accountName: string,
+  filters?: Array<{ memcmp: { offset: number; bytes: string } }>,
+): Promise<Array<{ publicKey: PublicKey; account: Record<string, unknown> }>> {
+  try {
+    const ns = program.account as Record<
+      string,
+      | {
+          all: (
+            filters?: unknown[],
+          ) => Promise<
+            Array<{ publicKey: PublicKey; account: Record<string, unknown> }>
+          >;
+        }
+      | undefined
+    >;
+    const accessor = ns[accountName];
+    if (!accessor) {
+      console.warn(
+        `[Programs] Account "${accountName}" not found in program IDL`,
+      );
+      return [];
+    }
+    return await accessor.all(filters);
+  } catch (error) {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
 // State fetching utilities (Main Lottery)
 // ---------------------------------------------------------------------------
 
@@ -157,11 +225,12 @@ export function createProgramClients(connection?: Connection): ProgramClients {
  */
 export async function fetchMainLotteryState(
   connection?: Connection,
-): Promise<any> {
+): Promise<Record<string, unknown> | null> {
   try {
     const program = createMainLotteryProgram(connection);
-    const [lotteryStatePda] = mainPDAs.lotteryState;
-    return await program.account.lotteryState.fetch(lotteryStatePda);
+    // mainPDAs.lotteryState is already a resolved PublicKey (not a tuple)
+    const lotteryStatePda = mainPDAs.lotteryState;
+    return await fetchAccount(program, "lotteryState", lotteryStatePda);
   } catch (error) {
     console.warn("Failed to fetch main lottery state:", error);
     return null;
@@ -178,18 +247,18 @@ export async function fetchMainLotteryState(
 export async function fetchMainDrawResult(
   drawId: number | BN,
   connection?: Connection,
-): Promise<any> {
+): Promise<Record<string, unknown> | null> {
   try {
     const program = createMainLotteryProgram(connection);
     const drawIdBuf = Buffer.alloc(8);
     drawIdBuf.writeBigUInt64LE(BigInt(drawId.toString()));
 
-    const [drawResultPda] = await PublicKey.findProgramAddressSync(
+    const [drawResultPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("draw"), drawIdBuf],
       program.programId,
     );
 
-    return await program.account.drawResult.fetch(drawResultPda);
+    return await fetchAccount(program, "drawResult", drawResultPda);
   } catch (error) {
     console.warn(`Failed to fetch main draw result for draw ${drawId}:`, error);
     return null;
@@ -208,7 +277,7 @@ export async function fetchUserMainTicketsForDraw(
   user: PublicKey,
   drawId: number | BN,
   connection?: Connection,
-): Promise<any[]> {
+): Promise<Record<string, unknown>[]> {
   try {
     const program = createMainLotteryProgram(connection);
 
@@ -227,7 +296,7 @@ export async function fetchUserMainTicketsForDraw(
       },
     ];
 
-    const tickets = await program.account.ticket.all(filters);
+    const tickets = await fetchAllAccounts(program, "ticket", filters);
     return tickets.map((t) => t.account);
   } catch (error) {
     console.warn(`Failed to fetch user tickets for draw ${drawId}:`, error);
@@ -247,11 +316,12 @@ export async function fetchUserMainTicketsForDraw(
  */
 export async function fetchQuickPickState(
   connection?: Connection,
-): Promise<any> {
+): Promise<Record<string, unknown> | null> {
   try {
     const program = createQuickPickProgram(connection);
-    const [quickPickStatePda] = quickPickPDAs.quickPickState;
-    return await program.account.quickPickState.fetch(quickPickStatePda);
+    // quickPickPDAs.quickPickState is already a resolved PublicKey (not a tuple)
+    const quickPickStatePda = quickPickPDAs.quickPickState;
+    return await fetchAccount(program, "quickPickState", quickPickStatePda);
   } catch (error) {
     console.warn("Failed to fetch Quick Pick state:", error);
     return null;
@@ -268,18 +338,18 @@ export async function fetchQuickPickState(
 export async function fetchQuickPickDrawResult(
   drawId: number | BN,
   connection?: Connection,
-): Promise<any> {
+): Promise<Record<string, unknown> | null> {
   try {
     const program = createQuickPickProgram(connection);
     const drawIdBuf = Buffer.alloc(8);
     drawIdBuf.writeBigUInt64LE(BigInt(drawId.toString()));
 
-    const [drawResultPda] = await PublicKey.findProgramAddressSync(
+    const [drawResultPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("quick_pick_draw"), drawIdBuf],
       program.programId,
     );
 
-    return await program.account.drawResult.fetch(drawResultPda);
+    return await fetchAccount(program, "drawResult", drawResultPda);
   } catch (error) {
     console.warn(
       `Failed to fetch Quick Pick draw result for draw ${drawId}:`,
@@ -301,7 +371,7 @@ export async function fetchUserQuickPickTicketsForDraw(
   user: PublicKey,
   drawId: number | BN,
   connection?: Connection,
-): Promise<any[]> {
+): Promise<Record<string, unknown>[]> {
   try {
     const program = createQuickPickProgram(connection);
 
@@ -320,7 +390,7 @@ export async function fetchUserQuickPickTicketsForDraw(
       },
     ];
 
-    const tickets = await program.account.ticket.all(filters);
+    const tickets = await fetchAllAccounts(program, "ticket", filters);
     return tickets.map((t) => t.account);
   } catch (error) {
     console.warn(
@@ -342,8 +412,8 @@ export async function fetchUserQuickPickTicketsForDraw(
  * @returns Object containing both lottery states
  */
 export async function fetchAllLotteryData(connection?: Connection): Promise<{
-  mainState: any;
-  quickPickState: any;
+  mainState: Record<string, unknown> | null;
+  quickPickState: Record<string, unknown> | null;
 }> {
   const [mainState, quickPickState] = await Promise.all([
     fetchMainLotteryState(connection),
@@ -356,16 +426,16 @@ export async function fetchAllLotteryData(connection?: Connection): Promise<{
 /**
  * Fetch user's active tickets across all draws
  *
- * @param user - User's public key
- * @param connection - Optional connection (uses singleton if not provided)
+ * @param _user - User's public key
+ * @param _connection - Optional connection (uses singleton if not provided)
  * @returns Object containing user's tickets for both lotteries
  */
 export async function fetchUserActiveTickets(
-  user: PublicKey,
-  connection?: Connection,
+  _user: PublicKey,
+  _connection?: Connection,
 ): Promise<{
-  mainTickets: any[];
-  quickPickTickets: any[];
+  mainTickets: Record<string, unknown>[];
+  quickPickTickets: Record<string, unknown>[];
 }> {
   // Note: This would need to fetch all draws and filter by active status
   // For now, returns empty arrays - implement based on your needs

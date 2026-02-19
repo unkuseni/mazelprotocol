@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { useMemo } from "react";
-import { initAppKit } from "@/lib/appkit";
 import { AppKitProvider } from "@/lib/appkit-provider";
 import { ThemeProvider } from "@/lib/theme";
 import Header from "../components/Header";
@@ -83,15 +82,6 @@ export const Route = createRootRoute({
     ],
   }),
 
-  loader: async () => {
-    // Initialize AppKit singleton only on client
-    // This loader runs on both server and client, so we need to check
-    if (typeof window !== "undefined") {
-      console.log("[RootLoader] Initializing AppKit...");
-      await initAppKit();
-      console.log("[RootLoader] AppKit initialized");
-    }
-  },
   shellComponent: RootDocument,
 });
 

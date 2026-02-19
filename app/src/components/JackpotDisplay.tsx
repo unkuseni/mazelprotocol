@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Trophy, TrendingUp } from "lucide-react";
 
-interface JackpotDisplayProps {
+export interface JackpotDisplayProps {
   /** Target amount in dollars (e.g., 1247832) */
   amount: number;
   /** Label shown above the amount */
@@ -142,7 +142,7 @@ export function JackpotDisplay({
         cancelAnimationFrame(animFrameRef.current);
       }
     };
-  }, [animated, animate, hasAnimated]);
+  }, [animated, animate, hasAnimated, amount]);
 
   // Update display when amount changes after initial animation
   useEffect(() => {

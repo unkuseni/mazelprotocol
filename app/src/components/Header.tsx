@@ -135,7 +135,7 @@ function LogoMark() {
 interface DropdownProps {
   label: string;
   icon: React.ComponentType<{ className?: string; size?: number }>;
-  children: Array<{
+  items: Array<{
     to?: string;
     href?: string;
     label: string;
@@ -144,11 +144,11 @@ interface DropdownProps {
   }>;
 }
 
-function DesktopDropdown({ label, icon: Icon, children }: DropdownProps) {
+function DesktopDropdown({ label, icon: Icon, items }: DropdownProps) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div
+    <nav
       className="relative"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
@@ -169,7 +169,7 @@ function DesktopDropdown({ label, icon: Icon, children }: DropdownProps) {
       {open && (
         <div className="absolute top-full left-0 pt-2 z-50">
           <div className="w-72 rounded-xl glass-strong p-2 shadow-2xl shadow-black/20 dark:shadow-black/40 animate-slide-down">
-            {children.map((child) => {
+            {items.map((child) => {
               const ChildIcon = child.icon;
 
               if (child.href) {
@@ -227,7 +227,7 @@ function DesktopDropdown({ label, icon: Icon, children }: DropdownProps) {
           </div>
         </div>
       )}
-    </div>
+    </nav>
   );
 }
 
@@ -281,9 +281,15 @@ function WalletButton() {
 
         {showDropdown && (
           <>
-            <div
-              className="fixed inset-0 z-40"
+            <button
+              type="button"
+              className="fixed inset-0 z-40 bg-transparent border-none cursor-default"
+              tabIndex={-1}
               onClick={() => setShowDropdown(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setShowDropdown(false);
+              }}
+              aria-label="Close dropdown"
             />
             <div className="absolute right-0 mt-2 w-56 z-50 rounded-xl bg-card/95 backdrop-blur-xl border border-border shadow-xl shadow-black/10 dark:shadow-black/30 p-2 space-y-1">
               <button
@@ -456,7 +462,7 @@ export default function Header() {
                       key={link.label}
                       label={link.label}
                       icon={link.icon}
-                      children={link.children}
+                      items={link.children}
                     />
                   );
                 }
@@ -517,9 +523,15 @@ export default function Header() {
 
       {/* Mobile Menu Overlay */}
       {mobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-40 lg:hidden"
-          onKeyUp={() => setMobileOpen(false)}
+        <button
+          type="button"
+          className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-40 lg:hidden border-none cursor-default"
+          tabIndex={-1}
+          onClick={() => setMobileOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setMobileOpen(false);
+          }}
+          aria-label="Close mobile menu"
         />
       )}
 
@@ -631,6 +643,7 @@ export default function Header() {
                           return (
                             <Link
                               key={child.label}
+                              // biome-ignore lint/style/noNonNullAssertion: child.to is guaranteed when href is absent
                               to={child.to!}
                               onClick={() => setMobileOpen(false)}
                               className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
