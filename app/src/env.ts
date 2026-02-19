@@ -72,6 +72,25 @@ export const env = createEnv({
     VITE_REOWN_PROJECT_ID: z.string().min(1),
     // VITE_GOOGLE_ANALYTICS_ID: z.string().optional(),
 
+    // Blockchain configuration
+    VITE_SOLANA_RPC_URL: z
+      .string()
+      .url()
+      .default("https://api.mainnet-beta.solana.com"),
+    VITE_SOLANA_WS_URL: z.string().url().optional(),
+    VITE_MAIN_LOTTERY_PROGRAM_ID: z
+      .string()
+      .min(1)
+      .default("7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF"),
+    VITE_QUICKPICK_PROGRAM_ID: z
+      .string()
+      .min(1)
+      .default("7XC1KT5mvsHHXbR2mH6er138fu2tJ4L2fAgmpjLnnZK2"),
+    VITE_USDC_MINT: z
+      .string()
+      .min(1)
+      .default("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+
     // Feature flags for client-side
     // VITE_ENABLE_DEV_TOOLS: z
     //   .enum(["true", "false"])
@@ -116,6 +135,11 @@ export type ServerEnv = {
 export type ClientEnv = {
   VITE_APP_TITLE: string;
   VITE_REOWN_PROJECT_ID?: string;
+  VITE_SOLANA_RPC_URL: string;
+  VITE_SOLANA_WS_URL?: string;
+  VITE_MAIN_LOTTERY_PROGRAM_ID: string;
+  VITE_QUICKPICK_PROGRAM_ID: string;
+  VITE_USDC_MINT: string;
 };
 
 /**
