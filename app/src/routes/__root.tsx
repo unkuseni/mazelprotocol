@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { useMemo } from "react";
+import { Provider as TRPCProvider } from "@/integrations/tanstack-query/root-provider";
 import { AppKitProvider } from "@/lib/appkit-provider";
 import { ThemeProvider } from "@/lib/theme";
 import Header from "../components/Header";
@@ -95,23 +96,25 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <QueryClientProvider client={queryClient}>
-          <ThemeProvider>
-            <AppKitProvider>
-              <Header />
-              {children}
-            </AppKitProvider>
-            <TanStackDevtools
-              config={{
-                position: "bottom-right",
-              }}
-              plugins={[
-                {
-                  name: "Tanstack Router",
-                  render: <TanStackRouterDevtoolsPanel />,
-                },
-              ]}
-            />
-          </ThemeProvider>
+          <TRPCProvider queryClient={queryClient}>
+            <ThemeProvider>
+              <AppKitProvider>
+                <Header />
+                {children}
+              </AppKitProvider>
+              <TanStackDevtools
+                config={{
+                  position: "bottom-right",
+                }}
+                plugins={[
+                  {
+                    name: "Tanstack Router",
+                    render: <TanStackRouterDevtoolsPanel />,
+                  },
+                ]}
+              />
+            </ThemeProvider>
+          </TRPCProvider>
         </QueryClientProvider>
         <Scripts />
       </body>

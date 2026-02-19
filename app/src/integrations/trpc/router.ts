@@ -1,29 +1,22 @@
 import { z } from "zod";
 
 import { createTRPCRouter, publicProcedure } from "./init";
+import { chatRouter } from "./routers/chatRouter";
 
 import type { TRPCRouterRecord } from "@trpc/server";
 import { env } from "@/env";
 
-const todos = [
-  { id: 1, name: "Get groceries" },
-  { id: 2, name: "Buy a new phone" },
-  { id: 3, name: "Finish the project" },
-];
-
 const todosRouter = {
-  list: publicProcedure.query(() => todos),
-  add: publicProcedure
-    .input(z.object({ name: z.string() }))
-    .mutation(({ input }) => {
-      const newTodo = { id: todos.length + 1, name: input.name };
-      todos.push(newTodo);
-      return newTodo;
-    }),
+  list: publicProcedure.query(() => []),
+  add: publicProcedure.input(z.object({ name: z.string() })).mutation(() => {
+    // Placeholder implementation
+    return { id: 1, name: "Todo placeholder" };
+  }),
 } satisfies TRPCRouterRecord;
 
 export const trpcRouter = createTRPCRouter({
   todos: todosRouter,
+  chat: chatRouter,
   health: publicProcedure.query(() => ({
     status: "ok",
     timestamp: new Date().toISOString(),
