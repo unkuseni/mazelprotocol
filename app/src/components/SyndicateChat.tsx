@@ -1,22 +1,22 @@
-import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Send,
-  SmilePlus,
-  Reply,
-  Pin,
-  MoreHorizontal,
-  Shield,
-  Crown,
-  Image as ImageIcon,
-  AtSign,
-  Hash,
   ArrowDown,
+  AtSign,
+  Crown,
+  Hash,
+  Image as ImageIcon,
   Loader2,
   MessageCircle,
+  MoreHorizontal,
+  Pin,
+  Reply,
+  Send,
+  Shield,
+  SmilePlus,
   Wallet,
 } from "lucide-react";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -328,6 +328,7 @@ function ChatBubble({
   const isAnnouncement = message.type === "announcement";
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: <ignore static element>
     <div
       className={`group flex gap-2.5 px-4 py-1.5 transition-colors hover:bg-foreground/2 ${
         isOwn ? "flex-row-reverse" : ""

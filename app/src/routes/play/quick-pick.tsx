@@ -20,7 +20,7 @@ import {
   Lock,
   ArrowRight,
 } from "lucide-react";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-hooks";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 import { Button } from "@/components/ui/button";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { QuickPickCountdown } from "@/components/CountdownTimer";

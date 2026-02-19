@@ -4,14 +4,14 @@
 // It is safe to statically import `@reown/appkit/react` here because this
 // module only executes in the browser after hydration.
 
-import { useMemo, type ReactNode } from "react";
 import {
   useAppKit as useRealAppKit,
   useAppKitAccount as useRealAppKitAccount,
   useDisconnect as useRealDisconnect,
 } from "@reown/appkit/react";
+import { type ReactNode, useMemo } from "react";
 
-import { AppKitContext, type AppKitContextValue } from "./appkit-hooks";
+import { AppKitContext, type AppKitContextValue } from "./appkit-provider";
 
 /**
  * Inner provider that bridges real AppKit hook values into our shared context.
@@ -26,12 +26,25 @@ export default function AppKitClientProvider({
 }: {
   children: ReactNode;
 }) {
+  console.log("[AppKitClientProvider] Initializing client provider");
   const appKit = useRealAppKit();
   const account = useRealAppKitAccount();
   const { disconnect } = useRealDisconnect();
 
-  const value = useMemo<AppKitContextValue>(
-    () => ({
+  console.log("[AppKitClientProvider] Account state:", {
+    address: account.address,
+    isConnected: account.isConnected,
+    status: account.status,
+    caipAddress: account.caipAddress,
+  });
+  console.log("[AppKitClientProvider] AppKit:", {
+    hasOpen: typeof appKit.open === "function",
+    hasClose: typeof appKit.close === "function",
+  });
+
+  const value = useMemo<AppKitContextValue>(() => {
+    console.log("[AppKitClientProvider] Creating context value");
+    return {
       ready: true,
       open: appKit.open ?? (() => {}),
       close: appKit.close ?? (() => {}),
@@ -40,17 +53,16 @@ export default function AppKitClientProvider({
       caipAddress: account.caipAddress,
       status: account.status,
       disconnect: disconnect ?? (async () => {}),
-    }),
-    [
-      appKit.open,
-      appKit.close,
-      account.address,
-      account.isConnected,
-      account.caipAddress,
-      account.status,
-      disconnect,
-    ],
-  );
+    };
+  }, [
+    appKit.open,
+    appKit.close,
+    account.address,
+    account.isConnected,
+    account.caipAddress,
+    account.status,
+    disconnect,
+  ]);
 
   return (
     <AppKitContext.Provider value={value}>{children}</AppKitContext.Provider>

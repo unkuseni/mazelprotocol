@@ -1,24 +1,28 @@
 import { Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
 import {
-  Menu,
-  X,
-  Trophy,
-  Zap,
-  Users,
-  BookOpen,
-  Wallet,
-  ChevronDown,
-  ExternalLink,
-  Ticket,
   BarChart3,
+  BookOpen,
+  Check,
+  ChevronDown,
+  Copy,
+  ExternalLink,
   Gem,
   LogOut,
-  Copy,
-  Check,
+  Menu,
+  Ticket,
+  Trophy,
+  Users,
+  Wallet,
+  X,
+  Zap,
 } from "lucide-react";
-import { useAppKit, useAppKitAccount, useDisconnect } from "@/lib/appkit-hooks";
+import { useEffect, useState } from "react";
 import { ThemeToggleCompact } from "@/components/ThemeToggle";
+import {
+  useAppKit,
+  useAppKitAccount,
+  useDisconnect,
+} from "@/lib/appkit-provider";
 
 const navLinks = [
   {
@@ -234,6 +238,13 @@ function WalletButton() {
   const [copied, setCopied] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
+  console.log("[WalletButton] Debug:", {
+    address,
+    isConnected,
+    hasOpen: typeof open === "function",
+    hasDisconnect: typeof disconnect === "function",
+  });
+
   const truncatedAddress = address
     ? `${address.slice(0, 4)}...${address.slice(-4)}`
     : "";
@@ -251,7 +262,13 @@ function WalletButton() {
       <div className="relative">
         <button
           type="button"
-          onClick={() => setShowDropdown((p) => !p)}
+          onClick={() => {
+            console.log(
+              "[WalletButton] Toggling dropdown, current:",
+              showDropdown,
+            );
+            setShowDropdown((p) => !p);
+          }}
           className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-foreground bg-emerald/10 border border-emerald/20 hover:border-emerald/40 rounded-lg transition-all duration-200"
         >
           <div className="w-2 h-2 rounded-full bg-emerald animate-pulse" />
@@ -314,7 +331,10 @@ function WalletButton() {
   return (
     <button
       type="button"
-      onClick={() => open({ view: "Connect", namespace: "solana" })}
+      onClick={() => {
+        console.log("[WalletButton] Connect button clicked, calling open");
+        open({ view: "Connect", namespace: "solana" });
+      }}
       className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-lg transition-all duration-300 shadow-lg shadow-emerald/20 hover:shadow-emerald/30 hover:scale-[1.02] active:scale-[0.98]"
     >
       <Wallet size={16} />
