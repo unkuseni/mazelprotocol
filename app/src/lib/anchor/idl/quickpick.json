@@ -1,0 +1,4204 @@
+{
+  "address": "7XC1KT5mvsHHXbR2mH6er138fu2tJ4L2fAgmpjLnnZK2",
+  "metadata": {
+    "name": "quickpick",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Quick Pick Express - High-frequency 5/35 lottery on Solana"
+  },
+  "docs": [
+    "Quick Pick Express Program"
+  ],
+  "instructions": [
+    {
+      "name": "add_reserve_funds",
+      "docs": [
+        "Add reserve funds",
+        "",
+        "Adds additional reserve funds for jackpot seeding or emergencies.",
+        "Only the lottery authority can add funds.",
+        "",
+        "# Arguments",
+        "* `ctx` - AddQuickPickReserveFunds accounts context",
+        "* `amount` - Amount of USDC lamports to add"
+      ],
+      "discriminator": [
+        170,
+        205,
+        197,
+        89,
+        220,
+        116,
+        101,
+        223
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority_usdc",
+          "docs": [
+            "Authority's USDC token account (source of funds)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "prize_pool_usdc",
+          "docs": [
+            "Prize pool USDC token account (destination)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  122,
+                  101,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "docs": [
+            "USDC mint"
+          ]
+        },
+        {
+          "name": "token_program",
+          "docs": [
+            "Token program"
+          ],
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "buy_ticket",
+      "docs": [
+        "Buy a Quick Pick Express ticket",
+        "",
+        "Purchases a ticket with 5 selected numbers from 1-35.",
+        "Requires $50 lifetime spend in the main lottery ($50 gate).",
+        "USDC is transferred from player to prize pool, house fee, and insurance accounts.",
+        "",
+        "# Arguments",
+        "* `ctx` - BuyQuickPickTicket accounts context",
+        "* `params` - Selected numbers (5 unique numbers from 1-35)"
+      ],
+      "discriminator": [
+        11,
+        24,
+        17,
+        193,
+        168,
+        116,
+        164,
+        169
+      ],
+      "accounts": [
+        {
+          "name": "player",
+          "docs": [
+            "The player purchasing the ticket"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "ticket",
+          "docs": [
+            "The ticket account to be created"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107,
+                  95,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "quick_pick_state.current_draw",
+                "account": "QuickPickState"
+              },
+              {
+                "kind": "account",
+                "path": "quick_pick_state.current_draw_tickets",
+                "account": "QuickPickState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "player_usdc",
+          "docs": [
+            "Player's USDC token account"
+          ],
+          "writable": true
+        },
+        {
+          "name": "prize_pool_usdc",
+          "docs": [
+            "Prize pool USDC token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  122,
+                  101,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "house_fee_usdc",
+          "docs": [
+            "House fee USDC token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  111,
+                  117,
+                  115,
+                  101,
+                  95,
+                  102,
+                  101,
+                  101,
+                  95,
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "insurance_pool_usdc",
+          "docs": [
+            "Insurance pool USDC token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "docs": [
+            "USDC mint"
+          ]
+        },
+        {
+          "name": "user_stats",
+          "docs": [
+            "User statistics account (to verify $50 gate)",
+            "This account is owned by the main lottery program, NOT this program.",
+            "We use UncheckedAccount + manual validation because Anchor's #[account]",
+            "derives PDAs under the current program ID, but this PDA lives under the",
+            "main lottery program.",
+            "PDA derivation verified, discriminator checked, total_spent >= gate"
+          ]
+        },
+        {
+          "name": "token_program",
+          "docs": [
+            "Token program"
+          ],
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "System program"
+          ],
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "BuyQuickPickTicketParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "cancel_draw",
+      "docs": [
+        "Cancel a Quick Pick draw",
+        "",
+        "Cancels the current draw in progress, resetting the state",
+        "so a new draw can be initiated. Used for stuck draws or issues.",
+        "Only the lottery authority can cancel.",
+        "",
+        "# Arguments",
+        "* `ctx` - CancelQuickPickDraw accounts context",
+        "* `reason` - Reason for cancellation"
+      ],
+      "discriminator": [
+        105,
+        47,
+        245,
+        199,
+        42,
+        255,
+        88,
+        48
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "claim_prize",
+      "docs": [
+        "Claim prize for a winning Quick Pick ticket",
+        "",
+        "Calculates match count against winning numbers and",
+        "transfers the appropriate prize from the prize pool.",
+        "Anyone can claim their own winning ticket.",
+        "",
+        "# Prize Tiers (Normal Mode)",
+        "- Match 5 (Jackpot): Variable (split among winners)",
+        "- Match 4: $100",
+        "- Match 3: $4",
+        "- Match 0-2: No prize",
+        "",
+        "# Prize Tiers (Rolldown Mode)",
+        "- Match 4: 60% of jackpot (pari-mutuel)",
+        "- Match 3: 40% of jackpot (pari-mutuel)",
+        "",
+        "# Arguments",
+        "* `ctx` - ClaimQuickPickPrize accounts context"
+      ],
+      "discriminator": [
+        157,
+        233,
+        139,
+        121,
+        246,
+        62,
+        234,
+        235
+      ],
+      "accounts": [
+        {
+          "name": "player",
+          "docs": [
+            "The player claiming the prize (must be ticket owner)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "ticket",
+          "docs": [
+            "The ticket being claimed"
+          ],
+          "writable": true
+        },
+        {
+          "name": "draw_result",
+          "docs": [
+            "The draw result for the ticket's draw"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107,
+                  95,
+                  100,
+                  114,
+                  97,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ticket.draw_id",
+                "account": "QuickPickTicket"
+              }
+            ]
+          }
+        },
+        {
+          "name": "player_usdc",
+          "docs": [
+            "Player's USDC token account (to receive prize)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "prize_pool_usdc",
+          "docs": [
+            "Prize pool USDC token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  122,
+                  101,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "docs": [
+            "USDC mint"
+          ]
+        },
+        {
+          "name": "token_program",
+          "docs": [
+            "Token program"
+          ],
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "commit_randomness",
+      "docs": [
+        "Commit to randomness for the upcoming Quick Pick draw",
+        "",
+        "This is the COMMIT phase of the commit-reveal pattern.",
+        "Stores the randomness account reference for the reveal phase.",
+        "Only the lottery authority can commit.",
+        "",
+        "# Arguments",
+        "* `ctx` - CommitQuickPickRandomness accounts context"
+      ],
+      "discriminator": [
+        146,
+        52,
+        195,
+        220,
+        79,
+        30,
+        53,
+        26
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "randomness_account_data",
+          "docs": [
+            "The Switchboard randomness account"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "emergency_fund_transfer",
+      "docs": [
+        "Emergency fund transfer",
+        "",
+        "Allows emergency transfer of funds between pools.",
+        "Quick Pick must be paused. Only for emergencies.",
+        "Only the lottery authority can execute.",
+        "",
+        "# Arguments",
+        "* `ctx` - EmergencyQuickPickFundTransfer accounts context",
+        "* `source` - Source of funds (Reserve, Insurance, or PrizePool)",
+        "* `amount` - Amount to transfer",
+        "* `reason` - Reason for the emergency transfer"
+      ],
+      "discriminator": [
+        211,
+        94,
+        223,
+        195,
+        43,
+        8,
+        247,
+        115
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "source_usdc",
+          "docs": [
+            "Source USDC token account"
+          ],
+          "writable": true
+        },
+        {
+          "name": "destination_usdc",
+          "docs": [
+            "Destination USDC token account"
+          ],
+          "writable": true
+        },
+        {
+          "name": "usdc_mint",
+          "docs": [
+            "USDC mint (for validation)"
+          ]
+        },
+        {
+          "name": "token_program",
+          "docs": [
+            "Token program"
+          ],
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "source",
+          "type": {
+            "defined": {
+              "name": "QuickPickFundSource"
+            }
+          }
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "execute_draw",
+      "docs": [
+        "Execute the Quick Pick draw by revealing randomness",
+        "",
+        "This is the REVEAL phase of the commit-reveal pattern.",
+        "Retrieves randomness from Switchboard and generates 5 winning numbers.",
+        "Determines if rolldown triggers (probabilistic between soft/hard caps).",
+        "Only the lottery authority can execute.",
+        "",
+        "# Arguments",
+        "* `ctx` - ExecuteQuickPickDraw accounts context"
+      ],
+      "discriminator": [
+        88,
+        43,
+        150,
+        204,
+        248,
+        133,
+        199,
+        32
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "draw_result",
+          "docs": [
+            "The Quick Pick draw result account to be created"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107,
+                  95,
+                  100,
+                  114,
+                  97,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "quick_pick_state.current_draw",
+                "account": "QuickPickState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "randomness_account_data",
+          "docs": [
+            "The Switchboard randomness account"
+          ]
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "The payer for the draw result account creation"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "System program"
+          ],
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "finalize_draw",
+      "docs": [
+        "Finalize the Quick Pick draw with winner counts",
+        "",
+        "Called after off-chain indexing determines winner counts.",
+        "Calculates prizes (fixed or pari-mutuel rolldown).",
+        "Handles rolldown distribution: 60% to Match 4, 40% to Match 3.",
+        "Advances game state to next draw.",
+        "Only the lottery authority can finalize.",
+        "",
+        "# Arguments",
+        "* `ctx` - FinalizeQuickPickDraw accounts context",
+        "* `params` - Winner counts by tier (Match 5, Match 4, Match 3)"
+      ],
+      "discriminator": [
+        112,
+        9,
+        234,
+        94,
+        99,
+        176,
+        12,
+        181
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "draw_result",
+          "docs": [
+            "The Quick Pick draw result account to be finalized"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107,
+                  95,
+                  100,
+                  114,
+                  97,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "quick_pick_state.current_draw",
+                "account": "QuickPickState"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "FinalizeQuickPickDrawParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "force_finalize_draw",
+      "docs": [
+        "Force finalize a Quick Pick draw",
+        "",
+        "Force finalizes a stuck draw with zero winners, allowing the",
+        "system to proceed to the next draw. The jackpot carries over.",
+        "Only the lottery authority can force finalize.",
+        "",
+        "# Arguments",
+        "* `ctx` - ForceFinalizequickPickDraw accounts context",
+        "* `reason` - Reason for force finalization"
+      ],
+      "discriminator": [
+        89,
+        52,
+        27,
+        118,
+        119,
+        77,
+        54,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "draw_result",
+          "docs": [
+            "The Quick Pick draw result account (if exists)"
+          ],
+          "writable": true,
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107,
+                  95,
+                  100,
+                  114,
+                  97,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "quick_pick_state.current_draw",
+                "account": "QuickPickState"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "fund_seed",
+      "docs": [
+        "Fund the Quick Pick Express seed amount",
+        "",
+        "Transfers the seed amount ($5,000) to the prize pool and unpauses the game.",
+        "Only the lottery authority can fund.",
+        "",
+        "# Arguments",
+        "* `ctx` - FundQuickPickSeed accounts context"
+      ],
+      "discriminator": [
+        247,
+        115,
+        151,
+        8,
+        228,
+        30,
+        235,
+        125
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority_usdc",
+          "docs": [
+            "Authority's USDC token account"
+          ],
+          "writable": true
+        },
+        {
+          "name": "prize_pool_usdc",
+          "docs": [
+            "Quick Pick prize pool USDC token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  122,
+                  101,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "docs": [
+            "Token program"
+          ],
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize",
+      "docs": [
+        "Initialize the Quick Pick Express lottery",
+        "",
+        "Creates the QuickPickState account with game parameters.",
+        "Only the main lottery authority can initialize.",
+        "The game starts PAUSED and must be funded separately.",
+        "",
+        "# Arguments",
+        "* `ctx` - InitializeQuickPick accounts context",
+        "* `params` - Initial configuration parameters (first draw timestamp)"
+      ],
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account to be created"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "docs": [
+            "USDC mint account"
+          ]
+        },
+        {
+          "name": "prize_pool_usdc",
+          "docs": [
+            "Prize pool USDC token account (PDA-controlled by quick_pick_state)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  122,
+                  101,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "house_fee_usdc",
+          "docs": [
+            "House fee USDC token account (PDA-controlled by quick_pick_state)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  111,
+                  117,
+                  115,
+                  101,
+                  95,
+                  102,
+                  101,
+                  101,
+                  95,
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "insurance_pool_usdc",
+          "docs": [
+            "Insurance pool USDC token account (PDA-controlled by quick_pick_state)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "System program"
+          ],
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "docs": [
+            "Token program"
+          ],
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "docs": [
+            "Rent sysvar"
+          ],
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "InitializeQuickPickParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "pause",
+      "docs": [
+        "Pause Quick Pick Express",
+        "",
+        "Stops ticket sales and draw execution.",
+        "Only the lottery authority can pause.",
+        "",
+        "# Arguments",
+        "* `ctx` - PauseQuickPick accounts context",
+        "* `reason` - Reason for pausing"
+      ],
+      "discriminator": [
+        211,
+        22,
+        221,
+        251,
+        74,
+        121,
+        193,
+        47
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "unpause",
+      "docs": [
+        "Unpause Quick Pick Express",
+        "",
+        "Resumes ticket sales and draw execution.",
+        "Only the lottery authority can unpause.",
+        "Requires the jackpot to be funded.",
+        "",
+        "# Arguments",
+        "* `ctx` - PauseQuickPick accounts context"
+      ],
+      "discriminator": [
+        169,
+        144,
+        4,
+        38,
+        10,
+        141,
+        188,
+        255
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_config",
+      "docs": [
+        "Update Quick Pick Express configuration",
+        "",
+        "Updates various configuration parameters such as ticket price,",
+        "caps, prizes, and draw interval. Can only be called when paused",
+        "or no draw is in progress.",
+        "",
+        "# Arguments",
+        "* `ctx` - UpdateQuickPickConfig accounts context",
+        "* `params` - Configuration parameters to update (None = no change)"
+      ],
+      "discriminator": [
+        29,
+        158,
+        252,
+        191,
+        10,
+        83,
+        219,
+        99
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "UpdateQuickPickConfigParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "withdraw_house_fees",
+      "docs": [
+        "Withdraw accumulated house fees",
+        "",
+        "Transfers house fees to a destination account.",
+        "Only the lottery authority can withdraw.",
+        "",
+        "# Arguments",
+        "* `ctx` - WithdrawQuickPickHouseFees accounts context",
+        "* `amount` - Amount to withdraw (0 = withdraw all)"
+      ],
+      "discriminator": [
+        100,
+        154,
+        60,
+        5,
+        149,
+        63,
+        203,
+        28
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account (for PDA signing)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "house_fee_usdc",
+          "docs": [
+            "House fee USDC token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  111,
+                  117,
+                  115,
+                  101,
+                  95,
+                  102,
+                  101,
+                  101,
+                  95,
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination_usdc",
+          "docs": [
+            "Destination USDC token account"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "docs": [
+            "Token program"
+          ],
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "LotteryState",
+      "discriminator": [
+        196,
+        210,
+        202,
+        219,
+        204,
+        63,
+        133,
+        85
+      ]
+    },
+    {
+      "name": "QuickPickDrawResult",
+      "discriminator": [
+        234,
+        233,
+        97,
+        112,
+        43,
+        224,
+        15,
+        123
+      ]
+    },
+    {
+      "name": "QuickPickState",
+      "discriminator": [
+        3,
+        74,
+        207,
+        81,
+        227,
+        157,
+        236,
+        120
+      ]
+    },
+    {
+      "name": "QuickPickTicket",
+      "discriminator": [
+        123,
+        243,
+        243,
+        13,
+        188,
+        224,
+        127,
+        73
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "QuickPickDrawCancelled",
+      "discriminator": [
+        118,
+        74,
+        170,
+        96,
+        241,
+        145,
+        78,
+        218
+      ]
+    },
+    {
+      "name": "QuickPickDrawExecuted",
+      "discriminator": [
+        161,
+        3,
+        115,
+        177,
+        3,
+        247,
+        209,
+        48
+      ]
+    },
+    {
+      "name": "QuickPickDrawFinalized",
+      "discriminator": [
+        63,
+        51,
+        118,
+        163,
+        160,
+        103,
+        81,
+        208
+      ]
+    },
+    {
+      "name": "QuickPickDrawForceFinalized",
+      "discriminator": [
+        142,
+        76,
+        77,
+        7,
+        135,
+        245,
+        149,
+        236
+      ]
+    },
+    {
+      "name": "QuickPickEmergencyFundTransferred",
+      "discriminator": [
+        221,
+        15,
+        212,
+        17,
+        231,
+        61,
+        110,
+        221
+      ]
+    },
+    {
+      "name": "QuickPickFeeTierChanged",
+      "discriminator": [
+        89,
+        59,
+        95,
+        91,
+        236,
+        0,
+        107,
+        72
+      ]
+    },
+    {
+      "name": "QuickPickHardCapReached",
+      "discriminator": [
+        98,
+        39,
+        55,
+        121,
+        113,
+        78,
+        29,
+        89
+      ]
+    },
+    {
+      "name": "QuickPickHouseFeesWithdrawn",
+      "discriminator": [
+        175,
+        141,
+        255,
+        43,
+        234,
+        117,
+        86,
+        243
+      ]
+    },
+    {
+      "name": "QuickPickInitialized",
+      "discriminator": [
+        142,
+        69,
+        34,
+        62,
+        134,
+        96,
+        77,
+        27
+      ]
+    },
+    {
+      "name": "QuickPickJackpotWon",
+      "discriminator": [
+        122,
+        243,
+        9,
+        243,
+        225,
+        110,
+        86,
+        230
+      ]
+    },
+    {
+      "name": "QuickPickPaused",
+      "discriminator": [
+        17,
+        177,
+        239,
+        255,
+        162,
+        19,
+        33,
+        76
+      ]
+    },
+    {
+      "name": "QuickPickPrizeClaimed",
+      "discriminator": [
+        82,
+        101,
+        116,
+        145,
+        124,
+        31,
+        4,
+        138
+      ]
+    },
+    {
+      "name": "QuickPickRandomnessCommitted",
+      "discriminator": [
+        24,
+        87,
+        175,
+        108,
+        189,
+        13,
+        198,
+        107
+      ]
+    },
+    {
+      "name": "QuickPickRolldownExecuted",
+      "discriminator": [
+        52,
+        33,
+        169,
+        159,
+        59,
+        239,
+        91,
+        76
+      ]
+    },
+    {
+      "name": "QuickPickSeeded",
+      "discriminator": [
+        43,
+        185,
+        61,
+        67,
+        16,
+        235,
+        43,
+        87
+      ]
+    },
+    {
+      "name": "QuickPickSoftCapReached",
+      "discriminator": [
+        144,
+        32,
+        11,
+        254,
+        179,
+        252,
+        255,
+        21
+      ]
+    },
+    {
+      "name": "QuickPickTicketPurchased",
+      "discriminator": [
+        106,
+        192,
+        125,
+        195,
+        212,
+        239,
+        229,
+        126
+      ]
+    },
+    {
+      "name": "QuickPickUnpaused",
+      "discriminator": [
+        220,
+        69,
+        248,
+        231,
+        23,
+        171,
+        145,
+        182
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 12000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized: caller is not the authority"
+    },
+    {
+      "code": 12001,
+      "name": "NotTicketOwner",
+      "msg": "Not the owner of this ticket"
+    },
+    {
+      "code": 12002,
+      "name": "InvalidAuthority",
+      "msg": "Invalid authority"
+    },
+    {
+      "code": 12010,
+      "name": "Paused",
+      "msg": "Quick Pick Express is currently paused"
+    },
+    {
+      "code": 12011,
+      "name": "NotInitialized",
+      "msg": "Quick Pick Express has not been initialized"
+    },
+    {
+      "code": 12012,
+      "name": "AlreadyInitialized",
+      "msg": "Quick Pick Express is already initialized"
+    },
+    {
+      "code": 12013,
+      "name": "InvalidDrawState",
+      "msg": "Invalid draw state for this operation"
+    },
+    {
+      "code": 12014,
+      "name": "DrawNotReady",
+      "msg": "Draw is not ready - draw time not reached"
+    },
+    {
+      "code": 12015,
+      "name": "DrawNotInProgress",
+      "msg": "Draw is not in progress"
+    },
+    {
+      "code": 12016,
+      "name": "InsufficientJackpotFunding",
+      "msg": "Jackpot is below minimum required amount"
+    },
+    {
+      "code": 12017,
+      "name": "DrawAlreadyCompleted",
+      "msg": "Draw has already been completed"
+    },
+    {
+      "code": 12018,
+      "name": "DrawIdMismatch",
+      "msg": "Draw ID mismatch"
+    },
+    {
+      "code": 12020,
+      "name": "InvalidNumbers",
+      "msg": "Invalid numbers: must select 5 unique numbers from 1-35"
+    },
+    {
+      "code": 12021,
+      "name": "DuplicateNumbers",
+      "msg": "Duplicate numbers are not allowed"
+    },
+    {
+      "code": 12022,
+      "name": "NumbersOutOfRange",
+      "msg": "Numbers must be between 1 and 35"
+    },
+    {
+      "code": 12023,
+      "name": "TicketSaleEnded",
+      "msg": "Ticket sale has ended for this draw"
+    },
+    {
+      "code": 12024,
+      "name": "AlreadyClaimed",
+      "msg": "This ticket has already been claimed"
+    },
+    {
+      "code": 12025,
+      "name": "TicketExpired",
+      "msg": "This ticket has expired and can no longer be claimed"
+    },
+    {
+      "code": 12026,
+      "name": "InvalidTicket",
+      "msg": "Invalid ticket"
+    },
+    {
+      "code": 12027,
+      "name": "NumbersNotSorted",
+      "msg": "Numbers must be sorted in ascending order"
+    },
+    {
+      "code": 12040,
+      "name": "InsufficientMainLotterySpend",
+      "msg": "Insufficient main lottery spend: $50 lifetime spend required"
+    },
+    {
+      "code": 12050,
+      "name": "InsufficientFunds",
+      "msg": "Insufficient funds for this operation"
+    },
+    {
+      "code": 12051,
+      "name": "InsufficientPrizePool",
+      "msg": "Insufficient prize pool balance to pay prize"
+    },
+    {
+      "code": 12052,
+      "name": "NoPrizeToClaim",
+      "msg": "No prize to claim for this ticket"
+    },
+    {
+      "code": 12053,
+      "name": "PrizeAlreadyClaimed",
+      "msg": "Prize has already been claimed"
+    },
+    {
+      "code": 12054,
+      "name": "PrizePoolSolvencyFailed",
+      "msg": "Prize pool solvency check failed"
+    },
+    {
+      "code": 12055,
+      "name": "PrizeCalculationOverflow",
+      "msg": "Prize calculation overflow"
+    },
+    {
+      "code": 12070,
+      "name": "RandomnessAlreadyRevealed",
+      "msg": "Randomness has already been revealed - cannot commit"
+    },
+    {
+      "code": 12071,
+      "name": "RandomnessNotResolved",
+      "msg": "Randomness has not been resolved yet"
+    },
+    {
+      "code": 12072,
+      "name": "RandomnessExpired",
+      "msg": "Randomness has expired - request new randomness"
+    },
+    {
+      "code": 12073,
+      "name": "InvalidRandomnessProof",
+      "msg": "Invalid randomness proof"
+    },
+    {
+      "code": 12074,
+      "name": "RandomnessNotFresh",
+      "msg": "Randomness is not fresh enough"
+    },
+    {
+      "code": 12075,
+      "name": "RandomnessNotCommitted",
+      "msg": "Randomness has not been committed yet"
+    },
+    {
+      "code": 12076,
+      "name": "RandomnessParseError",
+      "msg": "Failed to parse randomness account data"
+    },
+    {
+      "code": 12090,
+      "name": "InvalidUsdcMint",
+      "msg": "Invalid USDC mint address"
+    },
+    {
+      "code": 12091,
+      "name": "TokenAccountOwnerMismatch",
+      "msg": "Token account owner does not match expected owner"
+    },
+    {
+      "code": 12092,
+      "name": "TokenTransferFailed",
+      "msg": "Token transfer failed"
+    },
+    {
+      "code": 12093,
+      "name": "InvalidTokenAccount",
+      "msg": "Invalid token account"
+    },
+    {
+      "code": 12100,
+      "name": "Overflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 12101,
+      "name": "Underflow",
+      "msg": "Arithmetic underflow"
+    },
+    {
+      "code": 12102,
+      "name": "DivisionByZero",
+      "msg": "Division by zero"
+    },
+    {
+      "code": 12103,
+      "name": "ArithmeticError",
+      "msg": "Arithmetic error"
+    },
+    {
+      "code": 12110,
+      "name": "InvalidConfig",
+      "msg": "Invalid configuration parameter"
+    },
+    {
+      "code": 12111,
+      "name": "WinnerCountsExceedTickets",
+      "msg": "Winner counts exceed total tickets sold"
+    },
+    {
+      "code": 12112,
+      "name": "SuspiciousWinnerCount",
+      "msg": "Suspicious winner count - statistically improbable"
+    },
+    {
+      "code": 12113,
+      "name": "RolldownCalculationError",
+      "msg": "Error calculating rolldown distribution"
+    },
+    {
+      "code": 12114,
+      "name": "InvalidMatchCount",
+      "msg": "Invalid match count"
+    },
+    {
+      "code": 12120,
+      "name": "ClockUnavailable",
+      "msg": "System clock is unavailable"
+    },
+    {
+      "code": 12121,
+      "name": "InvalidTimestamp",
+      "msg": "Invalid timestamp"
+    },
+    {
+      "code": 12122,
+      "name": "Timeout",
+      "msg": "Operation timed out"
+    },
+    {
+      "code": 12123,
+      "name": "InternalError",
+      "msg": "Internal error"
+    }
+  ],
+  "types": [
+    {
+      "name": "BuyQuickPickTicketParams",
+      "docs": [
+        "Parameters for buying a Quick Pick ticket"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "numbers",
+            "docs": [
+              "5 numbers, each between 1 and 35"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "FinalizeQuickPickDrawParams",
+      "docs": [
+        "Parameters for finalizing the Quick Pick draw"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "winner_counts",
+            "docs": [
+              "Winner counts by tier (Match 5, Match 4, Match 3)"
+            ],
+            "type": {
+              "defined": {
+                "name": "QuickPickWinnerCounts"
+              }
+            }
+          },
+          {
+            "name": "verification_hash",
+            "docs": [
+              "Verification hash: SHA256(draw_id || winning_numbers || match_5 || match_4 || match_3 || indexer_nonce)",
+              "This serves as a commitment to the off-chain winner data, enabling post-hoc auditing.",
+              "Off-chain indexers must publish the preimage so anyone can verify the hash on-chain."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "indexer_nonce",
+            "docs": [
+              "Nonce used by the indexer when computing the verification hash (for replay protection)"
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializeQuickPickParams",
+      "docs": [
+        "Parameters for initializing Quick Pick Express"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "first_draw_timestamp",
+            "docs": [
+              "First draw timestamp (optional, defaults to now + draw_interval)"
+            ],
+            "type": {
+              "option": "i64"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "LotteryState",
+      "docs": [
+        "Main lottery state structure (for reference - actual account lives in main lottery)",
+        "",
+        "This structure is used to verify authority for Quick Pick operations.",
+        "The actual LotteryState account is owned by the main lottery program."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Authority (owner) of the lottery"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "pending_authority",
+            "docs": [
+              "Pending authority for two-step transfer"
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "switchboard_queue",
+            "docs": [
+              "Switchboard oracle queue"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "current_randomness_account",
+            "docs": [
+              "Current randomness account reference"
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "current_draw_id",
+            "docs": [
+              "Current draw ID"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "jackpot_balance",
+            "docs": [
+              "Jackpot balance"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "reserve_balance",
+            "docs": [
+              "Reserve balance"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "insurance_balance",
+            "docs": [
+              "Insurance balance"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "ticket_price",
+            "docs": [
+              "Ticket price"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "house_fee_bps",
+            "docs": [
+              "House fee in basis points"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "jackpot_cap",
+            "docs": [
+              "Jackpot cap"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "seed_amount",
+            "docs": [
+              "Seed amount"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "soft_cap",
+            "docs": [
+              "Soft cap"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "hard_cap",
+            "docs": [
+              "Hard cap"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "next_draw_timestamp",
+            "docs": [
+              "Next draw timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "draw_interval",
+            "docs": [
+              "Draw interval"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "commit_slot",
+            "docs": [
+              "Commit slot"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "commit_timestamp",
+            "docs": [
+              "Commit timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "current_draw_tickets",
+            "docs": [
+              "Current draw ticket count"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_tickets_sold",
+            "docs": [
+              "Total tickets sold"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_prizes_paid",
+            "docs": [
+              "Total prizes paid"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "is_draw_in_progress",
+            "docs": [
+              "Is draw in progress"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "is_rolldown_active",
+            "docs": [
+              "Is rolldown active"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "is_paused",
+            "docs": [
+              "Is paused"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "is_funded",
+            "docs": [
+              "Is funded"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickDrawCancelled",
+      "docs": [
+        "Emitted when a Quick Pick draw is cancelled"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID that was cancelled"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "tickets_affected",
+            "docs": [
+              "Number of tickets affected"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "reason",
+            "docs": [
+              "Reason for cancellation"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickDrawExecuted",
+      "docs": [
+        "Emitted when a Quick Pick draw is executed (winning numbers revealed)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "winning_numbers",
+            "docs": [
+              "Winning numbers (5/35, sorted)"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "was_rolldown",
+            "docs": [
+              "Whether this was a rolldown draw"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "total_tickets",
+            "docs": [
+              "Total tickets in this draw"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "jackpot_distributed",
+            "docs": [
+              "Jackpot distributed (if rolldown, else 0)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Execution timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickDrawFinalized",
+      "docs": [
+        "Emitted when a Quick Pick draw is finalized with winner counts"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "match_5_winners",
+            "docs": [
+              "Match 5 (jackpot) winners count"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "match_4_winners",
+            "docs": [
+              "Match 4 winners count"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "match_3_winners",
+            "docs": [
+              "Match 3 winners count"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "match_5_prize",
+            "docs": [
+              "Prize per Match 5 winner"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "match_4_prize",
+            "docs": [
+              "Prize per Match 4 winner"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "match_3_prize",
+            "docs": [
+              "Prize per Match 3 winner"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_distributed",
+            "docs": [
+              "Total USDC to be distributed"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickDrawForceFinalized",
+      "docs": [
+        "Emitted when a Quick Pick draw is force finalized (emergency)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID that was force finalized"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "tickets_affected",
+            "docs": [
+              "Number of tickets affected"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "Authority who force finalized"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "reason",
+            "docs": [
+              "Reason for force finalization"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickDrawResult",
+      "docs": [
+        "Quick Pick Express draw result (5/35 Matrix)",
+        "",
+        "Stores the results of a completed draw including winning numbers,",
+        "winner counts, and prize amounts."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw identifier"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "winning_numbers",
+            "docs": [
+              "Winning numbers (5 numbers, sorted ascending)"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "randomness_proof",
+            "docs": [
+              "Switchboard randomness proof for verification"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Draw execution timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "total_tickets",
+            "docs": [
+              "Total tickets sold for this draw"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "was_rolldown",
+            "docs": [
+              "Whether this was a rolldown draw"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "match_5_winners",
+            "docs": [
+              "Winner counts by tier",
+              "Match 5 (Jackpot) winners"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "match_4_winners",
+            "docs": [
+              "Match 4 winners"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "match_3_winners",
+            "docs": [
+              "Match 3 winners"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "match_5_prize_per_winner",
+            "docs": [
+              "Prize amounts per winner by tier (set during finalization)",
+              "Match 5 (Jackpot) prize per winner"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "match_4_prize_per_winner",
+            "docs": [
+              "Match 4 prize per winner"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "match_3_prize_per_winner",
+            "docs": [
+              "Match 3 prize per winner"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "is_explicitly_finalized",
+            "docs": [
+              "Explicit flag set when draw is finalized"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickEmergencyFundTransferred",
+      "docs": [
+        "Emergency fund transfer event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID at time of transfer"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "source",
+            "docs": [
+              "Source of funds"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "Amount transferred"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "destination",
+            "docs": [
+              "Destination account"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "reason",
+            "docs": [
+              "Reason for transfer"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "Authority who initiated"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickFeeTierChanged",
+      "docs": [
+        "Emitted when Quick Pick house fee tier changes"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID when change occurred"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "old_fee_bps",
+            "docs": [
+              "Previous fee in basis points"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "new_fee_bps",
+            "docs": [
+              "New fee in basis points"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "jackpot_balance",
+            "docs": [
+              "Current jackpot balance that triggered the change"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickFundSource",
+      "docs": [
+        "Source of funds for emergency transfer"
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Reserve"
+          },
+          {
+            "name": "Insurance"
+          },
+          {
+            "name": "PrizePool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickHardCapReached",
+      "docs": [
+        "Emitted when Quick Pick hard cap is reached (forced rolldown)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "jackpot_balance",
+            "docs": [
+              "Current jackpot balance"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "hard_cap",
+            "docs": [
+              "Hard cap threshold"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickHouseFeesWithdrawn",
+      "docs": [
+        "Emitted when house fees are withdrawn"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amount",
+            "docs": [
+              "Amount withdrawn"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "destination",
+            "docs": [
+              "Destination wallet"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "Authority who withdrew"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickInitialized",
+      "docs": [
+        "Emitted when Quick Pick Express is initialized"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Authority wallet address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "ticket_price",
+            "docs": [
+              "Ticket price"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "seed_amount",
+            "docs": [
+              "Seed amount"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "soft_cap",
+            "docs": [
+              "Soft cap"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "hard_cap",
+            "docs": [
+              "Hard cap"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "first_draw_timestamp",
+            "docs": [
+              "First draw timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickJackpotWon",
+      "docs": [
+        "Emitted when the Quick Pick jackpot is won"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ticket",
+            "docs": [
+              "Ticket account public key"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "winner",
+            "docs": [
+              "Winner wallet address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "winning_numbers",
+            "docs": [
+              "Winning numbers"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "jackpot_amount",
+            "docs": [
+              "Jackpot amount won"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickPaused",
+      "docs": [
+        "Emitted when Quick Pick is paused"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Authority who paused"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "reason",
+            "docs": [
+              "Reason for pause"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickPrizeClaimed",
+      "docs": [
+        "Emitted when a Quick Pick prize is claimed"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ticket",
+            "docs": [
+              "Ticket account public key"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "player",
+            "docs": [
+              "Player wallet address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "match_count",
+            "docs": [
+              "Number of matches"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "prize_amount",
+            "docs": [
+              "Prize amount in USDC lamports"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickRandomnessCommitted",
+      "docs": [
+        "Emitted when Quick Pick randomness is committed"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "commit_slot",
+            "docs": [
+              "Slot when committed"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "randomness_account",
+            "docs": [
+              "Randomness account public key"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickRolldownExecuted",
+      "docs": [
+        "Emitted when a rolldown is executed"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "jackpot_distributed",
+            "docs": [
+              "Total jackpot distributed"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "match_4_prize",
+            "docs": [
+              "Match 4 prize per winner (pari-mutuel)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "match_3_prize",
+            "docs": [
+              "Match 3 prize per winner (pari-mutuel)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickSeeded",
+      "docs": [
+        "Emitted when Quick Pick seed is funded"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Authority who funded"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "seed_amount",
+            "docs": [
+              "Seed amount"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "jackpot_balance",
+            "docs": [
+              "New jackpot balance"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickSoftCapReached",
+      "docs": [
+        "Emitted when Quick Pick soft cap is reached"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "jackpot_balance",
+            "docs": [
+              "Current jackpot balance"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "soft_cap",
+            "docs": [
+              "Soft cap threshold"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "rolldown_probability_bps",
+            "docs": [
+              "Rolldown probability in basis points"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickState",
+      "docs": [
+        "Quick Pick Express game state (5/35 Matrix with Rolldown Exploit)",
+        "",
+        "This is the main state account that stores all global configuration",
+        "and current state for the Quick Pick Express lottery."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "current_draw",
+            "docs": [
+              "Current draw number (increments each draw)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "ticket_price",
+            "docs": [
+              "Ticket price in USDC lamports (1,500,000 = $1.50)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "pick_count",
+            "docs": [
+              "Matrix parameters (5/35)",
+              "Number of numbers to pick"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "number_range",
+            "docs": [
+              "Range of numbers (1 to number_range)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "house_fee_bps",
+            "docs": [
+              "Current house fee in basis points (dynamic based on jackpot level, 28-38%)"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "draw_interval",
+            "docs": [
+              "Draw interval in seconds (14400 = 4 hours)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "next_draw_timestamp",
+            "docs": [
+              "Next draw timestamp (unix timestamp)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "jackpot_balance",
+            "docs": [
+              "Jackpot balance in USDC lamports (accumulates between draws)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "soft_cap",
+            "docs": [
+              "Jackpot soft cap in USDC lamports ($30,000 - probabilistic rolldown begins)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "hard_cap",
+            "docs": [
+              "Jackpot hard cap in USDC lamports ($50,000 - forced rolldown)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "seed_amount",
+            "docs": [
+              "Seed amount for jackpot reset after rolldown ($5,000)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "match_4_prize",
+            "docs": [
+              "Fixed prize amounts (Normal Mode)",
+              "Match 4 prize in USDC lamports ($100)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "match_3_prize",
+            "docs": [
+              "Match 3 prize in USDC lamports ($4)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "current_draw_tickets",
+            "docs": [
+              "Current draw ticket count"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "prize_pool_balance",
+            "docs": [
+              "Prize pool balance for fixed prizes (USDC lamports)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "insurance_balance",
+            "docs": [
+              "Insurance pool balance (USDC lamports)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "reserve_balance",
+            "docs": [
+              "Reserve balance for jackpot seeding (USDC lamports)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_tickets_sold",
+            "docs": [
+              "Total tickets sold across all draws"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_prizes_paid",
+            "docs": [
+              "Total prizes paid out (USDC lamports)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "current_randomness_account",
+            "docs": [
+              "Current randomness account for commit-reveal pattern"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "commit_slot",
+            "docs": [
+              "Commit slot for randomness verification"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "commit_timestamp",
+            "docs": [
+              "Commit timestamp for timeout verification"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "is_draw_in_progress",
+            "docs": [
+              "Is a draw currently in progress (between commit and finalize)"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "is_rolldown_pending",
+            "docs": [
+              "Rolldown pending flag (set when jackpot >= soft_cap)"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "is_paused",
+            "docs": [
+              "Is the lottery paused"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "is_funded",
+            "docs": [
+              "Is the lottery funded (seed amount deposited)"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickTicket",
+      "docs": [
+        "Quick Pick Express ticket (5/35 Matrix)",
+        "",
+        "Represents a single ticket purchased by a player for a specific draw."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "docs": [
+              "Ticket owner's wallet address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID this ticket is for"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "numbers",
+            "docs": [
+              "Selected numbers (5 numbers from 1-35, stored sorted ascending)"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "purchase_timestamp",
+            "docs": [
+              "Purchase timestamp (unix timestamp)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "is_claimed",
+            "docs": [
+              "Whether the ticket has been claimed"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "match_count",
+            "docs": [
+              "Number of matching numbers (0-5, set after draw)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "prize_amount",
+            "docs": [
+              "Prize amount in USDC lamports (set after claim)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickTicketPurchased",
+      "docs": [
+        "Emitted when a Quick Pick ticket is purchased"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ticket",
+            "docs": [
+              "Ticket account public key"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "player",
+            "docs": [
+              "Player wallet address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID the ticket is for"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "numbers",
+            "docs": [
+              "Selected numbers (5/35, sorted)"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "price",
+            "docs": [
+              "Price paid in USDC lamports"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Purchase timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickUnpaused",
+      "docs": [
+        "Emitted when Quick Pick is unpaused"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Authority who unpaused"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickWinnerCounts",
+      "docs": [
+        "Winner counts for finalization"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "match_5",
+            "docs": [
+              "Match 5 (Jackpot) winners"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "match_4",
+            "docs": [
+              "Match 4 winners"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "match_3",
+            "docs": [
+              "Match 3 winners"
+            ],
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateQuickPickConfigParams",
+      "docs": [
+        "Parameters for updating Quick Pick configuration"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ticket_price",
+            "docs": [
+              "New ticket price (optional)"
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "soft_cap",
+            "docs": [
+              "New soft cap (optional)"
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "hard_cap",
+            "docs": [
+              "New hard cap (optional)"
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "seed_amount",
+            "docs": [
+              "New seed amount (optional)"
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "draw_interval",
+            "docs": [
+              "New draw interval (optional)"
+            ],
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "match_4_prize",
+            "docs": [
+              "New Match 4 prize (optional)"
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "match_3_prize",
+            "docs": [
+              "New Match 3 prize (optional)"
+            ],
+            "type": {
+              "option": "u64"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
