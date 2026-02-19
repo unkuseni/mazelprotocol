@@ -1,5 +1,5 @@
 import React from "react";
-import { JackpotDisplay } from "./JackpotDisplay";
+import { JackpotDisplay, type JackpotDisplayProps } from "./JackpotDisplay";
 import { useMainLotteryState, useQuickPickState } from "@/lib/anchor/hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, RefreshCw } from "lucide-react";
@@ -376,9 +376,18 @@ export function RealJackpotBadge({
 export function RealQuickPickJackpotDisplay({
   showRefresh = true,
   pollInterval = 5000, // 5 seconds (faster for Quick Pick)
-  ...props
+  wrapperClassName = "",
+  size = "md",
+  showRolldownStatus = true,
+  ...jackpotProps
 }: RealJackpotDisplayProps) {
-  const { data: quickPickState } = useQuickPickState({
+  const {
+    data: quickPickState,
+    isLoading,
+    isError,
+    refetch,
+    isRefetching,
+  } = useQuickPickState({
     refetchInterval: pollInterval,
   });
 
@@ -393,22 +402,84 @@ export function RealQuickPickJackpotDisplay({
     return extractRolldownStatus(quickPickState);
   }, [quickPickState]);
 
-  // Use Quick Pick specific props
-  const quickPickProps = {
-    label: props.label || "Quick Pick Jackpot",
-    size: props.size || "md",
-    softCap: props.softCapOverride ?? QP_SOFT_CAP_USDC,
-    ...props,
-  };
+  const softCap = jackpotProps.softCapOverride ?? QP_SOFT_CAP_USDC;
+
+  if (isLoading) {
+    return (
+      <div className={`relative ${wrapperClassName}`}>
+        <div className="relative rounded-2xl overflow-hidden px-6 py-6 bg-card/50 border border-border/50">
+          <div className="flex flex-col items-center gap-4">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-12 w-48" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !quickPickState) {
+    return (
+      <div className={`relative ${wrapperClassName}`}>
+        <div className="relative rounded-2xl overflow-hidden px-6 py-6 bg-destructive/10 border border-destructive/30">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertCircle size={24} />
+              <span className="font-semibold">
+                Failed to load Quick Pick jackpot
+              </span>
+            </div>
+            {showRefresh && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isRefetching}
+                className="gap-2"
+              >
+                <RefreshCw
+                  size={16}
+                  className={isRefetching ? "animate-spin" : ""}
+                />
+                Try Again
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <RealJackpotDisplay
-      {...quickPickProps}
-      showRefresh={showRefresh}
-      pollInterval={pollInterval}
-      // Override with Quick Pick specific data
-      amount={jackpotAmount}
-      rolldownActive={rolldownActive}
-    />
+    <div className={`relative ${wrapperClassName}`}>
+      {showRefresh && (
+        <div className="absolute -top-2 -right-2 z-20">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border border-border shadow-sm"
+            title="Refresh Quick Pick jackpot"
+          >
+            <RefreshCw
+              size={16}
+              className={isRefetching ? "animate-spin" : ""}
+            />
+          </Button>
+        </div>
+      )}
+
+      <JackpotDisplay
+        amount={jackpotAmount}
+        label={jackpotProps.label || "Quick Pick Jackpot"}
+        animated={jackpotProps.animateChanges ?? true}
+        size={size}
+        glow={jackpotAmount >= QP_SOFT_CAP_USDC * 0.9}
+        showRolldownStatus={showRolldownStatus}
+        rolldownActive={rolldownActive}
+        softCap={softCap}
+      />
+    </div>
   );
 }

@@ -135,8 +135,7 @@ export function createCustomConnection(
 // Transaction utilities
 // ---------------------------------------------------------------------------
 
-export interface SendAndConfirmTransactionOptions
-  extends SendTransactionOption {
+export interface SendAndConfirmTransactionOptions {
   /** Maximum number of retries (default: MAX_TRANSACTION_RETRIES) */
   maxRetries?: number;
   /** Delay between retries in milliseconds (default: RETRY_DELAY_MS) */
@@ -192,10 +191,16 @@ export async function sendAndConfirmTransaction(
       );
 
       // Wait for confirmation
+      // Fetch latest blockhash for confirmation strategy
+      const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash(
+        confirmationCommitment,
+      );
+
       const confirmation = await conn.confirmTransaction(
         {
           signature,
-          abortSignal: AbortSignal.timeout(120_000), // 2 minute timeout
+          blockhash,
+          lastValidBlockHeight,
         },
         confirmationCommitment,
       );
@@ -265,7 +270,9 @@ export async function sendInstructions(
   connection?: Connection,
 ): Promise<string> {
   const transaction = new Transaction();
-  instructions.forEach((instruction) => transaction.add(instruction));
+  for (const instruction of instructions) {
+    transaction.add(instruction);
+  }
   transaction.feePayer = payer.publicKey;
 
   const allSigners = [payer, ...signers];
@@ -545,7 +552,11 @@ export async function getTokenAccountBalance(
   const conn = connection || getConnection();
 
   try {
-    return await conn.getTokenAccountBalance(tokenAccount, commitment);
+    const response = await conn.getTokenAccountBalance(
+      tokenAccount,
+      commitment,
+    );
+    return response.value;
   } catch (error) {
     console.error(
       `[Solana] Failed to get token account balance for ${tokenAccount.toBase58()}:`,
