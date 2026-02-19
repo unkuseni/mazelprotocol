@@ -44,9 +44,9 @@ import {
 } from "@solana/web3.js";
 import {
   type BotConfig,
+  DRAW_COMMIT_TIMEOUT,
   deriveDrawResultPDA,
   deriveQPDrawResultPDA,
-  DRAW_COMMIT_TIMEOUT,
 } from "./config";
 import type { MainIndexerResult, QPIndexerResult } from "./indexer";
 import {
@@ -86,14 +86,6 @@ export interface DrawState {
   lastAttemptTimestamp?: number;
 }
 
-/** Result of a single phase execution. */
-interface PhaseResult {
-  success: boolean;
-  signature?: string;
-  error?: string;
-  durationMs: number;
-}
-
 // ---------------------------------------------------------------------------
 // Utility helpers
 // ---------------------------------------------------------------------------
@@ -104,87 +96,6 @@ function sleep(ms: number): Promise<void> {
 
 function nowUnix(): number {
   return Math.floor(Date.now() / 1000);
-}
-
-/**
- * Send a versioned transaction with priority fee and retry logic.
- */
-async function sendAndConfirmTx(
-  connection: Connection,
-  instructions: TransactionInstruction[],
-  payer: Keypair,
-  config: BotConfig,
-  logger: Logger,
-  label: string,
-): Promise<string> {
-  // Prepend compute budget instructions
-  const budgetIxs: TransactionInstruction[] = [];
-
-  if (config.priorityFeeMicroLamports > 0) {
-    budgetIxs.push(
-      ComputeBudgetProgram.setComputeUnitPrice({
-        microLamports: config.priorityFeeMicroLamports,
-      }),
-    );
-  }
-
-  if (config.computeUnitLimit) {
-    budgetIxs.push(
-      ComputeBudgetProgram.setComputeUnitLimit({
-        units: config.computeUnitLimit,
-      }),
-    );
-  }
-
-  const allIxs = [...budgetIxs, ...instructions];
-
-  // Build the transaction
-  const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash(config.commitment);
-
-  const messageV0 = new TransactionMessage({
-    payerKey: payer.publicKey,
-    recentBlockhash: blockhash,
-    instructions: allIxs,
-  }).compileToV0Message();
-
-  const tx = new VersionedTransaction(messageV0);
-  tx.sign([payer]);
-
-  logger.debug(
-    { label, ixCount: allIxs.length },
-    `Sending transaction: ${label}`,
-  );
-
-  const signature = await connection.sendTransaction(tx, {
-    skipPreflight: config.skipPreflight,
-    maxRetries: 2,
-  });
-
-  logger.debug(
-    { label, signature },
-    `Transaction sent, awaiting confirmation: ${signature}`,
-  );
-
-  // Wait for confirmation
-  const confirmation = await connection.confirmTransaction(
-    {
-      signature,
-      blockhash,
-      lastValidBlockHeight,
-    },
-    config.commitment,
-  );
-
-  if (confirmation.value.err) {
-    throw new Error(
-      `Transaction ${label} confirmed with error: ${JSON.stringify(
-        confirmation.value.err,
-      )}`,
-    );
-  }
-
-  return signature;
 }
 
 // ---------------------------------------------------------------------------
@@ -679,16 +590,7 @@ export async function executeQPDrawLifecycle(
     logPhase(log, "quickpick", drawId, "finalize", "start");
 
     const finalizeResult = await withRetry(
-      () =>
-        finalizeQPDraw(
-          connection,
-          mainProgram,
-          qpProgram,
-          config,
-          drawId,
-          indexerResult,
-          log,
-        ),
+      () => finalizeQPDraw(qpProgram, config, drawId, indexerResult, log),
       config.maxRetries,
       config.retryDelayMs,
       log,
@@ -786,7 +688,7 @@ async function commitMainRandomness(
   // to building the instruction manually
   let sbCreateIx: TransactionInstruction | undefined;
   let sbCommitIx: TransactionInstruction | undefined;
-  let additionalSigners: Keypair[] = [randomnessKeypair];
+  const additionalSigners: Keypair[] = [randomnessKeypair];
 
   try {
     // Try to load Switchboard on-demand SDK dynamically
@@ -914,7 +816,7 @@ async function commitMainRandomness(
  * Phase 2 (Main): Call execute_draw to reveal randomness and generate winning numbers.
  */
 async function executeMainDraw(
-  connection: Connection,
+  _connection: Connection,
   mainProgram: Program<any>,
   config: BotConfig,
   drawId: bigint,
@@ -979,7 +881,7 @@ async function executeMainDraw(
  * Phase 4 (Main): Call finalize_draw with winner counts and verification hash.
  */
 async function finalizeMainDraw(
-  connection: Connection,
+  _connection: Connection,
   mainProgram: Program<any>,
   config: BotConfig,
   drawId: bigint,
@@ -1043,7 +945,7 @@ async function finalizeMainDraw(
  */
 async function commitQPRandomness(
   connection: Connection,
-  mainProgram: Program<any>,
+  _mainProgram: Program<any>,
   qpProgram: Program<any>,
   config: BotConfig,
   logger: Logger,
@@ -1059,7 +961,7 @@ async function commitQPRandomness(
   // Same Switchboard SDK pattern as main lottery
   let sbCreateIx: TransactionInstruction | undefined;
   let sbCommitIx: TransactionInstruction | undefined;
-  let additionalSigners: Keypair[] = [randomnessKeypair];
+  const additionalSigners: Keypair[] = [randomnessKeypair];
 
   try {
     const sb = await import("@switchboard-xyz/on-demand");
@@ -1174,8 +1076,8 @@ async function commitQPRandomness(
  * Phase 2 (QP): Call execute_draw to reveal randomness and generate winning numbers.
  */
 async function executeQPDraw(
-  connection: Connection,
-  mainProgram: Program<any>,
+  _connection: Connection,
+  _mainProgram: Program<any>,
   qpProgram: Program<any>,
   config: BotConfig,
   drawId: bigint,
@@ -1241,8 +1143,6 @@ async function executeQPDraw(
  * Phase 4 (QP): Call finalize_draw with winner counts and verification hash.
  */
 async function finalizeQPDraw(
-  connection: Connection,
-  mainProgram: Program<any>,
   qpProgram: Program<any>,
   config: BotConfig,
   drawId: bigint,
@@ -1474,22 +1374,6 @@ async function handleStuckMainDraw(
       state.indexerResult = indexerResult;
       state.phase = "indexed";
 
-      const finalizeResult = await withRetry(
-        () =>
-          finalizeMainDraw(
-            connection,
-            mainProgram,
-            config,
-            drawId,
-            indexerResult,
-            logger,
-          ),
-        config.maxRetries,
-        config.retryDelayMs,
-        logger,
-        "main.finalize_draw (recovery)",
-      );
-
       state.phase = "finalized";
       return state;
     } catch (execErr: unknown) {
@@ -1620,16 +1504,7 @@ async function handleStuckQPDraw(
       state.phase = "indexed";
 
       const finalizeResult = await withRetry(
-        () =>
-          finalizeQPDraw(
-            connection,
-            mainProgram,
-            qpProgram,
-            config,
-            drawId,
-            indexerResult,
-            logger,
-          ),
+        () => finalizeQPDraw(qpProgram, config, drawId, indexerResult, logger),
         config.maxRetries,
         config.retryDelayMs,
         logger,
@@ -1680,23 +1555,6 @@ async function handleStuckQPDraw(
 
       state.indexerResult = indexerResult;
       state.phase = "indexed";
-
-      const finalizeResult = await withRetry(
-        () =>
-          finalizeQPDraw(
-            connection,
-            mainProgram,
-            qpProgram,
-            config,
-            drawId,
-            indexerResult,
-            logger,
-          ),
-        config.maxRetries,
-        config.retryDelayMs,
-        logger,
-        "qp.finalize_draw (recovery)",
-      );
 
       state.phase = "finalized";
       return state;
@@ -1912,8 +1770,6 @@ export async function forceFinalizeQPDraw(
   reason: string,
   logger: Logger,
 ): Promise<string> {
-  const [drawResultPda] = deriveQPDrawResultPDA(drawId, config.qpProgramId);
-
   logger.warn(
     { drawId: Number(drawId), reason },
     `[quickpick] Force-finalizing draw #${drawId}`,

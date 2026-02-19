@@ -6,43 +6,25 @@ import {
   Image as ImageIcon,
   Loader2,
   MessageCircle,
-  MoreHorizontal,
   Pin,
-  Reply,
   Send,
-  Shield,
   SmilePlus,
   Wallet,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
+import { useChat } from "@/hooks/useChat";
+import type {
+  ChatMessage,
+  ChatMember,
+} from "@/integrations/trpc/routers/chatRouter";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
 /* -------------------------------------------------------------------------- */
 
-export interface ChatMessage {
-  id: string;
-  sender: string; // wallet address
-  senderShort: string;
-  text: string;
-  timestamp: number;
-  type: "message" | "system" | "announcement";
-  replyTo?: string; // message id
-  reactions?: Record<string, string[]>; // emoji -> [addresses]
-  role?: "manager" | "member";
-  isPinned?: boolean;
-}
-
-export interface ChatMember {
-  address: string;
-  addressShort: string;
-  role: "manager" | "member";
-  isOnline: boolean;
-  joinedAt: string;
-  ticketsContributed: number;
-}
+export type { ChatMessage, ChatMember };
 
 interface SyndicateChatProps {
   syndicateId: string;
@@ -51,411 +33,221 @@ interface SyndicateChatProps {
   className?: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Helpers                                                                   */
-/* -------------------------------------------------------------------------- */
+// ----------------------------------------------------------------------------
+// Utility Functions
+// ----------------------------------------------------------------------------
 
-const AVATAR_COLORS = [
-  "from-emerald/60 to-emerald-dark/80",
-  "from-purple-500/60 to-purple-700/80",
-  "from-blue-500/60 to-blue-700/80",
-  "from-pink-500/60 to-pink-700/80",
-  "from-orange-500/60 to-orange-700/80",
-  "from-teal-500/60 to-teal-700/80",
-  "from-rose-500/60 to-rose-700/80",
-  "from-gold/60 to-gold-dark/80",
-  "from-indigo-500/60 to-indigo-700/80",
-  "from-cyan-500/60 to-cyan-700/80",
-];
-
-function getAvatarGradient(address: string): string {
-  const hash = address
-    .split("")
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
-
-function formatTimestamp(ts: number): string {
+function formatTimestamp(timestamp: number): string {
   const now = Date.now();
-  const diff = now - ts;
-  const minutes = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
 
   if (minutes < 1) return "Just now";
   if (minutes < 60) return `${minutes}m ago`;
   if (hours < 24) return `${hours}h ago`;
 
-  const date = new Date(ts);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const date = new Date(timestamp);
+  return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
 }
 
-function truncateAddress(addr: string): string {
-  return `${addr.slice(0, 4)}...${addr.slice(-4)}`;
-}
+// ----------------------------------------------------------------------------
+// Subcomponents
+// ----------------------------------------------------------------------------
 
-/* -------------------------------------------------------------------------- */
-/*  Mock data generator                                                       */
-/* -------------------------------------------------------------------------- */
-
-const MOCK_ADDRESSES = [
-  "7xKX...9fGh",
-  "3mNP...2wVd",
-  "9bQR...5tLe",
-  "4jWS...8kMn",
-  "6cYT...1pAo",
-  "8dZU...7rBq",
-];
-
-const MOCK_FULL_ADDRESSES = [
-  "7xKXabc123456789def9fGh",
-  "3mNPabc123456789def2wVd",
-  "9bQRabc123456789def5tLe",
-  "4jWSabc123456789def8kMn",
-  "6cYTabc123456789def1pAo",
-  "8dZUabc123456789def7rBq",
-];
-
-function generateMockMessages(): ChatMessage[] {
-  const now = Date.now();
-  return [
-    {
-      id: "sys-1",
-      sender: "system",
-      senderShort: "System",
-      text: "Welcome to the syndicate chat! Coordinate your strategy and discuss plays here.",
-      timestamp: now - 7_200_000,
-      type: "system",
-    },
-    {
-      id: "msg-1",
-      sender: MOCK_FULL_ADDRESSES[0],
-      senderShort: MOCK_ADDRESSES[0],
-      text: "Hey team! Rolldown window is getting close — the prize pool is at $47k with no jackpot hit in 8 draws.",
-      timestamp: now - 5_400_000,
-      type: "message",
-      role: "manager",
-      reactions: { "🔥": [MOCK_FULL_ADDRESSES[1], MOCK_FULL_ADDRESSES[2]] },
-    },
-    {
-      id: "msg-2",
-      sender: MOCK_FULL_ADDRESSES[1],
-      senderShort: MOCK_ADDRESSES[1],
-      text: "Nice catch. I think we should increase our ticket allocation for the next draw. The EV is getting spicy.",
-      timestamp: now - 4_800_000,
-      type: "message",
-      role: "member",
-    },
-    {
-      id: "msg-3",
-      sender: MOCK_FULL_ADDRESSES[2],
-      senderShort: MOCK_ADDRESSES[2],
-      text: "Agreed. I can contribute an extra 5 USDC this round. How many tickets does that get us?",
-      timestamp: now - 3_600_000,
-      type: "message",
-      role: "member",
-    },
-    {
-      id: "msg-4",
-      sender: MOCK_FULL_ADDRESSES[0],
-      senderShort: MOCK_ADDRESSES[0],
-      text: "That gives us another 5 tickets at current pricing. With our pooled 47 tickets we'd cover about 0.15% of the number space — small individually, but way better than solo.",
-      timestamp: now - 3_000_000,
-      type: "message",
-      role: "manager",
-      isPinned: true,
-    },
-    {
-      id: "sys-2",
-      sender: "system",
-      senderShort: "System",
-      text: `${MOCK_ADDRESSES[3]} joined the syndicate`,
-      timestamp: now - 2_400_000,
-      type: "system",
-    },
-    {
-      id: "msg-5",
-      sender: MOCK_FULL_ADDRESSES[3],
-      senderShort: MOCK_ADDRESSES[3],
-      text: "Hey everyone! Excited to join. Saw the win rate stats and had to get in. What's the strategy for the next draw?",
-      timestamp: now - 2_100_000,
-      type: "message",
-      role: "member",
-    },
-    {
-      id: "msg-6",
-      sender: MOCK_FULL_ADDRESSES[4],
-      senderShort: MOCK_ADDRESSES[4],
-      text: "Welcome! We're targeting the upcoming rolldown window. The manager posts a buy plan before each draw.",
-      timestamp: now - 1_800_000,
-      type: "message",
-      role: "member",
-      reactions: { "👋": [MOCK_FULL_ADDRESSES[3]] },
-    },
-    {
-      id: "ann-1",
-      sender: MOCK_FULL_ADDRESSES[0],
-      senderShort: MOCK_ADDRESSES[0],
-      text: "📢 DRAW STRATEGY: Buying 52 tickets for Draw #347. Rolldown threshold approaching — EV is estimated +12%. Contributions due by 6pm UTC.",
-      timestamp: now - 900_000,
-      type: "announcement",
-      role: "manager",
-      isPinned: true,
-      reactions: {
-        "🚀": [
-          MOCK_FULL_ADDRESSES[1],
-          MOCK_FULL_ADDRESSES[2],
-          MOCK_FULL_ADDRESSES[3],
-          MOCK_FULL_ADDRESSES[4],
-        ],
-        "💰": [MOCK_FULL_ADDRESSES[2], MOCK_FULL_ADDRESSES[5]],
-      },
-    },
-    {
-      id: "msg-7",
-      sender: MOCK_FULL_ADDRESSES[5],
-      senderShort: MOCK_ADDRESSES[5],
-      text: "LFG! Sending my 10 USDC now. That +12% EV is too good to pass up.",
-      timestamp: now - 600_000,
-      type: "message",
-      role: "member",
-      reactions: { "💪": [MOCK_FULL_ADDRESSES[0]] },
-    },
-    {
-      id: "msg-8",
-      sender: MOCK_FULL_ADDRESSES[1],
-      senderShort: MOCK_ADDRESSES[1],
-      text: "Just sent 8 USDC. Let's go team 🎯",
-      timestamp: now - 180_000,
-      type: "message",
-      role: "member",
-    },
-  ];
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Sub-components                                                            */
-/* -------------------------------------------------------------------------- */
-
-function MessageAvatar({
-  address,
-  role,
-}: {
+interface MessageAvatarProps {
   address: string;
   role?: "manager" | "member";
-}) {
-  const gradient = getAvatarGradient(address);
+  size?: number;
+}
+
+function MessageAvatar({ address, role, size = 28 }: MessageAvatarProps) {
+  const gradient = `linear-gradient(135deg, hsl(${parseInt(address.slice(-6), 16) % 360}, 70%, 50%), hsl(${(parseInt(address.slice(-6), 16) + 30) % 360}, 70%, 50%))`;
+
   return (
-    <div className="relative shrink-0">
+    <div className="relative">
       <div
-        className={`w-8 h-8 rounded-lg bg-linear-to-br ${gradient} flex items-center justify-center text-white text-xs font-bold shadow-md`}
+        className="rounded-full flex items-center justify-center text-white font-bold text-xs"
+        style={{
+          width: size,
+          height: size,
+          background: gradient,
+        }}
       >
-        {address.slice(0, 2).toUpperCase()}
+        {address.slice(0, 2)}
       </div>
       {role === "manager" && (
-        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gold/90 flex items-center justify-center border border-gold-dark/50">
-          <Crown size={8} className="text-black" />
-        </div>
+        <Crown
+          size={size / 3}
+          className="absolute -top-1 -right-1 text-gold bg-black/50 rounded-full p-0.5"
+        />
       )}
     </div>
   );
 }
 
-function SystemMessage({ message }: { message: ChatMessage }) {
-  return (
-    <div className="flex items-center justify-center gap-2 py-2">
-      <div className="h-px flex-1 bg-foreground/5" />
-      <span className="text-[10px] text-muted-foreground px-3 flex items-center gap-1.5">
-        {message.type === "system" && (
-          <Shield size={10} className="text-muted-foreground/60" />
-        )}
-        {message.text}
-      </span>
-      <div className="h-px flex-1 bg-foreground/5" />
-    </div>
-  );
-}
-
-function ReactionBadge({
-  emoji,
-  addresses,
-  currentUser,
-  onToggle,
-}: {
-  emoji: string;
-  addresses: string[];
-  currentUser?: string;
-  onToggle: () => void;
-}) {
-  const isReacted = currentUser ? addresses.includes(currentUser) : false;
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] transition-all ${
-        isReacted
-          ? "bg-emerald/15 border border-emerald/25 text-emerald-light"
-          : "bg-foreground/4 border border-foreground/6 text-muted-foreground hover:bg-foreground/8"
-      }`}
-    >
-      <span>{emoji}</span>
-      <span className="font-semibold">{addresses.length}</span>
-    </button>
-  );
-}
-
-function ChatBubble({
-  message,
-  isOwn,
-  currentUser,
-  onReact,
-}: {
+interface ChatBubbleProps {
   message: ChatMessage;
   isOwn: boolean;
   currentUser?: string;
   onReact: (messageId: string, emoji: string) => void;
-}) {
+}
+
+function ChatBubble({ message, isOwn, currentUser, onReact }: ChatBubbleProps) {
   const [showActions, setShowActions] = useState(false);
 
-  if (message.type === "system") {
-    return <SystemMessage message={message} />;
-  }
-
   const isAnnouncement = message.type === "announcement";
+  const isSystem = message.type === "system";
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: <ignore static element>
+    // biome-ignore lint/a11y/noStaticElementInteractions: <explanation>
     <div
-      className={`group flex gap-2.5 px-4 py-1.5 transition-colors hover:bg-foreground/2 ${
-        isOwn ? "flex-row-reverse" : ""
-      }`}
+      className={`px-4 ${isOwn ? "text-right" : ""}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
-      {/* Avatar */}
-      {!isOwn && <MessageAvatar address={message.sender} role={message.role} />}
-
-      {/* Content */}
       <div
-        className={`flex flex-col max-w-[75%] ${isOwn ? "items-end" : "items-start"}`}
+        className={`inline-flex flex-col max-w-[85%] ${isOwn ? "items-end ml-auto" : "items-start"}`}
       >
-        {/* Sender name + time */}
-        {!isOwn && (
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-[11px] font-semibold text-muted-foreground">
+        {/* Message header */}
+        {!isOwn && !isSystem && (
+          <div className="flex items-center gap-2 mb-1">
+            <MessageAvatar
+              address={message.sender}
+              role={message.role}
+              size={20}
+            />
+            <span className="text-[10px] font-mono text-muted-foreground">
               {message.senderShort}
             </span>
             {message.role === "manager" && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gold/15 text-gold border border-gold/20 uppercase tracking-wider">
+              <span className="px-1.5 py-0.5 rounded text-[8px] bg-gold/10 text-gold font-semibold uppercase">
                 Manager
               </span>
             )}
-            <span className="text-[10px] text-muted-foreground/60">
+            <span className="text-[9px] text-muted-foreground/60">
               {formatTimestamp(message.timestamp)}
             </span>
-            {message.isPinned && <Pin size={9} className="text-gold/60" />}
           </div>
         )}
 
-        {/* Bubble */}
+        {/* Message bubble */}
         <div
-          className={`relative rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+          className={`rounded-2xl px-4 py-3 ${
             isAnnouncement
-              ? "bg-linear-to-br from-emerald/10 to-gold/5 border border-emerald/20 text-gray-200 rounded-xl"
-              : isOwn
-                ? "bg-linear-to-br from-emerald/20 to-emerald-dark/15 text-gray-100 rounded-br-md border border-emerald/15"
-                : "bg-foreground/5 text-gray-200 rounded-bl-md border border-foreground/6"
+              ? "bg-gold/10 border border-gold/20"
+              : isSystem
+                ? "bg-foreground/5 border border-foreground/10 text-muted-foreground"
+                : isOwn
+                  ? "bg-emerald/10 border border-emerald/20"
+                  : "bg-foreground/3 border border-foreground/8"
           }`}
         >
-          {message.text}
+          {isAnnouncement && (
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-5 h-5 rounded-full bg-gold/20 flex items-center justify-center">
+                <Pin size={10} className="text-gold" />
+              </div>
+              <span className="text-xs font-semibold text-gold">
+                Announcement
+              </span>
+            </div>
+          )}
+
+          <p className="text-sm whitespace-pre-wrap break-words">
+            {message.text}
+          </p>
+
+          {/* Reactions */}
+          {message.reactions && Object.keys(message.reactions).length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {Object.entries(message.reactions).map(([emoji, reactors]) => {
+                const reactorsArray = reactors as string[];
+                const hasReacted = reactorsArray.includes(currentUser || "");
+                return (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => onReact(message.id, emoji)}
+                    className={`px-2 py-0.5 rounded-full text-xs border ${
+                      hasReacted
+                        ? "bg-emerald/20 border-emerald/40 text-emerald-light"
+                        : "bg-foreground/5 border-foreground/10 text-muted-foreground"
+                    }`}
+                  >
+                    {emoji} {reactorsArray.length}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Own message timestamp */}
-        {isOwn && (
-          <span className="text-[10px] text-muted-foreground/60 mt-0.5 mr-1">
-            {formatTimestamp(message.timestamp)}
-          </span>
-        )}
-
-        {/* Reactions */}
-        {message.reactions && Object.keys(message.reactions).length > 0 && (
-          <div className="flex items-center gap-1 mt-1">
-            {Object.entries(message.reactions).map(([emoji, addresses]) => (
-              <ReactionBadge
-                key={emoji}
-                emoji={emoji}
-                addresses={addresses}
-                currentUser={currentUser}
-                onToggle={() => onReact(message.id, emoji)}
-              />
-            ))}
-            <button
-              type="button"
-              className="w-5 h-5 rounded-full bg-foreground/3 border border-foreground/6 flex items-center justify-center text-muted-foreground/60 hover:text-muted-foreground hover:bg-foreground/6 transition-colors"
-              onClick={() => onReact(message.id, "👍")}
-            >
-              <SmilePlus size={10} />
-            </button>
-          </div>
-        )}
+        {/* Message footer */}
+        <div className="flex items-center gap-2 mt-1">
+          {showActions && !isSystem && (
+            <>
+              <button
+                type="button"
+                onClick={() => onReact(message.id, "👍")}
+                className="p-1 rounded-full hover:bg-foreground/5 text-muted-foreground hover:text-foreground transition-colors"
+                title="React with 👍"
+              >
+                👍
+              </button>
+              <button
+                type="button"
+                onClick={() => onReact(message.id, "🔥")}
+                className="p-1 rounded-full hover:bg-foreground/5 text-muted-foreground hover:text-foreground transition-colors"
+                title="React with 🔥"
+              >
+                🔥
+              </button>
+              <button
+                type="button"
+                onClick={() => onReact(message.id, "🚀")}
+                className="p-1 rounded-full hover:bg-foreground/5 text-muted-foreground hover:text-foreground transition-colors"
+                title="React with 🚀"
+              >
+                🚀
+              </button>
+            </>
+          )}
+          {!isOwn && !isSystem && (
+            <span className="text-[9px] text-muted-foreground/60">
+              {formatTimestamp(message.timestamp)}
+            </span>
+          )}
+        </div>
       </div>
-
-      {/* Hover actions */}
-      {showActions && (
-        <div
-          className={`flex items-center gap-0.5 self-start mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${
-            isOwn ? "mr-1" : "ml-1"
-          }`}
-        >
-          <button
-            type="button"
-            className="p-1 rounded-md text-muted-foreground/60 hover:text-muted-foreground hover:bg-foreground/5 transition-colors"
-            title="React"
-            onClick={() => onReact(message.id, "👍")}
-          >
-            <SmilePlus size={12} />
-          </button>
-          <button
-            type="button"
-            className="p-1 rounded-md text-muted-foreground/60 hover:text-muted-foreground hover:bg-foreground/5 transition-colors"
-            title="Reply"
-          >
-            <Reply size={12} />
-          </button>
-          <button
-            type="button"
-            className="p-1 rounded-md text-muted-foreground/60 hover:text-muted-foreground hover:bg-foreground/5 transition-colors"
-            title="More"
-          >
-            <MoreHorizontal size={12} />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
 
-function TypingIndicator({ names }: { names: string[] }) {
+interface TypingIndicatorProps {
+  names: string[];
+}
+
+function TypingIndicator({ names }: TypingIndicatorProps) {
   if (names.length === 0) return null;
+
   const text =
     names.length === 1
-      ? `${names[0]} is typing`
+      ? `${names[0]} is typing...`
       : names.length === 2
-        ? `${names[0]} and ${names[1]} are typing`
-        : `${names[0]} and ${names.length - 1} others are typing`;
+        ? `${names[0]} and ${names[1]} are typing...`
+        : `${names[0]} and ${names.length - 1} others are typing...`;
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2">
-      <div className="flex gap-0.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald/50 animate-bounce [animation-delay:0ms]" />
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald/50 animate-bounce [animation-delay:150ms]" />
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald/50 animate-bounce [animation-delay:300ms]" />
+    <div className="px-4 py-2">
+      <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-foreground/3 border border-foreground/8">
+        <div className="flex gap-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald/60 animate-pulse" />
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald/60 animate-pulse delay-100" />
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald/60 animate-pulse delay-200" />
+        </div>
+        <span className="text-xs text-muted-foreground">{text}</span>
       </div>
-      <span className="text-[10px] text-muted-foreground">{text}</span>
     </div>
   );
 }
@@ -464,20 +256,20 @@ function ConnectWalletPrompt() {
   const { open } = useAppKit();
 
   return (
-    <div className="flex flex-col items-center justify-center py-8 px-4">
-      <div className="w-14 h-14 rounded-2xl bg-foreground/3 border border-foreground/6 flex items-center justify-center mb-4">
+    <div className="p-6 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-foreground/3 border border-foreground/6 flex items-center justify-center mx-auto mb-4">
         <Wallet size={24} className="text-muted-foreground" />
       </div>
-      <h3 className="text-sm font-bold text-foreground mb-1">
-        Connect to Chat
+      <h3 className="text-base font-bold text-foreground mb-2">
+        Connect Wallet to Chat
       </h3>
-      <p className="text-xs text-muted-foreground text-center max-w-xs mb-4">
-        Connect your wallet to send messages and coordinate with your syndicate
-        members.
+      <p className="text-xs text-muted-foreground mb-6 max-w-sm mx-auto">
+        Connect your wallet to join the conversation, coordinate ticket
+        purchases, and discuss strategies with syndicate members.
       </p>
       <Button
         onClick={() => open()}
-        className="h-9 px-5 text-xs font-bold bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-lg shadow-emerald/20"
+        className="h-10 px-6 text-xs font-bold bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-lg shadow-emerald/20"
       >
         <Wallet size={14} />
         Connect Wallet
@@ -486,52 +278,42 @@ function ConnectWalletPrompt() {
   );
 }
 
-function OnlineDot({ isOnline }: { isOnline: boolean }) {
+interface OnlineDotProps {
+  isOnline: boolean;
+}
+
+function OnlineDot({ isOnline }: OnlineDotProps) {
   return (
-    <span
-      className={`w-2 h-2 rounded-full shrink-0 ${
-        isOnline
-          ? "bg-emerald-light shadow-sm shadow-emerald/50"
-          : "bg-gray-600"
-      }`}
-    />
+    <div className="relative">
+      <div className="w-2 h-2 rounded-full bg-foreground/10" />
+      {isOnline && (
+        <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald animate-ping" />
+      )}
+      <div
+        className={`absolute inset-0 w-2 h-2 rounded-full ${isOnline ? "bg-emerald" : "bg-muted-foreground/30"}`}
+      />
+    </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Quick Emoji Picker                                                        */
-/* -------------------------------------------------------------------------- */
+const QUICK_EMOJIS = ["👍", "🔥", "🚀", "💸", "🎯", "💰", "💪", "👏"];
 
-const QUICK_EMOJIS = [
-  "👍",
-  "🔥",
-  "🚀",
-  "💰",
-  "🎯",
-  "💪",
-  "👋",
-  "😂",
-  "❤️",
-  "🎉",
-];
-
-function QuickEmojiBar({
-  onSelect,
-  visible,
-}: {
-  onSelect: (emoji: string) => void;
+interface QuickEmojiBarProps {
   visible: boolean;
-}) {
+  onSelect: (emoji: string) => void;
+}
+
+function QuickEmojiBar({ visible, onSelect }: QuickEmojiBarProps) {
   if (!visible) return null;
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 glass rounded-xl animate-slide-up">
+    <div className="flex flex-wrap gap-1 p-2 rounded-lg bg-foreground/2 border border-foreground/6">
       {QUICK_EMOJIS.map((emoji) => (
         <button
           key={emoji}
           type="button"
           onClick={() => onSelect(emoji)}
-          className="w-7 h-7 rounded-lg hover:bg-foreground/10 flex items-center justify-center text-sm transition-colors"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-lg hover:bg-foreground/5 transition-colors"
         >
           {emoji}
         </button>
@@ -541,29 +323,44 @@ function QuickEmojiBar({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Main Chat Component                                                       */
+/*  Main Component                                                            */
 /* -------------------------------------------------------------------------- */
 
 export default function SyndicateChat({
-  syndicateId: _syndicateId,
+  syndicateId,
   syndicateName,
-  members,
+  members: _initialMembers,
   className = "",
 }: SyndicateChatProps) {
   const { address, isConnected } = useAppKitAccount();
-  const [messages, setMessages] = useState<ChatMessage[]>(generateMockMessages);
+  const {
+    messages,
+    members,
+    onlineCount,
+    totalMembers,
+    isLoadingMessages,
+    isSendingMessage,
+    sendMessage,
+    reactToMessage,
+    updateMemberStatus,
+    refetchMessages,
+    refetchMembers,
+  } = useChat({
+    syndicateId,
+    sender: address,
+    pollInterval: 10000,
+    limit: 50,
+  });
+
   const [inputValue, setInputValue] = useState("");
   const [showEmojiBar, setShowEmojiBar] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [isLoading] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
+  const [typingUsers] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Mock typing indicators
-  const [typingUsers] = useState<string[]>([]);
 
   // Auto-scroll to bottom on new messages
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -592,24 +389,19 @@ export default function SyndicateChat({
   }, []);
 
   // Send message
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     if (!inputValue.trim() || !address) return;
 
-    const newMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      sender: address,
-      senderShort: truncateAddress(address),
-      text: inputValue.trim(),
-      timestamp: Date.now(),
-      type: "message",
-      role: "member",
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
-    setInputValue("");
-    setShowEmojiBar(false);
-    inputRef.current?.focus();
-  }, [inputValue, address]);
+    try {
+      await sendMessage(inputValue.trim());
+      setInputValue("");
+      setShowEmojiBar(false);
+      inputRef.current?.focus();
+      refetchMessages();
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    }
+  }, [inputValue, address, sendMessage, refetchMessages]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -623,24 +415,22 @@ export default function SyndicateChat({
 
   // Toggle reaction
   const handleReact = useCallback(
-    (messageId: string, emoji: string) => {
+    async (messageId: string, emoji: string) => {
       if (!address) return;
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id !== messageId) return msg;
-          const reactions = { ...(msg.reactions || {}) };
-          const current = reactions[emoji] || [];
-          if (current.includes(address)) {
-            reactions[emoji] = current.filter((a) => a !== address);
-            if (reactions[emoji].length === 0) delete reactions[emoji];
-          } else {
-            reactions[emoji] = [...current, address];
-          }
-          return { ...msg, reactions };
-        }),
-      );
+      try {
+        // Determine action based on current reaction state
+        const message = messages.find((msg) => msg.id === messageId);
+        const reactions = message?.reactions?.[emoji] as string[] | undefined;
+        const hasReacted = reactions?.includes(address);
+        const action = hasReacted ? "remove" : "add";
+
+        await reactToMessage(messageId, emoji, action);
+        refetchMessages();
+      } catch (error) {
+        console.error("Failed to react to message:", error);
+      }
     },
-    [address],
+    [address, messages, reactToMessage, refetchMessages],
   );
 
   // Insert emoji into input
@@ -650,7 +440,27 @@ export default function SyndicateChat({
     inputRef.current?.focus();
   }, []);
 
-  const onlineCount = members.filter((m) => m.isOnline).length;
+  // Update member status when component mounts/unmounts
+  useEffect(() => {
+    if (address && syndicateId) {
+      updateMemberStatus(true).catch(console.error);
+
+      return () => {
+        updateMemberStatus(false).catch(console.error);
+      };
+    }
+  }, [address, syndicateId, updateMemberStatus]);
+
+  // Refresh members list periodically
+  useEffect(() => {
+    if (!syndicateId) return;
+
+    const interval = setInterval(() => {
+      refetchMembers();
+    }, 30000); // Every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [syndicateId, refetchMembers]);
 
   return (
     <div className={`flex flex-col h-full ${className}`}>
@@ -673,7 +483,7 @@ export default function SyndicateChat({
               <span className="text-emerald-light font-semibold">
                 {onlineCount}
               </span>{" "}
-              online &bull; {members.length} members
+              online &bull; {totalMembers} members
             </p>
           </div>
         </div>
@@ -705,7 +515,7 @@ export default function SyndicateChat({
             onScroll={handleScroll}
             className="flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-1 scroll-smooth"
           >
-            {isLoading ? (
+            {isLoadingMessages ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 size={20} className="text-emerald/60 animate-spin" />
               </div>
@@ -806,10 +616,14 @@ export default function SyndicateChat({
                 {/* Send */}
                 <Button
                   onClick={handleSend}
-                  disabled={!inputValue.trim()}
+                  disabled={!inputValue.trim() || isSendingMessage}
                   className="h-9 w-9 p-0 rounded-xl bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white shadow-md shadow-emerald/20 disabled:opacity-30 disabled:shadow-none transition-all"
                 >
-                  <Send size={14} />
+                  {isSendingMessage ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Send size={14} />
+                  )}
                 </Button>
               </div>
 
@@ -838,7 +652,7 @@ export default function SyndicateChat({
           <div className="w-56 shrink-0 border-l border-foreground/6 bg-foreground/1 overflow-y-auto hidden md:block">
             <div className="p-3">
               <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                Members — {members.length}
+                Members — {totalMembers}
               </h4>
 
               {/* Online */}
