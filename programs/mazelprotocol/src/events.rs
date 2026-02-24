@@ -374,38 +374,6 @@ pub struct QuickPickPrizeClaimed {
 // ADVANCED FEATURE EVENTS
 // ============================================================================
 
-/// Emitted when a Lucky Numbers NFT is minted
-#[event]
-pub struct LuckyNumbersNFTMinted {
-    /// NFT mint address
-    pub mint: Pubkey,
-    /// Owner wallet address
-    pub owner: Pubkey,
-    /// The winning numbers
-    pub numbers: [u8; 6],
-    /// Draw ID where numbers won
-    pub draw_id: u64,
-    /// Match tier (4, 5, or 6)
-    pub match_tier: u8,
-    /// Timestamp
-    pub timestamp: i64,
-}
-
-/// Emitted when a Lucky Numbers NFT bonus is claimed
-#[event]
-pub struct LuckyNumbersBonusClaimed {
-    /// NFT mint address
-    pub mint: Pubkey,
-    /// Owner wallet address
-    pub owner: Pubkey,
-    /// Draw ID
-    pub draw_id: u64,
-    /// Bonus amount
-    pub bonus_amount: u64,
-    /// Timestamp
-    pub timestamp: i64,
-}
-
 /// Emitted when a Syndicate Wars competition starts
 #[event]
 pub struct SyndicateWarsStarted {

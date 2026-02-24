@@ -1085,44 +1085,6 @@ impl QuickPickDrawResult {
 // ADVANCED FEATURE STRUCTURES
 // ============================================================================
 
-/// Lucky Numbers NFT - awarded to Match 4+ winners
-#[account]
-#[derive(Default)]
-pub struct LuckyNumbersNFT {
-    /// NFT mint address
-    pub mint: Pubkey,
-
-    /// Current owner
-    pub owner: Pubkey,
-
-    /// The winning numbers stored in this NFT
-    pub numbers: [u8; 6],
-
-    /// Draw where these numbers won
-    pub original_draw_id: u64,
-
-    /// Match tier when won (4, 5, or 6)
-    pub original_match_tier: u8,
-
-    /// Original winner who received this NFT
-    pub original_winner: Pubkey,
-
-    /// Timestamp of creation
-    pub created_at: i64,
-
-    /// Total jackpot bonuses claimed through this NFT
-    pub total_bonuses_claimed: u64,
-
-    /// Number of times these numbers hit jackpot
-    pub jackpot_hits: u32,
-
-    /// Is this NFT active
-    pub is_active: bool,
-
-    /// PDA bump
-    pub bump: u8,
-}
-
 /// Syndicate Wars competition state
 #[account]
 #[derive(Default)]

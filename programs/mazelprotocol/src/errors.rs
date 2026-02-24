@@ -519,14 +519,6 @@ pub enum LottoError {
     #[msg("Insufficient main lottery spend for Quick Pick access.")]
     InsufficientMainLotterySpend,
 
-    /// Lucky Numbers NFT limit reached
-    #[msg("Lucky Numbers limit reached.")]
-    LuckyNumbersLimitReached,
-
-    /// Match tier insufficient for Lucky Numbers NFT
-    #[msg("Insufficient match tier for NFT.")]
-    InsufficientMatchForNft,
-
     /// Syndicate Wars competition is not active
     #[msg("Syndicate Wars not active.")]
     SyndicateWarsNotActive,
