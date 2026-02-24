@@ -97,9 +97,7 @@ mazelprotocol/
 - **MEV Protection** - Slot window tightened to ~4s (no Jito integration yet)
 
 ### 📋 Design Phase
-- **Lucky Numbers NFT** - Win bonuses if your numbers ever hit jackpot
 - **Threshold Encryption** - Encrypted tickets for MEV protection
-- **Governance DAO** - On-chain governance system
 
 ## 🚀 Getting Started
 

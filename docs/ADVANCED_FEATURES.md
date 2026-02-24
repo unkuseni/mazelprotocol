@@ -8,11 +8,10 @@
 
 1. [Dynamic House Fee System](#1-dynamic-house-fee-system)
 2. [Soft/Hard Rolldown Caps](#2-softhard-rolldown-caps)
-3. [Lucky Numbers NFT System](#3-lucky-numbers-nft-system)
-4. [MEV Protection](#4-mev-protection)
-5. [Quick Pick Express (5/35)](#5-quick-pick-express-535)
-6. [Syndicate Wars Competition](#6-syndicate-wars-competition)
-7. [Implementation Priority](#7-implementation-priority)
+3. [MEV Protection](#3-mev-protection)
+4. [Quick Pick Express (5/35)](#4-quick-pick-express-535)
+5. [Syndicate Wars Competition](#5-syndicate-wars-competition)
+6. [Implementation Priority](#6-implementation-priority)
 
 ---
 
@@ -117,7 +116,7 @@ pub fn buy_ticket(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()
 }
 ```
 
-### 6.8 UI/UX Considerations
+### 5.8 UI/UX Considerations
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -304,276 +303,11 @@ Lower ticket volume = higher EV per ticket (pari-mutuel self-adjusts).
 
 ---
 
-## 3. Lucky Numbers NFT System
-
-> ❌ **NOT YET IMPLEMENTED** — Only the `LuckyNumbersNFT` data structure, constants (`LUCKY_NUMBERS_BONUS_BPS`, `LUCKY_NUMBERS_MIN_MATCH`), events (`LuckyNumbersNFTMinted`, `LuckyNumbersBonusClaimed`), and error codes exist in the on-chain program. **No instructions have been written** to mint NFTs, claim bonuses, or manage governance controls. The specification below is a design document for future implementation.
-
-### 3.1 Overview
-
-Award NFTs to Match 4+ winners containing their winning combination. These NFTs grant a 1% bonus if those exact numbers ever hit the jackpot in the future.
-
-### 3.2 NFT Structure
-
-```rust
-#[account]
-pub struct LuckyNumbersNFT {
-    /// NFT mint address
-    pub mint: Pubkey,
-    
-    /// Current owner
-    pub owner: Pubkey,
-    
-    /// The winning numbers stored in this NFT
-    pub numbers: [u8; 6],
-    
-    /// Draw where these numbers won
-    pub original_draw_id: u64,
-    
-    /// Match tier when won (4, 5, or 6)
-    pub original_match_tier: u8,
-    
-    /// Original winner who received this NFT
-    pub original_winner: Pubkey,
-    
-    /// Timestamp of creation
-    pub created_at: i64,
-    
-    /// Total jackpot bonuses claimed through this NFT
-    pub total_bonuses_claimed: u64,
-    
-    /// Number of times these numbers hit jackpot
-    pub jackpot_hits: u32,
-    
-    /// Is this NFT active (can be deactivated by governance)
-    pub is_active: bool,
-}
-```
-
-### 3.3 Minting Logic
-
-```rust
-/// Mint Lucky Numbers NFT to Match 4+ winner
-pub fn mint_lucky_numbers_nft(
-    ctx: Context<MintLuckyNumbers>,
-    ticket: &Ticket,
-    match_count: u8,
-) -> Result<()> {
-    // Only mint for Match 4+
-    require!(match_count >= 4, LottoError::IneligibleForNFT);
-    
-    let nft = &mut ctx.accounts.lucky_numbers_nft;
-    let draw_result = &ctx.accounts.draw_result;
-    
-    // Store the complete 6-number combination
-    nft.numbers = ticket.numbers;
-    nft.original_draw_id = ticket.draw_id;
-    nft.original_match_tier = match_count;
-    nft.original_winner = ticket.owner;
-    nft.owner = ticket.owner;
-    nft.created_at = Clock::get()?.unix_timestamp;
-    nft.total_bonuses_claimed = 0;
-    nft.jackpot_hits = 0;
-    nft.is_active = true;
-    
-    // Mint the actual NFT token
-    mint_nft_to_owner(ctx)?;
-    
-    emit!(LuckyNumbersNFTMinted {
-        mint: nft.mint,
-        owner: nft.owner,
-        numbers: nft.numbers,
-        original_match_tier: match_count,
-        draw_id: ticket.draw_id,
-    });
-    
-    Ok(())
-}
-```
-
-### 3.4 Jackpot Bonus Distribution
-
-```rust
-/// Called after jackpot is won - check for Lucky Numbers NFT holders
-pub fn distribute_lucky_numbers_bonuses(
-    ctx: Context<DistributeBonuses>,
-    winning_numbers: [u8; 6],
-    jackpot_amount: u64,
-) -> Result<()> {
-    // Calculate 1% bonus pool
-    let bonus_pool = jackpot_amount / 100;
-    
-    // Find all active NFTs with matching numbers
-    let matching_nfts = find_matching_nfts(winning_numbers)?;
-    
-    if matching_nfts.is_empty() {
-        // No matching NFTs - bonus goes to reserve
-        ctx.accounts.lottery_state.reserve_balance += bonus_pool;
-        return Ok(());
-    }
-    
-    // Split bonus equally among all matching NFT holders
-    let bonus_per_nft = bonus_pool / matching_nfts.len() as u64;
-    
-    for nft in matching_nfts {
-        // Transfer bonus to NFT owner
-        transfer_bonus(ctx, nft.owner, bonus_per_nft)?;
-        
-        // Update NFT stats
-        nft.total_bonuses_claimed += bonus_per_nft;
-        nft.jackpot_hits += 1;
-        
-        emit!(LuckyNumbersBonusPaid {
-            nft_mint: nft.mint,
-            owner: nft.owner,
-            numbers: nft.numbers,
-            bonus_amount: bonus_per_nft,
-            jackpot_draw_id: ctx.accounts.draw_result.draw_id,
-        });
-    }
-    
-    Ok(())
-}
-```
-
-### 3.5 NFT Metadata
-
-```json
-{
-    "name": "Lucky Numbers #4521",
-    "symbol": "LUCKYNUMS",
-    "description": "This NFT contains the lucky numbers [4, 12, 23, 31, 38, 45] which won Match 5 on Draw #127. If these exact numbers ever hit the jackpot, the holder receives 1% of the jackpot!",
-    "image": "https://mazelprotocol.io/nft/4521.png",
-    "external_url": "https://mazelprotocol.io/lucky-numbers/4521",
-    "attributes": [
-        {
-            "trait_type": "Number 1",
-            "value": 4
-        },
-        {
-            "trait_type": "Number 2",
-            "value": 12
-        },
-        {
-            "trait_type": "Number 3",
-            "value": 23
-        },
-        {
-            "trait_type": "Number 4",
-            "value": 31
-        },
-        {
-            "trait_type": "Number 5",
-            "value": 38
-        },
-        {
-            "trait_type": "Number 6",
-            "value": 45
-        },
-        {
-            "trait_type": "Original Match Tier",
-            "value": "Match 5"
-        },
-        {
-            "trait_type": "Original Draw",
-            "value": 127
-        },
-        {
-            "trait_type": "Jackpot Hits",
-            "value": 0
-        },
-        {
-            "trait_type": "Total Bonuses Claimed",
-            "value": "$0"
-        }
-    ],
-    "properties": {
-        "category": "lottery",
-        "creators": [
-            {
-                "address": "MazelProtocolProgram...",
-                "share": 100
-            }
-        ]
-    }
-}
-```
-
-### 3.6 Secondary Market Dynamics
-
-**Value Proposition:**
-
-```
-Expected Value of Lucky Numbers NFT:
-
-Assumptions:
-├── Jackpot odds: 1 in 9,366,819
-├── Average jackpot: $1,750,000
-├── Bonus: 1% = $17,500
-├── Draws per year: 365
-
-Probability these numbers hit jackpot in 1 year:
-├── P = 1 - (1 - 1/9,366,819)^365
-├── P ≈ 0.000039 (0.0039%)
-
-Expected annual value:
-├── EV = 0.000039 × $15,000 = $0.58/year
-
-Theoretical NFT value (assuming 10% discount rate):
-├── Perpetuity value = $0.58 / 0.10 = $5.80
-
-BUT: Speculation premium could be 10-100x due to:
-├── Lottery ticket psychology
-├── Rarity (limited mints)
-├── Secondary market liquidity
-├── Meme/social value
-├── Floor price dynamics
-```
-
-**Market Mechanisms:**
-
-```
-Tensor/Magic Eden Integration:
-├── Automatic listing capability
-├── Royalties: 5% to protocol treasury
-├── Collection verified and featured
-
-Price Discovery Factors:
-├── Recent near-misses (these numbers matched 5/6)
-├── "Hot" vs "cold" number perception
-├── Time since last jackpot
-├── Overall collection floor price
-├── Number of NFTs with same combination (usually 0-1)
-```
-
-### 3.7 Governance Controls
-
-```rust
-/// Governance can adjust NFT parameters
-pub struct LuckyNumbersConfig {
-    /// Bonus percentage of jackpot (default 100 = 1%)
-    pub bonus_bps: u16,
-    
-    /// Minimum match tier to receive NFT (default 4)
-    pub min_match_tier: u8,
-    
-    /// Whether new NFTs can be minted
-    pub minting_enabled: bool,
-    
-    /// Whether bonuses are being paid
-    pub bonuses_enabled: bool,
-    
-    /// Maximum NFTs per combination (prevent dilution)
-    pub max_nfts_per_combination: u8,
-}
-```
-
----
-
-## 4. MEV Protection
+## 3. MEV Protection
 
 > ⚠️ **PARTIALLY IMPLEMENTED** — The only MEV protection currently on-chain is a **tightened slot window** (10 slots / ~4 seconds) between randomness commit and reveal, which limits the window for MEV actors to observe randomness. The **Jito tip integration** (§4.4) and **threshold encryption** (§4.2–4.3) described below are **NOT YET IMPLEMENTED** — they are design documents for future phases.
 
-### 4.1 Threat Model
+### 3.1 Threat Model
 
 **Attack Vector 1: Front-Running Ticket Purchase**
 ```
@@ -605,7 +339,7 @@ Scenario:
 Risk Level: MEDIUM
 ```
 
-### 4.2 Solution: Threshold Encryption
+### 3.2 Solution: Threshold Encryption
 
 **Overview:**
 
@@ -640,7 +374,7 @@ Ticket numbers are encrypted at purchase time. Decryption only occurs after winn
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 4.3 Implementation
+### 3.3 Implementation
 
 ```rust
 /// Encrypted ticket structure
@@ -774,7 +508,7 @@ pub fn decrypt_ticket(ctx: Context<DecryptTicket>) -> Result<()> {
 }
 ```
 
-### 4.4 Alternative: Jito Integration
+### 3.4 Alternative: Jito Integration
 
 For simpler MEV protection without full threshold encryption:
 
@@ -809,16 +543,16 @@ pub fn buy_ticket_with_jito(
 - Less censorship resistant than threshold encryption
 - Requires users to submit through Jito
 
-### 4.5 Recommendation
+### 3.5 Recommendation
 
 **Phase 1 (Launch):** Implement Jito integration for basic MEV protection
 **Phase 2 (6+ months):** Add threshold encryption for maximum security
 
 ---
 
-## 5. Quick Pick Express (5/35) — FIXED → PARI-MUTUEL PRIZE SYSTEM
+## 4. Quick Pick Express (5/35) — FIXED → PARI-MUTUEL PRIZE SYSTEM
 
-### 5.1 Overview
+### 4.1 Overview
 
 A high-frequency mini-lottery featuring the **same rolldown mechanics and +EV exploit as the main lottery**, running every 4 hours (6x daily). This exclusive game provides continuous engagement between main draws and is only accessible to players who have demonstrated commitment to the main lottery.
 
@@ -826,7 +560,7 @@ A high-frequency mini-lottery featuring the **same rolldown mechanics and +EV ex
 
 **🎯 Key Feature:** During rolldown events, players enjoy **+66.7% positive expected value** using pari-mutuel prize distribution — comparable to the main lottery's optimal rolldown conditions.
 
-### 5.2 Access Requirements
+### 4.2 Access Requirements
 
 > ⚠️ **$50 Gate Requirement**: Players must have spent a minimum of **$50 USDC lifetime** in the main MazelProtocol (6/46) before gaining access to Quick Pick Express.
 
@@ -851,7 +585,7 @@ pub fn verify_quick_pick_eligibility(user_stats: &UserStats) -> Result<()> {
 pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000; // $50 in USDC lamports
 ```
 
-### 5.3 Game Parameters
+### 4.3 Game Parameters
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
@@ -863,7 +597,7 @@ pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000; // $50 in USDC lamports
 | **Hard Cap** | $50,000 | Forced rolldown guaranteed |
 | **Cycle Duration** | ~2-3 days (12-18 draws) | Fast-paced excitement |
 
-### 5.4 Odds Calculation
+### 4.4 Odds Calculation
 
 ```
 Total combinations: C(35, 5) = 324,632
@@ -883,7 +617,7 @@ Match Probabilities:
 - More exciting than 6/46 (where jackpots almost never hit)
 - Match 4 odds (1 in 2,164) provide meaningful secondary prizes
 
-### 5.5 Dynamic House Fee System
+### 4.5 Dynamic House Fee System
 
 Like the main lottery, Quick Pick Express uses dynamic fees based on jackpot level:
 
@@ -895,7 +629,7 @@ Like the main lottery, Quick Pick Express uses dynamic fees based on jackpot lev
 | > $30,000 | **38%** | 62% | Maximum extraction near cap |
 | During Rolldown | **28%** | 72% | Encourages maximum volume |
 
-### 5.6 Prize Structure - Normal Mode — FIXED PRIZES
+### 4.6 Prize Structure - Normal Mode — FIXED PRIZES
 
 During normal operation (Jackpot < $30,000), prizes are **FIXED amounts**:
 
@@ -910,7 +644,7 @@ During normal operation (Jackpot < $30,000), prizes are **FIXED amounts**:
 
 **Pari-Mutuel Transition Trigger:** If (Winner Count × Fixed Prize) > Prize Pool, automatic transition to pari-mutuel occurs to cap operator liability.
 
-### 5.7 🔥 Prize Structure - Rolldown Mode — PARI-MUTUEL (THE EXPLOIT)
+### 4.7 🔥 Prize Structure - Rolldown Mode — PARI-MUTUEL (THE EXPLOIT)
 
 > **🔒 CRITICAL TRANSITION:** During rolldown, ALL prizes transition from FIXED to **PARI-MUTUEL**. Operator liability is CAPPED at exactly the jackpot amount ($30,000-$50,000), regardless of ticket volume or winner count.
 
@@ -941,7 +675,7 @@ When jackpot caps and no Match 5 winner, the **full jackpot distributes down usi
 
 This provides comparable value to the main lottery's rolldown, which can offer up to +62% player edge under optimal conditions (475k tickets sold during rolldown).
 
-### 5.8 The Rolldown Mechanism — PARI-MUTUEL DISTRIBUTION
+### 4.8 The Rolldown Mechanism — PARI-MUTUEL DISTRIBUTION
 
 Quick Pick Express uses the same probabilistic rolldown system as the main lottery, with **PARI-MUTUEL prize distribution** during rolldown events:
 
@@ -1004,7 +738,7 @@ After a rolldown:
 2. Normal mode resumes
 3. New cycle begins (~2-3 days to next cap)
 
-### 5.9 Prize Pool Allocation
+### 4.9 Prize Pool Allocation
 
 Revenue allocation per $1.50 ticket (at 33% average fee):
 
@@ -1030,7 +764,7 @@ Revenue allocation per $1.50 ticket (at 33% average fee):
 
 > **Note:** Quick Pick Express has no Match 2 (free ticket) prize. Only Match 3+ wins.
 
-### 5.10 Smart Contract Implementation
+### 4.10 Smart Contract Implementation
 
 ```rust
 // Quick Pick Express Constants (5/35 Matrix)
@@ -1323,7 +1057,7 @@ fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> Result<()> {
 }
 ```
 
-### 5.11 Expected Value Analysis
+### 4.11 Expected Value Analysis
 
 #### Normal Mode (Early Cycle, Jackpot ~$10,000)
 
@@ -1374,7 +1108,7 @@ fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> Result<()> {
 └────────────────────────────────────────────────────────┘
 ```
 
-### 5.12 Cycle Economics & Operator Profitability — FIXED → PARI-MUTUEL
+### 4.12 Cycle Economics & Operator Profitability — FIXED → PARI-MUTUEL
 
 #### Full Cycle Analysis (2.5 days, 15 draws) - With Pari-Mutuel Prize Transition
 
@@ -1451,7 +1185,7 @@ Combined with Main Lottery (Corrected):
 
 *Note: All calculations use the corrected operator P&L model where house fees are operator revenue and prize payouts come from the self-sustaining prize pool. Pari-mutuel transition caps operator liability during high-volume rolldown events.*
 
-### 5.13 Why This Works: The Rolldown Exploit Economics
+### 4.13 Why This Works: The Rolldown Exploit Economics
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -1521,9 +1255,9 @@ Combined with Main Lottery (Corrected):
 
 
 
-## 6. Syndicate Wars Competition
+## 5. Syndicate Wars Competition
 
-### 6.1 Overview
+### 5.1 Overview
 
 Monthly competition where syndicates compete for the best win rate, creating tribal loyalty and recurring engagement.
 
@@ -1543,7 +1277,7 @@ Scoring Metric: Win Rate
 Duration: Monthly (calendar month)
 ```
 
-### 6.3 Prize Pool
+### 5.3 Prize Pool
 
 ```
 Monthly Prize Pool: 1% of monthly ticket sales
@@ -1775,9 +1509,9 @@ pub fn distribute_syndicate_wars_prizes(
 
 ---
 
-## 7. Implementation Priority
+## 6. Implementation Priority
 
-### 7.1 Implementation Status
+### 6.1 Implementation Status
 
 | Feature | Impact | Complexity | Status |
 |---------|--------|------------|--------|
@@ -1796,13 +1530,11 @@ pub fn distribute_syndicate_wars_prizes(
 | **Statistical Plausibility Checks** | High | Low | ✅ Complete (on-chain) |
 | **Streak Tracking** | Low | Low | ⚠️ Tracked only — bonus never applied to prizes |
 | **MEV Protection (slot window)** | Medium | Low | ⚠️ Partial — 10-slot window only |
-| **Lucky Numbers NFT** | Medium | High | ❌ Data structure only — no instructions |
 | **MEV Protection (Jito)** | Critical | Low | ❌ Not started |
 | **MEV Protection (Threshold)** | Medium | High | ❌ Not started |
 | **Client SDK** | Medium | Medium | ❌ Not started |
-| **Governance DAO** | Low | High | ❌ Not started |
 
-### 7.2 What's Been Built
+### 6.2 What's Been Built
 
 ```
 ✅ COMPLETED — On-Chain Programs
@@ -1833,35 +1565,31 @@ pub fn distribute_syndicate_wars_prizes(
     └── Prize: claim_prize
 ```
 
-### 7.3 Next Priority
+### 6.3 Next Priority
 
 ```
 🔜 NEXT — Requires Implementation
 ├── Apply streak bonus to prize calculations (logic exists, not wired in)
-├── Lucky Numbers NFT instructions (data structure & constants ready)
 ├── Jito MEV tip integration
 ├── Client SDK package (@mazelprotocol/sdk)
 └── Security audit
 
 🔮 FUTURE
 ├── Threshold encryption MEV protection
-├── On-chain governance DAO
 ├── White-label platform
 └── Cross-chain deployment
 ```
 
-### 7.4 Resource Requirements (Remaining Work)
+### 6.4 Resource Requirements (Remaining Work)
 
 | Feature | Engineering | Design | Marketing |
 |---------|-------------|--------|-----------|
 | Apply streak bonus | 1 day | - | - |
-| Lucky Numbers NFT instructions | 3 weeks | 2 weeks | 2 weeks |
 | Jito MEV integration | 1 week | - | - |
 | Client SDK | 2 weeks | 1 week | - |
 | Threshold encryption | 4 weeks | - | - |
-| Governance DAO | 6 weeks | 1 week | 1 week |
 
-### 7.5 Success Metrics
+### 6.5 Success Metrics
 
 | Feature | KPI | Target |
 |---------|-----|--------|
@@ -1869,7 +1597,6 @@ pub fn distribute_syndicate_wars_prizes(
 | Soft/Hard Caps | Volume during soft cap | +15% vs baseline |
 | Syndicate Wars | Monthly active syndicates | 100+ |
 | Quick Pick | Daily tickets sold | 50k/day |
-| Lucky Numbers NFT | Secondary market volume | $50k/month |
 
 ---
 
@@ -1896,22 +1623,10 @@ pub struct MiniRolldown {
 }
 
 #[event]
-pub struct LuckyNumbersNFTMinted {
-    pub mint: Pubkey,
-    pub owner: Pubkey,
-    pub numbers: [u8; 6],
-    pub original_match_tier: u8,
-    pub draw_id: u64,
-}
+
 
 #[event]
-pub struct LuckyNumbersBonusPaid {
-    pub nft_mint: Pubkey,
-    pub owner: Pubkey,
-    pub numbers: [u8; 6],
-    pub bonus_amount: u64,
-    pub jackpot_draw_id: u64,
-}
+
 
 #[event]
 pub struct DecryptionKeyAvailable {

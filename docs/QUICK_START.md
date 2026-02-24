@@ -63,7 +63,7 @@ During rolldown, prizes transition from fixed to pari-mutuel:
 | [SOLANA_LOTTO.md](./SOLANA_LOTTO.md) | Main README with features, prizes, and API |
 | [WHITEPAPER.md](./WHITEPAPER.md) | Mathematical foundations and economic model |
 | [TECHNICAL_SPEC.md](./TECHNICAL_SPEC.md) | Smart contract specs for developers |
-| [ADVANCED_FEATURES.md](./ADVANCED_FEATURES.md) | Dynamic fees, Lucky Numbers NFT, MEV protection, Quick Pick Express, Syndicate Wars |
+| [ADVANCED_FEATURES.md](./ADVANCED_FEATURES.md) | Dynamic fees, MEV protection, Quick Pick Express, Syndicate Wars |
 
 ---
 
@@ -144,7 +144,7 @@ Between $1.75M and $2.25M, each draw has a chance to trigger full rolldown:
 4. **Buy maximum volume** during forced rolldowns at $2.25M hard cap
 5. **Join syndicates** to pool capital and reduce variance
 6. **Enter Syndicate Wars** for bonus prize pool (1% of monthly sales)
-7. **Collect Lucky Numbers NFTs** for future jackpot bonuses *(coming soon — not yet implemented)*
+7. **Monitor draw results** and claim prizes within 90 days
 
 ### Risk Warning
 
@@ -267,8 +267,10 @@ program.methods.leaveSyndicate()
 
 ## 🎰 Additional Features
 
-### 🏆 Lucky Numbers NFT *(Not Yet Implemented)*
-Win Match 4+ → Receive NFT with your numbers → If those numbers ever hit jackpot → You get **1% of the jackpot** (even if you didn't play!)
+### 🏆 Advanced Features
+- **Dynamic House Fees**: Fees scale 28-40% based on jackpot level
+- **Syndicate Wars**: Monthly competition with 1% prize pool
+- **Insurance Pool**: 2% allocation with daily claim caps
 
 > ❌ **Design only** — The data structure and constants exist on-chain, but no instructions to mint or claim bonuses have been implemented yet.
 
@@ -340,12 +342,11 @@ Only play with money you can afford to lose. Verify your local laws before parti
 - ⚠️ **Streak Tracking** (streaks tracked on UserStats, but bonus never applied to prizes)
 - ⚠️ **MEV Protection** (slot window tightened to ~4s — no Jito or threshold encryption yet)
 
-### ❌ Not Yet Implemented (Design Only)
-- ❌ **Lucky Numbers NFT** (data structure exists, no instructions to mint or claim)
-- ❌ **Jito MEV Integration** (no tip accounts or bundle logic)
-- ❌ **Threshold Encryption** (no encrypted tickets or key management)
-- ❌ **SDK** (`@mazelprotocol/sdk` package does not exist yet)
-- ❌ **Governance DAO** (authority is a single signer, no on-chain governance)
+### 🔄 Planned Future Features
+- 🔄 **Jito MEV Integration** (tip accounts and bundle logic)
+- 🔄 **Threshold Encryption** (encrypted tickets and key management)
+- 🔄 **SDK** (`@mazelprotocol/sdk` package for developers)
+- 🔄 **Advanced MEV Protection** (enhanced security features)
 
 ---
 

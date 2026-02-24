@@ -19,8 +19,7 @@ pub const USER_SEED: &[u8] = b"user";
 pub const STAKE_SEED: &[u8] = b"stake";
 /// PDA seed for syndicates
 pub const SYNDICATE_SEED: &[u8] = b"syndicate";
-/// PDA seed for lucky numbers NFTs
-pub const LUCKY_NUMBERS_SEED: &[u8] = b"lucky_numbers";
+
 /// PDA seed for quick pick express
 pub const QUICK_PICK_SEED: &[u8] = b"quick_pick";
 /// PDA seed for syndicate wars
@@ -185,11 +184,6 @@ pub const QUICK_PICK_INSURANCE_ALLOCATION_BPS: u16 = 300; // 3%
 // ============================================================================
 // ADVANCED FEATURES
 // ============================================================================
-
-/// Lucky Numbers NFT bonus: 1% of jackpot
-pub const LUCKY_NUMBERS_BONUS_BPS: u16 = 100;
-/// Minimum match tier to receive Lucky Numbers NFT
-pub const LUCKY_NUMBERS_MIN_MATCH: u8 = 4;
 
 /// Syndicate Wars prize pool allocation: 1% of monthly sales
 pub const SYNDICATE_WARS_POOL_BPS: u16 = 100;

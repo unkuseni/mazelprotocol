@@ -103,11 +103,11 @@
 
 | Feature | Specification | What Exists in Code | What's Missing |
 |---------|---------------|---------------------|----------------|
-| Lucky Numbers NFT | ADVANCED_FEATURES.md §3 | Data structure (`LuckyNumbersNFT`), constants, events, error codes | **No instructions** — cannot mint, claim bonuses, or govern NFTs |
+
 | Threshold Encryption MEV | ADVANCED_FEATURES.md §4.2-4.3 | Nothing | Entire feature — encrypted tickets, key management, decryption |
 | Jito Integration | ADVANCED_FEATURES.md §4.4 | Nothing | Jito tip accounts, bundle integration |
 | SDK (`@mazelprotocol/sdk`) | QUICK_START.md, SOLANA_LOTTO.md | Nothing | No NPM package exists; API examples in docs are aspirational |
-| Governance DAO | WHITEPAPER.md §6.1 | Nothing | No on-chain governance — authority is a single signer |
+
 | White-label / Cross-chain / DAO Transition | Roadmap | Nothing | Future roadmap items |
 
 ### 🗑️ Removed Features (Documented as Removed)
@@ -227,14 +227,14 @@
 
 ### 🔜 Next Priority
 - Apply streak bonus to prize calculations (logic exists, just not wired up)
-- Lucky Numbers NFT instructions (data structure ready)
 - Jito MEV protection integration
+- Apply streak bonus to prize calculations
 - Client SDK package (`@mazelprotocol/sdk`)
 
 ### 🔮 Future
 - Threshold encryption MEV protection
-- On-chain governance DAO (replace single-signer authority)
 - White-label platform
+- Cross-chain deployment
 - Cross-chain deployment
 
 ---
@@ -243,7 +243,7 @@
 
 | Version | Date | Changes |
 |---------|------|---------|
-| v3.0 | 2025 | **Docs audit**: Corrected implementation status for all features; marked Lucky Numbers NFT, MEV (Jito/Threshold), SDK, and DAO as NOT YET IMPLEMENTED; marked streak bonus as tracked-only |
+| v3.0 | 2025 | **Docs audit**: Corrected implementation status for all features; marked MEV (Jito/Threshold) and SDK as NOT YET IMPLEMENTED; marked streak bonus as tracked-only |
 | v3.0 | 2025 | Removed references to TOKEN MODULE, GOV MODULE, SecondChanceEntry, and separate TicketManager/DrawEngine/PrizePool programs that never existed |
 | v3.0 | 2025 | Documented newly implemented features: config timelock, 2-step authority transfer, solvency check, expired prize reclaim, draw recovery, verification hash, statistical plausibility checks |
 | v2.5 | 2025 | Removed Mega Events feature from all documentation and code |
@@ -285,8 +285,8 @@
 - SPL Token
 
 **Features:**
-- Lucky Numbers NFT
 - Quick Pick Express
+- Syndicate Wars
 - Syndicate Wars
 - Streak Bonus
 - Insurance Pool

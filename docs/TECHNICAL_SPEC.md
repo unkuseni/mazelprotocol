@@ -165,8 +165,7 @@ The protocol consists of **two on-chain Anchor programs**:
 ### 3.2 Account Hierarchy
 
 > **Updated v3.0** — Reflects actual on-chain account structures. Removed `SecondChanceEntry`
-> (feature was removed in v2.2). `LuckyNumbersNFT` data structure exists but has no
-> instructions yet (design only).
+> (feature was removed in v2.2).
 
 ```
 LotteryState (PDA: ["lottery"])
@@ -312,19 +311,6 @@ SyndicateWarsEntry (PDA: ["syndicate_wars", month.to_le_bytes(), syndicate])
 ├── final_rank: u32
 ├── prize_claimed: bool
 └── bump: u8
-
-LuckyNumbersNFT (PDA: ["lucky_numbers", mint])  ❌ DATA STRUCTURE ONLY — no instructions
-├── mint: Pubkey
-├── owner: Pubkey
-├── numbers: [u8; 6]
-├── original_draw_id: u64
-├── original_match_tier: u8
-├── original_winner: Pubkey
-├── created_at: i64
-├── total_bonuses_claimed: u64
-├── jackpot_hits: u32
-├── is_active: bool
-└── bump: u8
 ```
 
 **Quick Pick Express accounts** (separate program):
@@ -468,7 +454,6 @@ pub const DRAW_SEED: &[u8] = b"draw";
 pub const USER_SEED: &[u8] = b"user";
 pub const STAKE_SEED: &[u8] = b"stake";
 pub const SYNDICATE_SEED: &[u8] = b"syndicate";
-pub const LUCKY_NUMBERS_SEED: &[u8] = b"lucky_numbers";
 pub const QUICK_PICK_SEED: &[u8] = b"quick_pick";
 pub const SYNDICATE_WARS_SEED: &[u8] = b"syndicate_wars";
 
@@ -548,10 +533,6 @@ pub const QUICK_PICK_ROLLDOWN_MATCH_3_BPS: u16 = 4000;   // 40% to Match 3
 pub const QUICK_PICK_JACKPOT_ALLOCATION_BPS: u16 = 6000;       // 60%
 pub const QUICK_PICK_FIXED_PRIZE_ALLOCATION_BPS: u16 = 3700;   // 37%
 pub const QUICK_PICK_INSURANCE_ALLOCATION_BPS: u16 = 300;      // 3%
-
-// Lucky Numbers NFT
-pub const LUCKY_NUMBERS_BONUS_BPS: u16 = 100;      // 1% of jackpot
-pub const LUCKY_NUMBERS_MIN_MATCH: u8 = 4;         // Match 4+ to receive
 
 // Syndicate Wars
 pub const SYNDICATE_WARS_POOL_BPS: u16 = 100;      // 1% of monthly sales
@@ -902,42 +883,7 @@ pub struct SyndicateMember {
 // ADVANCED FEATURE DATA STRUCTURES
 // ═══════════════════════════════════════════════════════════════════
 
-/// Lucky Numbers NFT - awarded to Match 4+ winners
-#[account]
-pub struct LuckyNumbersNFT {
-    /// NFT mint address
-    pub mint: Pubkey,
-    
-    /// Current owner
-    pub owner: Pubkey,
-    
-    /// The winning numbers stored in this NFT
-    pub numbers: [u8; 6],
-    
-    /// Draw where these numbers won
-    pub original_draw_id: u64,
-    
-    /// Match tier when won (4, 5, or 6)
-    pub original_match_tier: u8,
-    
-    /// Original winner who received this NFT
-    pub original_winner: Pubkey,
-    
-    /// Timestamp of creation
-    pub created_at: i64,
-    
-    /// Total jackpot bonuses claimed through this NFT
-    pub total_bonuses_claimed: u64,
-    
-    /// Number of times these numbers hit jackpot
-    pub jackpot_hits: u32,
-    
-    /// Is this NFT active
-    pub is_active: bool,
-    
-    /// PDA bump
-    pub bump: u8,
-}
+
 
 // NOTE: SecondChanceEntry was removed in v2.2. This struct no longer exists in the on-chain program.
 
@@ -2526,14 +2472,7 @@ pub enum ErrorCode {
     #[msg("Insufficient main lottery spend. $50 minimum required for Quick Pick Express.")]
     InsufficientMainLotterySpend,
 
-    /// Maximum Lucky Numbers NFT limit has been reached
-    #[msg("Lucky Numbers NFT limit reached.")]
-    LuckyNumbersLimitReached,
-
-    /// Match count is insufficient for Lucky Numbers NFT eligibility
-    #[msg("Insufficient match for Lucky Numbers NFT.")]
-    InsufficientMatchForNft,
-
+    /// Syndicate Wars competition is not active
     /// Syndicate Wars feature is not currently active
     #[msg("Syndicate Wars not active.")]
     SyndicateWarsNotActive,
@@ -2669,10 +2608,6 @@ ErrorCode::RolldownCalculationError
 
 // Quick pick game
 ErrorCode::QuickPickNotActive
-
-// Lucky Numbers NFT
-ErrorCode::LuckyNumbersLimitReached
-ErrorCode::InsufficientMatchForNft
 
 // Syndicate Wars
 ErrorCode::SyndicateWarsNotActive

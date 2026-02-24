@@ -23,14 +23,13 @@ This guide provides comprehensive documentation for all constants used in MazelP
 6. [Fixed Prize Amounts](#6-fixed-prize-amounts)
 7. [Rolldown Allocation](#7-rolldown-allocation)
 8. [Quick Pick Express](#8-quick-pick-express)
-9. [Lucky Numbers NFT](#9-lucky-numbers-nft)
-10. [Syndicate Wars](#10-syndicate-wars)
-11. [Limits & Validation](#11-limits--validation)
-12. [Randomness & Timing](#12-randomness--timing)
-13. [Mathematical Constants](#13-mathematical-constants)
-14. [Account Sizes](#14-account-sizes)
-15. [Helper Functions](#15-helper-functions)
-16. [Enumerations](#16-enumerations)
+9. [Syndicate Wars](#9-syndicate-wars)
+10. [Limits & Validation](#10-limits--validation)
+11. [Randomness & Timing](#11-randomness--timing)
+12. [Mathematical Constants](#12-mathematical-constants)
+13. [Account Sizes](#13-account-sizes)
+14. [Helper Functions](#14-helper-functions)
+15. [Enumerations](#15-enumerations)
 
 ## Conventions
 
@@ -71,7 +70,6 @@ Program Derived Address (PDA) seeds used for deterministic account derivation.
 ### Advanced Features
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `LUCKY_NUMBERS_SEED` | `b"lucky_numbers"` | Lucky Numbers NFT accounts (Match 4+ winners) |
 | `QUICK_PICK_SEED` | `b"quick_pick"` | Quick Pick Express game state |
 | `SYNDICATE_WARS_SEED` | `b"syndicate_wars"` | Syndicate Wars competition entries |
 
@@ -442,31 +440,18 @@ pub fn should_quick_pick_rolldown(jackpot_balance: u64, random_value: u64) -> bo
 
 ---
 
-## 9. Lucky Numbers NFT
+## 9. Syndicate Wars
 
-> ❌ **NOT YET IMPLEMENTED** — These constants exist in the on-chain program, but no instructions have been written to mint NFTs or claim bonuses. This is a design-only feature awaiting future implementation.
-
-Lucky Numbers NFT configuration for Match 4+ winners.
+Syndicate Wars competition constants for monthly syndicate competitions.
 
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `LUCKY_NUMBERS_BONUS_BPS` | `100` BPS (1%) | Bonus percentage of jackpot |
-| `LUCKY_NUMBERS_MIN_MATCH` | `4` | Minimum match tier to receive NFT |
+| `SYNDICATE_WARS_POOL_BPS` | `100` BPS (1%) | Monthly prize pool allocation |
+| `SYNDICATE_WARS_MIN_TICKETS` | `50` | Minimum tickets to qualify |
 
 ---
 
-## 10. Syndicate Wars
-
-Monthly syndicate competition configuration.
-
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `SYNDICATE_WARS_POOL_BPS` | `100` BPS (1%) | Pool percentage of monthly sales |
-| `SYNDICATE_WARS_MIN_TICKETS` | `1,000` | Minimum tickets to qualify |
-
----
-
-## 11. Limits & Validation
+## 10. Limits & Validation
 
 System limits and validation parameters.
 
@@ -482,7 +467,7 @@ System limits and validation parameters.
 
 ---
 
-## 12. Comparison: Main Lottery vs Quick Pick Express — FIXED → PARI-MUTUEL
+## 11. Comparison: Main Lottery vs Quick Pick Express — FIXED → PARI-MUTUEL
 
 | Feature | Main Lottery (6/46) | Quick Pick Express (5/35) |
 |---------|---------------------|---------------------------|

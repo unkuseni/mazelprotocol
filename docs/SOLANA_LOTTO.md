@@ -51,7 +51,6 @@ This isn't a bug—**it's the feature**.
 
 | **👥 Syndicate System** | Built-in pool creation with automatic prize splitting |
 | **🔥 Streak Bonuses** | Rewards for consistent players |
-| **🎰 Lucky Numbers NFT** | Win NFTs that earn 1% of future jackpots |
 | **⚡ Quick Pick Express** | 5/35 mini-lottery every 4 hours with +67% rolldown exploit (no free ticket) |
 | **🛡️ MEV Protection** | Jito integration prevents front-running |
 | **📊 Full Transparency** | All balances and draws verifiable on-chain |
@@ -712,8 +711,8 @@ Report vulnerabilities to: `security@mazelprotocol.io`
 ### 🔜 Next Priority
 
 - [ ] Apply streak bonus to prize calculations (logic exists, just not wired in)
-- [ ] Lucky Numbers NFT instructions (data structure & constants ready)
 - [ ] Jito MEV protection integration
+- [ ] Apply streak bonus to prize calculations
 - [ ] Client SDK package (`@mazelprotocol/sdk`)
 - [ ] Security audit #1
 - [ ] Devnet deployment & public testnet
@@ -780,24 +779,31 @@ High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** —
 
 ---
 
-## 🏆 Lucky Numbers NFT System ❌ *Not Yet Implemented*
+## 🏆 Advanced Features
 
-> **Design only** — The `LuckyNumbersNFT` data structure, constants, events, and error codes exist in the main program, but **no instructions** have been written to mint NFTs, claim bonuses, or manage governance controls. The description below is the planned design.
+### Dynamic House Fee System
+Fees scale with jackpot excitement to maintain sustainability:
 
-When you win Match 4 or higher, you receive a **Lucky Numbers NFT** containing your winning combination:
+| Jackpot Level | House Fee |
+|---------------|-----------|
+| < $500k | 28% |
+| $500k - $1M | 32% |
+| $1M - $1.5M | 36% |
+| > $1.5M | 40% |
+| Rolldown | 28% |
 
-- **Tradeable** on secondary markets (Tensor, Magic Eden)
-- **Future jackpot bonus**: If those exact numbers ever hit the jackpot, you receive **1% of the jackpot**
-- Even if you don't play that draw!
+### Syndicate Wars Competition
+Monthly competition where syndicates compete for the best win rate:
 
-```
-Example:
-├── You win Match 5 with [4, 12, 23, 31, 38, 45]
-├── You receive Lucky Numbers NFT #4521
-├── 2 years later, those numbers hit jackpot for $1.8M
-├── You automatically receive $18,000
-```
+- **Prize Pool**: 1% of monthly ticket sales
+- **Duration**: Calendar month
+- **Eligibility**: Syndicates with ≥50 tickets purchased that month
+- **Ranking**: Based on win rate (prizes ÷ tickets purchased)
 
+### Insurance Pool System
+- **Allocation**: 2% of each ticket sale
+- **Daily Claim Cap**: $10,000 per user
+- **Purpose**: Provides a safety net for players during unlucky streaks
 
 
 ---
@@ -1181,11 +1187,9 @@ Nothing in this documentation constitutes financial, investment, legal, or tax a
 | **Security** | Entropy validation on randomness | ✅ |
 | **Partial** | Streak tracking | ⚠️ Tracked, bonus not applied |
 | **Partial** | MEV protection | ⚠️ Slot window only |
-| **Future** | Lucky Numbers NFT | ❌ Data struct only |
 | **Future** | Jito MEV integration | ❌ |
 | **Future** | Threshold encryption | ❌ |
 | **Future** | SDK (`@mazelprotocol/sdk`) | ❌ |
-| **Future** | Governance DAO | ❌ |
 
 ---
 
