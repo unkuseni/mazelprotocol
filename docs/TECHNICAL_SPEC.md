@@ -87,9 +87,10 @@ sha2 = "0.10.8"
 
 | Service | Purpose | Provider |
 |---------|---------|----------|
-| **Randomness Oracle** | Verifiable randomness (TEE + Commit-Reveal) | Switchboard |
-| **Price Feed** | USDC/USD verification | Pyth Network |
+| **Randomness Oracle** | Verifiable randomness (TEE + Commit-Reveal) | Switchboard v0.11.3 (on-demand) |
 | **Indexer** | Historical data queries | Custom (Geyser plugin) |
+
+> **Note (v3.0):** No Pyth price feed is currently integrated. USDC is the sole settlement currency. The Switchboard randomness is provided via their on-demand randomness service using a commit-reveal pattern with TEE security (Trusted Execution Environment).
 
 ---
 
@@ -564,6 +565,34 @@ pub const SYNDICATE_BASE_SIZE: usize = 99;
 pub const SYNDICATE_MEMBER_SIZE: usize = 48;
 ```
 
+### 4.3 Instruction Counts
+
+> **v3.0:** 40 on-chain instructions across both programs.
+
+**Main Lottery (`mazelprotocol` program — 6/46) — 38 instructions:**
+
+| Module | Instructions | Count |
+|--------|-------------|-------|
+| **Admin** | `pause`, `unpause`, `update_config`, `propose_config`, `execute_config`, `cancel_config_proposal`, `check_solvency`, `withdraw_house_fees`, `propose_authority`, `accept_authority`, `cancel_authority_transfer`, `cancel_draw`, `force_finalize_draw`, `emergency_fund_transfer`, `reclaim_expired_prizes` | 15 |
+| **Initialize** | `initialize`, `fund_seed`, `init_user_stats`, `add_reserve_funds` | 4 |
+| **Ticket Ops** | `buy_ticket`, `buy_bulk` | 2 |
+| **Draw Lifecycle** | `commit_randomness`, `execute_draw`, `finalize_draw`, `advance_draw` | 4 |
+| **Claims** | `claim_prize`, `claim_bulk_prize`, `claim_all_bulk_prizes` | 3 |
+| **Syndicate** | `create`, `join`, `leave`, `close`, `withdraw_creator_contribution`, `buy_syndicate_tickets`, `create_syndicate_ticket`, `distribute_syndicate_prize`, `claim_syndicate_member_prize`, `update_syndicate_config`, `remove_syndicate_member`, `transfer_syndicate_creator` | 12 |
+| **Syndicate Wars** | `initialize_syndicate_wars`, `register_for_syndicate_wars`, `update_syndicate_wars_stats`, `finalize_syndicate_wars`, `distribute_syndicate_wars_prizes`, `claim_syndicate_wars_prize` | 6 |
+| **Total** | | **38** |
+
+**Quick Pick Express (`quickpick` program — 5/35) — 12 instructions:**
+
+| Module | Instructions | Count |
+|--------|-------------|-------|
+| **Admin** | `update_config`, `withdraw_house_fees`, `add_reserve_funds`, `cancel_draw`, `force_finalize_draw`, `pause`, `unpause` | 7 |
+| **Initialize** | `initialize`, `fund_seed` | 2 |
+| **Ticket Ops** | `buy_ticket` | 1 |
+| **Draw Lifecycle** | `commit_randomness`, `execute_draw`, `finalize_draw` | 3 |
+| **Claims** | `claim_prize` | 1 |
+| **Total** | | **12** |
+
 ---
 
 ## 5. Data Structures
@@ -674,6 +703,12 @@ pub struct LotteryState {
 
     /// Start of the current emergency transfer window
     pub emergency_transfer_window_start: i64,
+
+    /// Maximum tickets allowed in a rolldown draw (circuit breaker to cap liability)
+    pub max_rolldown_tickets: u64,
+
+    /// Protocol version (incremented on upgrades for compatibility checks)
+    pub version: u8,
 }
 
 /// Lottery numbers wrapper with validation
@@ -742,6 +777,15 @@ pub struct DrawResult {
     pub match_4_prize_per_winner: u64,
     pub match_3_prize_per_winner: u64,
     
+    /// Total prize value committed for this draw (for solvency tracking)
+    pub total_committed: u64,
+
+    /// Total prize value reclaimed after expiration (returned to reserve)
+    pub total_reclaimed: u64,
+
+    /// Whether this draw was explicitly finalized (vs auto-finalized)
+    pub is_explicitly_finalized: bool,
+
     /// PDA bump seed
     pub bump: u8,
 }
@@ -775,6 +819,11 @@ pub struct TicketData {
     /// PDA bump seed
     pub bump: u8,
 }
+
+> **New in v3.0 — `UnifiedTicket`:** Bulk purchases (via `buy_bulk`) create a single
+> `UnifiedTicket` account instead of individual `TicketData` accounts. A `UnifiedTicket`
+> stores up to 50 ticket number sets in one account and uses a **bitmap** to track
+> which tickets in the batch have been claimed. See Section 5.2 for the full struct.
 
 #[account]
 pub struct UserStats {
@@ -1259,6 +1308,29 @@ pub struct AddReserveFunds<'info> {
 }
 ```
 
+#### `init_user_stats`
+
+Creates a `UserStats` PDA for a player. This must be called **once per user** before their first ticket purchase. Replaces the deprecated `init_if_needed` pattern — all ticket purchase instructions now require an existing `UserStats` account. The `UserStats` account tracks lifetime spending, winnings, streak data, and jackpot wins.
+
+```rust
+#[derive(Accounts)]
+pub struct InitUserStats<'info> {
+    #[account(mut)]
+    pub player: Signer<'info>,
+
+    #[account(
+        init,
+        payer = player,
+        space = USER_STATS_SIZE,
+        seeds = [USER_SEED, player.key().as_ref()],
+        bump
+    )]
+    pub user_stats: Account<'info, UserStats>,
+
+    pub system_program: Program<'info, System>,
+}
+```
+
 #### `update_config` (legacy immediate mode)
 
 Updates configuration parameters immediately. Refuses to run if a timelock proposal is active. For production use, prefer the `propose_config` → `execute_config` flow.
@@ -1394,6 +1466,10 @@ pub enum FundSource {
     PrizePool,
 }
 ```
+
+#### `advance_draw`
+
+Permissionless fallback instruction that anyone can call when a draw is stuck. If more than **30 minutes** have elapsed since the scheduled draw time and no randomness has been committed, this instruction advances the draw state so that a new draw can be scheduled. Prevents the lottery from stalling due to oracle unavailability or operator inaction.
 
 #### `reclaim_expired_prizes`
 
@@ -3234,6 +3310,27 @@ export const DEVNET_CONFIG = {
 | Soft Cap | $1,750,000 | Probabilistic rolldown trigger |
 | Hard Cap | $2,250,000 | Forced rolldown |
 | Seed Amount | $500,000 | Post-rolldown reset |
+
+### 12.3.1 Rolldown Probability Formula
+
+The rolldown probability is computed using linear interpolation between the soft cap and hard cap. When the jackpot balance is at or below the soft cap, rolldown probability is 0%. When at or above the hard cap, it is 100%. Between the two, the probability scales linearly.
+
+```
+Probability(bps) = (jackpot_balance - soft_cap) * 10000 / (hard_cap - soft_cap)
+```
+
+- Clamped to the range `[0, 10000]` (0% to 100%).
+- Uses **u128 arithmetic** internally for overflow safety.
+- The computed probability is evaluated against a random value derived from Switchboard randomness to determine if rolldown triggers.
+
+**Example calculations:**
+
+| Jackpot | Soft Cap | Hard Cap | Formula | Probability |
+|---------|----------|----------|---------|-------------|
+| $500,000 | $1,750,000 | $2,250,000 | clamped to 0 | 0% |
+| $1,750,000 | $1,750,000 | $2,250,000 | (0 × 10000) / 500,000 | 0% (at soft cap) |
+| $2,000,000 | $1,750,000 | $2,250,000 | (250,000 × 10000) / 500,000 | 50% |
+| $2,250,000 | $1,750,000 | $2,250,000 | (500,000 × 10000) / 500,000 | 100% (at hard cap) |
 
 ### 12.4 Prize Transition System — FIXED → PARI-MUTUEL
 

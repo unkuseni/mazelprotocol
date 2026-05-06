@@ -631,7 +631,7 @@ With target $V_{normal} = 100,000$, the compatible region spans $100,000$ to $82
        └───────────────┴────────┬────────┴─────────────┘
                                 │
 ┌───────────────────────────────┴─────────────────────────────┐
-│              MAIN LOTTERY PROGRAM (solana_lotto)             │
+│              MAIN LOTTERY PROGRAM (mazelprotocol)             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
@@ -667,9 +667,13 @@ With target $V_{normal} = 100,000$, the compatible region spans $100,000$ to $82
 
 ### 6.2 Smart Contract Specifications
 
-#### 6.2.1 Ticket Module (within solana_lotto program)
+#### 6.2.1 Ticket Module (within mazelprotocol program)
 
 **Purpose:** Handle all ticket purchases, validation, and storage
+
+> **Prerequisite:** Every player must call `init_user_stats` once before their first ticket
+> purchase. This creates a `UserStats` PDA that tracks lifetime spending, winnings, and
+> streak data. This replaces the deprecated `init_if_needed` pattern.
 
 **Key Instructions:**
 
@@ -687,15 +691,36 @@ pub fn buy_ticket(
     sorted.sort();
     require!(sorted.windows(2).all(|w| w[0] != w[1]), DuplicateNumbers);
     
+    let state = &mut ctx.accounts.lottery_state;
+    let clock = Clock::get()?;
+    
+    // Ticket sale cutoff: 1 hour before draw
+    require!(
+        clock.unix_timestamp < state.next_draw_timestamp - 3600,
+        TicketSaleEnded
+    );
+    
+    // Dynamic house fee based on jackpot tier and rolldown status
+    let is_rolldown = state.is_rolldown_active;
+    let house_fee_bps = if is_rolldown {
+        2800 // 28% during rolldown
+    } else if state.jackpot_balance < 500_000_000_000 {
+        2800 // 28% under $500k
+    } else if state.jackpot_balance < 1_000_000_000_000 {
+        3200 // 32%: $500k-$1M
+    } else if state.jackpot_balance < 1_500_000_000_000 {
+        3600 // 36%: $1M-$1.5M
+    } else {
+        4000 // 40%: over $1.5M
+    };
+    
     // Transfer USDC from player to prize pool
     transfer_usdc(
         ctx.accounts.player_usdc,
         ctx.accounts.prize_pool_usdc,
-        TICKET_PRICE, // 2,500,000 (2.5 USDC in 6 decimals)
+        TICKET_PRICE, // 2,500,000 ($2.50 in 6 decimals)
     )?;
     
-    // Allocate funds (dynamic fee based on jackpot tier)
-    let house_fee_bps = calculate_house_fee_bps(lottery_state.jackpot_balance, false);
     let house_fee = TICKET_PRICE * house_fee_bps as u64 / 10000;
     let prize_pool = TICKET_PRICE - house_fee;
     
@@ -706,16 +731,19 @@ pub fn buy_ticket(
     let insurance_contribution = prize_pool * 200 / 10000; // 2%
     
     // Update state
-    ctx.accounts.lottery_state.jackpot_balance += jackpot_contribution;
-    ctx.accounts.lottery_state.reserve_balance += reserve_buffer;
-    ctx.accounts.lottery_state.total_tickets_sold += 1;
+    state.jackpot_balance += jackpot_contribution;
+    state.fixed_prize_balance += fixed_prize_pool;
+    state.reserve_balance += reserve_buffer;
+    state.insurance_balance += insurance_contribution;
+    state.current_draw_tickets += 1;
+    state.total_tickets_sold += 1;
     
     // Create ticket account
     let ticket = &mut ctx.accounts.ticket;
     ticket.owner = ctx.accounts.player.key();
-    ticket.draw_id = ctx.accounts.lottery_state.current_draw_id;
+    ticket.draw_id = state.current_draw_id;
     ticket.numbers = sorted;
-    ticket.purchase_timestamp = Clock::get()?.unix_timestamp;
+    ticket.purchase_timestamp = clock.unix_timestamp;
     ticket.is_claimed = false;
     
     emit!(TicketPurchased {
@@ -728,17 +756,30 @@ pub fn buy_ticket(
     Ok(())
 }
 
-/// Purchase multiple tickets in one transaction
+/// Purchase multiple tickets in one transaction (up to 50)
+/// Creates a single UnifiedTicket account with a claimed bitmap
 pub fn buy_bulk(
     ctx: Context<BuyBulk>,
     tickets: Vec<[u8; 6]>,
 ) -> Result<()> {
-    require!(tickets.len() <= 10, TooManyTickets);
+    require!(tickets.len() <= 50, BulkPurchaseLimitExceeded);
     require!(tickets.len() >= 1, NoTickets);
     
-    for numbers in tickets {
-        // Validate and process each ticket
-        // ... (same validation as buy_ticket)
+    // Create a single UnifiedTicket account for all tickets
+    let unified = &mut ctx.accounts.unified_ticket;
+    unified.owner = ctx.accounts.player.key();
+    unified.draw_id = ctx.accounts.lottery_state.current_draw_id;
+    unified.ticket_count = tickets.len() as u8;
+    unified.numbers = tickets;
+    unified.claimed_bitmap = 0;  // No tickets claimed yet
+
+    // Single transfer for all tickets (saves CU)
+    let total_cost = TICKET_PRICE * tickets.len() as u64;
+    transfer_usdc(ctx.accounts.player_usdc, ctx.accounts.prize_pool_usdc, total_cost)?;
+    
+    // Allocate funds for each ticket
+    for _ in 0..tickets.len() {
+        allocate_ticket_revenue(&mut ctx.accounts.lottery_state)?;
     }
     
     Ok(())
@@ -750,55 +791,79 @@ pub fn buy_bulk(
 ```rust
 #[account]
 pub struct LotteryState {
-    pub authority: Pubkey,           // Admin multi-sig
-    pub current_draw_id: u64,        // Incrementing draw counter
-    pub jackpot_balance: u64,        // Current jackpot (USDC lamports)
-    pub reserve_balance: u64,        // Reserve fund
-    pub insurance_balance: u64,      // Insurance pool
-    pub ticket_price: u64,           // Price in USDC lamports (2,500,000)
-    pub house_fee_bps: u16,          // House fee (3400 = 34%)
-    pub jackpot_cap: u64,            // Rolldown trigger (1,750,000,000,000)
-    pub seed_amount: u64,            // Post-rolldown seed (500,000,000,000)
-    pub total_tickets_sold: u64,     // Lifetime counter
-    pub total_prizes_paid: u64,      // Lifetime payouts
-    pub last_draw_timestamp: i64,    // Unix timestamp
-    pub next_draw_timestamp: i64,    // Scheduled next draw
-    pub is_paused: bool,             // Emergency pause flag
-    pub bump: u8,                    // PDA bump seed
+    pub authority: Pubkey,                // Admin authority (multi-sig recommended)
+    pub pending_authority: Option<Pubkey>, // Two-step authority transfer
+    pub switchboard_queue: Pubkey,        // Switchboard randomness queue
+    pub current_randomness_account: Pubkey, // Active randomness account
+    pub current_draw_id: u64,             // Incrementing draw counter
+    pub jackpot_balance: u64,             // Current jackpot (USDC lamports)
+    pub reserve_balance: u64,             // Reserve fund
+    pub insurance_balance: u64,           // Insurance pool
+    pub fixed_prize_balance: u64,         // Earmarked for fixed-tier prizes
+    pub ticket_price: u64,                // $2.50 = 2,500,000 lamports
+    pub house_fee_bps: u16,               // Dynamic (2800-4000 = 28%-40%)
+    pub jackpot_cap: u64,                 // UI display only (soft/hard cap used for logic)
+    pub seed_amount: u64,                 // Post-rolldown seed ($500,000)
+    pub soft_cap: u64,                    // Probabilistic rolldown begins ($1,750,000)
+    pub hard_cap: u64,                    // Forced 100% rolldown ($2,250,000)
+    pub next_draw_timestamp: i64,         // Scheduled next draw (Unix)
+    pub draw_interval: i64,               // 86400 seconds (24hr)
+    pub commit_slot: u64,                 // Slot of randomness commit
+    pub commit_timestamp: i64,            // Timestamp of randomness commit
+    pub current_draw_tickets: u64,        // Tickets in current draw
+    pub total_tickets_sold: u64,          // Lifetime counter
+    pub total_prizes_paid: u64,           // Lifetime payouts
+    pub total_prizes_committed: u64,      // Prizes committed (not yet claimed)
+    pub is_draw_in_progress: bool,        // Draw lifecycle flag
+    pub is_rolldown_active: bool,         // Rolldown mode active
+    pub is_paused: bool,                  // Emergency pause flag
+    pub is_funded: bool,                  // Seed deposited flag
+    pub config_timelock_end: i64,         // 24hr timelock expiration
+    pub pending_config_hash: [u8; 32],    // SHA256 hash of pending config
+    pub emergency_transfer_total: u64,    // Cumulative emergency transfers
+    pub emergency_transfer_window_start: i64, // Emergency window tracking
+    pub max_rolldown_tickets: u64,        // Circuit breaker for liability
+    pub bump: u8,                         // PDA bump seed
+    pub version: u8,                      // Protocol version
 }
 
 #[account]
-pub struct Ticket {
-    pub owner: Pubkey,               // Player wallet
-    pub draw_id: u64,                // Which draw this ticket is for
-    pub numbers: [u8; 6],            // Selected numbers (sorted)
-    pub purchase_timestamp: i64,     // When purchased
-    pub is_claimed: bool,            // Whether prize claimed
-    pub prize_amount: u64,           // Prize won (0 if not yet calculated)
-    pub match_count: u8,             // Numbers matched (0-6)
-    pub syndicate: Option<Pubkey>,   // Syndicate pool (if applicable)
+pub struct UnifiedTicket {
+    pub owner: Pubkey,                    // Player wallet
+    pub draw_id: u64,                     // Which draw this ticket batch is for
+    pub start_ticket_id: u64,             // Base ticket ID (sequential)
+    pub ticket_count: u8,                 // Number of tickets (1-50)
+    pub numbers: Vec<[u8; 6]>,            // All number sets in order
+    pub purchase_timestamp: i64,          // When purchased
+    pub syndicate: Option<Pubkey>,        // Syndicate pool (if applicable)
+    pub claimed_bitmap: u64,              // Bitmap tracking: bit i = ticket i claimed
 }
 ```
 
-#### 6.2.2 Draw Module (within solana_lotto program)
+#### 6.2.2 Draw Module (within mazelprotocol program)
 
 **Purpose:** Execute draws using verifiable randomness
 
 **Key Instructions:**
 
 ```rust
-/// Initialize a new draw period
+/// Advance to a new draw period (called during finalize or via permissionless advance_draw)
 pub fn initialize_draw(ctx: Context<InitializeDraw>) -> Result<()> {
     let state = &mut ctx.accounts.lottery_state;
+    let clock = Clock::get()?;
     
-    // Ensure previous draw is complete
+    // Ensure previous draw cycle window has passed
     require!(
-        Clock::get()?.unix_timestamp >= state.next_draw_timestamp,
+        clock.unix_timestamp >= state.next_draw_timestamp,
         DrawNotReady
     );
     
     state.current_draw_id += 1;
-    state.next_draw_timestamp = Clock::get()?.unix_timestamp + 86400; // +24 hours
+    state.next_draw_timestamp = clock.unix_timestamp + state.draw_interval; // 86400s (24hr)
+    state.current_draw_tickets = 0;
+    state.is_draw_in_progress = false;
+    state.commit_slot = 0;
+    state.commit_timestamp = 0;
     
     emit!(DrawInitialized {
         draw_id: state.current_draw_id,
@@ -809,6 +874,7 @@ pub fn initialize_draw(ctx: Context<InitializeDraw>) -> Result<()> {
 }
 
 /// Commit to randomness for the upcoming draw (Switchboard commit-reveal pattern)
+/// MEV-tightened slot window: ~4 seconds (10 slots) to limit frontrunning
 pub fn commit_randomness(ctx: Context<CommitRandomness>) -> Result<()> {
     let clock = Clock::get()?;
     let lottery_state = &mut ctx.accounts.lottery_state;
@@ -819,6 +885,13 @@ pub fn commit_randomness(ctx: Context<CommitRandomness>) -> Result<()> {
         TooEarly
     );
     
+    // MEV protection: randomness must be from within a tight slot window
+    // Slot 0 = not yet committed; otherwise must be within 10 slots (~4s)
+    require!(
+        lottery_state.commit_slot == 0 || clock.slot <= lottery_state.commit_slot + 10,
+        RandomnessExpired
+    );
+    
     // Parse Switchboard randomness account data
     let randomness_data = RandomnessAccountData::parse(
         ctx.accounts.randomness_account_data.data.borrow()
@@ -827,7 +900,7 @@ pub fn commit_randomness(ctx: Context<CommitRandomness>) -> Result<()> {
     // Verify randomness was committed in the previous slot
     require!(
         randomness_data.seed_slot == clock.slot - 1,
-        RandomnessExpired
+        RandomnessNotFresh
     );
     
     // Ensure randomness hasn't been revealed yet
@@ -838,14 +911,15 @@ pub fn commit_randomness(ctx: Context<CommitRandomness>) -> Result<()> {
     
     // Store commit slot for later verification
     lottery_state.commit_slot = randomness_data.seed_slot;
-    lottery_state.randomness_account = ctx.accounts.randomness_account_data.key();
+    lottery_state.commit_timestamp = clock.unix_timestamp;
+    lottery_state.current_randomness_account = ctx.accounts.randomness_account_data.key();
     lottery_state.is_draw_in_progress = true;
     
     emit!(RandomnessCommitted {
         draw_id: lottery_state.current_draw_id,
         commit_slot: lottery_state.commit_slot,
+        randomness_account: ctx.accounts.randomness_account_data.key(),
         timestamp: clock.unix_timestamp,
-        confirmations: 3,
     });
     
     Ok(())
@@ -858,7 +932,7 @@ pub fn execute_draw(ctx: Context<ExecuteDraw>) -> Result<()> {
     
     // Verify randomness account matches stored reference
     require!(
-        ctx.accounts.randomness_account_data.key() == lottery_state.randomness_account,
+        ctx.accounts.randomness_account_data.key() == lottery_state.current_randomness_account,
         InvalidRandomnessAccount
     );
     
@@ -904,9 +978,25 @@ pub fn execute_draw(ctx: Context<ExecuteDraw>) -> Result<()> {
     draw_result.randomness_proof = revealed_random_value;
     draw_result.timestamp = clock.unix_timestamp;
     
-    // Check for rolldown condition
+    // Determine rolldown via probabilistic linear interpolation
     let state = &ctx.accounts.lottery_state;
-    let is_rolldown = state.jackpot_balance >= state.jackpot_cap;
+    let jackpot = state.jackpot_balance;
+    let is_rolldown = if jackpot >= state.hard_cap {
+        true  // 100% forced rolldown
+    } else if jackpot <= state.soft_cap {
+        false // 0% probability
+    } else {
+        // Linear interpolation: probability scales with excess over soft cap
+        // Probability(bps) = (jackpot - soft_cap) * 10000 / (hard_cap - soft_cap)
+        let excess = (jackpot - state.soft_cap) as u128;
+        let range = (state.hard_cap - state.soft_cap) as u128;
+        let probability_bps = (excess * 10000 / range) as u16;
+        // Derive a deterministic threshold from randomness bytes
+        let threshold = u16::from_le_bytes([
+            revealed_random_value[30], revealed_random_value[31]
+        ]) % 10000;
+        threshold < probability_bps
+    };
     
     draw_result.was_rolldown = is_rolldown;
     
@@ -924,8 +1014,8 @@ pub fn calculate_winners(ctx: Context<CalculateWinners>) -> Result<()> {
     let draw_result = &mut ctx.accounts.draw_result;
     let state = &mut ctx.accounts.lottery_state;
     
-    // Count winners by tier (done off-chain, verified on-chain)
-    let winner_counts = ctx.accounts.winner_counts; // Provided by indexer
+    // Winner counts provided off-chain, verified on-chain
+    let winner_counts = ctx.accounts.winner_counts;
     
     draw_result.match_6_winners = winner_counts.match_6;
     draw_result.match_5_winners = winner_counts.match_5;
@@ -934,21 +1024,22 @@ pub fn calculate_winners(ctx: Context<CalculateWinners>) -> Result<()> {
     draw_result.match_2_winners = winner_counts.match_2;
     
     if draw_result.was_rolldown && winner_counts.match_6 == 0 {
-        // Execute rolldown distribution
+        // Rolldown: distribute jackpot to lower tiers (pari-mutuel)
         trigger_rolldown_internal(state, draw_result, winner_counts)?;
     } else if winner_counts.match_6 > 0 {
-        // Jackpot won - distribute to Match 6 winners
+        // Jackpot won: divide among Match 6 winners
         let prize_per_winner = state.jackpot_balance / winner_counts.match_6 as u64;
-        draw_result.match_6_prize = prize_per_winner;
-        state.jackpot_balance = state.seed_amount; // Reset to seed
+        draw_result.match_6_prize_per_winner = prize_per_winner;
+        state.jackpot_balance = state.seed_amount;
+        state.is_rolldown_active = false;
     }
     
-    // Set fixed prizes for other tiers (normal mode)
+    // Set fixed prizes for normal mode
     if !draw_result.was_rolldown {
-        draw_result.match_5_prize = 4_000_000_000; // $4,000
-        draw_result.match_4_prize = 150_000_000;   // $150
-        draw_result.match_3_prize = 5_000_000;     // $5
-        draw_result.match_2_prize = 2_500_000;     // $2.50 (free ticket value)
+        draw_result.match_5_prize_per_winner = 4_000_000_000; // $4,000
+        draw_result.match_4_prize_per_winner = 150_000_000;   // $150
+        draw_result.match_3_prize_per_winner = 5_000_000;     // $5
+        draw_result.match_2_prize_per_winner = 2_500_000;     // Free ticket value
     }
     
     Ok(())
@@ -961,39 +1052,40 @@ fn trigger_rolldown_internal(
 ) -> Result<()> {
     let jackpot = state.jackpot_balance;
     
-    // Distribute jackpot to lower tiers
+    // Pari-mutuel distribution to lower tiers
+    // Operator liability is CAPPED at exactly the jackpot amount
     let match_5_pool = jackpot * 25 / 100; // 25%
     let match_4_pool = jackpot * 35 / 100; // 35%
     let match_3_pool = jackpot * 40 / 100; // 40%
     
-    // Calculate per-winner prizes
     if winner_counts.match_5 > 0 {
-        draw_result.match_5_prize = match_5_pool / winner_counts.match_5 as u64;
+        draw_result.match_5_prize_per_winner = match_5_pool / winner_counts.match_5 as u64;
     }
     if winner_counts.match_4 > 0 {
-        draw_result.match_4_prize = match_4_pool / winner_counts.match_4 as u64;
+        draw_result.match_4_prize_per_winner = match_4_pool / winner_counts.match_4 as u64;
     }
     if winner_counts.match_3 > 0 {
-        draw_result.match_3_prize = match_3_pool / winner_counts.match_3 as u64;
+        draw_result.match_3_prize_per_winner = match_3_pool / winner_counts.match_3 as u64;
     }
-    draw_result.match_2_prize = 2_500_000; // Free ticket remains $2.50
+    draw_result.match_2_prize_per_winner = 2_500_000; // Free ticket value
     
-    // Reset jackpot to seed
+    // Reset jackpot to seed amount
     state.jackpot_balance = state.seed_amount;
+    state.is_rolldown_active = false;
     
     emit!(RolldownExecuted {
         draw_id: draw_result.draw_id,
         total_distributed: jackpot,
-        match_5_prize: draw_result.match_5_prize,
-        match_4_prize: draw_result.match_4_prize,
-        match_3_prize: draw_result.match_3_prize,
+        match_5_prize: draw_result.match_5_prize_per_winner,
+        match_4_prize: draw_result.match_4_prize_per_winner,
+        match_3_prize: draw_result.match_3_prize_per_winner,
     });
     
     Ok(())
 }
 ```
 
-#### 6.2.3 Prize Module (within solana_lotto program)
+#### 6.2.3 Prize Module (within mazelprotocol program)
 
 **Purpose:** Manage fund custody and prize claims
 
@@ -1013,13 +1105,13 @@ pub fn claim_prize(ctx: Context<ClaimPrize>) -> Result<()> {
     let matches = count_matches(&ticket.numbers, &draw_result.winning_numbers);
     ticket.match_count = matches;
     
-    // Determine prize
+    // Determine prize using per-winner amounts
     let prize = match matches {
-        6 => draw_result.match_6_prize,
-        5 => draw_result.match_5_prize,
-        4 => draw_result.match_4_prize,
-        3 => draw_result.match_3_prize,
-        2 => draw_result.match_2_prize,
+        6 => draw_result.match_6_prize_per_winner,
+        5 => draw_result.match_5_prize_per_winner,
+        4 => draw_result.match_4_prize_per_winner,
+        3 => draw_result.match_3_prize_per_winner,
+        2 => draw_result.match_2_prize_per_winner,
         _ => 0,
     };
     
@@ -1192,6 +1284,90 @@ interface IndexerService {
 │                                                          │
 └─────────────────────────────────────────────────────────┘
 ```
+
+### 6.5 Quick Pick Express (quickpick program — 5/35)
+
+Quick Pick Express is a separate Anchor program offering faster, smaller draws alongside the main lottery.
+
+**Game Parameters:**
+
+| Parameter | Value |
+|-----------|-------|
+| Ticket Price | $1.50 USDC |
+| Matrix | Pick 5 numbers from 1-35 |
+| Draw Interval | 14,400 seconds (4 hours) |
+| Access Gate | $50 lifetime main lottery spend required |
+| Jackpot Seed | $5,000 |
+| Soft Cap | $30,000 (probabilistic rolldown begins) |
+| Hard Cap | $50,000 (forced 100% rolldown) |
+
+**Dynamic House Fee:**
+
+| Jackpot Range | Fee |
+|---------------|-----|
+| < $10,000 | 30% |
+| $10,000 - $20,000 | 33% |
+| $20,000 - $30,000 | 36% |
+| >= $30,000 | 38% |
+| Rolldown mode | 28% |
+
+**Revenue Allocation (after house fee):**
+
+- 60% jackpot
+- 37% fixed prizes
+- 3% insurance
+
+**Fixed Prizes (Normal Mode):**
+
+| Match Tier | Prize |
+|------------|-------|
+| Match 5 | Jackpot (variable) |
+| Match 4 | $100 |
+| Match 3 | $4 |
+
+**Rolldown Distribution (pari-mutuel):**
+
+- 60% to Match 4 winners
+- 40% to Match 3 winners
+
+Quick Pick Express uses the same probabilistic rolldown formula as the main lottery, the same Switchboard commit-reveal randomness flow, and the same two-step authority transfer and config timelock security patterns.
+
+### 6.6 Current Implementation Status (v3.0)
+
+> **40 on-chain instructions** across both programs as of the v3.0 audit.
+
+**Fully Implemented:**
+
+- Full draw lifecycle (commit → execute → finalize)
+- Ticket purchase (single + bulk up to 50 via `UnifiedTicket`)
+- Prize claiming (single + bulk + claim-all-bulk)
+- Syndicate creation, joining, leaving, ticket purchasing, and prize distribution
+- Syndicate Wars (monthly competition with registration, stats, finalization, prizes)
+- Insurance pool with reserve fund allocation
+- Config timelock (24-hour SHA256 hash-locked `propose_config` / `execute_config`)
+- Two-step authority transfer (`propose_authority` / `accept_authority`)
+- Permissionless solvency verification (`check_solvency`)
+- Expired prize reclaim (`reclaim_expired_prizes` — 90-day window)
+- Draw recovery (`advance_draw` — permissionless fallback, 30-min timeout)
+- Verification hash for off-chain winner count validation
+- Statistical plausibility checks on submitted winner counts
+- MEV-tightened slot window (~4 seconds for randomness commit)
+
+**Partially Implemented:**
+
+- Streak tracking (tracked in `UserStats`, but bonus not yet applied to prizes)
+
+**Not Yet Implemented:**
+
+- Threshold encryption for MEV protection
+- Jito bundle integration
+- Client SDK package (`@mazelprotocol/sdk`)
+
+**Removed from Earlier Designs:**
+
+- `$LOTTO` token and staking system
+- Second Chance Draws
+- Mega Events
 
 ---
 
@@ -1465,7 +1641,7 @@ MazelProtocol invites participation from:
 
 | Program | Address | Network |
 |---------|---------|---------|
-| Main Lottery (solana_lotto) | `7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF` | Devnet |
+| Main Lottery (mazelprotocol) | `7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF` | Devnet |
 | Quick Pick Express (quickpick) | `7XC1KT5mvsHHXbR2mH6er138fu2tJ4L2fAgmpjLnnZK2` | Devnet |
 
 > **Note:** Mainnet addresses TBD after audit and deployment. There are no separate
