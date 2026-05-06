@@ -59,7 +59,7 @@ export function initAppKit(): Promise<void> {
       if (!projectId) {
         console.warn(
           "[AppKit] Missing VITE_REOWN_PROJECT_ID — wallet connection will not work.\n" +
-            "Get one at https://dashboard.reown.com",
+          "Get one at https://dashboard.reown.com",
         );
         return;
       }
@@ -67,7 +67,7 @@ export function initAppKit(): Promise<void> {
       const metadata = {
         name: "MazelProtocol",
         description:
-          "The first intentionally exploitable lottery on Solana. Positive expected value rolldown mechanics for strategic players.",
+          "A provably fair lottery protocol on Solana. Transparent rolldown mechanics with publicly verifiable randomness.",
         url: window.location.origin,
         icons: ["https://avatars.githubusercontent.com/u/179229932"],
       };

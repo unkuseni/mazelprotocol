@@ -36,6 +36,9 @@ pub struct BuyTicket<'info> {
     pub player: Signer<'info>,
 
     /// The main lottery state account
+    /// NOTE: Boxed to reduce stack frame size below SBF's 4096-byte limit.
+    /// LotteryState is large (~350+ bytes) and combined with 10 other accounts
+    /// in this struct, the unboxed version exceeds the stack offset limit.
     #[account(
         mut,
         seeds = [LOTTERY_SEED],
@@ -44,7 +47,7 @@ pub struct BuyTicket<'info> {
         constraint = lottery_state.is_funded @ LottoError::LotteryNotInitialized,
         constraint = !lottery_state.is_draw_in_progress @ LottoError::DrawInProgress
     )]
-    pub lottery_state: Account<'info, LotteryState>,
+    pub lottery_state: Box<Account<'info, LotteryState>>,
 
     /// The ticket account to be created
     #[account(
@@ -95,13 +98,12 @@ pub struct BuyTicket<'info> {
     /// USDC mint
     pub usdc_mint: Account<'info, Mint>,
 
-    /// User statistics account
+    /// User statistics account (must be initialized via `init_user_stats` first)
     #[account(
-        init_if_needed,
-        payer = player,
-        space = USER_STATS_SIZE,
+        mut,
         seeds = [USER_SEED, player.key().as_ref()],
-        bump
+        bump = user_stats.bump,
+        constraint = user_stats.wallet == player.key() @ LottoError::AccountNotInitialized
     )]
     pub user_stats: Account<'info, UserStats>,
 
@@ -197,6 +199,9 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
     let current_draw_id = ctx.accounts.lottery_state.current_draw_id;
     let soft_cap = ctx.accounts.lottery_state.soft_cap;
     let house_fee_bps = ctx.accounts.lottery_state.get_current_house_fee_bps();
+    let is_rolldown_active = ctx.accounts.lottery_state.is_rolldown_active;
+    let max_rolldown_tickets = ctx.accounts.lottery_state.max_rolldown_tickets;
+    let current_draw_tickets_before = ctx.accounts.lottery_state.current_draw_tickets;
 
     // Check if ticket sales are open
     let sale_cutoff_time = next_draw_timestamp.checked_sub(TICKET_SALE_CUTOFF);
@@ -220,6 +225,17 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         user_tickets_this_draw < MAX_TICKETS_PER_DRAW_PER_USER,
         LottoError::MaxTicketsPerDrawExceeded
     );
+
+    // H4: Rolldown ticket cap circuit breaker.
+    // If rolldown is active and a cap is set (non-zero), reject purchases
+    // once the current draw has reached the cap. This prevents per-winner
+    // prizes from becoming microscopic during extreme volume events.
+    if is_rolldown_active && max_rolldown_tickets > 0 {
+        require!(
+            current_draw_tickets_before < max_rolldown_tickets,
+            LottoError::RolldownTicketCapReached
+        );
+    }
 
     // Check if user wants to use a free ticket and has one available
     let free_tickets_available = ctx.accounts.user_stats.free_tickets_available;
@@ -418,14 +434,6 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
 
     // Update user stats
     let user_stats = &mut ctx.accounts.user_stats;
-
-    // Initialize if new
-    if user_stats.wallet == Pubkey::default() {
-        user_stats.wallet = ctx.accounts.player.key();
-        user_stats.bump = ctx.bumps.user_stats;
-        user_stats.tickets_this_draw = 0;
-        user_stats.last_draw_participated = 0;
-    }
 
     // FIXED: Track tickets per draw for limit enforcement
     // Always update last_draw_participated to current draw

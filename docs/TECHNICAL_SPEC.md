@@ -496,7 +496,7 @@ pub const ROLLDOWN_MATCH_5_BPS: u16 = 2500;        // 25%
 pub const ROLLDOWN_MATCH_4_BPS: u16 = 3500;        // 35%
 pub const ROLLDOWN_MATCH_3_BPS: u16 = 4000;        // 40%
 
-// Quick Pick Express Parameters (5/35) - With Rolldown Exploit (+67% Player Edge!)
+// Quick Pick Express Parameters (5/35) - With Rolldown Advantage (+67% Player Edge!)
 pub const QUICK_PICK_TICKET_PRICE: u64 = 1_500_000;  // $1.50
 pub const QUICK_PICK_NUMBERS: u8 = 5;                 // Pick 5 numbers
 pub const QUICK_PICK_RANGE: u8 = 35;                  // From 1-35
@@ -525,7 +525,7 @@ pub const QUICK_PICK_MATCH_4_PRIZE: u64 = 100_000_000;   // $100
 pub const QUICK_PICK_MATCH_3_PRIZE: u64 = 4_000_000;     // $4
 // No Match 2 prize in Quick Pick Express
 
-// Quick Pick Rolldown Allocation (THE EXPLOIT: +67% Player Edge)
+// Quick Pick Rolldown Allocation (FAVORABLE DISTRIBUTION)
 pub const QUICK_PICK_ROLLDOWN_MATCH_4_BPS: u16 = 6000;   // 60% to Match 4
 pub const QUICK_PICK_ROLLDOWN_MATCH_3_BPS: u16 = 4000;   // 40% to Match 3
 
@@ -927,7 +927,7 @@ impl UnifiedTicket {
     }
 }
 
-/// Quick Pick Express game state (5/35 Matrix with Rolldown Exploit)
+/// Quick Pick Express game state (5/35 Matrix with Rolldown Advantage)
 /// Odds: Match 5 = 1/324,632, Match 4 = 1/2,164, Match 3 = 1/74.6, Match 2 = 1/8
 /// Rolldown EV: +67% player edge when jackpot distributes!
 #[account]
@@ -988,7 +988,7 @@ pub enum MatchTier {
 }
 
 /// Quick Pick Express game state with rolldown mechanics (5/35 Matrix)
-/// THE EXPLOIT: During rolldown, players enjoy +67% positive expected value!
+/// FAVORABLE DISTRIBUTION: During rolldown, players enjoy +67% positive expected value!
 #[account]
 pub struct QuickPickState {
     /// Current draw number
@@ -3313,7 +3313,7 @@ $$PrizePerWinner_k = \frac{P_k}{W_k} = \frac{PoolShare_k \times Jackpot}{WinnerC
 #### Implementation Benefits
 
 1. **🔒 Operator Loss Limitation**: Maximum liability = jackpot amount (CAPPED)
-2. **📈 Player Value Preservation**: +EV windows maintained during rolldown exploits
+2. **📈 Player Value Preservation**: +EV windows maintained during rolldown events
 3. **🏛️ Protocol Sustainability**: Viable regardless of volume spikes
 4. **⚖️ Fair Distribution**: All winners share pool proportionally
 5. **📊 Predictable Economics**: Operator can model worst-case scenarios precisely

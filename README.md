@@ -1,4 +1,4 @@
-# MazelProtocol - The First Intentionally Exploitable Lottery on Solana
+# MazelProtocol - A Provably Fair Lottery Protocol on Solana
 
 [![Anchor](https://img.shields.io/badge/Anchor-v0.32.1-8C2CE0)](https://www.anchor-lang.com/)
 [![Solana](https://img.shields.io/badge/Solana-1.91.0-00FFA3)](https://solana.com/)
@@ -158,6 +158,12 @@ The frontend will be available at `http://localhost:5173`.
 - **Live Draw Results**: Real-time draw updates
 - **Statistics**: Player stats and jackpot tracking
 
+> ⚠️ **Operational Note**: The draw lifecycle bot is currently the sole executor
+> of draws for both lotteries. If the bot is unavailable, draws will not advance
+> until it recovers or until the permissionless `advance_draw` fallback is called
+> (after a 30-minute timeout). The bot runs on Cloudflare Workers with scheduled
+> CRON triggers. For production deployments, run redundant bot instances.
+
 ## 🤖 Running the Bot
 
 The Cloudflare Worker bot handles the complete draw lifecycle for both lotteries:
@@ -208,24 +214,25 @@ yarn test tests/quickpick.ts
 
 ```
 src/
-├── lib.rs                      # Program entry point and instruction declarations
-├── constants.rs                # Constants (caps, fees, prizes)
-├── errors.rs                   # Custom error definitions
-├── events.rs                   # Event definitions for indexing
-├── state/                      # Account structs
-│   ├── mod.rs
-│   ├── lottery_state.rs        # Global configuration
-│   ├── draw_result.rs          # Draw results and winners
-│   ├── ticket_data.rs          # Individual tickets
-│   └── user_stats.rs           # Player statistics
+├── lib.rs                      # Program entry point and instruction dispatch
+├── constants.rs                # All magic numbers and validation helpers
+├── errors.rs                   # 98 categorized error codes
+├── events.rs                   # All event definitions for indexing
+├── state.rs                    # All account structs in one file
 └── instructions/               # Instruction handlers
-    ├── admin.rs                # Pause/unpause, config updates
+    ├── mod.rs
+    ├── admin.rs                # Config, pause, emergency operations
+    ├── initialize.rs           # Program initialization
     ├── buy_ticket.rs           # Single ticket purchase
     ├── buy_bulk.rs             # Bulk ticket purchase (up to 50)
-    ├── claim_prize.rs          # Prize claiming
-    ├── syndicate.rs            # Syndicate operations
-    ├── syndicate_wars.rs       # Monthly competition
-    └── initialize.rs           # Program initialization
+    ├── claim_prize.rs          # Single prize claim
+    ├── claim_bulk_prize.rs     # Bulk prize claims
+    ├── commit_randomness.rs    # Switchboard randomness commit
+    ├── execute_draw.rs         # Randomness reveal + number generation
+    ├── finalize_draw.rs        # Winner counts + prize calculation
+    ├── syndicate.rs            # Full syndicate lifecycle
+    ├── syndicate_wars.rs       # Monthly competition lifecycle
+    └── advance_draw.rs         # Permissionless draw advancement
 ```
 
 ### Key Accounts
@@ -343,8 +350,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## ⚠️ Risk Disclaimer
 
-**This is gambling.** Most players will lose money over time. The rolldown exploit requires:
-- Significant capital (recommended $1,000+ for meaningful exploitation)
+**This is gambling.** Most players will lose money over time. The rolldown mechanism requires:
+- Significant capital (recommended $1,000+ for meaningful participation)
 - Correct timing (monitor soft cap zone and hard cap approach)
 - Acceptance of variance (even +EV bets can lose short-term)
 - Understanding of the dynamic fee system

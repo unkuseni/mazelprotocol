@@ -29,6 +29,7 @@ import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { FloatingBalls, WinningNumbers } from "@/components/LotteryBalls";
 import { Button } from "@/components/ui/button";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
+import { useTickets, type UserTicket } from "@/hooks/use-tickets";
 
 export const Route = createFileRoute("/tickets/")({
   component: MyTicketsPage,
@@ -350,11 +351,8 @@ const MOCK_TICKETS: TicketData[] = [
   },
 ];
 
-const MOCK_UNCLAIMED_TOTAL = MOCK_TICKETS.filter(
-  (t) => t.status === "won" && !t.isClaimed,
-).reduce((sum, t) => sum + t.prize, 0);
-
-const MOCK_FREE_TICKET_CREDITS = 3;
+// Free ticket credits — fetched from on-chain UserStats when wallet is connected
+const MOCK_FREE_TICKET_CREDITS = 0;
 
 /* -------------------------------------------------------------------------- */
 /*  Sub-components                                                            */
@@ -451,13 +449,12 @@ function TicketRow({
 
   return (
     <div
-      className={`glass rounded-xl transition-all duration-200 ${
-        ticket.status === "won" && !ticket.isClaimed
-          ? "border-gold/20 shadow-sm shadow-gold/5"
-          : ticket.status === "pending"
-            ? "border-blue-500/10"
-            : ""
-      }`}
+      className={`glass rounded-xl transition-all duration-200 ${ticket.status === "won" && !ticket.isClaimed
+        ? "border-gold/20 shadow-sm shadow-gold/5"
+        : ticket.status === "pending"
+          ? "border-blue-500/10"
+          : ""
+        }`}
     >
       {/* Main row */}
       <button
@@ -467,17 +464,16 @@ function TicketRow({
       >
         {/* Status indicator dot */}
         <div
-          className={`shrink-0 w-2 h-2 rounded-full ${
-            ticket.status === "pending"
-              ? "bg-blue-400 animate-pulse"
-              : ticket.status === "won"
-                ? "bg-gold"
-                : ticket.status === "claimed"
-                  ? "bg-emerald"
-                  : ticket.status === "expired"
-                    ? "bg-red-400"
-                    : "bg-gray-600"
-          }`}
+          className={`shrink-0 w-2 h-2 rounded-full ${ticket.status === "pending"
+            ? "bg-blue-400 animate-pulse"
+            : ticket.status === "won"
+              ? "bg-gold"
+              : ticket.status === "claimed"
+                ? "bg-emerald"
+                : ticket.status === "expired"
+                  ? "bg-red-400"
+                  : "bg-gray-600"
+            }`}
         />
 
         {/* Numbers */}
@@ -529,13 +525,12 @@ function TicketRow({
           ) : ticket.matchCount > 0 ? (
             <>
               <div
-                className={`text-xs font-bold ${
-                  ticket.matchCount >= 4
-                    ? "text-gold"
-                    : ticket.matchCount >= 3
-                      ? "text-emerald-light"
-                      : "text-muted-foreground"
-                }`}
+                className={`text-xs font-bold ${ticket.matchCount >= 4
+                  ? "text-gold"
+                  : ticket.matchCount >= 3
+                    ? "text-emerald-light"
+                    : "text-muted-foreground"
+                  }`}
               >
                 {ticket.matchCount} match{ticket.matchCount !== 1 ? "es" : ""}
               </div>
@@ -558,9 +553,8 @@ function TicketRow({
         {/* Expand chevron */}
         <ChevronDown
           size={14}
-          className={`shrink-0 text-muted-foreground/60 transition-transform duration-200 ${
-            expanded ? "rotate-180" : ""
-          }`}
+          className={`shrink-0 text-muted-foreground/60 transition-transform duration-200 ${expanded ? "rotate-180" : ""
+            }`}
         />
       </button>
 
@@ -620,13 +614,12 @@ function TicketRow({
                 Matches
               </div>
               <div
-                className={`text-[10px] font-bold mt-0.5 ${
-                  ticket.status === "pending"
-                    ? "text-blue-400"
-                    : ticket.matchCount >= 3
-                      ? "text-emerald-light"
-                      : "text-muted-foreground"
-                }`}
+                className={`text-[10px] font-bold mt-0.5 ${ticket.status === "pending"
+                  ? "text-blue-400"
+                  : ticket.matchCount >= 3
+                    ? "text-emerald-light"
+                    : "text-muted-foreground"
+                  }`}
               >
                 {ticket.status === "pending"
                   ? "Awaiting draw"
@@ -638,9 +631,8 @@ function TicketRow({
                 Prize
               </div>
               <div
-                className={`text-[10px] font-bold mt-0.5 ${
-                  ticket.prize > 0 ? "text-gold" : "text-muted-foreground"
-                }`}
+                className={`text-[10px] font-bold mt-0.5 ${ticket.prize > 0 ? "text-gold" : "text-muted-foreground"
+                  }`}
               >
                 {ticket.status === "pending"
                   ? "TBD"
@@ -903,6 +895,59 @@ function EmptyState({ filter }: { filter: TicketFilter }) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Data mapping — UserTicket → TicketData                                   */
+/* -------------------------------------------------------------------------- */
+
+/** USDC has 6 decimal places on-chain. */
+const USDC_DECIMALS = 6;
+
+/** Convert bigint lamports to a dollar number for display. */
+function lamportsToDollars(lamports: bigint): number {
+  return Number(lamports) / 10 ** USDC_DECIMALS;
+}
+
+/** Derive a UI-facing status from on-chain ticket fields. */
+function deriveStatus(
+  matchCount: number,
+  isClaimed: boolean,
+  winningNumbers: number[],
+): TicketStatus {
+  // Draw not yet settled — no winning numbers published yet
+  if (winningNumbers.length === 0) return "pending";
+  if (isClaimed) return "claimed";
+  // Match 2+ is a win (free ticket for main lottery, small prize for QP)
+  if (matchCount >= 2) return "won";
+  return "lost";
+}
+
+/** Map a `UserTicket` from the `useTickets` hook to the `TicketData` shape the UI expects. */
+function mapUserTicketToTicketData(t: UserTicket): TicketData {
+  const winningNumbers =
+    t.winningNumbers.length > 0 ? t.winningNumbers : null;
+
+  return {
+    id: t.id,
+    numbers: t.numbers,
+    drawId: t.drawId,
+    drawDate: winningNumbers
+      ? new Date(t.purchaseTime * 1000).toISOString().split("T")[0]
+      : "Pending",
+    winningNumbers,
+    purchaseTime: new Date(t.purchaseTime * 1000).toISOString(),
+    gameType: t.gameType,
+    isQuickPick: t.isQuickPick,
+    isSyndicateTicket: t.isSyndicateTicket,
+    status: deriveStatus(t.matchCount, t.isClaimed, t.winningNumbers),
+    matchCount: t.matchCount,
+    prize: lamportsToDollars(t.prize),
+    isClaimed: t.isClaimed,
+    isExpired: false,
+    wasRolldown: false,
+    txSignature: "",
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Main Component                                                            */
 /* -------------------------------------------------------------------------- */
 
@@ -916,8 +961,24 @@ function MyTicketsPage() {
   const [expandedTicket, setExpandedTicket] = useState<string | null>(null);
   const [gameFilter, setGameFilter] = useState<"all" | GameType>("all");
 
+  // ---- real on-chain data --------------------------------------------------
+  const {
+    tickets: rawTickets,
+    unclaimedTickets: rawUnclaimed,
+    unclaimedPrizeTotal,
+    loading,
+    error: fetchError,
+    refetch,
+  } = useTickets();
+
+  // Map UserTicket -> TicketData for the existing UI components
+  const allTickets = useMemo<TicketData[]>(
+    () => rawTickets.map(mapUserTicketToTicketData),
+    [rawTickets],
+  );
+
   const filteredTickets = useMemo(() => {
-    let result = [...MOCK_TICKETS];
+    let result = [...allTickets];
 
     // Status filter
     if (filter !== "all") {
@@ -965,10 +1026,11 @@ function MyTicketsPage() {
     });
 
     return result;
-  }, [filter, gameFilter, searchQuery, sortField, sortDir]);
+  }, [allTickets, filter, gameFilter, searchQuery, sortField, sortDir]);
 
-  const unclaimedTickets = MOCK_TICKETS.filter(
-    (t) => t.status === "won" && !t.isClaimed,
+  const unclaimedTickets = useMemo<TicketData[]>(
+    () => rawUnclaimed.map(mapUserTicketToTicketData),
+    [rawUnclaimed],
   );
 
   const handleClaim = (id: string) => {
@@ -989,7 +1051,7 @@ function MyTicketsPage() {
     }
     // In a real app, this would batch-claim all prizes in a single transaction
     alert(
-      `Claiming all ${unclaimedTickets.length} prizes ($${MOCK_UNCLAIMED_TOTAL.toFixed(2)} USDC total). Sign the transaction to batch-claim.`,
+      `Claiming all ${unclaimedTickets.length} prizes ($${lamportsToDollars(unclaimedPrizeTotal).toFixed(2)} USDC total). Sign the transaction to batch-claim.`,
     );
   };
 
@@ -1005,8 +1067,8 @@ function MyTicketsPage() {
   const filterCounts = useMemo(() => {
     const gameFiltered =
       gameFilter === "all"
-        ? MOCK_TICKETS
-        : MOCK_TICKETS.filter((t) => t.gameType === gameFilter);
+        ? allTickets
+        : allTickets.filter((t) => t.gameType === gameFilter);
     return {
       all: gameFiltered.length,
       pending: gameFiltered.filter((t) => t.status === "pending").length,
@@ -1014,11 +1076,97 @@ function MyTicketsPage() {
       lost: gameFiltered.filter((t) => t.status === "lost").length,
       claimed: gameFiltered.filter((t) => t.status === "claimed").length,
     };
-  }, [gameFilter]);
+  }, [allTickets, gameFilter]);
 
   // Show wallet prompt when not connected (after all hooks)
   if (!isConnected) {
     return <WalletNotConnected />;
+  }
+
+
+  // ---- loading skeleton ---------------------------------------------------
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <section className="relative pt-24 pb-6 sm:pt-28 sm:pb-8 px-4 sm:px-6 lg:px-8 overflow-hidden">
+          <div className="absolute inset-0 hero-grid opacity-20" />
+          <div className="relative z-10 max-w-7xl mx-auto">
+            <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
+              <Link to="/" className="hover:text-foreground transition-colors">
+                Home
+              </Link>
+              <ChevronRight size={12} />
+              <span className="text-emerald-light font-medium">My Tickets</span>
+            </nav>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-xl bg-linear-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20">
+                <Ticket size={24} className="text-emerald-light" />
+              </div>
+              <div>
+                <div className="h-7 w-40 bg-foreground/8 rounded-lg animate-pulse" />
+                <div className="h-4 w-60 bg-foreground/5 rounded-lg mt-2 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholder
+                <div key={`skel-stat-${i}`} className="glass rounded-xl p-3 text-center animate-pulse">
+                  <div className="h-6 w-12 bg-foreground/8 rounded mx-auto mb-1" />
+                  <div className="h-3 w-16 bg-foreground/5 rounded mx-auto" />
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholder
+                <div key={`skel-row-${i}`} className="glass rounded-xl p-4 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-foreground/10" />
+                    <div className="flex-1">
+                      <div className="h-4 w-48 bg-foreground/6 rounded mb-2" />
+                      <div className="h-3 w-32 bg-foreground/4 rounded" />
+                    </div>
+                    <div className="h-4 w-16 bg-foreground/6 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+        <Footer />
+      </div>
+    );
+  }
+
+  // ---- error state ---------------------------------------------------------
+  if (fetchError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <section className="relative pt-24 pb-6 sm:pt-28 sm:pb-8 px-4 sm:px-6 lg:px-8 overflow-hidden">
+          <div className="absolute inset-0 hero-grid opacity-20" />
+          <div className="relative z-10 max-w-7xl mx-auto text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 mb-4">
+              <AlertTriangle size={28} className="text-red-400" />
+            </div>
+            <h2 className="text-xl font-bold text-foreground mb-2">
+              Failed to load tickets
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6">{fetchError}</p>
+            <Button
+              onClick={refetch}
+              className="h-10 px-6 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl"
+            >
+              Try Again
+            </Button>
+          </div>
+        </section>
+        <Footer />
+      </div>
+    );
   }
 
   return (
@@ -1085,11 +1233,11 @@ function MyTicketsPage() {
       <section className="relative px-4 sm:px-6 lg:px-8 pb-16">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Stats */}
-          <TicketStats tickets={MOCK_TICKETS} />
+          <TicketStats tickets={allTickets} />
 
           {/* Unclaimed banner */}
           <UnclaimedBanner
-            total={MOCK_UNCLAIMED_TOTAL}
+            total={lamportsToDollars(unclaimedPrizeTotal)}
             count={unclaimedTickets.length}
             onClaimAll={handleClaimAll}
           />
@@ -1126,11 +1274,10 @@ function MyTicketsPage() {
                     key={key}
                     type="button"
                     onClick={() => setGameFilter(key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      gameFilter === key
-                        ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${gameFilter === key
+                      ? "bg-emerald/15 text-emerald-light border border-emerald/20"
+                      : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                      }`}
                   >
                     {label}
                   </button>
@@ -1156,19 +1303,17 @@ function MyTicketsPage() {
                     key={key}
                     type="button"
                     onClick={() => setFilter(key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                      filter === key
-                        ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${filter === key
+                      ? "bg-emerald/15 text-emerald-light border border-emerald/20"
+                      : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                      }`}
                   >
                     {label}
                     <span
-                      className={`text-[9px] tabular-nums ${
-                        filter === key
-                          ? "text-emerald-light/70"
-                          : "text-muted-foreground/60"
-                      }`}
+                      className={`text-[9px] tabular-nums ${filter === key
+                        ? "text-emerald-light/70"
+                        : "text-muted-foreground/60"
+                        }`}
                     >
                       {filterCounts[key]}
                     </span>
@@ -1191,11 +1336,10 @@ function MyTicketsPage() {
                     key={field}
                     type="button"
                     onClick={() => handleSort(field)}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
-                      sortField === field
-                        ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                    }`}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${sortField === field
+                      ? "bg-emerald/15 text-emerald-light border border-emerald/20"
+                      : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                      }`}
                   >
                     {label}
                     {sortField === field && (

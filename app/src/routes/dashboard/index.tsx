@@ -20,6 +20,7 @@ import {
   Flame,
   type LucideIcon,
 } from "lucide-react";
+import { useMemo } from "react";
 import {
   CountdownTimer,
   QuickPickCountdown,
@@ -30,6 +31,9 @@ import { FloatingBalls, WinningNumbers } from "@/components/LotteryBalls";
 import { Button } from "@/components/ui/button";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
+import { useDraws } from "@/hooks/use-draws";
+import { useLotteryState } from "@/hooks/use-lottery-state";
+
 export const Route = createFileRoute("/dashboard/")({
   component: DashboardPage,
 });
@@ -38,6 +42,7 @@ export const Route = createFileRoute("/dashboard/")({
 /*  Mock Data                                                                 */
 /* -------------------------------------------------------------------------- */
 
+// TODO: Replace with real data when full account indexing is available
 const MOCK_PLAYER_STATS = {
   totalTickets: 147,
   totalSpent: 367.5,
@@ -135,6 +140,7 @@ const MOCK_JACKPOT_HISTORY = [
   { drawId: 89, amount: 1_247_832 },
 ];
 
+// TODO: Replace with real data by querying user ticket accounts on-chain
 const MOCK_ACTIVE_TICKETS = [
   {
     id: "tkt_001",
@@ -159,6 +165,7 @@ const MOCK_ACTIVE_TICKETS = [
   },
 ];
 
+// TODO: Replace with real data by fetching syndicate accounts on-chain
 const MOCK_SYNDICATE_MEMBERSHIPS = [
   {
     id: "syn_001",
@@ -231,11 +238,10 @@ function StatCard({
         </div>
         {trend && (
           <div
-            className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-              trend.positive
-                ? "bg-emerald/15 text-emerald-light"
-                : "bg-red-500/15 text-red-400"
-            }`}
+            className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${trend.positive
+              ? "bg-emerald/15 text-emerald-light"
+              : "bg-red-500/15 text-red-400"
+              }`}
           >
             {trend.positive ? (
               <ArrowUpRight size={10} />
@@ -261,12 +267,12 @@ function StatCard({
   );
 }
 
-function RolldownMonitor() {
-  const currentJackpot = 1_247_832;
+function RolldownMonitor({ jackpot = 1_247_832, rolldownActive: rolldownActiveProp }: { jackpot?: number; rolldownActive?: boolean }) {
+  const currentJackpot = jackpot;
   const softCap = 1_750_000;
   const hardCap = 2_250_000;
   const progress = (currentJackpot / softCap) * 100;
-  const isRolldownActive = currentJackpot >= softCap;
+  const isRolldownActive = rolldownActiveProp ?? (currentJackpot >= softCap);
   const ticketsPerDraw = 14_200;
   const avgTicketRevenue = 2.5 * 0.556; // price * jackpot allocation after fees
   const drawsToSoftCap = Math.ceil(
@@ -383,9 +389,8 @@ function RolldownMonitor() {
             </span>
           </div>
           <span
-            className={`text-xs font-bold ${
-              isRolldownActive ? "text-emerald-light" : "text-gold"
-            }`}
+            className={`text-xs font-bold ${isRolldownActive ? "text-emerald-light" : "text-gold"
+              }`}
           >
             {isRolldownActive ? "+47.2%" : "Pending"}
           </span>
@@ -402,7 +407,19 @@ function RolldownMonitor() {
   );
 }
 
-function RecentDrawCard({ draw }: { draw: (typeof MOCK_RECENT_DRAWS)[0] }) {
+function RecentDrawCard({ draw }: {
+  draw: {
+    drawId: number;
+    date: string;
+    numbers: number[];
+    wasRolldown: boolean;
+    totalTickets: number;
+    jackpot: number;
+    matchCounts: Record<number, number>;
+    userTickets: number;
+    userMatches: { ticketNumbers: number[]; matchCount: number; prize: number }[];
+  };
+}) {
   const hasWin = draw.userMatches.some((m) => m.prize > 0);
   const totalPrize = draw.userMatches.reduce((sum, m) => sum + m.prize, 0);
 
@@ -442,7 +459,7 @@ function RecentDrawCard({ draw }: { draw: (typeof MOCK_RECENT_DRAWS)[0] }) {
             Your Tickets ({draw.userTickets})
           </div>
           {draw.userMatches.length > 0 ? (
-            draw.userMatches.map((match, i) => {
+            draw.userMatches.map((match, _i) => {
               const matchedIndices = new Set<number>();
               match.ticketNumbers.forEach((num, idx) => {
                 if (draw.numbers.includes(num)) {
@@ -452,7 +469,7 @@ function RecentDrawCard({ draw }: { draw: (typeof MOCK_RECENT_DRAWS)[0] }) {
 
               return (
                 <div
-                  key={`match-${draw.drawId}-${i}`}
+                  key={`match-${draw.drawId}-${match.ticketNumbers.join("-")}`}
                   className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-foreground/2"
                 >
                   <WinningNumbers
@@ -462,13 +479,12 @@ function RecentDrawCard({ draw }: { draw: (typeof MOCK_RECENT_DRAWS)[0] }) {
                   />
                   <div className="flex items-center gap-2 ml-2">
                     <span
-                      className={`text-[10px] font-bold ${
-                        match.matchCount >= 4
-                          ? "text-gold"
-                          : match.matchCount >= 3
-                            ? "text-emerald-light"
-                            : "text-muted-foreground"
-                      }`}
+                      className={`text-[10px] font-bold ${match.matchCount >= 4
+                        ? "text-gold"
+                        : match.matchCount >= 3
+                          ? "text-emerald-light"
+                          : "text-muted-foreground"
+                        }`}
                     >
                       {match.matchCount} match
                       {match.matchCount !== 1 ? "es" : ""}
@@ -690,9 +706,10 @@ function SyndicateMemberships() {
   );
 }
 
-function JackpotTrend() {
-  const max = Math.max(...MOCK_JACKPOT_HISTORY.map((h) => h.amount));
-  const min = Math.min(...MOCK_JACKPOT_HISTORY.map((h) => h.amount));
+function JackpotTrend({ history }: { history?: { drawId: number; amount: number }[] }) {
+  const data = history && history.length > 0 ? history : MOCK_JACKPOT_HISTORY;
+  const max = Math.max(...data.map((h) => h.amount));
+  const min = Math.min(...data.map((h) => h.amount));
   const range = max - min || 1;
 
   return (
@@ -713,9 +730,9 @@ function JackpotTrend() {
 
       {/* Simple bar chart */}
       <div className="flex items-end gap-2 h-32 mb-3">
-        {MOCK_JACKPOT_HISTORY.map((point, i) => {
+        {data.map((point, i) => {
           const height = ((point.amount - min) / range) * 80 + 20; // min 20% height
-          const isLatest = i === MOCK_JACKPOT_HISTORY.length - 1;
+          const isLatest = i === data.length - 1;
           const softCapReached = point.amount >= 1_750_000;
 
           return (
@@ -724,20 +741,18 @@ function JackpotTrend() {
               className="flex-1 flex flex-col items-center gap-1.5"
             >
               <div
-                className={`w-full rounded-t-md transition-all duration-500 ${
-                  softCapReached
-                    ? "bg-linear-to-t from-emerald-dark to-emerald"
-                    : isLatest
-                      ? "bg-linear-to-t from-gold-dark to-gold"
-                      : "bg-linear-to-t from-white/5 to-white/10"
-                }`}
+                className={`w-full rounded-t-md transition-all duration-500 ${softCapReached
+                  ? "bg-linear-to-t from-emerald-dark to-emerald"
+                  : isLatest
+                    ? "bg-linear-to-t from-gold-dark to-gold"
+                    : "bg-linear-to-t from-white/5 to-white/10"
+                  }`}
                 style={{ height: `${height}%` }}
               />
               <div className="text-center">
                 <div
-                  className={`text-[9px] font-bold tabular-nums ${
-                    isLatest ? "text-gold" : "text-muted-foreground"
-                  }`}
+                  className={`text-[9px] font-bold tabular-nums ${isLatest ? "text-gold" : "text-muted-foreground"
+                    }`}
                 >
                   ${(point.amount / 1_000_000).toFixed(2)}M
                 </div>
@@ -842,6 +857,40 @@ function WalletNotConnected() {
 
 function DashboardPage() {
   const { isConnected } = useAppKitAccount();
+  const { draws: rawDraws, loading: _drawsLoading } = useDraws();
+  const { jackpotDollars, rolldownActive, drawId: _drawId } = useLotteryState();
+
+  // Map on-chain draw data to the shape RecentDrawCard expects
+  // NOTE: These hooks MUST be called unconditionally (before any early return)
+  const liveRecentDraws = useMemo(() =>
+    rawDraws.slice(0, 5).map((d) => ({
+      drawId: d.drawId,
+      date: new Date(Number(d.timestamp) * 1000).toISOString(),
+      numbers: d.winningNumbers,
+      wasRolldown: d.wasRolldown,
+      totalTickets: d.totalTickets,
+      jackpot: Number(d.jackpotAtDraw),
+      matchCounts: {
+        6: d.matchCounts.match6,
+        5: d.matchCounts.match5,
+        4: d.matchCounts.match4,
+        3: d.matchCounts.match3,
+        2: d.matchCounts.match2,
+      },
+      // TODO: requires querying user ticket accounts on-chain
+      userTickets: 0,
+      userMatches: [] as { ticketNumbers: number[]; matchCount: number; prize: number }[],
+    })),
+    [rawDraws],
+  );
+
+  // Derive jackpot history from past draws (ascending order for trend)
+  const liveJackpotHistory = useMemo(() =>
+    [...rawDraws]
+      .sort((a, b) => a.drawId - b.drawId)
+      .map((d) => ({ drawId: d.drawId, amount: Number(d.jackpotAtDraw) })),
+    [rawDraws],
+  );
 
   // Show wallet prompt when not connected
   if (!isConnected) {
@@ -849,6 +898,8 @@ function DashboardPage() {
   }
 
   const stats = MOCK_PLAYER_STATS;
+  const recentDraws = liveRecentDraws.length > 0 ? liveRecentDraws : MOCK_RECENT_DRAWS;
+  const jackpotHistory = liveJackpotHistory.length > 0 ? liveJackpotHistory : MOCK_JACKPOT_HISTORY;
 
   return (
     <div className="min-h-screen bg-background">
@@ -967,7 +1018,7 @@ function DashboardPage() {
               {/* Jackpot + Countdown row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <JackpotDisplay
-                  amount={1_247_832}
+                  amount={jackpotDollars}
                   size="md"
                   glow
                   showRolldownStatus
@@ -995,7 +1046,7 @@ function DashboardPage() {
                   </Link>
                 </div>
                 <div className="space-y-3">
-                  {MOCK_RECENT_DRAWS.slice(0, 4).map((draw) => (
+                  {recentDraws.slice(0, 4).map((draw) => (
                     <RecentDrawCard key={draw.drawId} draw={draw} />
                   ))}
                 </div>
@@ -1005,13 +1056,13 @@ function DashboardPage() {
             {/* Right: 1/3 width sidebar */}
             <div className="space-y-6">
               {/* Rolldown Monitor */}
-              <RolldownMonitor />
+              <RolldownMonitor jackpot={jackpotDollars} rolldownActive={rolldownActive} />
 
               {/* Active Tickets */}
               <ActiveTicketsPanel />
 
               {/* Jackpot Trend */}
-              <JackpotTrend />
+              <JackpotTrend history={jackpotHistory} />
 
               {/* Syndicate Memberships */}
               <SyndicateMemberships />

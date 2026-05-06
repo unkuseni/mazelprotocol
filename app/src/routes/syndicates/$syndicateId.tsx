@@ -70,7 +70,7 @@ const MOCK_SYNDICATES: Record<string, SyndicateDetail> = {
     creator: "7xKXq9Rm4p3sT8vN2wBcDfGh1jLkMnPr5tYuZaEb",
     creatorShort: "7xKX...ZaEb",
     description:
-      "A data-driven syndicate focused on exploiting +EV rolldown windows. We coordinate ticket purchases during mathematically favorable periods and share analysis in chat.",
+      "A data-driven syndicate focused on capitalizing on favorable rolldown windows. We coordinate ticket purchases during mathematically favorable periods and share analysis in chat.",
     members: 23,
     maxMembers: 25,
     totalTickets: 4_820,

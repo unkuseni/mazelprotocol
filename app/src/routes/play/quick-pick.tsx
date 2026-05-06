@@ -102,12 +102,11 @@ function NumberGrid({ selected, onToggle, disabled }: NumberGridProps) {
               relative aspect-square rounded-xl flex items-center justify-center
               text-sm sm:text-base font-bold transition-all duration-200
               select-none cursor-pointer
-              ${
-                isSelected
-                  ? "bg-linear-to-br from-emerald-light to-emerald text-white shadow-lg shadow-emerald/30 scale-105 ring-2 ring-emerald-light/50"
-                  : isFull
-                    ? "bg-foreground/2 text-muted-foreground/60 cursor-not-allowed border border-foreground/3"
-                    : "bg-foreground/4 text-muted-foreground border border-foreground/6 hover:bg-foreground/8 hover:border-emerald/30 hover:text-foreground hover:scale-105 active:scale-95"
+              ${isSelected
+                ? "bg-linear-to-br from-emerald-light to-emerald text-white shadow-lg shadow-emerald/30 scale-105 ring-2 ring-emerald-light/50"
+                : isFull
+                  ? "bg-foreground/2 text-muted-foreground/60 cursor-not-allowed border border-foreground/3"
+                  : "bg-foreground/4 text-muted-foreground border border-foreground/6 hover:bg-foreground/8 hover:border-emerald/30 hover:text-foreground hover:scale-105 active:scale-95"
               }
             `}
           >
@@ -161,9 +160,9 @@ function TicketCard({
         </button>
       </div>
       <div className="flex items-center gap-1.5">
-        {numbers.map((num, i) => (
+        {numbers.map((num) => (
           <div
-            key={`${num}-${i}`}
+            key={num}
             className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold bg-linear-to-br from-emerald-light/20 to-emerald/10 border border-emerald/20 text-emerald-light"
           >
             {num}
@@ -624,7 +623,7 @@ function PlayQuickPickExpress() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {tickets.map((ticket, i) => (
                         <TicketCard
-                          key={`ticket-${i}-${ticket.numbers.join("-")}`}
+                          key={ticket.numbers.join("-")}
                           numbers={ticket.numbers}
                           index={i}
                           onRemove={() => removeTicket(i)}
@@ -779,9 +778,8 @@ function PlayQuickPickExpress() {
                       </h3>
                       <ChevronRight
                         size={14}
-                        className={`text-muted-foreground transition-transform duration-200 ${
-                          showPrizeInfo ? "rotate-90" : ""
-                        }`}
+                        className={`text-muted-foreground transition-transform duration-200 ${showPrizeInfo ? "rotate-90" : ""
+                          }`}
                       />
                     </button>
 
@@ -794,13 +792,12 @@ function PlayQuickPickExpress() {
                           >
                             <div className="flex items-center gap-2">
                               <div
-                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                                  tier.color === "gold"
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${tier.color === "gold"
                                     ? "bg-gold/20 text-gold"
                                     : tier.color === "emerald"
                                       ? "bg-emerald/20 text-emerald-light"
                                       : "bg-foreground/5 text-muted-foreground"
-                                }`}
+                                  }`}
                               >
                                 {tier.match}
                               </div>
@@ -810,13 +807,12 @@ function PlayQuickPickExpress() {
                             </div>
                             <div className="text-right">
                               <span
-                                className={`text-xs font-bold ${
-                                  tier.color === "gold"
+                                className={`text-xs font-bold ${tier.color === "gold"
                                     ? "text-gold"
                                     : tier.color === "emerald"
                                       ? "text-emerald-light"
                                       : "text-muted-foreground"
-                                }`}
+                                  }`}
                               >
                                 {tier.prize}
                               </span>
@@ -848,9 +844,8 @@ function PlayQuickPickExpress() {
                       </h3>
                       <ChevronRight
                         size={14}
-                        className={`text-muted-foreground transition-transform duration-200 ${
-                          showRolldownInfo ? "rotate-90" : ""
-                        }`}
+                        className={`text-muted-foreground transition-transform duration-200 ${showRolldownInfo ? "rotate-90" : ""
+                          }`}
                       />
                     </button>
 

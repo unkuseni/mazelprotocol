@@ -54,29 +54,26 @@ function FeatureCard({
       className={`
         group relative rounded-2xl p-6 transition-all duration-300
         hover:-translate-y-0.5
-        ${
-          highlight
-            ? "bg-linear-to-br from-emerald/10 via-emerald/5 to-transparent border border-emerald/20 glow-emerald hover:border-emerald/40"
-            : "bg-foreground/2 border border-foreground/6 hover:border-foreground/12 hover:bg-foreground/4"
+        ${highlight
+          ? "bg-linear-to-br from-emerald/10 via-emerald/5 to-transparent border border-emerald/20 glow-emerald hover:border-emerald/40"
+          : "bg-foreground/2 border border-foreground/6 hover:border-foreground/12 hover:bg-foreground/4"
         }
       `}
     >
       {/* Subtle gradient accent line at top */}
       <div
-        className={`absolute top-0 left-6 right-6 h-px ${
-          highlight
-            ? "bg-linear-to-r from-transparent via-emerald/50 to-transparent"
-            : "bg-linear-to-r from-transparent via-foreground/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
-        }`}
+        className={`absolute top-0 left-6 right-6 h-px ${highlight
+          ? "bg-linear-to-r from-transparent via-emerald/50 to-transparent"
+          : "bg-linear-to-r from-transparent via-foreground/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
+          }`}
       />
 
       <div className="mb-4">
         <div
-          className={`inline-flex p-2.5 rounded-xl transition-colors duration-300 ${
-            highlight
-              ? "bg-emerald/15 text-emerald-light group-hover:bg-emerald/25"
-              : "bg-foreground/5 text-muted-foreground group-hover:text-emerald-light group-hover:bg-emerald/10"
-          }`}
+          className={`inline-flex p-2.5 rounded-xl transition-colors duration-300 ${highlight
+            ? "bg-emerald/15 text-emerald-light group-hover:bg-emerald/25"
+            : "bg-foreground/5 text-muted-foreground group-hover:text-emerald-light group-hover:bg-emerald/10"
+            }`}
         >
           <Icon className="w-6 h-6" />
         </div>
@@ -209,7 +206,7 @@ function LandingPage() {
       icon: Zap,
       title: "Quick Pick Express",
       description:
-        "5/35 mini-lottery every 4 hours with +66.7% rolldown exploit. $1.50 tickets with a $50 lifetime spend gate.",
+        "5/35 mini-lottery every 4 hours with +66.7% rolldown advantage. $1.50 tickets with a $50 lifetime spend gate.",
     },
     {
       icon: Lock,
@@ -335,7 +332,7 @@ function LandingPage() {
               <h1 className="heading-1 tracking-tight mb-6">
                 <span className="block text-foreground">The First</span>
                 <span className="block text-gradient-primary mt-1">
-                  Intentionally Exploitable
+                  Mathematically Transparent
                 </span>
                 <span className="block text-foreground mt-1">Lottery</span>
               </h1>
@@ -812,10 +809,9 @@ function LandingPage() {
                 className={`
                   group flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 p-5 sm:p-6 rounded-xl
                   transition-all duration-300 hover:translate-x-1
-                  ${
-                    i === 0
-                      ? "bg-linear-to-r from-gold/10 via-gold/5 to-transparent border border-gold/15 hover:border-gold/30"
-                      : "bg-foreground/2 border border-foreground/6 hover:border-emerald/20"
+                  ${i === 0
+                    ? "bg-linear-to-r from-gold/10 via-gold/5 to-transparent border border-gold/15 hover:border-gold/30"
+                    : "bg-foreground/2 border border-foreground/6 hover:border-emerald/20"
                   }
                 `}
               >
@@ -826,16 +822,14 @@ function LandingPage() {
                   `}
                 >
                   <div
-                    className={`text-xs font-bold uppercase tracking-wider ${
-                      i === 0 ? "text-gold" : "text-emerald"
-                    }`}
+                    className={`text-xs font-bold uppercase tracking-wider ${i === 0 ? "text-gold" : "text-emerald"
+                      }`}
                   >
                     Match
                   </div>
                   <div
-                    className={`heading-4 font-black mt-0.5 ${
-                      i === 0 ? "text-gold" : "text-foreground"
-                    }`}
+                    className={`heading-4 font-black mt-0.5 ${i === 0 ? "text-gold" : "text-foreground"
+                      }`}
                   >
                     {tier.match.split(" ")[0]}
                   </div>

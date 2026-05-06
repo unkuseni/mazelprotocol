@@ -245,13 +245,19 @@ export async function sendInstruction(
   payer: Signer,
   signers: Signer[] = [],
   connection?: Connection,
+  options: SendAndConfirmTransactionOptions = {},
 ): Promise<string> {
   const transaction = new Transaction();
   transaction.add(instruction);
   transaction.feePayer = payer.publicKey;
 
   const allSigners = [payer, ...signers];
-  return sendAndConfirmTransaction(transaction, allSigners, connection);
+  return sendAndConfirmTransaction(
+    transaction,
+    allSigners,
+    connection,
+    options,
+  );
 }
 
 /**
@@ -268,6 +274,7 @@ export async function sendInstructions(
   payer: Signer,
   signers: Signer[] = [],
   connection?: Connection,
+  options: SendAndConfirmTransactionOptions = {},
 ): Promise<string> {
   const transaction = new Transaction();
   for (const instruction of instructions) {
@@ -276,7 +283,12 @@ export async function sendInstructions(
   transaction.feePayer = payer.publicKey;
 
   const allSigners = [payer, ...signers];
-  return sendAndConfirmTransaction(transaction, allSigners, connection);
+  return sendAndConfirmTransaction(
+    transaction,
+    allSigners,
+    connection,
+    options,
+  );
 }
 
 // ---------------------------------------------------------------------------

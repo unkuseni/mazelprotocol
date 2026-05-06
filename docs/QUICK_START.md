@@ -1,6 +1,6 @@
 # MazelProtocol Quick Start Guide
 
-> **The world's first intentionally exploitable lottery on Solana**
+> **A provably fair lottery protocol on Solana**
 
 ---
 
@@ -101,7 +101,7 @@ Prizes are automatically calculated. Claim them anytime through the app.
 
 ---
 
-## 🧠 For Sophisticated Players (The Exploit)
+## 🧠 For Sophisticated Players (Strategic Play)
 
 ### Understanding the Rolldown
 
@@ -310,9 +310,9 @@ All randomness is generated using **Switchboard Randomness** with Trusted Execut
 
 ## ⚠️ Disclaimer
 
-**This is gambling.** Most players will lose money over time. The rolldown exploit requires:
+**This is gambling.** Most players will lose money over time. The rolldown mechanism requires:
 
-- Significant capital (recommended $1,000+ for meaningful exploitation)
+- Significant capital (recommended $1,000+ for meaningful participation)
 - Correct timing (monitor soft cap zone and hard cap approach)
 - Acceptance of variance (even +EV bets can lose short-term)
 - Understanding of the dynamic fee system
@@ -325,7 +325,7 @@ Only play with money you can afford to lose. Verify your local laws before parti
 
 ### ✅ Implemented On-Chain
 - ✅ **Fixed → Pari-Mutuel Prize Transition** (ALL prizes start fixed, transition to pari-mutuel during rolldown to cap operator liability)
-- ✅ **Quick Pick Express** (separate program — 5/35 matrix, $1.50 tickets, **+66.7% rolldown exploit**, no free ticket, $50 gate)
+- ✅ **Quick Pick Express** (separate program — 5/35 matrix, $1.50 tickets, **+66.7% rolldown advantage**, no free ticket, $50 gate)
 - ✅ **Switchboard Randomness** (TEE-based secure randomness with commit-reveal)
 - ✅ **Dynamic House Fee** (28-40% based on jackpot)
 - ✅ **Soft/Hard Cap System** (prevents calendar gaming)

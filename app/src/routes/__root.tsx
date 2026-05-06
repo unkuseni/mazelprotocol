@@ -6,6 +6,11 @@ import { useMemo } from "react";
 import { Provider as TRPCProvider } from "@/integrations/tanstack-query/root-provider";
 import { AppKitProvider } from "@/lib/appkit-provider";
 import { ThemeProvider } from "@/lib/theme";
+import { isGeoblocked, getGeoblockMessage } from "@/lib/geoblock";
+
+// Keep imports alive until Cloudflare geoblocking is deployed (see NOTE below).
+// Remove this line when the commented-out geoblock block is activated.
+void [isGeoblocked, getGeoblockMessage];
 import Header from "../components/Header";
 import appCss from "../styles.css?url";
 
@@ -25,7 +30,7 @@ export const Route = createRootRoute({
           "MazelProtocol introduces positive expected value windows through mathematical rolldown mechanics. Play smart, win bigger on Solana.",
       },
       {
-        title: "MazelProtocol | The First Intentionally Exploitable Lottery",
+        title: "MazelProtocol | A Provably Fair Lottery",
       },
       {
         name: "theme-color",
@@ -37,7 +42,7 @@ export const Route = createRootRoute({
       },
       {
         property: "og:title",
-        content: "MazelProtocol | The First Intentionally Exploitable Lottery",
+        content: "MazelProtocol | A Provably Fair Lottery",
       },
       {
         property: "og:description",
@@ -59,7 +64,7 @@ export const Route = createRootRoute({
       {
         name: "twitter:description",
         content:
-          "The first intentionally exploitable lottery on Solana. +EV rolldown mechanics for strategic players.",
+          "A provably fair lottery on Solana. Transparent rolldown mechanics with publicly verifiable randomness.",
       },
     ],
     links: [
@@ -88,6 +93,51 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const queryClient = useMemo(() => new QueryClient(), []);
+
+  // NOTE: Geoblocking enforcement requires Cloudflare Workers/Pages to set the
+  // `cf_country` cookie (derived from `request.cf.country`) via a _headers file
+  // or a Cloudflare Function. Without Cloudflare, `document.cookie` won't
+  // contain a `cf_country` value, and `isGeoblocked()` returns `false`.
+  //
+  // To activate geoblocking, deploy to Cloudflare Pages and set this header:
+  //   /_headers:
+  //     Set-Cookie: cf_country={request.cf.country}; Path=/; SameSite=Lax
+  //
+  // Then uncomment the block below:
+  //
+  // const [blocked, setBlocked] = useState(false);
+  // useEffect(() => {
+  //   const match = document.cookie.match(/(?:^|;\s*)cf_country=([^;]*)/);
+  //   const country = match?.[1];
+  //   if (isGeoblocked(country, undefined)) {
+  //     setBlocked(true);
+  //   }
+  // }, []);
+  //
+  // if (blocked) {
+  //   return (
+  //     <div style={{
+  //       display: "flex",
+  //       alignItems: "center",
+  //       justifyContent: "center",
+  //       minHeight: "100vh",
+  //       padding: "2rem",
+  //       textAlign: "center",
+  //       fontFamily: "Inter, system-ui, sans-serif",
+  //       background: "#0a0f1a",
+  //       color: "#fff",
+  //     }}>
+  //       <div>
+  //         <h1 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>
+  //           Access Restricted
+  //         </h1>
+  //         <p style={{ color: "#94a3b8", maxWidth: "480px" }}>
+  //           {getGeoblockMessage()}
+  //         </p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <html lang="en">

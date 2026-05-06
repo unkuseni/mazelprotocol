@@ -291,7 +291,7 @@ let match_3_prize = match_3_pool / match_3_winners as u64; // ~$35 each
 
 ## 8. Quick Pick Express — FIXED → PARI-MUTUEL PRIZE SYSTEM
 
-5/35 mini-game with **full rolldown mechanics and +67% player edge exploit** — exclusive to committed players.
+5/35 mini-game with **full rolldown mechanics and +67% player edge advantage** — exclusive to committed players.
 
 > **🔒 PRIZE TRANSITION:** Quick Pick Express uses the same Fixed → Pari-Mutuel prize transition system as the main lottery. Normal mode prizes are FIXED; rolldown prizes are PARI-MUTUEL (operator liability CAPPED at jackpot amount).
 
@@ -340,7 +340,7 @@ let match_3_prize = match_3_pool / match_3_winners as u64; // ~$35 each
 | `QUICK_PICK_MATCH_3_PRIZE` | `4,000,000` lamports | $4 prize for Match 3 | **FIXED** |
 | — | — | No Match 2 prize in Quick Pick Express | — |
 
-### Rolldown Allocation (THE EXPLOIT: +67% Player Edge!) — PARI-MUTUEL
+### Rolldown Allocation (FAVORABLE DISTRIBUTION) — PARI-MUTUEL
 > **🔒 PRIZE MODE: PARI-MUTUEL** — During rolldown, prizes are calculated as Pool ÷ Winners. Operator liability is CAPPED at exactly the jackpot amount ($30,000-$50,000).
 
 | Constant | Value | Description | Prize Mode |

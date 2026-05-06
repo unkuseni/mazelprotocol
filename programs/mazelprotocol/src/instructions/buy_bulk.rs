@@ -98,13 +98,12 @@ pub struct BuyBulk<'info> {
     /// USDC mint
     pub usdc_mint: Account<'info, Mint>,
 
-    /// User statistics account
+    /// User statistics account (must be initialized via `init_user_stats` first)
     #[account(
-        init_if_needed,
-        payer = player,
-        space = USER_STATS_SIZE,
+        mut,
         seeds = [USER_SEED, player.key().as_ref()],
-        bump
+        bump = user_stats.bump,
+        constraint = user_stats.wallet == player.key() @ LottoError::AccountNotInitialized
     )]
     pub user_stats: Account<'info, UserStats>,
 
@@ -211,6 +210,8 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     let current_draw_tickets = ctx.accounts.lottery_state.current_draw_tickets;
     let soft_cap = ctx.accounts.lottery_state.soft_cap;
     let house_fee_bps = ctx.accounts.lottery_state.get_current_house_fee_bps();
+    let is_rolldown_active = ctx.accounts.lottery_state.is_rolldown_active;
+    let max_rolldown_tickets = ctx.accounts.lottery_state.max_rolldown_tickets;
 
     // Check if ticket sales are open
     let sale_cutoff_time = next_draw_timestamp.checked_sub(TICKET_SALE_CUTOFF);
@@ -237,6 +238,17 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
         new_total_tickets <= MAX_TICKETS_PER_DRAW_PER_USER,
         LottoError::MaxTicketsPerDrawExceeded
     );
+
+    // H4: Rolldown ticket cap circuit breaker.
+    // If rolldown is active and a cap is set (non-zero), reject purchases
+    // once the current draw has reached the cap. This prevents per-winner
+    // prizes from becoming microscopic during extreme volume events.
+    if is_rolldown_active && max_rolldown_tickets > 0 {
+        require!(
+            current_draw_tickets < max_rolldown_tickets,
+            LottoError::RolldownTicketCapReached
+        );
+    }
 
     // Calculate total price and fees
     //
@@ -399,14 +411,6 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
 
     // Update user stats
     let user_stats = &mut ctx.accounts.user_stats;
-
-    // Initialize if new
-    if user_stats.wallet == Pubkey::default() {
-        user_stats.wallet = ctx.accounts.player.key();
-        user_stats.bump = ctx.bumps.user_stats;
-        user_stats.tickets_this_draw = 0;
-        user_stats.last_draw_participated = 0;
-    }
 
     // FIXED: Track tickets per draw for limit enforcement
     // Always update last_draw_participated to current draw

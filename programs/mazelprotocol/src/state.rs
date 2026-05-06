@@ -100,8 +100,14 @@ pub struct LotteryState {
     /// Whether the lottery is paused
     pub is_paused: bool,
 
-    /// Whether the lottery has been funded with initial seed
+    /// Set to true once on initial seed funding. Never cleared afterward.
+    /// New-cycle solvency is checked via `jackpot_balance >= seed_amount`,
+    /// NOT via this flag. This flag gates initial ticket sales only.
     pub is_funded: bool,
+
+    /// Protocol version. Incremented on breaking changes. Clients should
+    /// check this to detect incompatible state layouts.
+    pub version: u8,
 
     /// PDA bump seed
     pub bump: u8,
@@ -130,6 +136,11 @@ pub struct LotteryState {
     /// Window duration is 24 hours. When a new transfer exceeds the window,
     /// the total resets. Prevents unlimited repeated small drains.
     pub emergency_transfer_window_start: i64,
+
+    /// Maximum tickets allowed during a rolldown draw (0 = unlimited).
+    /// Prevents per-winner prizes from becoming microscopic during extreme
+    /// volume events. Default 0 (no limit) preserves backward compatibility.
+    pub max_rolldown_tickets: u64,
 }
 
 impl LotteryState {
@@ -1003,24 +1014,6 @@ impl QuickPickTicket {
     pub const LEN: usize = QUICK_PICK_TICKET_SIZE;
 }
 
-/// Quick Pick Draw Result size
-pub const QUICK_PICK_DRAW_RESULT_SIZE: usize = 8 +  // discriminator
-    8 +   // draw_id
-    5 +   // winning_numbers (5 numbers for 5/35)
-    32 +  // randomness_proof
-    8 +   // timestamp
-    8 +   // total_tickets
-    1 +   // was_rolldown
-    4 +   // match_5_winners
-    4 +   // match_4_winners
-    4 +   // match_3_winners
-    8 +   // match_5_prize_per_winner (jackpot)
-    8 +   // match_4_prize_per_winner
-    8 +   // match_3_prize_per_winner
-    1 +   // is_explicitly_finalized
-    1 +   // bump
-    16; // padding
-
 /// Quick Pick Express draw result (5/35 Matrix)
 #[account]
 #[derive(Default)]
@@ -1061,7 +1054,8 @@ pub struct QuickPickDrawResult {
 }
 
 impl QuickPickDrawResult {
-    pub const LEN: usize = QUICK_PICK_DRAW_RESULT_SIZE;
+    /// Account size including the 8-byte Anchor discriminator
+    pub const LEN: usize = 8 + std::mem::size_of::<Self>();
 
     pub fn get_prize_for_matches(&self, match_count: u8) -> u64 {
         match match_count {
@@ -1243,6 +1237,7 @@ pub struct MemberStats {
 
 /// Rolldown type enumeration
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum RolldownType {
     #[default]
     None,
@@ -1254,6 +1249,7 @@ pub enum RolldownType {
 
 /// Match tier enumeration
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum MatchTier {
     #[default]
     NoMatch,
@@ -1302,6 +1298,7 @@ pub struct WinnerCounts {
 
 /// Prize mode - determines how prizes are calculated
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum PrizeMode {
     /// Fixed prizes (normal mode)
     #[default]

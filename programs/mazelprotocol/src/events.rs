@@ -620,3 +620,12 @@ pub struct ExpiredPrizesReclaimed {
     /// Timestamp of reclamation
     pub timestamp: i64,
 }
+
+/// Emitted when the authority is set to a regular (non-PDA) keypair.
+/// Multi-sig wallets (Squads, etc.) use PDAs as their address.
+/// A regular keypair authority is a centralization risk.
+#[event]
+pub struct SoloAuthorityWarning {
+    pub authority: Pubkey,
+    pub message: String,
+}

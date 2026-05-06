@@ -34,7 +34,7 @@
 
 ### The Core Innovation
 
-When the jackpot reaches its cap and no one matches all 6 numbers, the entire prize pool **"rolls down"** to lower tiers, creating a mathematically exploitable opportunity where skilled players can achieve 15%+ returns per ticket.
+When the jackpot reaches its cap and no one matches all 6 numbers, the entire prize pool **"rolls down"** to lower tiers, creating a mathematically favorable opportunity where skilled players can achieve 15%+ returns per ticket.
 
 This isn't a bug—**it's the feature**.
 
@@ -51,7 +51,7 @@ This isn't a bug—**it's the feature**.
 
 | **👥 Syndicate System** | Built-in pool creation with automatic prize splitting |
 | **🔥 Streak Bonuses** | Rewards for consistent players |
-| **⚡ Quick Pick Express** | 5/35 mini-lottery every 4 hours with +67% rolldown exploit (no free ticket) |
+| **⚡ Quick Pick Express** | 5/35 mini-lottery every 4 hours with +67% rolldown advantage (no free ticket) |
 | **🛡️ MEV Protection** | Jito integration prevents front-running |
 | **📊 Full Transparency** | All balances and draws verifiable on-chain |
 
@@ -71,7 +71,7 @@ This isn't a bug—**it's the feature**.
 5. Prizes automatically credited to your wallet
 ```
 
-### For Sophisticated Players (The Exploit)
+### For Sophisticated Players (Strategic Play)
 
 ```
 1. Monitor the jackpot level
@@ -156,7 +156,7 @@ When the jackpot caps and no one hits the jackpot, **everything changes**:
 The Match 3 tier receives 40% of the rolldown pool because:
 - **High winner frequency**: ~2.13% of tickets win Match 3
 - **Lower variance**: More predictable pari-mutuel returns for volume players
-- **Critical for exploit**: Makes the +EV window reliable, not just theoretical
+- **Critical for strategy**: Makes the +EV window reliable, not just theoretical
 - **Pari-mutuel efficiency**: More winners = smaller per-winner prize, but total pool is larger
 
 ### Why Pari-Mutuel Limits Operator Loss
@@ -734,7 +734,7 @@ Report vulnerabilities to: `security@mazelprotocol.io`
 
 ### Quick Pick Express (5/35) — PARI-MUTUEL ROLLDOWN ✅ Implemented (Separate Program)
 
-High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** — exclusive to committed players:
+High-frequency mini-lottery with **full rolldown mechanics and +EV opportunity** — exclusive to committed players:
 
 > ⚠️ **$50 Gate Requirement**: Must have spent $50+ lifetime in the main lottery to access Quick Pick Express.
 
@@ -757,7 +757,7 @@ High-frequency mini-lottery with **full rolldown mechanics and +EV exploit** —
 
 *Prizes remain fixed during normal mode. Transition to pari-mutuel occurs during rolldown events.*
 
-#### 🔥 Rolldown Mode (No Match 5 Winner) — PARI-MUTUEL (THE EXPLOIT!)
+#### 🔥 Rolldown Mode (No Match 5 Winner) — PARI-MUTUEL (FAVORABLE DISTRIBUTION EVENT)
 
 > **🔒 OPERATOR PROTECTION:** During rolldown, all prizes transition to PARI-MUTUEL. Operator liability is capped at exactly the jackpot amount ($30,000-$40,000), regardless of ticket volume.
 

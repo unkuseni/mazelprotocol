@@ -27,6 +27,8 @@ import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { FloatingBalls, WinningNumbers } from "@/components/LotteryBalls";
 import { Button } from "@/components/ui/button";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
+import { useDraws } from "@/hooks/use-draws";
+import type { DrawResultData } from "@/hooks/use-draws";
 
 export const Route = createFileRoute("/results/")({
   component: ResultsPage,
@@ -440,6 +442,49 @@ function formatDate(date: string): string {
   });
 }
 
+/** Map hook DrawResultData to the UI's DrawResult interface */
+function mapHookDrawToUI(d: DrawResultData): DrawResult {
+  const totalPrizesPaid =
+    d.matchCounts.match6 * Number(d.prizesPerWinner.match6) +
+    d.matchCounts.match5 * Number(d.prizesPerWinner.match5) +
+    d.matchCounts.match4 * Number(d.prizesPerWinner.match4) +
+    d.matchCounts.match3 * Number(d.prizesPerWinner.match3) +
+    d.matchCounts.match2 * Number(d.prizesPerWinner.match2);
+
+  const dateObj = new Date(Number(d.timestamp) * 1000);
+
+  return {
+    drawId: d.drawId,
+    date: dateObj.toISOString(),
+    time: dateObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+    gameType: "main",
+    winningNumbers: d.winningNumbers,
+    totalTickets: d.totalTickets,
+    jackpotAtDraw: Number(d.jackpotAtDraw),
+    prizePoolDistributed: totalPrizesPaid,
+    wasRolldown: d.wasRolldown,
+    matchCounts: {
+      match6: d.matchCounts.match6,
+      match5: d.matchCounts.match5,
+      match4: d.matchCounts.match4,
+      match3: d.matchCounts.match3,
+      match2: d.matchCounts.match2,
+    },
+    prizesPerWinner: {
+      match6: Number(d.prizesPerWinner.match6),
+      match5: Number(d.prizesPerWinner.match5),
+      match4: Number(d.prizesPerWinner.match4),
+      match3: Number(d.prizesPerWinner.match3),
+      match2: Number(d.prizesPerWinner.match2),
+    },
+    totalPrizesPaid,
+    jackpotAfterDraw: 0,
+    houseFeeCollected: 0,
+    randomnessProof: "",
+    verificationHash: "",
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Sub-components                                                            */
 /* -------------------------------------------------------------------------- */
@@ -453,44 +498,44 @@ function ProtocolStats() {
     icon: LucideIcon;
     color: string;
   }[] = [
-    {
-      label: "Main Draws",
-      value: stats.totalDrawsMain.toString(),
-      icon: Trophy,
-      color: "text-gold",
-    },
-    {
-      label: "QP Draws",
-      value: stats.totalDrawsQP.toString(),
-      icon: Zap,
-      color: "text-emerald-light",
-    },
-    {
-      label: "Total Tickets",
-      value:
-        formatCurrency(stats.totalTicketsSold, true).replace("$", "") + " ",
-      icon: Ticket,
-      color: "text-foreground",
-    },
-    {
-      label: "Prizes Paid",
-      value: formatCurrency(stats.totalPrizesPaid, true),
-      icon: Award,
-      color: "text-gold",
-    },
-    {
-      label: "Biggest Win",
-      value: formatCurrency(stats.biggestJackpotWin, true),
-      icon: Star,
-      color: "text-gold",
-    },
-    {
-      label: "Rolldown Events",
-      value: stats.rolldownEvents.toString(),
-      icon: TrendingUp,
-      color: "text-emerald-light",
-    },
-  ];
+      {
+        label: "Main Draws",
+        value: stats.totalDrawsMain.toString(),
+        icon: Trophy,
+        color: "text-gold",
+      },
+      {
+        label: "QP Draws",
+        value: stats.totalDrawsQP.toString(),
+        icon: Zap,
+        color: "text-emerald-light",
+      },
+      {
+        label: "Total Tickets",
+        value:
+          formatCurrency(stats.totalTicketsSold, true).replace("$", "") + " ",
+        icon: Ticket,
+        color: "text-foreground",
+      },
+      {
+        label: "Prizes Paid",
+        value: formatCurrency(stats.totalPrizesPaid, true),
+        icon: Award,
+        color: "text-gold",
+      },
+      {
+        label: "Biggest Win",
+        value: formatCurrency(stats.biggestJackpotWin, true),
+        icon: Star,
+        color: "text-gold",
+      },
+      {
+        label: "Rolldown Events",
+        value: stats.rolldownEvents.toString(),
+        icon: TrendingUp,
+        color: "text-emerald-light",
+      },
+    ];
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -530,18 +575,18 @@ function DrawCard({
   const isMain = draw.gameType === "main";
   const matchLabels = isMain
     ? [
-        { key: "match6" as const, label: "Match 6", tier: "jackpot" },
-        { key: "match5" as const, label: "Match 5", tier: "high" },
-        { key: "match4" as const, label: "Match 4", tier: "mid" },
-        { key: "match3" as const, label: "Match 3", tier: "low" },
-        { key: "match2" as const, label: "Match 2", tier: "free" },
-      ]
+      { key: "match6" as const, label: "Match 6", tier: "jackpot" },
+      { key: "match5" as const, label: "Match 5", tier: "high" },
+      { key: "match4" as const, label: "Match 4", tier: "mid" },
+      { key: "match3" as const, label: "Match 3", tier: "low" },
+      { key: "match2" as const, label: "Match 2", tier: "free" },
+    ]
     : [
-        { key: "match5" as const, label: "Match 5", tier: "jackpot" },
-        { key: "match4" as const, label: "Match 4", tier: "high" },
-        { key: "match3" as const, label: "Match 3", tier: "mid" },
-        { key: "match2" as const, label: "Match 2", tier: "low" },
-      ];
+      { key: "match5" as const, label: "Match 5", tier: "jackpot" },
+      { key: "match4" as const, label: "Match 4", tier: "high" },
+      { key: "match3" as const, label: "Match 3", tier: "mid" },
+      { key: "match2" as const, label: "Match 2", tier: "low" },
+    ];
 
   const totalWinners = Object.values(draw.matchCounts).reduce(
     (sum, v) => sum + (v || 0),
@@ -550,9 +595,8 @@ function DrawCard({
 
   return (
     <div
-      className={`glass rounded-2xl transition-all duration-200 ${
-        draw.wasRolldown ? "border-emerald/15 shadow-sm shadow-emerald/5" : ""
-      }`}
+      className={`glass rounded-2xl transition-all duration-200 ${draw.wasRolldown ? "border-emerald/15 shadow-sm shadow-emerald/5" : ""
+        }`}
     >
       {/* Main row (clickable) */}
       <button
@@ -633,9 +677,8 @@ function DrawCard({
             {/* Expand chevron */}
             <ChevronDown
               size={16}
-              className={`shrink-0 text-muted-foreground/60 transition-transform duration-200 ${
-                expanded ? "rotate-180" : ""
-              }`}
+              className={`shrink-0 text-muted-foreground/60 transition-transform duration-200 ${expanded ? "rotate-180" : ""
+                }`}
             />
           </div>
         </div>
@@ -697,7 +740,7 @@ function DrawCard({
                   {matchLabels.map(({ key, label, tier }) => {
                     const winners =
                       (draw.matchCounts as Record<string, number | undefined>)[
-                        key
+                      key
                       ] ?? 0;
                     const prizeEach =
                       (
@@ -716,28 +759,26 @@ function DrawCard({
                         <td className="py-2.5 pr-4">
                           <div className="flex items-center gap-2">
                             <div
-                              className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
-                                tier === "jackpot"
-                                  ? "bg-gold/20 text-gold"
-                                  : tier === "high"
-                                    ? "bg-emerald/20 text-emerald-light"
-                                    : tier === "mid"
-                                      ? "bg-emerald/10 text-emerald-light/70"
-                                      : tier === "free"
-                                        ? "bg-foreground/5 text-muted-foreground"
-                                        : "bg-foreground/5 text-muted-foreground"
-                              }`}
+                              className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${tier === "jackpot"
+                                ? "bg-gold/20 text-gold"
+                                : tier === "high"
+                                  ? "bg-emerald/20 text-emerald-light"
+                                  : tier === "mid"
+                                    ? "bg-emerald/10 text-emerald-light/70"
+                                    : tier === "free"
+                                      ? "bg-foreground/5 text-muted-foreground"
+                                      : "bg-foreground/5 text-muted-foreground"
+                                }`}
                             >
                               {key.replace("match", "")}
                             </div>
                             <span
-                              className={`font-medium ${
-                                tier === "jackpot"
-                                  ? "text-gold"
-                                  : tier === "high"
-                                    ? "text-emerald-light"
-                                    : "text-muted-foreground"
-                              }`}
+                              className={`font-medium ${tier === "jackpot"
+                                ? "text-gold"
+                                : tier === "high"
+                                  ? "text-emerald-light"
+                                  : "text-muted-foreground"
+                                }`}
                             >
                               {label}
                             </span>
@@ -753,11 +794,10 @@ function DrawCard({
                         </td>
                         <td className="py-2.5 px-4 text-right tabular-nums">
                           <span
-                            className={`font-semibold ${
-                              winners > 0
-                                ? "text-foreground"
-                                : "text-muted-foreground/60"
-                            }`}
+                            className={`font-semibold ${winners > 0
+                              ? "text-foreground"
+                              : "text-muted-foreground/60"
+                              }`}
                           >
                             {winners.toLocaleString()}
                           </span>
@@ -765,13 +805,12 @@ function DrawCard({
                         <td className="py-2.5 px-4 text-right tabular-nums">
                           {prizeEach > 0 ? (
                             <span
-                              className={`font-bold ${
-                                tier === "jackpot"
-                                  ? "text-gold"
-                                  : tier === "high"
-                                    ? "text-emerald-light"
-                                    : "text-muted-foreground"
-                              }`}
+                              className={`font-bold ${tier === "jackpot"
+                                ? "text-gold"
+                                : tier === "high"
+                                  ? "text-emerald-light"
+                                  : "text-muted-foreground"
+                                }`}
                             >
                               {prizeEach >= 1_000
                                 ? formatCurrency(prizeEach, true)
@@ -902,8 +941,9 @@ function DrawCard({
   );
 }
 
-function RolldownHistory() {
-  const rolldownDraws = MOCK_DRAWS.filter((d) => d.wasRolldown);
+function RolldownHistory({ draws }: { draws?: DrawResult[] }) {
+  const source = draws && draws.length > 0 ? draws : MOCK_DRAWS;
+  const rolldownDraws = source.filter((d) => d.wasRolldown);
 
   if (rolldownDraws.length === 0) return null;
 
@@ -1035,11 +1075,10 @@ function Pagination({
           key={page}
           type="button"
           onClick={() => onPageChange(page)}
-          className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${
-            page === currentPage
-              ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-              : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-          }`}
+          className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${page === currentPage
+            ? "bg-emerald/15 text-emerald-light border border-emerald/20"
+            : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+            }`}
         >
           {page}
         </button>
@@ -1065,14 +1104,22 @@ function Pagination({
 function ResultsPage() {
   const { open } = useAppKit();
   const { isConnected } = useAppKitAccount();
+  const { draws: rawDraws, loading: drawsLoading } = useDraws();
   const [gameFilter, setGameFilter] = useState<GameFilter>("all");
   const [rolldownFilter, setRolldownFilter] = useState<RolldownFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedDraw, setExpandedDraw] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Map on-chain draw data to the UI DrawResult shape
+  const liveDraws = useMemo<DrawResult[]>(
+    () => rawDraws.map(mapHookDrawToUI),
+    [rawDraws],
+  );
+
   const filteredDraws = useMemo(() => {
-    let result = [...MOCK_DRAWS];
+    // Use live data when available, fall back to mock data when no draws loaded yet
+    let result = liveDraws.length > 0 ? [...liveDraws] : [...MOCK_DRAWS];
 
     // Game filter
     if (gameFilter === "main") {
@@ -1110,7 +1157,7 @@ function ResultsPage() {
     });
 
     return result;
-  }, [gameFilter, rolldownFilter, searchQuery]);
+  }, [gameFilter, rolldownFilter, searchQuery, liveDraws]);
 
   const totalPages = Math.ceil(filteredDraws.length / PAGE_SIZE);
   const paginatedDraws = filteredDraws.slice(
@@ -1250,11 +1297,10 @@ function ResultsPage() {
                         key={key}
                         type="button"
                         onClick={() => handleGameFilter(key)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                          gameFilter === key
-                            ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                        }`}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${gameFilter === key
+                          ? "bg-emerald/15 text-emerald-light border border-emerald/20"
+                          : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                          }`}
                       >
                         {label}
                       </button>
@@ -1282,11 +1328,10 @@ function ResultsPage() {
                       key={key}
                       type="button"
                       onClick={() => handleRolldownFilter(key)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                        rolldownFilter === key
-                          ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                          : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${rolldownFilter === key
+                        ? "bg-emerald/15 text-emerald-light border border-emerald/20"
+                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                        }`}
                     >
                       {label}
                     </button>
@@ -1323,7 +1368,32 @@ function ResultsPage() {
               </div>
 
               {/* Draw Cards */}
-              {paginatedDraws.length === 0 ? (
+              {drawsLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
+                      key={`skeleton-row-${i}`}
+                      className="glass rounded-2xl p-5 animate-pulse"
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-4 w-20 bg-foreground/10 rounded" />
+                        <div className="h-3 w-24 bg-foreground/8 rounded" />
+                        <div className="h-5 w-12 bg-foreground/8 rounded-full" />
+                      </div>
+                      <div className="flex gap-2">
+                        {Array.from({ length: 6 }).map((_, j) => (
+                          <div
+                            // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
+                            key={`skeleton-ball-${j}`}
+                            className="w-8 h-8 rounded-full bg-foreground/8"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : paginatedDraws.length === 0 ? (
                 <div className="glass rounded-2xl p-12 text-center">
                   <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground/3 border border-foreground/6 mb-4">
                     <Search size={24} className="text-muted-foreground/60" />
@@ -1332,7 +1402,9 @@ function ResultsPage() {
                     No draws found
                   </p>
                   <p className="text-xs text-muted-foreground/60 mb-4">
-                    Try adjusting your search or filter criteria
+                    {rawDraws.length === 0
+                      ? "Draw results will appear here once on-chain data is available."
+                      : "Try adjusting your search or filter criteria"}
                   </p>
                   <Button
                     onClick={() => {
@@ -1376,7 +1448,7 @@ function ResultsPage() {
             {/* Right column: Sidebar */}
             <div className="space-y-6">
               {/* Rolldown History */}
-              <RolldownHistory />
+              <RolldownHistory draws={liveDraws} />
 
               {/* How to Read Results */}
               <div className="glass rounded-2xl p-5 sm:p-6">

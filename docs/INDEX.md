@@ -23,7 +23,7 @@
 **"I want to play the lottery"**
 → Start with [QUICK_START.md](./QUICK_START.md)
 
-**"I want to understand the rolldown exploit"**
+**"I want to understand the rolldown mechanism"**
 → Read [SOLANA_LOTTO.md § The Rolldown Mechanism](./SOLANA_LOTTO.md#-the-rolldown-mechanism)
 
 **"I want to join a syndicate"**
@@ -247,7 +247,7 @@
 | v3.0 | 2025 | Removed references to TOKEN MODULE, GOV MODULE, SecondChanceEntry, and separate TicketManager/DrawEngine/PrizePool programs that never existed |
 | v3.0 | 2025 | Documented newly implemented features: config timelock, 2-step authority transfer, solvency check, expired prize reclaim, draw recovery, verification hash, statistical plausibility checks |
 | v2.5 | 2025 | Removed Mega Events feature from all documentation and code |
-| v2.4 | 2025 | Updated Quick Pick Express: 5/35 matrix, $1.50 tickets, **+67% rolldown exploit**, no free ticket, $50 gate |
+| v2.4 | 2025 | Updated Quick Pick Express: 5/35 matrix, $1.50 tickets, **+67% rolldown advantage**, no free ticket, $50 gate |
 | v2.3 | 2025 | Removed $LOTTO token and staking features |
 | v2.2 | 2025 | Migrated from Chainlink VRF to Switchboard Randomness |
 | v2.2 | 2025 | Removed Second Chance Draws feature |
@@ -310,7 +310,7 @@
 
 **MazelProtocol v3.0**
 
-*Complete documentation for the world's first intentionally exploitable lottery*
+*Complete documentation for the provably fair decentralized lottery protocol with transparent mechanics*
 
 📚 **6 Documents** | 🎰 **2 On-Chain Programs (38+ instructions)** | 💰 **$34M Annual Profit Target**
 

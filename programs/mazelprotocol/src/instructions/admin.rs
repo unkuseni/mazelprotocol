@@ -546,9 +546,11 @@ pub fn handler_execute_config(
         msg!("Updated hard_cap: {}", hard_cap);
     }
 
-    if let Some(switchboard_queue) = params.switchboard_queue {
-        lottery_state.switchboard_queue = switchboard_queue;
-        msg!("Updated switchboard_queue: {}", switchboard_queue);
+    if let Some(ref queue) = params.switchboard_queue {
+        require!(*queue != Pubkey::default(), LottoError::InvalidConfig);
+        require!(queue.is_on_curve(), LottoError::InvalidConfig); // Valid pubkey check
+        lottery_state.switchboard_queue = *queue;
+        msg!("Updated switchboard_queue: {}", queue);
     }
 
     if let Some(draw_interval) = params.draw_interval {

@@ -49,7 +49,7 @@ MazelProtocol proposes an alternative model that aligns incentives between opera
 3. **Predictable cycles** enable strategic participation
 4. **On-chain verification** ensures fairness
 
-This creates a "game within a game" where casual players enjoy entertainment value during normal operation, while sophisticated players can profitably exploit rolldown windows.
+This creates a "game within a game" where casual players enjoy entertainment value during normal operation, while sophisticated players can profitably participate in rolldown windows.
 
 ### 1.3 Design Principles
 
@@ -59,7 +59,7 @@ This creates a "game within a game" where casual players enjoy entertainment val
 | **Fairness** | Switchboard Randomness with TEE for verifiable randomness |
 | **Sustainability** | 28–40% dynamic house fee guarantees operator profitability |
 | **Accessibility** | $2.50 ticket price on low-fee Solana |
-| **Intentional Exploitability** | Rolldown mechanism creates +EV windows |
+| **Favorable Distribution Events** | Rolldown mechanism creates +EV windows |
 
 | **Operator Protection** | Fixed→Pari-Mutuel prize transition limits liability |
 
@@ -431,20 +431,20 @@ If rolldown prizes were FIXED at high volume:
 
 **Annualized Metrics (Conservative with Pari-Mutuel Protection):**
 
-| Metric | Calculation | Annual |
-|--------|-------------|--------|
-| Cycles per Year | 365 / 15 | ~24.3 |
-| Net Operator Profit | 24.3 × $1,190,000 | $28,917,000 |
-| Daily Average | $28,917,000 / 365 | $79,200 |
+| Metric | Description |
+|--------|-------------|
+| Cycles per Year | ~24.3 (365 / 15) |
+| Net Operator Result | Scales linearly with ticket volume |
+| Daily Average | Scales linearly with ticket volume |
 
 **High Volume Scenario (200k daily tickets, Pari-Mutuel Protected):**
 
-| Metric | Calculation | Annual |
-|--------|-------------|--------|
-| Cycles per Year | 365 / 7.5 | ~48.7 |
-| Cycle Profit | ~$2,380,000 | — |
-| Gross Profit | 48.7 × $2,380,000 | $115,906,000 |
-| Daily Average | | $317,550 |
+| Metric | Description |
+|--------|-------------|
+| Cycles per Year | ~48.7 (365 / 7.5) — faster cycles due to higher volume |
+| Cycle Economics | House fees increase proportionally with ticket volume |
+| Operator Result | Scales linearly with ticket volume |
+| Daily Average | Scales linearly with ticket volume |
 
 **🔒 KEY INSIGHT:** Higher volume = faster cycles + more house fees, but operator liability ALWAYS CAPPED by pari-mutuel system during rolldown. This is the fundamental protection that makes the protocol sustainable at any scale.
 
@@ -452,14 +452,14 @@ If rolldown prizes were FIXED at high volume:
 
 **Volume Impact on Profitability:**
 
-| Daily Volume | Prize Mode | Cycle House Fees | Cycle Profit (Fees − Seed) | Annual Profit | Viability |
+| Daily Volume | Prize Mode | Cycle House Fees | Cycle Profit (Fees − Seed) | Annual Result | Viability |
 |--------------|------------|------------------|---------------------------|---------------|-----------|
-| **25,000** | Fixed Only | ~$500,000 | **~$0** | **$0** | **Break-even** |
-| 50,000 | Fixed→PM | ~$950,000 | +$450,000 | +$5.5M | ✓ Minimum Sustainable |
-| 75,000 | Fixed→PM | ~$1,320,000 | +$820,000 | +$13.3M | ✓ Conservative |
-| 100,000 | Fixed→PM | ~$1,690,000 | +$1,190,000 | +$28.9M | ✓ Target |
-| 150,000 | Fixed→PM | ~$2,430,000 | +$1,930,000 | +$62.5M | ✓ Growth |
-| 200,000 | Fixed→PM | ~$3,170,000 | +$2,670,000 | +$130M | ✓ Optimistic |
+| **25,000** | Fixed Only | ~$500,000 | **~$0** | **Break-even** | **Break-even** |
+| 50,000 | Fixed→PM | ~$950,000 | +$450,000 | Positive | ✓ Minimum Sustainable |
+| 75,000 | Fixed→PM | ~$1,320,000 | +$820,000 | Positive | ✓ Conservative |
+| 100,000 | Fixed→PM | ~$1,690,000 | +$1,190,000 | Positive | ✓ Target |
+| 150,000 | Fixed→PM | ~$2,430,000 | +$1,930,000 | Positive | ✓ Growth |
+| 200,000 | Fixed→PM | ~$3,170,000 | +$2,670,000 | Positive | ✓ Optimistic |
 
 *PM = Pari-Mutuel. All scenarios assume pari-mutuel transition during rolldown events.
 
@@ -1457,7 +1457,7 @@ MazelProtocol invites participation from:
 | Metric | Mean | Std Dev | 5th %ile | 95th %ile |
 |--------|------|---------|----------|-----------|
 | Cycle Length (days) | 13.8 | 2.1 | 10 | 18 |
-| Cycle Profit ($) | 498,000 | 85,000 | 352,000 | 645,000 |
+| Cycle Result | Positive | — | Break-even | Positive |
 | Rolldown Volume | 715,000 | 120,000 | 520,000 | 920,000 |
 | Player EV (rolldown) | $2.81 | $0.15 | $2.58 | $3.08 |
 

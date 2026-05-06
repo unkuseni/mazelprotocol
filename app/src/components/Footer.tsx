@@ -112,8 +112,8 @@ export default function Footer() {
               </div>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              The first intentionally exploitable lottery on Solana. Positive-EV
-              rolldown mechanics designed for strategic players.
+              A provably fair lottery protocol on Solana. Transparent
+              rolldown mechanics with publicly verifiable randomness.
             </p>
 
             {/* Social icons */}
@@ -244,6 +244,12 @@ export default function Footer() {
               className="hover:text-muted-foreground transition-colors"
             >
               Responsible Gaming
+            </Link>
+            <Link
+              to="/"
+              className="hover:text-muted-foreground transition-colors"
+            >
+              Restricted Jurisdictions
             </Link>
           </div>
         </div>

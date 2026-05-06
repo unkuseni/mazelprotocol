@@ -138,11 +138,10 @@ function DataTable({
             {headers.map((h, i) => (
               <th
                 key={h}
-                className={`text-left py-2 px-2 font-bold ${
-                  i === highlightCol
-                    ? "text-emerald-light"
-                    : "text-muted-foreground"
-                }`}
+                className={`text-left py-2 px-2 font-bold ${i === highlightCol
+                  ? "text-emerald-light"
+                  : "text-muted-foreground"
+                  }`}
               >
                 {h}
               </th>
@@ -157,12 +156,11 @@ function DataTable({
             >
               {row.map((cell, ci) => (
                 <td
-                  key={`${row[0]}-${ci}`}
-                  className={`py-2 px-2 ${
-                    ci === highlightCol
-                      ? "text-emerald-light font-semibold"
-                      : "text-muted-foreground"
-                  }`}
+                  key={`${row[0] || 'hdr'}-${headers[ci] || ci}`}
+                  className={`py-2 px-2 ${ci === highlightCol
+                    ? "text-emerald-light font-semibold"
+                    : "text-muted-foreground"
+                    }`}
                 >
                   {cell}
                 </td>
@@ -384,11 +382,10 @@ function RandomnessFlow() {
           <div key={s.step} className="flex gap-3">
             <div className="flex flex-col items-center">
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black ${
-                  i === 3
-                    ? "bg-emerald/20 text-emerald-light border border-emerald/30"
-                    : "bg-foreground/5 text-muted-foreground border border-foreground/10"
-                }`}
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black ${i === 3
+                  ? "bg-emerald/20 text-emerald-light border border-emerald/30"
+                  : "bg-foreground/5 text-muted-foreground border border-foreground/10"
+                  }`}
               >
                 {s.step}
               </div>
@@ -754,7 +751,7 @@ function WhitepaperPage() {
                     ],
                     ["Accessibility", "$2.50 ticket price on low-fee Solana"],
                     [
-                      "Intentional Exploitability",
+                      "Favorable Distribution Events",
                       "Rolldown mechanism creates +EV windows for players",
                     ],
                     [
@@ -827,7 +824,7 @@ function WhitepaperPage() {
                 <Callout variant="info" title="Inspired by Real History">
                   MazelProtocol takes the proven Cash WinFall mechanics and
                   makes them transparent, decentralized, and intentional. We
-                  <em> want</em> players to exploit the rolldown.
+                  <em> want</em> players to benefit from the rolldown.
                 </Callout>
               </div>
 

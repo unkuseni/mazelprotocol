@@ -554,7 +554,7 @@ pub fn buy_ticket_with_jito(
 
 ### 4.1 Overview
 
-A high-frequency mini-lottery featuring the **same rolldown mechanics and +EV exploit as the main lottery**, running every 4 hours (6x daily). This exclusive game provides continuous engagement between main draws and is only accessible to players who have demonstrated commitment to the main lottery.
+A high-frequency mini-lottery featuring the **same rolldown mechanics and +EV opportunity as the main lottery**, running every 4 hours (6x daily). This exclusive game provides continuous engagement between main draws and is only accessible to players who have demonstrated commitment to the main lottery.
 
 > **🔒 PRIZE TRANSITION SYSTEM:** All Quick Pick prizes START as FIXED amounts during normal mode, then TRANSITION to PARI-MUTUEL (shared pool) during rolldown events. This hybrid system ensures operator liability is ALWAYS CAPPED while maintaining attractive +EV windows for players.
 
@@ -640,11 +640,11 @@ During normal operation (Jackpot < $30,000), prizes are **FIXED amounts**:
 | **3** | **FIXED** | $4 | 1 in 74.6 | $0.054 |
 | **Total EV** | | | | **$0.12 - $0.22** |
 
-**House Edge (Normal):** ~85-92% — funds the rolldown exploit
+**House Edge (Normal):** ~85-92% — funds the rolldown advantage
 
 **Pari-Mutuel Transition Trigger:** If (Winner Count × Fixed Prize) > Prize Pool, automatic transition to pari-mutuel occurs to cap operator liability.
 
-### 4.7 🔥 Prize Structure - Rolldown Mode — PARI-MUTUEL (THE EXPLOIT)
+### 4.7 🔥 Prize Structure - Rolldown Mode — PARI-MUTUEL (FAVORABLE DISTRIBUTION)
 
 > **🔒 CRITICAL TRANSITION:** During rolldown, ALL prizes transition from FIXED to **PARI-MUTUEL**. Operator liability is CAPPED at exactly the jackpot amount ($30,000-$50,000), regardless of ticket volume or winner count.
 
@@ -661,7 +661,7 @@ When jackpot caps and no Match 5 winner, the **full jackpot distributes down usi
 
 ### 🎯 **Player Edge (Rolldown): +66.7%** 
 
-**This is the exploit!** During rolldown:
+**This creates a favorable distribution event.** During rolldown:
 - Ticket costs $1.50
 - Expected return is $2.50 (EV = J/N exactly, since there is no Match 2 prize)
 - **Profit: +$1.00 per ticket**
@@ -996,7 +996,7 @@ pub fn execute_quick_pick_draw(
         // Reset jackpot to seed
         state.jackpot_balance = state.seed_amount;
     } else if should_quick_pick_rolldown(state.jackpot_balance, random_value) {
-        // No jackpot winner and rolldown triggered — THE EXPLOIT!
+        // No jackpot winner and rolldown triggered — FAVORABLE DISTRIBUTION EVENT
         let jackpot_to_distribute = state.jackpot_balance;
         
         // Calculate rolldown prizes (60% to Match 4, 40% to Match 3)
@@ -1081,7 +1081,7 @@ fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> Result<()> {
 
 **House Edge:** ($1.50 - $0.19) / $1.50 = **87%**
 
-#### 🔥 Rolldown Mode (THE EXPLOIT — Full Jackpot Distribution)
+#### 🔥 Rolldown Mode (FAVORABLE DISTRIBUTION — Full Jackpot Distribution)
 
 | Match | Calculation | Expected Value |
 |-------|-------------|----------------|
@@ -1094,7 +1094,7 @@ fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> Result<()> {
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│                  THE QUICK PICK EXPLOIT                 │
+│                  QUICK PICK FAVORABLE DISTRIBUTION                 │
 ├────────────────────────────────────────────────────────┤
 │   Ticket Cost:        $1.50                            │
 │   Expected Return:    $2.50  (EV = J/N exactly)        │
@@ -1185,7 +1185,7 @@ Combined with Main Lottery (Corrected):
 
 *Note: All calculations use the corrected operator P&L model where house fees are operator revenue and prize payouts come from the self-sustaining prize pool. Pari-mutuel transition caps operator liability during high-volume rolldown events.*
 
-### 4.13 Why This Works: The Rolldown Exploit Economics
+### 4.13 Why This Works: The Rolldown Favorable Distribution Economics
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -1202,7 +1202,7 @@ Combined with Main Lottery (Corrected):
 │  ├── Player edge: +67%                                  │
 │  ├── Operator still collects 28% house fee              │
 │  ├── Full jackpot distributes to M4/M3 winners          │
-│  └── PLAYERS WIN — This is the exploit!                 │
+│  └── PLAYERS WIN — This creates a favorable distribution event.                 │
 │                                                         │
 │  NET RESULT:                                            │
 │  ├── Normal mode profits > Rolldown mode costs          │
@@ -1234,7 +1234,7 @@ Combined with Main Lottery (Corrected):
 
 ### 5.15 Strategy Guide for Players
 
-#### The Quick Pick Exploit Strategy
+#### The Quick Pick Favorable Distribution Strategy
 
 1. **Qualify First**: Spend $50+ in the main lottery to unlock Quick Pick Express
 2. **Monitor Jackpot**: Watch as it grows toward the $30,000 soft cap

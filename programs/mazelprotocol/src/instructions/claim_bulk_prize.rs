@@ -262,6 +262,13 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
         _ => 0,
     };
 
+    // TODO: Apply streak bonus when properly integrated with solvency system.
+    // Streak bonuses require pre-funding in finalize_draw and tracking in
+    // draw_result to ensure the prize pool can cover the additional liability.
+    // For now, streaks are tracked but bonuses are not yet applied to prizes.
+    // See: get_streak_bonus_bps() in state.rs for the bonus calculation logic.
+    let _streak_bonus_bps = ctx.accounts.user_stats.get_streak_bonus_bps();
+
     // Check if there's a prize to claim
     let has_prize = prize_amount > 0;
 
@@ -588,6 +595,13 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
             2 => ctx.accounts.draw_result.match_2_prize_per_winner,
             _ => 0,
         };
+
+        // TODO: Apply streak bonus when properly integrated with solvency system.
+        // Streak bonuses require pre-funding in finalize_draw and tracking in
+        // draw_result to ensure the prize pool can cover the additional liability.
+        // For now, streaks are tracked but bonuses are not yet applied to prizes.
+        // See: get_streak_bonus_bps() in state.rs for the bonus calculation logic.
+        let _streak_bonus_bps = ctx.accounts.user_stats.get_streak_bonus_bps();
 
         if match_count == 2 && prize_amount > 0 {
             // Free ticket credit

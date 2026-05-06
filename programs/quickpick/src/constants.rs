@@ -169,23 +169,9 @@ pub const QUICK_PICK_TICKET_SIZE: usize = 8 +  // discriminator
     1 +    // bump
     8; // padding
 
-/// Quick Pick Draw Result account size
-pub const QUICK_PICK_DRAW_RESULT_SIZE: usize = 8 +  // discriminator
-    8 +    // draw_id
-    5 +    // winning_numbers (5 numbers for 5/35)
-    32 +   // randomness_proof
-    8 +    // timestamp
-    8 +    // total_tickets
-    1 +    // was_rolldown
-    4 +    // match_5_winners
-    4 +    // match_4_winners
-    4 +    // match_3_winners
-    8 +    // match_5_prize_per_winner (jackpot)
-    8 +    // match_4_prize_per_winner
-    8 +    // match_3_prize_per_winner
-    1 +    // is_explicitly_finalized
-    1 +    // bump
-    16; // padding
+/// Quick Pick Draw Result account size is now derived at compile time via
+/// `8 + std::mem::size_of::<QuickPickDrawResult>()` in QuickPickDrawResult::LEN.
+/// The explicit constant was removed to prevent desync with the struct definition.
 
 // ============================================================================
 // HELPER FUNCTIONS

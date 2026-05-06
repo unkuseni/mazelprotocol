@@ -82,17 +82,15 @@ function FlowStep({
   return (
     <div className="relative">
       <div
-        className={`glass rounded-xl p-4 sm:p-5 transition-all ${
-          highlight ? "border-emerald/20 shadow-sm shadow-emerald/5" : ""
-        }`}
+        className={`glass rounded-xl p-4 sm:p-5 transition-all ${highlight ? "border-emerald/20 shadow-sm shadow-emerald/5" : ""
+          }`}
       >
         <div className="flex items-start gap-3">
           <div
-            className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black ${
-              highlight
+            className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black ${highlight
                 ? "bg-emerald/20 border border-emerald/30 text-emerald-light"
                 : "bg-foreground/4 border border-foreground/6 text-muted-foreground"
-            }`}
+              }`}
           >
             {step}
           </div>
@@ -143,9 +141,8 @@ function ComparisonRow({
         {normal}
       </div>
       <div
-        className={`text-[11px] sm:text-xs text-center font-bold truncate ${
-          rolldownHighlight ? "text-emerald-light" : "text-muted-foreground"
-        }`}
+        className={`text-[11px] sm:text-xs text-center font-bold truncate ${rolldownHighlight ? "text-emerald-light" : "text-muted-foreground"
+          }`}
       >
         {rolldown}
       </div>
@@ -169,9 +166,8 @@ function EVBar({ label, ev, maxEv, isPositive }: EVBarProps) {
       <div className="flex items-center justify-between text-xs">
         <span className="text-muted-foreground">{label}</span>
         <span
-          className={`font-bold ${
-            isPositive ? "text-emerald-light" : "text-red-400"
-          }`}
+          className={`font-bold ${isPositive ? "text-emerald-light" : "text-red-400"
+            }`}
         >
           {isPositive ? "+" : ""}
           {ev.toFixed(1)}%
@@ -179,11 +175,10 @@ function EVBar({ label, ev, maxEv, isPositive }: EVBarProps) {
       </div>
       <div className="h-2.5 bg-foreground/5 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-700 ease-out ${
-            isPositive
+          className={`h-full rounded-full transition-all duration-700 ease-out ${isPositive
               ? "bg-linear-to-r from-emerald-dark to-emerald-light"
               : "bg-linear-to-r from-red-600 to-red-400"
-          }`}
+            }`}
           style={{ width: `${width}%` }}
         />
       </div>
@@ -557,7 +552,7 @@ function LearnRolldownPage() {
                       strategic syndicates discovered that the rolldown created
                       consistent +EV opportunities. MazelProtocol makes this
                       transparent and <em>intentional</em> — we want players to
-                      exploit it.
+                      benefit from it.
                     </p>
                   </div>
                 </div>
@@ -962,7 +957,7 @@ function LearnRolldownPage() {
                     </span>
                     . Time your purchases when you spot a rolldown window
                     forming and you&apos;re splitting a massive pool with fewer
-                    players. That&apos;s the exploit.
+                    players. That&apos;s the favorable distribution mechanism.
                   </p>
                 </div>
               </div>
@@ -1002,11 +997,10 @@ function LearnRolldownPage() {
                   ].map((lottery) => (
                     <div
                       key={lottery.name}
-                      className={`p-2.5 rounded-lg text-center ${
-                        lottery.name === "MazelProtocol"
+                      className={`p-2.5 rounded-lg text-center ${lottery.name === "MazelProtocol"
                           ? "bg-emerald/6 border border-emerald/20"
                           : "bg-foreground/2"
-                      }`}
+                        }`}
                     >
                       <div className="text-[10px] text-muted-foreground mb-0.5">
                         {lottery.name}
@@ -1059,7 +1053,7 @@ function LearnRolldownPage() {
                       Average Rolldown Cycle
                     </div>
                     <div className="text-[9px] text-muted-foreground/60 mt-0.5">
-                      Regular +EV windows to exploit
+                      Regular +EV windows to take advantage of
                     </div>
                   </div>
                 </div>
@@ -1068,7 +1062,7 @@ function LearnRolldownPage() {
               <div className="p-3 rounded-xl bg-emerald/3 border border-emerald/10">
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   <span className="font-bold text-emerald-light">
-                    The rolldown is designed for you to exploit.
+                    The rolldown is designed for you to benefit from.
                   </span>{" "}
                   Every ~15 days, the jackpot caps and the entire pool
                   redistributes to lower-tier winners. Smart players monitor the
