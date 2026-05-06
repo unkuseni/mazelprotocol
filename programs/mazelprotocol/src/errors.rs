@@ -638,6 +638,14 @@ pub enum LottoError {
     /// Failed to deserialize a ticket account from remaining_accounts
     #[msg("Failed to deserialize ticket account from remaining_accounts.")]
     InvalidTicketAccount,
+
+    /// Rolldown ticket cap has been reached for this draw
+    #[msg("Rolldown ticket cap reached. No more tickets can be purchased this draw.")]
+    RolldownTicketCapReached,
+
+    /// Draw advancement timeout has not elapsed yet. Wait for the bot or timeout.
+    #[msg("Draw advancement not ready. Timeout period has not elapsed.")]
+    DrawAdvancementNotReady,
 }
 
 impl From<LottoError> for ProgramError {

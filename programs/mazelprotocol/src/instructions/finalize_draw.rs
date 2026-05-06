@@ -1442,4 +1442,590 @@ mod tests {
         assert!(result.match_4_prize < MATCH_4_PRIZE);
         assert!(result.match_3_prize < MATCH_3_PRIZE);
     }
+
+    // =========================================================================
+    // COMPREHENSIVE PRIZE CALCULATION TESTS
+    // =========================================================================
+
+    /// Test fixed prizes with normal winner counts and sufficient funds.
+    /// Verifies exact prize amounts: Match 5=$4000, Match 4=$150, Match 3=$5.
+    #[test]
+    fn test_calculate_fixed_prizes_normal() {
+        let winner_counts = WinnerCounts {
+            match_6: 0,
+            match_5: 3,
+            match_4: 25,
+            match_3: 200,
+            match_2: 1000,
+        };
+
+        // Required: 3*$4000 + 25*$150 + 200*$5 = $12,000 + $3,750 + $1,000 = $16,750
+        // Jackpot: $1M (not used since no match_6 winner)
+        // Available: $2M (plenty for fixed prizes)
+        let jackpot = 1_000_000_000_000u64;
+        let available_prize_pool = 2_000_000_000_000u64;
+
+        let result = calculate_fixed_prizes(&winner_counts, jackpot, available_prize_pool);
+
+        // Match 6 should be 0 (no jackpot winner)
+        assert_eq!(result.match_6_prize, 0);
+
+        // Fixed prizes should be at their full values
+        assert_eq!(
+            result.match_5_prize, MATCH_5_PRIZE,
+            "Match 5 prize should be $4,000 (in micro-units)"
+        );
+        assert_eq!(
+            result.match_4_prize, MATCH_4_PRIZE,
+            "Match 4 prize should be $150 (in micro-units)"
+        );
+        assert_eq!(
+            result.match_3_prize, MATCH_3_PRIZE,
+            "Match 3 prize should be $5 (in micro-units)"
+        );
+        assert_eq!(
+            result.match_2_prize, MATCH_2_VALUE,
+            "Match 2 prize should be $2.50 free ticket credit"
+        );
+
+        // No scaling should occur
+        assert!(
+            !result.was_scaled_down,
+            "Should not scale with sufficient funds"
+        );
+        assert_eq!(
+            result.scale_factor_bps, 10000,
+            "Scale factor should be 100%"
+        );
+
+        // Total distributed = (3 * $4000) + (25 * $150) + (200 * $5)
+        // Match 2 is free ticket credit, not included in USDC total
+        let expected_total = (MATCH_5_PRIZE * 3) + (MATCH_4_PRIZE * 25) + (MATCH_3_PRIZE * 200);
+        assert_eq!(result.total_distributed, expected_total);
+        assert_eq!(result.undistributed, 0);
+    }
+
+    /// Test fixed prizes when available funds are insufficient.
+    /// Prizes should scale down proportionally with scale_factor_bps ~5000 (50%).
+    #[test]
+    fn test_calculate_fixed_prizes_scaled() {
+        let winner_counts = WinnerCounts {
+            match_6: 0,
+            match_5: 5,
+            match_4: 10,
+            match_3: 100,
+            match_2: 0,
+        };
+
+        // Required: 5*$4000 + 10*$150 + 100*$5 = $20,000 + $1,500 + $500 = $22,000
+        let required_fixed: u64 = MATCH_5_PRIZE * 5 + MATCH_4_PRIZE * 10 + MATCH_3_PRIZE * 100;
+
+        // Available: exactly half of what's needed → scale_factor_bps = 5000
+        let available_prize_pool = required_fixed / 2;
+
+        let jackpot = 1_000_000_000_000u64;
+
+        let result = calculate_fixed_prizes(&winner_counts, jackpot, available_prize_pool);
+
+        // Scaling must be triggered
+        assert!(
+            result.was_scaled_down,
+            "Should scale down when funds are insufficient"
+        );
+
+        // Scale factor should be ~5000 bps (50%) — allow small rounding tolerance
+        let expected_scale = 5000u16;
+        let scale_diff = if result.scale_factor_bps > expected_scale {
+            result.scale_factor_bps - expected_scale
+        } else {
+            expected_scale - result.scale_factor_bps
+        };
+        assert!(
+            scale_diff <= 1,
+            "Scale factor should be ~5000 bps, got {}",
+            result.scale_factor_bps
+        );
+
+        // Prizes should be approximately half the fixed amounts
+        // (allowing for integer division rounding)
+        let expected_m5 = MATCH_5_PRIZE / 2;
+        let expected_m4 = MATCH_4_PRIZE / 2;
+        let expected_m3 = MATCH_3_PRIZE / 2;
+
+        let m5_diff = if result.match_5_prize > expected_m5 {
+            result.match_5_prize - expected_m5
+        } else {
+            expected_m5 - result.match_5_prize
+        };
+        let m4_diff = if result.match_4_prize > expected_m4 {
+            result.match_4_prize - expected_m4
+        } else {
+            expected_m4 - result.match_4_prize
+        };
+        let m3_diff = if result.match_3_prize > expected_m3 {
+            result.match_3_prize - expected_m3
+        } else {
+            expected_m3 - result.match_3_prize
+        };
+
+        // Allow 1-unit rounding tolerance for each prize
+        assert!(
+            m5_diff <= 1,
+            "Match 5 prize should be ~${}, got ${}",
+            expected_m5,
+            result.match_5_prize
+        );
+        assert!(
+            m4_diff <= 1,
+            "Match 4 prize should be ~${}, got ${}",
+            expected_m4,
+            result.match_4_prize
+        );
+        assert!(
+            m3_diff <= 1,
+            "Match 3 prize should be ~${}, got ${}",
+            expected_m3,
+            result.match_3_prize
+        );
+
+        // Prizes must be strictly less than full amounts
+        assert!(result.match_5_prize < MATCH_5_PRIZE);
+        assert!(result.match_4_prize < MATCH_4_PRIZE);
+        assert!(result.match_3_prize < MATCH_3_PRIZE);
+
+        // Match 2 is free ticket credit — never scaled
+        assert_eq!(result.match_2_prize, MATCH_2_VALUE);
+    }
+
+    /// Test fixed prizes when there are zero winners in all tiers.
+    /// Per-winner prize amounts stay at their constant defaults (since no scaling
+    /// is triggered), but total_distributed is 0 because 0 winners × prize = 0.
+    #[test]
+    fn test_calculate_fixed_prizes_no_winners() {
+        let winner_counts = WinnerCounts {
+            match_6: 0,
+            match_5: 0,
+            match_4: 0,
+            match_3: 0,
+            match_2: 0,
+        };
+
+        let jackpot = 1_000_000_000_000u64;
+        let available_prize_pool = 500_000_000_000u64;
+
+        let result = calculate_fixed_prizes(&winner_counts, jackpot, available_prize_pool);
+
+        // No jackpot winner → match_6_prize = 0
+        assert_eq!(result.match_6_prize, 0);
+
+        // Per-winner prize defaults to the full constant when total_fixed_required == 0
+        // (the else branch sets the full prize amounts since no scaling is needed)
+        assert_eq!(
+            result.match_5_prize, MATCH_5_PRIZE,
+            "Per-winner prize stays at default constant when no winners"
+        );
+        assert_eq!(
+            result.match_4_prize, MATCH_4_PRIZE,
+            "Per-winner prize stays at default constant when no winners"
+        );
+        assert_eq!(
+            result.match_3_prize, MATCH_3_PRIZE,
+            "Per-winner prize stays at default constant when no winners"
+        );
+        assert_eq!(
+            result.match_2_prize, MATCH_2_VALUE,
+            "Match 2 is always free ticket credit"
+        );
+
+        // But total_distributed is 0 because there are zero winners
+        assert_eq!(
+            result.total_distributed, 0,
+            "Nothing distributed with zero winners"
+        );
+        assert!(
+            !result.was_scaled_down,
+            "No scaling needed when no prizes to pay"
+        );
+
+        // With all zeros, total_fixed_required = 0, so no scaling branch is entered
+        assert_eq!(result.scale_factor_bps, 10000);
+        assert_eq!(result.undistributed, 0);
+    }
+
+    /// Test rolldown prize calculation with winners in all tiers.
+    /// Verifies pari-mutuel calculation: each tier's prize = pool / winners.
+    #[test]
+    fn test_calculate_rolldown_prizes_normal() {
+        let winner_counts = WinnerCounts {
+            match_6: 0, // Rolldown means no jackpot winner
+            match_5: 10,
+            match_4: 500,
+            match_3: 10000,
+            match_2: 50000,
+        };
+
+        let jackpot = 1_750_000_000_000u64; // $1.75M (soft cap)
+
+        let result = calculate_rolldown_prizes(&winner_counts, jackpot);
+
+        // Match 6 is always 0 in rolldown
+        assert_eq!(result.match_6_prize, 0);
+
+        // Calculate expected pool allocations
+        // 25% to Match 5, 35% to Match 4, 40% to Match 3
+        let expected_match_5_pool =
+            (jackpot as u128 * ROLLDOWN_MATCH_5_BPS as u128 / BPS_DENOMINATOR as u128) as u64;
+        let expected_match_4_pool =
+            (jackpot as u128 * ROLLDOWN_MATCH_4_BPS as u128 / BPS_DENOMINATOR as u128) as u64;
+        let expected_match_3_pool =
+            (jackpot as u128 * ROLLDOWN_MATCH_3_BPS as u128 / BPS_DENOMINATOR as u128) as u64;
+
+        // Pari-mutuel: each tier's per-winner prize = pool / winner count
+        let expected_m5 = expected_match_5_pool / 10;
+        let expected_m4 = expected_match_4_pool / 500;
+        let expected_m3 = expected_match_3_pool / 10000;
+
+        assert_eq!(
+            result.match_5_prize, expected_m5,
+            "Match 5: pool={} / winners=10 = {}",
+            expected_match_5_pool, expected_m5
+        );
+        assert_eq!(
+            result.match_4_prize, expected_m4,
+            "Match 4: pool={} / winners=500 = {}",
+            expected_match_4_pool, expected_m4
+        );
+        assert_eq!(
+            result.match_3_prize, expected_m3,
+            "Match 3: pool={} / winners=10000 = {}",
+            expected_match_3_pool, expected_m3
+        );
+
+        // Match 2 is always free ticket credit
+        assert_eq!(result.match_2_prize, MATCH_2_VALUE);
+        assert!(!result.was_scaled_down);
+    }
+
+    /// Test rolldown redistribution when some tiers have no winners.
+    /// The pool from empty tiers should redistribute proportionally to tiers with winners.
+    #[test]
+    fn test_calculate_rolldown_prizes_empty_tiers() {
+        let jackpot = 1_000_000_000_000u64; // $1M
+
+        // --- Case 1: Match 5 empty, Match 4 and Match 3 have winners ---
+        // The Match 5 pool (25%) redistributes to Match 4 and Match 3
+        // proportionally: Match 4 gets 35/75 of the 25%, Match 3 gets 40/75.
+        {
+            let winner_counts = WinnerCounts {
+                match_6: 0,
+                match_5: 0, // No Match 5 winners → pool redistributes
+                match_4: 100,
+                match_3: 5000,
+                match_2: 0,
+            };
+
+            let result = calculate_rolldown_prizes(&winner_counts, jackpot);
+
+            assert_eq!(result.match_6_prize, 0);
+            assert_eq!(result.match_5_prize, 0, "No match_5 winners → prize = 0");
+
+            // Match 4 original: 35% of jackpot = $350,000
+            // Plus redistribution of 25% * (35/75) = 11.667% of jackpot = $116,667
+            // Total: 46.667% of jackpot = $466,667
+            // Per winner: $466,667 / 100 = $4,666.67
+            assert!(
+                result.match_4_prize > 0,
+                "Match 4 should receive redistributed funds"
+            );
+            assert!(
+                result.match_3_prize > 0,
+                "Match 3 should receive redistributed funds"
+            );
+
+            // Total paid should be close to full jackpot (minus integer division dust)
+            let total_paid = result.match_4_prize * 100 + result.match_3_prize * 5000;
+            assert!(total_paid <= jackpot, "Total paid must not exceed jackpot");
+            // Should be at least 99.9% of jackpot (allowing < 0.1% dust)
+            assert!(
+                total_paid >= jackpot * 999 / 1000,
+                "Total paid {} should be >= 99.9% of jackpot {}",
+                total_paid,
+                jackpot
+            );
+        }
+
+        // --- Case 2: Only Match 4 has winners (Match 5 and Match 3 empty) ---
+        {
+            let winner_counts = WinnerCounts {
+                match_6: 0,
+                match_5: 0,
+                match_4: 10,
+                match_3: 0,
+                match_2: 0,
+            };
+
+            let result = calculate_rolldown_prizes(&winner_counts, jackpot);
+
+            assert_eq!(result.match_5_prize, 0);
+            assert_eq!(result.match_3_prize, 0);
+
+            // Match 4 should get the entire jackpot (all redistributed to it)
+            // Only dust from integer division remains
+            let expected_m4 = jackpot / 10;
+            assert_eq!(
+                result.match_4_prize, expected_m4,
+                "When only Match 4 has winners, it gets the full jackpot"
+            );
+        }
+
+        // --- Case 3: Only Match 3 has winners (Match 5 and Match 4 empty) ---
+        {
+            let winner_counts = WinnerCounts {
+                match_6: 0,
+                match_5: 0,
+                match_4: 0,
+                match_3: 1000,
+                match_2: 0,
+            };
+
+            let result = calculate_rolldown_prizes(&winner_counts, jackpot);
+
+            assert_eq!(result.match_5_prize, 0);
+            assert_eq!(result.match_4_prize, 0);
+
+            // Match 3 should get the entire jackpot
+            let expected_m3 = jackpot / 1000;
+            assert_eq!(
+                result.match_3_prize, expected_m3,
+                "When only Match 3 has winners, it gets the full jackpot"
+            );
+        }
+
+        // --- Case 4: Match 5 and Match 3 have winners, Match 4 empty ---
+        {
+            let winner_counts = WinnerCounts {
+                match_6: 0,
+                match_5: 5,
+                match_4: 0, // Empty tier
+                match_3: 2000,
+                match_2: 0,
+            };
+
+            let result = calculate_rolldown_prizes(&winner_counts, jackpot);
+
+            assert_eq!(result.match_4_prize, 0, "No match_4 winners → prize = 0");
+            assert!(
+                result.match_5_prize > 0,
+                "Match 5 should get its base + redistribution"
+            );
+            assert!(
+                result.match_3_prize > 0,
+                "Match 3 should get its base + redistribution"
+            );
+
+            // Match 5 original: 25%, plus redistribution of 35% * (25/65) ≈ 13.46%
+            // Match 5 total: ~38.46% of jackpot
+            // Match 3 original: 40%, plus redistribution of 35% * (40/65) ≈ 21.54%
+            // Match 3 total: ~61.54% of jackpot
+            let total_paid = result.match_5_prize * 5 + result.match_3_prize * 2000;
+            assert!(total_paid <= jackpot);
+            assert!(total_paid >= jackpot * 999 / 1000);
+        }
+    }
+
+    /// Test rolldown when no tier has winners (only Match 2, which is free tickets).
+    /// All prize amounts should be 0, and the jackpot is preserved (keep_jackpot=true).
+    #[test]
+    fn test_calculate_rolldown_prizes_no_winners() {
+        let winner_counts = WinnerCounts {
+            match_6: 0,
+            match_5: 0,
+            match_4: 0,
+            match_3: 0,
+            match_2: 5000, // Free ticket winners only — no cash prizes
+        };
+
+        let jackpot = 2_000_000_000_000u64;
+
+        let result = calculate_rolldown_prizes(&winner_counts, jackpot);
+
+        // All cash prize tiers should be 0
+        assert_eq!(result.match_6_prize, 0);
+        assert_eq!(result.match_5_prize, 0);
+        assert_eq!(result.match_4_prize, 0);
+        assert_eq!(result.match_3_prize, 0);
+
+        // Match 2 prize is always free ticket credit
+        assert_eq!(result.match_2_prize, MATCH_2_VALUE);
+
+        // No cash distributed
+        assert_eq!(
+            result.total_distributed, 0,
+            "No USDC distributed since no cash-prize tier has winners"
+        );
+
+        // When tiers_with_winners == 0: undistributed = 0 and jackpot is preserved
+        // (The keep_jackpot flag is true internally, resulting in 0 undistributed)
+        assert_eq!(
+            result.undistributed, 0,
+            "Jackpot is preserved (keep_jackpot=true), not moved to undistributed"
+        );
+
+        // calculation_details should indicate jackpot preservation
+        assert!(
+            result.calculation_details.contains("preserved")
+                || result.calculation_details.contains("no winners"),
+            "Details should mention jackpot preservation: {}",
+            result.calculation_details
+        );
+    }
+
+    /// Verify that for any winner distribution, total prizes distributed
+    /// (prize * winners per tier) never exceeds the jackpot.
+    /// Tests with several winner count combinations.
+    #[test]
+    fn test_rolldown_prize_sum_equals_jackpot() {
+        let jackpot = 2_000_000_000_000u64; // $2M
+
+        // Test various winner distributions
+        let test_cases: Vec<WinnerCounts> = vec![
+            // All tiers have winners
+            WinnerCounts {
+                match_6: 0,
+                match_5: 1,
+                match_4: 1,
+                match_3: 1,
+                match_2: 0,
+            },
+            // Many winners spread across tiers
+            WinnerCounts {
+                match_6: 0,
+                match_5: 10,
+                match_4: 100,
+                match_3: 1000,
+                match_2: 5000,
+            },
+            // Only Match 5 has winners
+            WinnerCounts {
+                match_6: 0,
+                match_5: 3,
+                match_4: 0,
+                match_3: 0,
+                match_2: 0,
+            },
+            // Only Match 4 has winners
+            WinnerCounts {
+                match_6: 0,
+                match_5: 0,
+                match_4: 50,
+                match_3: 0,
+                match_2: 0,
+            },
+            // Only Match 3 has winners
+            WinnerCounts {
+                match_6: 0,
+                match_5: 0,
+                match_4: 0,
+                match_3: 500,
+                match_2: 0,
+            },
+            // Match 4 + Match 3 (no Match 5)
+            WinnerCounts {
+                match_6: 0,
+                match_5: 0,
+                match_4: 20,
+                match_3: 300,
+                match_2: 0,
+            },
+            // Match 5 + Match 3 (no Match 4)
+            WinnerCounts {
+                match_6: 0,
+                match_5: 7,
+                match_4: 0,
+                match_3: 800,
+                match_2: 0,
+            },
+            // Many Match 5 winners, few in lower tiers
+            WinnerCounts {
+                match_6: 0,
+                match_5: 100,
+                match_4: 5,
+                match_3: 2,
+                match_2: 0,
+            },
+            // Asymmetric distribution
+            WinnerCounts {
+                match_6: 0,
+                match_5: 2,
+                match_4: 500,
+                match_3: 20,
+                match_2: 0,
+            },
+            // Single winner in each tier
+            WinnerCounts {
+                match_6: 0,
+                match_5: 1,
+                match_4: 1,
+                match_3: 1,
+                match_2: 100,
+            },
+        ];
+
+        for (i, winner_counts) in test_cases.iter().enumerate() {
+            let result = calculate_rolldown_prizes(winner_counts, jackpot);
+
+            // Calculate total actually distributed to winners
+            let total_paid = (result.match_5_prize as u128 * winner_counts.match_5 as u128)
+                + (result.match_4_prize as u128 * winner_counts.match_4 as u128)
+                + (result.match_3_prize as u128 * winner_counts.match_3 as u128);
+            // Note: Match 2 is free ticket credit, not USDC, so excluded
+
+            // Total paid must never exceed the jackpot
+            assert!(
+                total_paid <= jackpot as u128,
+                "Case {}: total_paid={} exceeds jackpot={}",
+                i,
+                total_paid,
+                jackpot
+            );
+
+            // Total paid + undistributed + division_remainder should equal jackpot
+            // (except for the no-winner case where jackpot is preserved)
+            let has_cash_winners =
+                winner_counts.match_5 > 0 || winner_counts.match_4 > 0 || winner_counts.match_3 > 0;
+
+            if has_cash_winners {
+                // The sum of paid + undistributed dust should equal the jackpot
+                // (allowing for the fact that undistributed includes division remainder)
+                let accounted = total_paid + result.undistributed as u128;
+                assert!(
+                    accounted <= jackpot as u128,
+                    "Case {}: accounted={} exceeds jackpot={}",
+                    i,
+                    accounted,
+                    jackpot
+                );
+                // Accounted should be very close to jackpot (within dust tolerance)
+                // Dust is at most winners_per_tier - 1 per tier
+                let max_dust = (winner_counts.match_5.saturating_sub(1) as u128)
+                    + (winner_counts.match_4.saturating_sub(1) as u128)
+                    + (winner_counts.match_3.saturating_sub(1) as u128);
+                let unaccounted = jackpot as u128 - accounted;
+                assert!(
+                    unaccounted <= max_dust,
+                    "Case {}: unaccounted={} exceeds max_dust={}",
+                    i,
+                    unaccounted,
+                    max_dust
+                );
+            }
+
+            // Match 6 prize is always 0 in rolldown
+            assert_eq!(
+                result.match_6_prize, 0,
+                "Case {}: match_6 should be 0 in rolldown",
+                i
+            );
+        }
+    }
 }

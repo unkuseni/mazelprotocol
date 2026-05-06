@@ -11,8 +11,8 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::*;
 use crate::errors::LottoError;
-use crate::events::{JackpotSeeded, LotteryInitialized};
-use crate::state::LotteryState;
+use crate::events::{JackpotSeeded, LotteryInitialized, SoloAuthorityWarning};
+use crate::state::{LotteryState, UserStats};
 
 /// Parameters for initializing the lottery
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -178,6 +178,24 @@ pub fn handler(ctx: Context<Initialize>, params: InitializeParams) -> Result<()>
     // CRITICAL FIX: jackpot_balance starts at 0, not seed_amount
     // The fund_seed instruction must be called to deposit actual USDC
     lottery_state.authority = ctx.accounts.authority.key();
+
+    // H3: Multi-sig enforcement at deploy time.
+    // PDAs (used by Squads, etc.) are NOT on the ed25519 curve.
+    // A key on the curve is a regular solo keypair — a centralization risk.
+    if ctx.accounts.authority.key().is_on_curve() {
+        emit!(SoloAuthorityWarning {
+            authority: ctx.accounts.authority.key(),
+            message: "Authority is a regular keypair, not a multi-sig PDA. \
+                      Consider using a multi-sig wallet (Squads, etc.) for \
+                      production."
+                .to_string(),
+        });
+        msg!(
+            "⚠️  WARNING: Authority {} is a regular keypair, not a multi-sig PDA.",
+            ctx.accounts.authority.key()
+        );
+    }
+
     lottery_state.switchboard_queue = params.switchboard_queue;
     lottery_state.current_randomness_account = Pubkey::default();
     lottery_state.current_draw_id = 1; // First draw
@@ -205,7 +223,9 @@ pub fn handler(ctx: Context<Initialize>, params: InitializeParams) -> Result<()>
     lottery_state.is_rolldown_active = false;
     lottery_state.is_paused = true; // FIXED: Start paused until funded
     lottery_state.is_funded = false; // FIXED: Track funding status
+    lottery_state.max_rolldown_tickets = DEFAULT_MAX_ROLLDOWN_TICKETS;
     lottery_state.pending_authority = None; // For two-step authority transfer
+    lottery_state.version = 1;
     lottery_state.bump = ctx.bumps.lottery_state;
 
     // Emit initialization event
@@ -421,5 +441,59 @@ pub fn handler_add_reserve_funds(ctx: Context<AddReserveFunds>, amount: u64) -> 
         lottery_state.reserve_balance
     );
 
+    Ok(())
+}
+
+// ============================================================================
+// INIT USER STATS INSTRUCTION
+// ============================================================================
+
+/// Accounts required for initializing user statistics
+#[derive(Accounts)]
+pub struct InitUserStats<'info> {
+    /// The user initializing their stats (pays for account creation)
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    /// User statistics account to initialize
+    #[account(
+        init,
+        payer = user,
+        space = USER_STATS_SIZE,
+        seeds = [USER_SEED, user.key().as_ref()],
+        bump
+    )]
+    pub user_stats: Account<'info, UserStats>,
+
+    /// System program
+    pub system_program: Program<'info, System>,
+}
+
+/// Initialize user statistics account
+///
+/// This must be called once per user before purchasing tickets.
+/// Creates the UserStats PDA that tracks tickets, spending, streaks, etc.
+/// Idempotent: will fail if the account already exists (Anchor's `init` constraint).
+///
+/// # Arguments
+/// * `ctx` - InitUserStats accounts context
+///
+/// # Returns
+/// * `Result<()>` - Success or error
+pub fn handler_init_user_stats(ctx: Context<InitUserStats>) -> Result<()> {
+    let user_stats = &mut ctx.accounts.user_stats;
+    user_stats.wallet = ctx.accounts.user.key();
+    user_stats.total_tickets = 0;
+    user_stats.total_spent = 0;
+    user_stats.total_won = 0;
+    user_stats.current_streak = 0;
+    user_stats.best_streak = 0;
+    user_stats.jackpot_wins = 0;
+    user_stats.last_draw_participated = 0;
+    user_stats.tickets_this_draw = 0;
+    user_stats.free_tickets_available = 0;
+    user_stats.bump = ctx.bumps.user_stats;
+
+    msg!("User stats initialized for {}", ctx.accounts.user.key());
     Ok(())
 }

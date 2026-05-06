@@ -394,7 +394,7 @@ pub struct QuickPickDrawResult {
 
 impl QuickPickDrawResult {
     /// Account size including discriminator
-    pub const LEN: usize = QUICK_PICK_DRAW_RESULT_SIZE;
+    pub const LEN: usize = 8 + std::mem::size_of::<QuickPickDrawResult>();
 
     /// Get the prize amount for a given match count
     pub fn get_prize_for_matches(&self, match_count: u8) -> u64 {

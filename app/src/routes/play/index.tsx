@@ -24,6 +24,10 @@ import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { FloatingBalls, LotteryBallRow } from "@/components/LotteryBalls";
 import { Button } from "@/components/ui/button";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
+import { useLotteryState, SOFT_CAP_USDC } from "@/hooks/use-lottery-state";
+import { useAnchorProvider } from "@/lib/anchor/provider";
+import { buyMainTicket, ensureUsdcTokenAccount } from "@/lib/anchor/transactions";
+import { useLotteryQueryClient } from "@/lib/anchor/hooks";
 
 export const Route = createFileRoute("/play/")({ component: PlayMainLottery });
 
@@ -83,12 +87,11 @@ function NumberGrid({ selected, onToggle, disabled }: NumberGridProps) {
               relative aspect-square rounded-xl flex items-center justify-center
               text-sm sm:text-base font-bold transition-all duration-200
               select-none cursor-pointer
-              ${
-                isSelected
-                  ? "bg-linear-to-br from-emerald-light to-emerald text-white shadow-lg shadow-emerald/30 scale-105 ring-2 ring-emerald-light/50"
-                  : isFull
-                    ? "bg-foreground/2 text-muted-foreground/60 cursor-not-allowed border border-foreground/3"
-                    : "bg-foreground/4 text-muted-foreground border border-foreground/6 hover:bg-foreground/8 hover:border-emerald/30 hover:text-foreground hover:scale-105 active:scale-95"
+              ${isSelected
+                ? "bg-linear-to-br from-emerald-light to-emerald text-white shadow-lg shadow-emerald/30 scale-105 ring-2 ring-emerald-light/50"
+                : isFull
+                  ? "bg-foreground/2 text-muted-foreground/60 cursor-not-allowed border border-foreground/3"
+                  : "bg-foreground/4 text-muted-foreground border border-foreground/6 hover:bg-foreground/8 hover:border-emerald/30 hover:text-foreground hover:scale-105 active:scale-95"
               }
             `}
           >
@@ -142,9 +145,9 @@ function TicketCard({
         </button>
       </div>
       <div className="flex items-center gap-1.5">
-        {numbers.map((num, i) => (
+        {numbers.map((num) => (
           <div
-            key={`${num}-${i}`}
+            key={num}
             className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold bg-linear-to-br from-emerald-light/20 to-emerald/10 border border-emerald/20 text-emerald-light"
           >
             {num}
@@ -160,6 +163,9 @@ interface CartSummaryProps {
   totalCost: number;
   onCheckout: () => void;
   walletConnected: boolean;
+  isPurchasing?: boolean;
+  purchaseError?: string | null;
+  purchaseTx?: string | null;
 }
 
 function CartSummary({
@@ -167,6 +173,9 @@ function CartSummary({
   totalCost,
   onCheckout,
   walletConnected,
+  isPurchasing = false,
+  purchaseError = null,
+  purchaseTx = null,
 }: CartSummaryProps) {
   return (
     <div className="glass-strong rounded-2xl p-5 sm:p-6 border-gradient-emerald">
@@ -195,18 +204,42 @@ function CartSummary({
         </div>
       </div>
 
+      {purchaseError && (
+        <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+          {purchaseError}
+        </div>
+      )}
+
+      {purchaseTx && (
+        <div className="mb-4 p-3 rounded-xl bg-emerald/10 border border-emerald/20">
+          <p className="text-xs font-bold text-emerald mb-1">Purchase successful!</p>
+          <p className="text-[10px] text-muted-foreground break-all">
+            TX: {purchaseTx}
+          </p>
+        </div>
+      )}
+
       {walletConnected ? (
         <Button
           onClick={onCheckout}
-          disabled={ticketCount === 0}
+          disabled={ticketCount === 0 || isPurchasing}
           className="w-full h-12 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none"
         >
-          <ShoppingCart size={18} />
-          {ticketCount > 1
-            ? `Buy ${ticketCount} Tickets`
-            : ticketCount === 1
-              ? "Buy Ticket"
-              : "Add Tickets First"}
+          {isPurchasing ? (
+            <span className="flex items-center gap-2">
+              <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Purchasing...
+            </span>
+          ) : (
+            <>
+              <ShoppingCart size={18} />
+              {ticketCount > 1
+                ? `Buy ${ticketCount} Tickets`
+                : ticketCount === 1
+                  ? "Buy Ticket"
+                  : "Add Tickets First"}
+            </>
+          )}
         </Button>
       ) : (
         <Button
@@ -238,10 +271,28 @@ function PlayMainLottery() {
   >([]);
   const [showPrizeInfo, setShowPrizeInfo] = useState(false);
 
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [purchaseTx, setPurchaseTx] = useState<string | null>(null);
+
   const { open } = useAppKit();
   const { isConnected: walletConnected } = useAppKitAccount();
-  const mockJackpot = 1_247_832;
-  const rolldownActive = mockJackpot >= 1_750_000;
+  const { canSign, connectedProvider } = useAnchorProvider();
+  const { invalidateMainLottery } = useLotteryQueryClient();
+
+  // Live on-chain lottery state (polls every 30s)
+  const {
+    jackpotDollars,
+    rolldownActive,
+    drawId: _drawId,
+    ticketsSold: _ticketsSold,
+    loading: jackpotLoading,
+    error: jackpotError,
+    refetch: refetchJackpot,
+  } = useLotteryState();
+  // Suppress unused-vars until drawId / ticketsSold are wired into the UI
+  void _drawId;
+  void _ticketsSold;
 
   const totalCost = useMemo(
     () => tickets.length * TICKET_PRICE,
@@ -296,16 +347,44 @@ function PlayMainLottery() {
     setTickets([]);
   }, []);
 
-  const handleCheckout = useCallback(() => {
+  const handleCheckout = useCallback(async () => {
     if (!walletConnected) {
       open({ view: "Connect", namespace: "solana" });
       return;
     }
-    // In a real app, this would trigger the on-chain transaction
-    alert(
-      `Purchasing ${tickets.length} ticket(s) for $${totalCost.toFixed(2)} USDC`,
-    );
-  }, [walletConnected, tickets.length, totalCost, open]);
+    // Trigger on-chain transaction via Anchor program
+    if (!connectedProvider || !canSign) {
+      setPurchaseError("Wallet not connected or cannot sign transactions");
+      return;
+    }
+    if (tickets.length === 0) return;
+
+    setIsPurchasing(true);
+    setPurchaseError(null);
+    setPurchaseTx(null);
+
+    try {
+      const playerUsdc = await ensureUsdcTokenAccount(connectedProvider, connectedProvider.wallet.publicKey);
+
+      const signatures: string[] = [];
+      for (const ticket of tickets) {
+        const sig = await buyMainTicket(
+          connectedProvider,
+          { numbers: ticket.numbers, useFreeTicket: false },
+          playerUsdc,
+        );
+        signatures.push(sig);
+      }
+
+      setPurchaseTx(signatures[signatures.length - 1]);
+      setTickets([]);
+      invalidateMainLottery();
+    } catch (err) {
+      setPurchaseError(err instanceof Error ? err.message : "Transaction failed");
+    } finally {
+      setIsPurchasing(false);
+    }
+  }, [walletConnected, connectedProvider, canSign, tickets, open, invalidateMainLottery]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -373,13 +452,48 @@ function PlayMainLottery() {
 
             {/* Jackpot & Countdown */}
             <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6">
-              <JackpotDisplay
-                amount={mockJackpot}
-                size="md"
-                glow
-                showRolldownStatus={false}
-                softCap={1_750_000}
-              />
+              {/* Loading skeleton */}
+              {jackpotLoading && (
+                <div className="relative rounded-2xl overflow-hidden px-5 py-4 bg-card/50 border border-border/50">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="h-5 w-28 animate-pulse rounded bg-foreground/10" />
+                    <div className="h-9 w-40 animate-pulse rounded bg-foreground/10" />
+                    <div className="h-3 w-20 animate-pulse rounded bg-foreground/10" />
+                  </div>
+                </div>
+              )}
+
+              {/* Error banner */}
+              {jackpotError && !jackpotLoading && (
+                <div className="relative rounded-2xl overflow-hidden px-5 py-4 bg-destructive/10 border border-destructive/30">
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <span className="text-sm font-semibold text-destructive">
+                      Failed to load jackpot
+                    </span>
+                    <p className="text-xs text-muted-foreground">
+                      {jackpotError}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => refetchJackpot()}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Tap to retry
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Live jackpot display */}
+              {!jackpotLoading && !jackpotError && (
+                <JackpotDisplay
+                  amount={jackpotDollars}
+                  size="md"
+                  glow
+                  showRolldownStatus={false}
+                  softCap={SOFT_CAP_USDC}
+                />
+              )}
               <CountdownTimer size="sm" label="Next Draw" />
             </div>
           </div>
@@ -561,7 +675,7 @@ function PlayMainLottery() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {tickets.map((ticket, i) => (
                       <TicketCard
-                        key={`ticket-${i}-${ticket.numbers.join("-")}`}
+                        key={ticket.numbers.join("-")}
                         numbers={ticket.numbers}
                         index={i}
                         onRemove={() => removeTicket(i)}
@@ -592,6 +706,9 @@ function PlayMainLottery() {
                   totalCost={totalCost}
                   onCheckout={handleCheckout}
                   walletConnected={walletConnected}
+                  isPurchasing={isPurchasing}
+                  purchaseError={purchaseError}
+                  purchaseTx={purchaseTx}
                 />
 
                 {/* Use Free Ticket toggle */}
@@ -623,9 +740,8 @@ function PlayMainLottery() {
                     </h3>
                     <ChevronRight
                       size={14}
-                      className={`text-muted-foreground transition-transform duration-200 ${
-                        showPrizeInfo ? "rotate-90" : ""
-                      }`}
+                      className={`text-muted-foreground transition-transform duration-200 ${showPrizeInfo ? "rotate-90" : ""
+                        }`}
                     />
                   </button>
 
@@ -638,13 +754,12 @@ function PlayMainLottery() {
                         >
                           <div className="flex items-center gap-2">
                             <div
-                              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                                tier.color === "gold"
-                                  ? "bg-gold/20 text-gold"
-                                  : tier.color === "emerald"
-                                    ? "bg-emerald/20 text-emerald-light"
-                                    : "bg-foreground/5 text-muted-foreground"
-                              }`}
+                              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${tier.color === "gold"
+                                ? "bg-gold/20 text-gold"
+                                : tier.color === "emerald"
+                                  ? "bg-emerald/20 text-emerald-light"
+                                  : "bg-foreground/5 text-muted-foreground"
+                                }`}
                             >
                               {tier.match}
                             </div>
@@ -654,13 +769,12 @@ function PlayMainLottery() {
                           </div>
                           <div className="text-right">
                             <span
-                              className={`text-xs font-bold ${
-                                tier.color === "gold"
-                                  ? "text-gold"
-                                  : tier.color === "emerald"
-                                    ? "text-emerald-light"
-                                    : "text-muted-foreground"
-                              }`}
+                              className={`text-xs font-bold ${tier.color === "gold"
+                                ? "text-gold"
+                                : tier.color === "emerald"
+                                  ? "text-emerald-light"
+                                  : "text-muted-foreground"
+                                }`}
                             >
                               {tier.prize}
                             </span>

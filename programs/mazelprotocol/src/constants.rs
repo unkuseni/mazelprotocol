@@ -58,6 +58,11 @@ pub const TICKET_SALE_CUTOFF: i64 = 3600;
 /// Timeout for draw commit (1 hour) - if reveal doesn't happen, draw can be cancelled
 pub const DRAW_COMMIT_TIMEOUT: i64 = 3600;
 
+/// Time in seconds after the scheduled draw time before permissionless
+/// draw advancement is allowed. Gives the bot a fair chance to execute
+/// before fallback kicks in.
+pub const DRAW_ADVANCEMENT_TIMEOUT: i64 = 1800; // 30 minutes
+
 /// Ticket claim expiration period (90 days in seconds)
 /// After this period from draw execution, tickets can no longer be claimed
 /// Set to 0 to disable expiration (tickets can be claimed forever)
@@ -210,6 +215,8 @@ pub const MAX_TICKETS_PER_DRAW_PER_USER: u64 = 5000;
 pub const MAX_FREE_TICKETS: u64 = 1000;
 /// Basis points denominator
 pub const BPS_DENOMINATOR: u64 = 10000;
+/// Maximum streak bonus in basis points (10% = 1000 bps)
+pub const MAX_STREAK_BONUS_BPS: u16 = 1000;
 
 // ============================================================================
 // ACCOUNT SIZES
@@ -244,15 +251,23 @@ pub const LOTTERY_STATE_SIZE: usize = 8 + // discriminator
     1 +  // is_rolldown_active
     1 +  // is_paused
     1 +  // is_funded
+    1 +  // version
     1 +  // bump
     8 +  // config_timelock_end (Issue 5 fix: timelock for config changes)
     32 + // pending_config_hash (Issue 5 fix: hash of pending config)
     8 +  // emergency_transfer_total (rolling window aggregate)
     8 +  // emergency_transfer_window_start (window start timestamp)
-    0; // no padding remaining (was 24, consumed by new fields: 8+8+8=24)
+    8 +  // max_rolldown_tickets (circuit breaker for extreme volume events)
+    0; // no padding remaining
 
 /// Minimum timelock delay for config changes: 24 hours (in seconds)
 pub const CONFIG_TIMELOCK_DELAY: i64 = 86400;
+
+/// Default maximum tickets during rolldown (0 = unlimited).
+/// Set to 0 to preserve backward compatibility. Operators can raise this
+/// via governance. A value of 2,000,000 means ticket sales stop during
+/// rolldown once 2M tickets have been sold for the current draw.
+pub const DEFAULT_MAX_ROLLDOWN_TICKETS: u64 = 0; // 0 = unlimited (backward compatible)
 
 /// DrawResult account size
 pub const DRAW_RESULT_SIZE: usize = 8 + // discriminator

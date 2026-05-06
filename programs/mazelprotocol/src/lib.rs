@@ -54,6 +54,8 @@ pub use state::*;
 #[allow(ambiguous_glob_reexports)]
 pub use instructions::admin::*;
 #[allow(ambiguous_glob_reexports)]
+pub use instructions::advance_draw::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::buy_bulk::*;
 #[allow(ambiguous_glob_reexports)]
 pub use instructions::buy_ticket::*;
@@ -112,6 +114,18 @@ pub mod solana_lotto {
     /// * `ctx` - FundSeed accounts context
     pub fn fund_seed(ctx: Context<FundSeed>) -> Result<()> {
         instructions::initialize::handler_fund_seed(ctx)
+    }
+
+    /// Initialize user statistics account
+    ///
+    /// Creates the UserStats PDA for a player. Must be called once per wallet
+    /// before purchasing tickets. This replaces the `init_if_needed` pattern
+    /// with an explicit initialization step for better security.
+    ///
+    /// # Arguments
+    /// * `ctx` - InitUserStats accounts context
+    pub fn init_user_stats(ctx: Context<InitUserStats>) -> Result<()> {
+        instructions::initialize::handler_init_user_stats(ctx)
     }
 
     /// Add funds to the reserve pool
@@ -290,15 +304,17 @@ pub mod solana_lotto {
         instructions::admin::handler_force_finalize_draw(ctx, reason)
     }
 
-    /// Transfer authority (DEPRECATED - use propose_authority + accept_authority)
+    /// Permissionless draw advancement (timeout fallback)
     ///
-    /// Legacy single-step authority transfer. Now only sets pending_authority
-    /// and requires accept_authority to complete.
+    /// Anyone can call this after DRAW_ADVANCEMENT_TIMEOUT seconds have
+    /// passed since the scheduled draw time. Skips a stuck draw and
+    /// advances to the next cycle. This is a fallback for when the bot
+    /// is unavailable.
     ///
     /// # Arguments
-    /// * `ctx` - TransferAuthority accounts context
-    pub fn transfer_authority(ctx: Context<TransferAuthority>) -> Result<()> {
-        instructions::admin::handler_transfer_authority(ctx)
+    /// * `ctx` - AdvanceDraw accounts context
+    pub fn advance_draw(ctx: Context<AdvanceDraw>) -> Result<()> {
+        instructions::advance_draw::handler(ctx)
     }
 
     /// Emergency transfer funds from reserve or insurance pool to prize pool

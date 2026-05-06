@@ -35,6 +35,9 @@ pub mod syndicate;
 // Syndicate Wars competition
 pub mod syndicate_wars;
 
+// Permissionless draw advancement (timeout fallback)
+pub mod advance_draw;
+
 // Re-export account structs and params from admin
 pub use admin::{
     AcceptAuthority, CancelAuthorityTransfer, CancelDraw, CheckSolvency, EmergencyFundTransfer,
@@ -44,7 +47,7 @@ pub use admin::{
 };
 
 // Re-export account structs and params from initialize
-pub use initialize::{AddReserveFunds, FundSeed, Initialize, InitializeParams};
+pub use initialize::{AddReserveFunds, FundSeed, InitUserStats, Initialize, InitializeParams};
 
 // Re-export account structs and params from ticket operations
 pub use buy_bulk::{BuyBulk, BuyBulkParams};

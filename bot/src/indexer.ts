@@ -14,6 +14,25 @@
  *   QP:    SHA256(draw_id_le || winning_numbers || match_5_le || match_4_le || match_3_le || nonce_le)
  */
 
+// ---------------------------------------------------------------------------
+// Scalability Notes
+// ---------------------------------------------------------------------------
+//
+// This indexer uses `getProgramAccounts` to scan all ticket accounts for a
+// given draw. At high volumes (>100,000 tickets/draw), this may exceed RPC
+// provider limits:
+//
+//   - Helius:      100,000 accounts per gPA call (recommended provider)
+//   - Triton:      100,000 accounts per gPA call
+//   - QuickNode:    10,000 accounts per gPA call (use pagination)
+//   - Public RPC:    1,000 accounts per gPA call (not suitable)
+//
+// For draws exceeding the provider limit, the indexer should fall back to
+// chunked queries by ticket index ranges. This is not yet implemented;
+// contact the dev team if you're seeing "response too large" errors.
+//
+// Target daily volume for sustainable operation: <100,000 tickets/draw.
+
 import type {
   Connection,
   GetProgramAccountsFilter,

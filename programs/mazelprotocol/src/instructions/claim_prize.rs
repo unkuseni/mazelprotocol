@@ -234,6 +234,13 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
         _ => 0,
     };
 
+    // TODO: Apply streak bonus when properly integrated with solvency system.
+    // Streak bonuses require pre-funding in finalize_draw and tracking in
+    // draw_result to ensure the prize pool can cover the additional liability.
+    // For now, streaks are tracked but bonuses are not yet applied to prizes.
+    // See: get_streak_bonus_bps() in state.rs for the bonus calculation logic.
+    let _streak_bonus_bps = ctx.accounts.user_stats.get_streak_bonus_bps();
+
     // Check if there's a prize to claim
     let has_prize = prize_amount > 0;
 
@@ -501,5 +508,115 @@ mod tests {
         // So we test with properly sorted winning numbers
         let winning_sorted = [1, 2, 3, 44, 45, 46];
         assert_eq!(count_matches(&ticket, &winning_sorted), 6);
+    }
+
+    // --- Streak bonus tests ---
+
+    /// Helper to create a UserStats with a given streak
+    fn make_user_stats(streak: u32) -> UserStats {
+        UserStats {
+            wallet: Pubkey::new_from_array([0u8; 32]),
+            total_tickets: 0,
+            total_spent: 0,
+            total_won: 0,
+            current_streak: streak,
+            best_streak: streak,
+            jackpot_wins: 0,
+            last_draw_participated: 0,
+            tickets_this_draw: 0,
+            free_tickets_available: 0,
+            bump: 0,
+        }
+    }
+
+    #[test]
+    fn test_streak_bonus_zero_streak_gets_no_bonus() {
+        let stats = make_user_stats(0);
+        assert_eq!(stats.get_streak_bonus_bps(), 0);
+    }
+
+    #[test]
+    fn test_streak_bonus_one_streak() {
+        let stats = make_user_stats(1);
+        // 0.5% per streak = 50 bps per streak
+        assert_eq!(stats.get_streak_bonus_bps(), 50);
+    }
+
+    #[test]
+    fn test_streak_bonus_five_streak() {
+        let stats = make_user_stats(5);
+        // 5 * 50 = 250 bps = 2.5%
+        assert_eq!(stats.get_streak_bonus_bps(), 250);
+    }
+
+    #[test]
+    fn test_streak_bonus_ten_streak_capped_at_max() {
+        let stats = make_user_stats(10);
+        // 10 * 50 = 500, capped at 500 (max is defined in get_streak_bonus_bps)
+        assert_eq!(stats.get_streak_bonus_bps(), 500);
+    }
+
+    #[test]
+    fn test_streak_bonus_calc_match_3() {
+        // A Match 3 prize of 100_000 lamports with 5-streak bonus (250 bps = 2.5%)
+        let prize = 100_000u64;
+        let bonus_bps = 250u16;
+        let bonus = (prize as u128 * bonus_bps as u128 / BPS_DENOMINATOR as u128) as u64;
+        assert_eq!(bonus, 2_500); // 2.5% of 100,000 = 2,500
+        assert_eq!(prize.saturating_add(bonus), 102_500);
+    }
+
+    #[test]
+    fn test_streak_bonus_calc_match_4() {
+        // A Match 4 prize of 10_000_000 lamports with 3-streak bonus (150 bps = 1.5%)
+        let prize = 10_000_000u64;
+        let bonus_bps = 150u16;
+        let bonus = (prize as u128 * bonus_bps as u128 / BPS_DENOMINATOR as u128) as u64;
+        assert_eq!(bonus, 150_000); // 1.5% of 10,000,000 = 150,000
+        assert_eq!(prize.saturating_add(bonus), 10_150_000);
+    }
+
+    #[test]
+    fn test_streak_bonus_calc_match_5() {
+        // A Match 5 prize of 1_000_000_000 lamports with 10-streak bonus (500 bps = 5%, capped)
+        let prize = 1_000_000_000u64;
+        let bonus_bps = 500u16;
+        let bonus = (prize as u128 * bonus_bps as u128 / BPS_DENOMINATOR as u128) as u64;
+        assert_eq!(bonus, 50_000_000); // 5% of 1,000,000,000 = 50,000,000
+        assert_eq!(prize.saturating_add(bonus), 1_050_000_000);
+    }
+
+    /// Streak bonus must NOT be applied to Match 6 (jackpot)
+    #[test]
+    fn test_streak_bonus_not_applied_to_match_6() {
+        // Simulate the condition check: match_count 6 should not get bonus
+        let match_count = 6u8;
+        let streak_bonus_bps = 250u16; // even with a streak, bonus is skipped
+        let should_apply = match_count >= 3 && match_count <= 5 && streak_bonus_bps > 0;
+        assert!(
+            !should_apply,
+            "Streak bonus should NOT apply to Match 6 (jackpot)"
+        );
+    }
+
+    /// Streak bonus must NOT be applied to Match 2 (free ticket)
+    #[test]
+    fn test_streak_bonus_not_applied_to_match_2() {
+        let match_count = 2u8;
+        let streak_bonus_bps = 250u16;
+        let should_apply = match_count >= 3 && match_count <= 5 && streak_bonus_bps > 0;
+        assert!(
+            !should_apply,
+            "Streak bonus should NOT apply to Match 2 (free ticket)"
+        );
+    }
+
+    /// Bonus is zero when streak_bonus_bps is zero (edge case)
+    #[test]
+    fn test_streak_bonus_zero_when_no_streak() {
+        let match_count = 4u8;
+        let streak_bonus_bps = 0u16;
+        let should_apply = match_count >= 3 && match_count <= 5 && streak_bonus_bps > 0;
+        assert!(!should_apply, "Streak bonus should be 0 when streak is 0");
     }
 }

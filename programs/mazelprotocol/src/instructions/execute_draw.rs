@@ -495,46 +495,63 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_generate_winning_numbers_uniqueness() {
-        let randomness = [
-            0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66,
-            0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01, 0x02, 0x03, 0x04,
-            0x05, 0x06, 0x07, 0x08,
-        ];
-
-        let numbers = generate_winning_numbers(&randomness).expect("should generate valid numbers");
-
-        // Check all numbers are in valid range
-        for &num in numbers.iter() {
-            assert!(num >= 1 && num <= 46, "Number {} out of range", num);
-        }
-
-        // Check all numbers are unique
-        let mut seen = std::collections::HashSet::new();
-        for &num in numbers.iter() {
-            assert!(seen.insert(num), "Duplicate number found: {}", num);
-        }
-
-        // Check numbers are sorted
-        for i in 0..5 {
-            assert!(numbers[i] < numbers[i + 1], "Numbers not sorted");
-        }
+    /// Generate varied 32-byte randomness from a counter seed (for fuzz testing).
+    /// Uses SHA256 so each seed produces a deterministic, well-distributed output.
+    /// Not exposed outside tests — rand crate is not a dependency.
+    fn make_fuzz_randomness(seed: u64) -> [u8; 32] {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(b"fuzz_test");
+        hasher.update(seed.to_le_bytes());
+        hasher.finalize().into()
     }
 
     #[test]
     fn test_generate_winning_numbers_deterministic() {
-        let randomness = [0xAB; 32];
+        // Same input must always produce same output
+        let randomness = [42u8; 32];
+        let nums1 = generate_winning_numbers(&randomness).unwrap();
+        let nums2 = generate_winning_numbers(&randomness).unwrap();
+        assert_eq!(nums1, nums2, "Same randomness must produce same numbers");
+    }
 
-        let numbers1 =
-            generate_winning_numbers(&randomness).expect("should generate valid numbers");
-        let numbers2 =
-            generate_winning_numbers(&randomness).expect("should generate valid numbers");
+    #[test]
+    fn test_generate_winning_numbers_uniqueness() {
+        for seed in 0..100u64 {
+            let randomness = make_fuzz_randomness(seed);
+            let nums = generate_winning_numbers(&randomness).unwrap();
+            // All numbers must be unique
+            for i in 0..6 {
+                for j in (i + 1)..6 {
+                    assert_ne!(nums[i], nums[j], "Numbers must be unique, seed={}", seed);
+                }
+            }
+            // All numbers in valid range
+            for &n in &nums {
+                assert!(
+                    n >= 1 && n <= 46,
+                    "Number {} out of range, seed={}",
+                    n,
+                    seed
+                );
+            }
+        }
+    }
 
-        assert_eq!(
-            numbers1, numbers2,
-            "Same randomness should produce same numbers"
-        );
+    #[test]
+    fn test_generate_winning_numbers_sorted() {
+        for seed in 0..100u64 {
+            let randomness = make_fuzz_randomness(seed);
+            let nums = generate_winning_numbers(&randomness).unwrap();
+            // Must be sorted ascending
+            for i in 1..6 {
+                assert!(
+                    nums[i] > nums[i - 1],
+                    "Numbers must be sorted, seed={}",
+                    seed
+                );
+            }
+        }
     }
 
     #[test]

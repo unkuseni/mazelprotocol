@@ -1555,20 +1555,29 @@ describe("mazelprotocol", () => {
   });
 
   // ========================================================================
-  // 10. DIRECT AUTHORITY TRANSFER TEST
+  // 10. TWO-STEP AUTHORITY TRANSFER TEST
   // ========================================================================
-  describe("Direct Authority Transfer", () => {
+  describe("Two-Step Authority Transfer", () => {
     const tempAuthority = Keypair.generate();
 
     before(async () => {
       await airdrop(provider, tempAuthority.publicKey);
     });
 
-    it("transfers authority directly and back", async () => {
+    it("transfers authority via propose + accept and back", async () => {
+      // Step 1: Propose the new authority
       await program.methods
-        .transferAuthority()
+        .proposeAuthority(tempAuthority.publicKey)
         .accountsPartial({
           authority: authority.publicKey,
+          lotteryState: pdas.lotteryState,
+        })
+        .rpc();
+
+      // Step 2: New authority accepts
+      await program.methods
+        .acceptAuthority()
+        .accountsPartial({
           newAuthority: tempAuthority.publicKey,
           lotteryState: pdas.lotteryState,
         })
@@ -1580,15 +1589,23 @@ describe("mazelprotocol", () => {
         tempAuthority.publicKey.toString(),
       );
 
-      // Transfer back
+      // Transfer back: Step 1 - Propose
       await program.methods
-        .transferAuthority()
+        .proposeAuthority(authority.publicKey)
         .accountsPartial({
           authority: tempAuthority.publicKey,
-          newAuthority: authority.publicKey,
           lotteryState: pdas.lotteryState,
         })
         .signers([tempAuthority])
+        .rpc();
+
+      // Transfer back: Step 2 - Accept
+      await program.methods
+        .acceptAuthority()
+        .accountsPartial({
+          newAuthority: authority.publicKey,
+          lotteryState: pdas.lotteryState,
+        })
         .rpc();
 
       state = await program.account.lotteryState.fetch(pdas.lotteryState);
