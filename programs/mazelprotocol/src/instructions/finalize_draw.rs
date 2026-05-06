@@ -850,10 +850,9 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     // total_reclaimed was already initialized to 0 in execute_draw.
     draw_result.total_committed = prize_calc.total_distributed;
 
-    // Reset for next draw using helper method
-    lottery_state.reset_draw_state();
+    // Reset for next draw using helper method (including tickets)
+    lottery_state.reset_draw_state(true);
     lottery_state.current_draw_id = lottery_state.current_draw_id.saturating_add(1);
-    lottery_state.current_draw_tickets = 0;
 
     // Set next draw timestamp
     lottery_state.next_draw_timestamp = clock.unix_timestamp + lottery_state.draw_interval;

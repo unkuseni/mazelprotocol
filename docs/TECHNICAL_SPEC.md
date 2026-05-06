@@ -77,15 +77,10 @@ Amounts:
 
 ```toml
 [dependencies]
-anchor-lang = "0.29.0"
-anchor-spl = "0.29.0"
-solana-program = "1.17.0"
-spl-token = "4.0.0"
-spl-associated-token-account = "2.2.0"
-
-[dev-dependencies]
-solana-program-test = "1.17.0"
-solana-sdk = "1.17.0"
+anchor-lang = "0.32.1"
+anchor-spl = "0.32.1"
+switchboard-on-demand = "0.11.3"
+sha2 = "0.10.8"
 ```
 
 ### 2.3 External Services

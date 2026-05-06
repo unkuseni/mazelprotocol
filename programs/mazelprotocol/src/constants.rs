@@ -98,7 +98,11 @@ pub const FEE_ROLLDOWN_BPS: u16 = 2800;
 pub const SOFT_CAP: u64 = 1_750_000_000_000;
 /// Hard cap: $2,250,000 - Forced rolldown
 pub const HARD_CAP: u64 = 2_250_000_000_000;
-/// Jackpot cap (same as soft cap for display purposes)
+/// Default value for the configurable `jackpot_cap` field on LotteryState.
+/// NOTE: This is a DISPLAY/UI cap, NOT the hard rolldown trigger.
+/// The actual rolldown mechanics use `soft_cap` (probabilistic trigger) and
+/// `hard_cap` (forced trigger). This field exists for backward compatibility
+/// and UI display; it defaults to the same value as SOFT_CAP.
 pub const JACKPOT_CAP: u64 = 1_750_000_000_000;
 /// Initial seed amount: $500,000
 pub const SEED_AMOUNT: u64 = 500_000_000_000;

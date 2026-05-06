@@ -1131,9 +1131,9 @@ pub fn handler_cancel_draw(ctx: Context<CancelDraw>) -> Result<()> {
 
     // Reset draw state using the helper method
     // IMPORTANT: We do NOT increment draw_id here so tickets remain valid
-    lottery_state.reset_draw_state();
+    lottery_state.reset_draw_state(false);
 
-    // Do NOT reset current_draw_tickets - they remain for the rescheduled draw
+    // current_draw_tickets preserved for the rescheduled draw
     // Do NOT increment current_draw_id - tickets are for this draw_id
 
     // Schedule next draw attempt (same draw_id, just new timing)
@@ -1260,10 +1260,9 @@ pub fn handler_force_finalize_draw(ctx: Context<ForceFinalizeDraw>, reason: Stri
     let draw_id = lottery_state.current_draw_id;
     let tickets_affected = lottery_state.current_draw_tickets;
 
-    // Reset draw state
-    lottery_state.reset_draw_state();
+    // Reset draw state (including tickets, since we're finalizing)
+    lottery_state.reset_draw_state(true);
     lottery_state.current_draw_id = lottery_state.current_draw_id.saturating_add(1);
-    lottery_state.current_draw_tickets = 0;
     lottery_state.next_draw_timestamp = clock.unix_timestamp + lottery_state.draw_interval;
 
     // Update house fee based on new jackpot level

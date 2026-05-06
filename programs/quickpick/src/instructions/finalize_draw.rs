@@ -549,15 +549,11 @@ pub fn handler(
         prize_calc.total_distributed
     );
 
-    // Reset draw state (commit-reveal cycle complete)
-    quick_pick_state.is_draw_in_progress = false;
-    quick_pick_state.current_randomness_account = Pubkey::default();
-    quick_pick_state.commit_slot = 0;
-    quick_pick_state.commit_timestamp = 0;
+    // Reset draw state (commit-reveal cycle complete, including tickets)
+    quick_pick_state.reset_draw_state(true);
 
     // Advance to next draw
     quick_pick_state.current_draw = current_draw.saturating_add(1);
-    quick_pick_state.current_draw_tickets = 0;
     quick_pick_state.next_draw_timestamp = quick_pick_state
         .next_draw_timestamp
         .saturating_add(draw_interval);

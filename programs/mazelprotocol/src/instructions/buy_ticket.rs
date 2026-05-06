@@ -95,7 +95,10 @@ pub struct BuyTicket<'info> {
     )]
     pub insurance_pool_usdc: Account<'info, TokenAccount>,
 
-    /// USDC mint
+    /// USDC mint (must be 6 decimals)
+    #[account(
+        constraint = usdc_mint.decimals == 6 @ LottoError::InvalidUsdcMint
+    )]
     pub usdc_mint: Account<'info, Mint>,
 
     /// User statistics account (must be initialized via `init_user_stats` first)
