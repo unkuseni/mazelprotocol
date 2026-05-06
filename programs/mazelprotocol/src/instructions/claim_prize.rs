@@ -101,7 +101,10 @@ pub struct ClaimPrize<'info> {
     )]
     pub prize_pool_usdc: Account<'info, TokenAccount>,
 
-    /// USDC mint
+    /// USDC mint (must be 6 decimals)
+    #[account(
+        constraint = usdc_mint.decimals == 6 @ LottoError::InvalidUsdcMint
+    )]
     pub usdc_mint: Account<'info, Mint>,
 
     /// User statistics account

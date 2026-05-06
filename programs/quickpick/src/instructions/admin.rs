@@ -350,11 +350,8 @@ pub fn handler_cancel_draw(ctx: Context<CancelQuickPickDraw>, reason: String) ->
     let draw_id = quick_pick_state.current_draw;
     let tickets_affected = quick_pick_state.current_draw_tickets;
 
-    // Reset draw state
-    quick_pick_state.is_draw_in_progress = false;
-    quick_pick_state.current_randomness_account = Pubkey::default();
-    quick_pick_state.commit_slot = 0;
-    quick_pick_state.commit_timestamp = 0;
+    // Reset draw state (preserve tickets for rescheduled draw)
+    quick_pick_state.reset_draw_state(false);
 
     // Reschedule next draw (advance by draw interval from now)
     quick_pick_state.next_draw_timestamp = clock.unix_timestamp + quick_pick_state.draw_interval;
@@ -448,15 +445,11 @@ pub fn handler_force_finalize_draw(
         }
     }
 
-    // Reset draw state and advance to next draw
-    quick_pick_state.is_draw_in_progress = false;
-    quick_pick_state.current_randomness_account = Pubkey::default();
-    quick_pick_state.commit_slot = 0;
-    quick_pick_state.commit_timestamp = 0;
+    // Reset draw state (including tickets) and advance to next draw
+    quick_pick_state.reset_draw_state(true);
 
     // Advance to next draw
     quick_pick_state.current_draw = draw_id.saturating_add(1);
-    quick_pick_state.current_draw_tickets = 0;
     quick_pick_state.next_draw_timestamp = clock.unix_timestamp + quick_pick_state.draw_interval;
 
     // Jackpot carries over (no winners in force finalization)

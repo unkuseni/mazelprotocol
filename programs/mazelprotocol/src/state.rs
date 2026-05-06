@@ -52,7 +52,9 @@ pub struct LotteryState {
     /// Current house fee in basis points (10000 = 100%)
     pub house_fee_bps: u16,
 
-    /// Maximum jackpot before forced rolldown
+    /// Configurable jackpot display cap (UI only, NOT the rolldown trigger).
+    /// The actual rolldown mechanics use `soft_cap` (probabilistic) and
+    /// `hard_cap` (forced). Defaults to SOFT_CAP ($1.75M).
     pub jackpot_cap: u64,
 
     /// Initial seed amount for new jackpot cycles
@@ -224,16 +226,22 @@ impl LotteryState {
     /// Reset draw state (used for timeout recovery or after finalization)
     /// Includes comprehensive state cleanup
     ///
+    /// # Arguments
+    /// * `reset_tickets` - If true, also resets `current_draw_tickets` to 0.
+    ///   Set to `true` when finalizing or advancing a draw.
+    ///   Set to `false` when cancelling a draw (preserves tickets for reschedule).
+    ///
     /// FIXED: Does NOT reset pending_authority - authority transfer is independent
     /// of draw state and should persist across draw resets.
-    pub fn reset_draw_state(&mut self) {
+    pub fn reset_draw_state(&mut self, reset_tickets: bool) {
         self.is_draw_in_progress = false;
         self.is_rolldown_active = false;
         self.commit_slot = 0;
         self.commit_timestamp = 0;
         self.current_randomness_account = Pubkey::default();
-        // Note: current_draw_tickets is reset separately in finalize_draw
-        // to allow cancel_draw to preserve tickets for rescheduled draws
+        if reset_tickets {
+            self.current_draw_tickets = 0;
+        }
     }
 
     /// Check if jackpot is properly funded (meets minimum seed amount)

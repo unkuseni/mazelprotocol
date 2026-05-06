@@ -113,7 +113,10 @@ pub struct ClaimBulkPrize<'info> {
     )]
     pub prize_pool_usdc: Account<'info, TokenAccount>,
 
-    /// USDC mint
+    /// USDC mint (must be 6 decimals)
+    #[account(
+        constraint = usdc_mint.decimals == 6 @ LottoError::InvalidUsdcMint
+    )]
     pub usdc_mint: Account<'info, Mint>,
 
     /// User statistics account
@@ -130,7 +133,9 @@ pub struct ClaimBulkPrize<'info> {
 
 /// Count the number of matching numbers between ticket and winning numbers
 ///
-/// Both arrays should be sorted for efficient comparison.
+/// This function takes two slices of u8 numbers and returns the count
+/// of numbers that appear in both slices. Both slices must be sorted
+/// for the two-pointer algorithm to work correctly.
 ///
 /// # Arguments
 /// * `ticket_numbers` - The player's selected numbers (sorted)
@@ -493,7 +498,10 @@ pub struct ClaimAllBulkPrizes<'info> {
     )]
     pub prize_pool_usdc: Account<'info, TokenAccount>,
 
-    /// USDC mint
+    /// USDC mint (must be 6 decimals)
+    #[account(
+        constraint = usdc_mint.decimals == 6 @ LottoError::InvalidUsdcMint
+    )]
     pub usdc_mint: Account<'info, Mint>,
 
     /// User statistics account

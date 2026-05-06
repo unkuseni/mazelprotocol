@@ -241,11 +241,19 @@ impl QuickPickState {
     }
 
     /// Reset draw state (for cancellation or timeout)
-    pub fn reset_draw_state(&mut self) {
+    ///
+    /// # Arguments
+    /// * `reset_tickets` - If true, also resets `current_draw_tickets` to 0.
+    ///   Set to `true` when finalizing or advancing a draw.
+    ///   Set to `false` when cancelling a draw (preserves tickets for reschedule).
+    pub fn reset_draw_state(&mut self, reset_tickets: bool) {
         self.is_draw_in_progress = false;
         self.current_randomness_account = Pubkey::default();
         self.commit_slot = 0;
         self.commit_timestamp = 0;
+        if reset_tickets {
+            self.current_draw_tickets = 0;
+        }
     }
 
     /// Get available prize pool (prize pool + insurance as backup)

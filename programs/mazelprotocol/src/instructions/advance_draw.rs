@@ -66,17 +66,12 @@ pub fn handler(ctx: Context<AdvanceDraw>) -> Result<()> {
     msg!("  Current: {}", clock.unix_timestamp);
     msg!("  Called by: {}", ctx.accounts.caller.key());
 
-    // Reset draw state to allow the next cycle
-    lottery_state.is_draw_in_progress = false;
-    lottery_state.is_rolldown_active = false;
-    lottery_state.commit_slot = 0;
-    lottery_state.commit_timestamp = 0;
-    lottery_state.current_randomness_account = Pubkey::default();
+    // Reset draw state to allow the next cycle (including tickets)
+    lottery_state.reset_draw_state(true);
     lottery_state.current_draw_id = lottery_state
         .current_draw_id
         .checked_add(1)
         .ok_or(LottoError::Overflow)?;
-    lottery_state.current_draw_tickets = 0;
     lottery_state.next_draw_timestamp = clock
         .unix_timestamp
         .checked_add(lottery_state.draw_interval)

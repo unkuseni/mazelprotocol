@@ -500,7 +500,62 @@ describe("mazelprotocol", () => {
   });
 
   // ========================================================================
-  // 3. PAUSE / UNPAUSE TESTS
+  // 3. INIT USER STATS TESTS
+  // ========================================================================
+  describe("Init User Stats", () => {
+    it("initializes user stats for player1", async () => {
+      const [userStatsPda] = deriveUserStatsPDA(programId, player1.publicKey);
+      await program.methods
+        .initUserStats()
+        .accountsPartial({
+          user: player1.publicKey,
+          userStats: userStatsPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([player1])
+        .rpc();
+      const stats = await programAccounts.userStats.fetch(userStatsPda);
+      expect(stats.wallet.toString()).to.equal(player1.publicKey.toString());
+      expect(stats.totalTickets.toNumber()).to.equal(0);
+      expect(stats.freeTicketsAvailable).to.equal(0);
+    });
+
+    it("initializes user stats for player2", async () => {
+      const [userStatsPda] = deriveUserStatsPDA(programId, player2.publicKey);
+      await program.methods
+        .initUserStats()
+        .accountsPartial({
+          user: player2.publicKey,
+          userStats: userStatsPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([player2])
+        .rpc();
+      const stats = await programAccounts.userStats.fetch(userStatsPda);
+      expect(stats.wallet.toString()).to.equal(player2.publicKey.toString());
+    });
+
+    it("fails to init user stats twice", async () => {
+      const [userStatsPda] = deriveUserStatsPDA(programId, player1.publicKey);
+      try {
+        await program.methods
+          .initUserStats()
+          .accountsPartial({
+            user: player1.publicKey,
+            userStats: userStatsPda,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([player1])
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: unknown) {
+        expect(err).to.exist;
+      }
+    });
+  });
+
+  // ========================================================================
+  // 4. PAUSE / UNPAUSE TESTS
   // ========================================================================
   describe("Pause / Unpause", () => {
     it("pauses the lottery", async () => {
@@ -581,7 +636,7 @@ describe("mazelprotocol", () => {
   });
 
   // ========================================================================
-  // 4. BUY TICKET TESTS
+  // 5. BUY TICKET TESTS
   // ========================================================================
   describe("Buy Ticket", () => {
     it("buys a single ticket successfully", async () => {
@@ -878,7 +933,7 @@ describe("mazelprotocol", () => {
   });
 
   // ========================================================================
-  // 5. BUY BULK TICKET TESTS
+  // 6. BUY BULK TICKET TESTS
   // ========================================================================
   describe("Buy Bulk Tickets", () => {
     it("buys multiple tickets in bulk", async () => {
