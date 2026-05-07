@@ -322,6 +322,12 @@ pub fn handler_propose_config(
     // Pre-validate params so we catch errors early (before waiting 24h)
     if let Some(ticket_price) = params.ticket_price {
         require!(ticket_price > 0, LottoError::InvalidTicketPrice);
+        // ML-3 fix: Enforce a reasonable max ticket price to prevent
+        // economic model breakage from misconfigured parameters.
+        require!(
+            ticket_price <= 100_000_000, // Max 100 USDC (100 million lamports)
+            LottoError::InvalidTicketPrice
+        );
     }
     if let Some(house_fee_bps) = params.house_fee_bps {
         require!(house_fee_bps <= 5000, LottoError::InvalidHouseFee);
@@ -1891,9 +1897,6 @@ pub fn handler_reclaim_expired_prizes(
     );
 
     Ok(())
-
-
-
 }
 // ============================================================================
 // CHALLENGE DRAW INSTRUCTION (M1 fix: permissionless dispute mechanism)
@@ -1980,7 +1983,8 @@ pub fn handler_challenge_draw(
     msg!("DRAW CHALLENGED!");
     msg!("  Draw ID: {}", lottery_state.current_draw_id);
     msg!("  Challenger: {}", ctx.accounts.challenger.key());
-    msg!("  Alternative counts: 6={}, 5={}, 4={}, 3={}, 2={}",
+    msg!(
+        "  Alternative counts: 6={}, 5={}, 4={}, 3={}, 2={}",
         alternative_winner_counts.match_6,
         alternative_winner_counts.match_5,
         alternative_winner_counts.match_4,

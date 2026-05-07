@@ -15,7 +15,9 @@ use anchor_lang::prelude::*;
 use crate::constants::*;
 use crate::errors::QuickPickError;
 use crate::events::QuickPickDrawFinalized;
-use crate::state::{LotteryState, QuickPickDrawResult, QuickPickState, QuickPickWinnerCounts};
+use crate::state::{
+    DrawTransition, LotteryState, QuickPickDrawResult, QuickPickState, QuickPickWinnerCounts,
+};
 
 /// Parameters for finalizing the Quick Pick draw
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -582,10 +584,8 @@ pub fn handler(
     );
 
     // SECURITY: Clear awaiting-finalization flag now that draw is complete.
-    // M-1 fix: Use advance_to_next_draw() for consistent draw state transitions
-    // instead of manually duplicating the logic. This ensures all future changes
-    // to draw advancement are applied uniformly.
-    quick_pick_state.advance_to_next_draw();
+    // QP-2 fix: Use unified transition_draw() for consistent state transitions.
+    quick_pick_state.transition_draw(DrawTransition::Finalize, clock.unix_timestamp);
 
     // ==========================================================================
     // SOFT/HARD CAP CHECK FOR NEXT DRAW

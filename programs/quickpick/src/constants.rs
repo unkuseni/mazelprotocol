@@ -151,6 +151,15 @@ pub const TICKET_CLAIM_EXPIRATION: i64 = 90 * 24 * 60 * 60;
 /// Set to 5000 (50%) to limit damage from a compromised authority (M-2 fix).
 pub const QUICK_PICK_HOUSE_FEE_WITHDRAWAL_CAP_BPS: u64 = 5000;
 
+/// Maximum daily emergency transfer amount as fraction of hard cap (in bps).
+/// Set to 2000 (20%) of hard cap per 24-hour window (QP-3 fix).
+pub const QP_EMERGENCY_TRANSFER_DAILY_CAP_BPS: u64 = 2000;
+
+/// Time in seconds after the scheduled draw time before permissionless
+/// draw advancement is allowed. Gives the operator a fair chance to execute
+/// before the fallback kicks in (QP-4 fix).
+pub const QUICK_PICK_DRAW_ADVANCEMENT_TIMEOUT: i64 = 1800; // 30 minutes
+
 // ============================================================================
 // ACCOUNT SIZES
 // ============================================================================
@@ -190,7 +199,9 @@ pub const QUICK_PICK_STATE_SIZE: usize = 8 +   // discriminator
     1 +    // bump
     8 +    // config_timelock_end
     32 +   // pending_config_hash
-    24; // padding for future use
+    8 +    // emergency_transfer_total (QP-3)
+    8 +    // emergency_transfer_window_start (QP-3)
+    8; // padding for future use
 
 /// Quick Pick Ticket account size
 pub const QUICK_PICK_TICKET_SIZE: usize = 8 +  // discriminator

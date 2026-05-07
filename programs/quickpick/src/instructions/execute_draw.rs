@@ -319,10 +319,7 @@ pub fn handler(ctx: Context<ExecuteQuickPickDraw>) -> Result<()> {
 
     // Prevent drawing with zero tickets — wastes randomness and creates
     // edge cases in prize calculation (M-1 fix).
-    require!(
-        current_draw_tickets > 0,
-        QuickPickError::InvalidDrawState
-    );
+    require!(current_draw_tickets > 0, QuickPickError::InvalidDrawState);
     let soft_cap = ctx.accounts.quick_pick_state.soft_cap;
     let hard_cap = ctx.accounts.quick_pick_state.hard_cap;
     let is_rolldown_pending = ctx.accounts.quick_pick_state.is_rolldown_pending;
@@ -534,8 +531,106 @@ mod tests {
 
         // Above hard cap
         assert_eq!(
-            get_quick_pick_rolldown_probability_bps(50_000_000_000, soft_cap, hard_cap),
+            get_quick_pick_rolldown_probability_bps(60_000_000_000, soft_cap, hard_cap),
             10000
         );
+    }
+
+    // ML-8: Edge-case tests for number generation robustness
+
+    #[test]
+    fn test_generate_quick_pick_numbers_all_zeros_randomness() {
+        // All-zero randomness is a pathological input — the function
+        // should still produce 5 valid unique sorted numbers.
+        let randomness = [0u8; 32];
+        let result = generate_quick_pick_winning_numbers(&randomness);
+        // All-zeros may or may not be rejected (it's a valid but predictable input).
+        // If accepted, numbers must be valid, unique, and sorted.
+        if let Ok(numbers) = result {
+            for &num in numbers.iter() {
+                assert!(num >= 1 && num <= 35, "Number {} out of range", num);
+            }
+            let mut seen = std::collections::HashSet::new();
+            for &num in numbers.iter() {
+                assert!(seen.insert(num), "Duplicate number: {}", num);
+            }
+            for i in 0..4 {
+                assert!(numbers[i] < numbers[i + 1], "Numbers not sorted");
+            }
+        }
+    }
+
+    #[test]
+    fn test_generate_quick_pick_numbers_all_ff_randomness() {
+        // All-0xFF randomness is another pathological edge case.
+        let randomness = [0xFFu8; 32];
+        let numbers = generate_quick_pick_winning_numbers(&randomness)
+            .expect("all-FF randomness should produce valid numbers");
+
+        // Standard validity checks
+        for &num in numbers.iter() {
+            assert!(num >= 1 && num <= 35);
+        }
+        let mut seen = std::collections::HashSet::new();
+        for &num in numbers.iter() {
+            assert!(seen.insert(num));
+        }
+    }
+
+    #[test]
+    fn test_generate_quick_pick_numbers_deterministic_multiple_inputs() {
+        // Verify determinism holds for several different inputs (ML-8).
+        let test_inputs: Vec<[u8; 32]> = vec![
+            [0x01; 32],
+            [0x55; 32],
+            [0xAA; 32],
+            [
+                0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC,
+                0xDE, 0xF0, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB,
+                0xCC, 0xDD, 0xEE, 0xFF,
+            ],
+        ];
+
+        for randomness in &test_inputs {
+            let numbers1 = generate_quick_pick_winning_numbers(randomness)
+                .expect("should produce valid numbers");
+            let numbers2 = generate_quick_pick_winning_numbers(randomness)
+                .expect("should produce valid numbers");
+            assert_eq!(
+                numbers1,
+                numbers2,
+                "Determinism failed for input starting with {:02X?}",
+                &randomness[..4]
+            );
+        }
+    }
+
+    #[test]
+    fn test_generate_quick_pick_numbers_covers_full_range() {
+        // Verify that over many different randomness inputs, all numbers 1-35
+        // appear at least once (statistical coverage test, ML-8).
+        let mut all_numbers_seen = [false; 36]; // index 0 unused
+        let mut input = [0u8; 32];
+
+        for seed in 0u32..1000u32 {
+            input[0..4].copy_from_slice(&seed.to_le_bytes());
+            if let Ok(numbers) = generate_quick_pick_winning_numbers(&input) {
+                for &num in numbers.iter() {
+                    all_numbers_seen[num as usize] = true;
+                }
+            }
+            // Early exit if we've seen all numbers
+            if all_numbers_seen[1..].iter().all(|&seen| seen) {
+                break;
+            }
+        }
+
+        for num in 1..=35 {
+            assert!(
+                all_numbers_seen[num],
+                "Number {} was never generated after 1000 seeds",
+                num
+            );
+        }
     }
 }

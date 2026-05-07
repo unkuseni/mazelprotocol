@@ -17,7 +17,7 @@ use crate::events::{
     QuickPickDrawCancelled, QuickPickDrawForceFinalized, QuickPickFeeTierChanged,
     QuickPickHouseFeesWithdrawn,
 };
-use crate::state::{LotteryState, QuickPickDrawResult, QuickPickState};
+use crate::state::{DrawTransition, LotteryState, QuickPickDrawResult, QuickPickState};
 
 // ============================================================================
 // UPDATE CONFIG INSTRUCTION
@@ -573,6 +573,77 @@ pub fn handler_withdraw_house_fees(
 }
 
 // ============================================================================
+// PERMISSIONLESS DRAW ADVANCEMENT INSTRUCTION (QP-4 fix)
+// ============================================================================
+
+/// Accounts required for permissionless draw advancement
+#[derive(Accounts)]
+pub struct AdvanceQuickPickDraw<'info> {
+    /// Anyone can advance a stuck draw (permissionless for liveness)
+    #[account(mut)]
+    pub caller: Signer<'info>,
+
+    /// The Quick Pick state account
+    #[account(
+        mut,
+        seeds = [QUICK_PICK_SEED],
+        bump = quick_pick_state.bump,
+        constraint = !quick_pick_state.is_paused @ QuickPickError::Paused,
+        // Cannot skip a draw whose winning numbers are already public
+        constraint = !quick_pick_state.is_awaiting_finalization @ QuickPickError::DrawNotInProgress
+    )]
+    pub quick_pick_state: Account<'info, QuickPickState>,
+}
+
+/// Permissionless draw advancement (timeout fallback).
+///
+/// Anyone can call this after QUICK_PICK_DRAW_ADVANCEMENT_TIMEOUT seconds have
+/// passed since the scheduled draw time without a commit. This ensures liveness
+/// even if the bot/operator is offline — stuck draws are skipped automatically.
+///
+/// Tickets for the skipped draw carry over to the rescheduled draw (same draw_id).
+///
+/// # Arguments
+/// * `ctx` - The context containing required accounts
+pub fn handler_advance_draw(ctx: Context<AdvanceQuickPickDraw>) -> Result<()> {
+    let clock = Clock::get()?;
+    let quick_pick_state = &mut ctx.accounts.quick_pick_state;
+
+    let draw_id = quick_pick_state.current_draw;
+
+    // Verify the draw window has passed with margin for timeout
+    let eligible_time = quick_pick_state
+        .next_draw_timestamp
+        .saturating_add(QUICK_PICK_DRAW_ADVANCEMENT_TIMEOUT);
+    require!(
+        clock.unix_timestamp >= eligible_time,
+        QuickPickError::DrawNotReady
+    );
+
+    // Use unified transition to reschedule without advancing draw number
+    quick_pick_state.transition_draw(DrawTransition::Cancel, clock.unix_timestamp);
+
+    emit!(QuickPickDrawCancelled {
+        draw_id,
+        tickets_affected: quick_pick_state.current_draw_tickets,
+        reason: format!(
+            "permissionless_advance_timeout: draw {} was {}s past scheduled time",
+            draw_id,
+            clock.unix_timestamp - quick_pick_state.next_draw_timestamp
+        ),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!(
+        "Quick Pick draw #{} advanced by permissionless timeout!",
+        draw_id
+    );
+    msg!("  Caller: {}", ctx.accounts.caller.key());
+
+    Ok(())
+}
+
+// ============================================================================
 // CANCEL DRAW INSTRUCTION
 // ============================================================================
 
@@ -631,11 +702,9 @@ pub fn handler_cancel_draw(ctx: Context<CancelQuickPickDraw>, reason: String) ->
         QuickPickError::DrawNotInProgress
     );
 
-    // Reset draw state (preserve tickets for rescheduled draw)
-    quick_pick_state.reset_draw_state(false);
-
-    // Reschedule next draw (advance by draw interval from now)
-    quick_pick_state.next_draw_timestamp = clock.unix_timestamp + quick_pick_state.draw_interval;
+    // QP-2 fix: Use unified transition_draw(Cancel) instead of manual reset.
+    // Cancel preserves tickets (current_draw_tickets) and reschedules timestamp.
+    quick_pick_state.transition_draw(DrawTransition::Cancel, clock.unix_timestamp);
 
     // Emit event
     emit!(QuickPickDrawCancelled {
@@ -650,10 +719,11 @@ pub fn handler_cancel_draw(ctx: Context<CancelQuickPickDraw>, reason: String) ->
     msg!("  Tickets affected: {}", tickets_affected);
     msg!("  Next draw time: {}", quick_pick_state.next_draw_timestamp);
     msg!(
-        "Tickets for draw {} will carry over to the rescheduled draw.",
+        "Tickets for draw #{} remain valid: the draw is rescheduled under the",
         draw_id
     );
-    msg!("  Note: Ticket holders should be able to claim refunds or tickets carry over");
+    msg!("  SAME draw ID with a new timestamp. No refunds are issued on-chain.");
+    msg!("  Admin may process off-chain refunds if the draw is permanently cancelled.");
 
     Ok(())
 }
@@ -748,12 +818,10 @@ pub fn handler_force_finalize_draw(
         QuickPickError::Timeout
     );
 
-    // Reset draw state (including tickets) and advance to next draw
-    quick_pick_state.reset_draw_state(true);
-
-    // Advance to next draw
-    quick_pick_state.current_draw = draw_id.saturating_add(1);
-    quick_pick_state.next_draw_timestamp = clock.unix_timestamp + quick_pick_state.draw_interval;
+    // QP-2 fix: Use unified transition_draw(ForceFinalize) instead of manual reset.
+    // ForceFinalize resets tickets and advances draw number/timestamp.
+    // Jackpot carries over (no winners in force finalization).
+    quick_pick_state.transition_draw(DrawTransition::ForceFinalize, clock.unix_timestamp);
 
     // Jackpot carries over (no winners in force finalization)
 
@@ -929,9 +997,37 @@ pub fn handler_emergency_fund_transfer(
         let max_transfer =
             (hard_cap as u128 * QP_EMERGENCY_TRANSFER_MAX_BPS as u128 / 10000u128) as u64;
         require!(amount <= max_transfer, QuickPickError::InvalidConfig);
+
+        // SECURITY (QP-3 fix): Track cumulative daily transfers to prevent
+        // a compromised authority from draining large amounts via repeated
+        // per-call-capped transfers. The daily cap is EMERGENCY_TRANSFER_DAILY_CAP_BPS
+        // of the hard cap, and the window resets every 24 hours.
+        let quick_pick_state = &mut ctx.accounts.quick_pick_state;
+        let window_duration: i64 = 86400; // 24 hours
+
+        // Reset the window if it's a new day
+        if quick_pick_state.emergency_transfer_window_start == 0
+            || clock.unix_timestamp
+                > quick_pick_state
+                    .emergency_transfer_window_start
+                    .saturating_add(window_duration)
+        {
+            quick_pick_state.emergency_transfer_total = 0;
+            quick_pick_state.emergency_transfer_window_start = clock.unix_timestamp;
+        }
+
+        let daily_cap =
+            (hard_cap as u128 * QP_EMERGENCY_TRANSFER_DAILY_CAP_BPS as u128 / 10000u128) as u64;
+        let new_total = quick_pick_state
+            .emergency_transfer_total
+            .saturating_add(amount);
+        require!(new_total <= daily_cap, QuickPickError::InvalidConfig);
+        quick_pick_state.emergency_transfer_total = new_total;
+
         msg!(
-            "  PrizePool emergency transfer cap: {} USDC lamports (10% of hard cap)",
-            max_transfer
+            "  Emergency transfer daily cap: {} / {} USDC lamports",
+            new_total,
+            daily_cap
         );
 
         // SECURITY FIX (Issue #5): For PrizePool external transfers, validate that
