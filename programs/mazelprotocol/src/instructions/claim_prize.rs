@@ -242,6 +242,7 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
     // draw_result to ensure the prize pool can cover the additional liability.
     // For now, streaks are tracked but bonuses are not yet applied to prizes.
     // See: get_streak_bonus_bps() in state.rs for the bonus calculation logic.
+    #[allow(deprecated)]
     let _streak_bonus_bps = ctx.accounts.user_stats.get_streak_bonus_bps();
 
     // Check if there's a prize to claim
@@ -534,12 +535,14 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_streak_bonus_zero_streak_gets_no_bonus() {
         let stats = make_user_stats(0);
         assert_eq!(stats.get_streak_bonus_bps(), 0);
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_streak_bonus_one_streak() {
         let stats = make_user_stats(1);
         // 0.5% per streak = 50 bps per streak
@@ -547,6 +550,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_streak_bonus_five_streak() {
         let stats = make_user_stats(5);
         // 5 * 50 = 250 bps = 2.5%
@@ -554,6 +558,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_streak_bonus_ten_streak_capped_at_max() {
         let stats = make_user_stats(10);
         // 10 * 50 = 500, capped at 500 (max is defined in get_streak_bonus_bps)

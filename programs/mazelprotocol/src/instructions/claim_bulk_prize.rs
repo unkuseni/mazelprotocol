@@ -272,6 +272,7 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
     // draw_result to ensure the prize pool can cover the additional liability.
     // For now, streaks are tracked but bonuses are not yet applied to prizes.
     // See: get_streak_bonus_bps() in state.rs for the bonus calculation logic.
+    #[allow(deprecated)]
     let _streak_bonus_bps = ctx.accounts.user_stats.get_streak_bonus_bps();
 
     // Check if there's a prize to claim
@@ -610,6 +611,7 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
         // draw_result to ensure the prize pool can cover the additional liability.
         // For now, streaks are tracked but bonuses are not yet applied to prizes.
         // See: get_streak_bonus_bps() in state.rs for the bonus calculation logic.
+        #[allow(deprecated)]
         let _streak_bonus_bps = ctx.accounts.user_stats.get_streak_bonus_bps();
 
         if match_count == 2 && prize_amount > 0 {

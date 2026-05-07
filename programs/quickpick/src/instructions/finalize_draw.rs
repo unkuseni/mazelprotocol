@@ -279,7 +279,6 @@ pub fn handler(
     let jackpot_balance = ctx.accounts.quick_pick_state.jackpot_balance;
     let prize_pool_balance = ctx.accounts.quick_pick_state.prize_pool_balance;
     let seed_amount = ctx.accounts.quick_pick_state.seed_amount;
-    let draw_interval = ctx.accounts.quick_pick_state.draw_interval;
     let was_rolldown = ctx.accounts.draw_result.was_rolldown;
     let total_tickets = ctx.accounts.draw_result.total_tickets;
 
@@ -583,16 +582,10 @@ pub fn handler(
     );
 
     // SECURITY: Clear awaiting-finalization flag now that draw is complete.
-    quick_pick_state.is_awaiting_finalization = false;
-
-    // Reset draw state (commit-reveal cycle complete, including tickets)
-    quick_pick_state.reset_draw_state(true);
-
-    // Advance to next draw
-    quick_pick_state.current_draw = current_draw.saturating_add(1);
-    quick_pick_state.next_draw_timestamp = quick_pick_state
-        .next_draw_timestamp
-        .saturating_add(draw_interval);
+    // M-1 fix: Use advance_to_next_draw() for consistent draw state transitions
+    // instead of manually duplicating the logic. This ensures all future changes
+    // to draw advancement are applied uniformly.
+    quick_pick_state.advance_to_next_draw();
 
     // ==========================================================================
     // SOFT/HARD CAP CHECK FOR NEXT DRAW

@@ -655,7 +655,21 @@ impl UserStats {
         self.last_draw_participated = current_draw_id;
     }
 
-    /// Calculate streak bonus (basis points)
+    /// Calculate streak bonus (basis points).
+    ///
+    /// # ⚠️  DEPRECATED — NOT YET ACTIVE (L-7)
+    ///
+    /// Streak bonuses are TRACKED (current_streak, best_streak) but NEVER
+    /// applied to any prize calculation or ticket purchase. The bonus logic
+    /// is correct but requires pre-funding in finalize_draw and tracking in
+    /// draw_result to ensure the prize pool can cover the additional liability.
+    /// See the TODO in claim_prize.rs for integration details.
+    ///
+    /// When activated, this provides 0.5% bonus per consecutive draw, max 5%.
+    #[deprecated(
+        since = "3.0.0",
+        note = "Streak bonuses are tracked but not yet applied to prizes. See L-7."
+    )]
     pub fn get_streak_bonus_bps(&self) -> u16 {
         // 0.5% bonus per consecutive draw, max 5%
         let bonus = (self.current_streak as u16) * 50;
@@ -927,6 +941,19 @@ impl Syndicate {
 
 // ============================================================================
 // QUICK PICK EXPRESS STRUCTURES
+//
+// ⚠️  IMPORTANT (M-4): These structs are DUPLICATES of the canonical definitions
+// in `programs/quickpick/src/state.rs`. They exist here for reference and for
+// any potential cross-program CPI in the future. Currently NO CPI exists
+// between the programs, so these are unused. If cross-program communication is
+// added, these structs MUST be kept in sync with the QuickPick program's
+// definitions, or deserialization will fail with silent data corruption.
+//
+// Sync checklist when modifying QuickPick state:
+//   1. Update the canonical struct in programs/quickpick/src/state.rs
+//   2. Update this duplicate below
+//   3. Update programs/quickpick/src/constants.rs QUICK_PICK_STATE_SIZE
+//   4. Run all tests to catch mismatches
 // ============================================================================
 
 /// Quick Pick Express game state (5/35 Matrix with Rolldown Exploit)

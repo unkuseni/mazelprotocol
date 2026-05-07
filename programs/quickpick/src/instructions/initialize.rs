@@ -115,6 +115,19 @@ pub struct InitializeQuickPick<'info> {
 /// 5. Initializes jackpot caps and seed amount
 /// 6. Sets the first draw timestamp
 ///
+/// # PDA Architecture (M-5 doc)
+///
+/// ```text
+/// QuickPickState PDA          ← seeds: ["quick_pick"]
+///   ├── owns → Prize Pool USDC ATA   ← seeds: ["prize_pool_usdc"]
+///   ├── owns → House Fee USDC ATA    ← seeds: ["house_fee_usdc"]
+///   └── owns → Insurance Pool USDC ATA ← seeds: ["insurance_pool_usdc"]
+/// ```
+///
+/// The QuickPickState PDA is set as the `token::authority` for all three
+/// USDC token accounts. This means the program can sign for token transfers
+/// using `[QUICK_PICK_SEED, &[quick_pick_state.bump]]` as signer seeds.
+///
 /// # Arguments
 /// * `ctx` - The context containing all required accounts
 /// * `params` - Initialization parameters
@@ -371,6 +384,14 @@ pub fn handler_pause(ctx: Context<PauseQuickPick>, reason: String) -> Result<()>
 /// Unpause Quick Pick Express
 pub fn handler_unpause(ctx: Context<PauseQuickPick>) -> Result<()> {
     let clock = Clock::get()?;
+
+    // SECURITY (M-3 fix): Verify the lottery was properly funded before unpausing.
+    // The is_funded flag is set during fund_seed and never cleared, providing a
+    // clear semantic check that funding was completed.
+    require!(
+        ctx.accounts.quick_pick_state.is_funded,
+        QuickPickError::NotInitialized
+    );
 
     require!(
         ctx.accounts.quick_pick_state.jackpot_balance > 0,

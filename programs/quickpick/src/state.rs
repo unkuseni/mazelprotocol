@@ -102,6 +102,15 @@ pub struct QuickPickState {
 
     /// PDA bump seed
     pub bump: u8,
+
+    /// Config timelock: Unix timestamp after which a proposed config can be executed.
+    /// 0 means no pending config proposal (H-2 fix).
+    pub config_timelock_end: i64,
+
+    /// SHA256 hash of the pending config proposal parameters.
+    /// Used to verify that execute_config receives the exact same parameters as
+    /// what was proposed (prevents bait-and-switch) (H-2 fix).
+    pub pending_config_hash: [u8; 32],
 }
 
 impl QuickPickState {
@@ -135,7 +144,9 @@ impl QuickPickState {
         1 +    // is_paused
         1 +    // is_funded
         1 +    // bump
-        32; // padding for future use
+        8 +    // config_timelock_end (H-2)
+        32 +   // pending_config_hash (H-2)
+        24; // padding for future use
 
     /// Get current house fee based on jackpot level
     pub fn get_current_house_fee_bps(&self) -> u16 {
