@@ -3,166 +3,539 @@ import {
   TrendingUp,
   Shield,
   Users,
-  Coins,
-  Clock,
-  Lock,
   Sparkles,
   Trophy,
   Zap,
   ArrowRight,
   CheckCircle,
   BarChart3,
-  Target,
-  Eye,
-  Gem,
-  Star,
-  ChevronRight,
   Wallet,
+  Eye,
+  Lock,
   type LucideIcon,
 } from "lucide-react";
-import { useId } from "react";
-import {
-  CountdownTimer,
-  QuickPickCountdown,
-} from "@/components/CountdownTimer";
 import Footer from "@/components/Footer";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { FloatingBalls, LotteryBallRow } from "@/components/LotteryBalls";
+import { CountdownTimer } from "@/components/CountdownTimer";
+import { RolldownGauge } from "@/components/RolldownGauge";
+import { EVCalculator, EVBadge } from "@/components/EVCalculator";
+import { ProbabilityTimeline } from "@/components/ProbabilityTimeline";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
+import { useLotteryState } from "@/hooks/use-lottery-state";
 
 export const Route = createFileRoute("/")({ component: LandingPage });
 
 /* -------------------------------------------------------------------------- */
-/*  Sub-components                                                            */
+/*  Constants                                                                  */
 /* -------------------------------------------------------------------------- */
 
-interface FeatureCardProps {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  highlight?: boolean;
-}
+const features = [
+  {
+    icon: TrendingUp,
+    title: "Predictable +EV Windows",
+    description:
+      "Our probabilistic rolldown system creates mathematically provable positive expected value windows. When the jackpot reaches the soft cap, the edge flips in your favor.",
+    highlight: true,
+  },
+  {
+    icon: Shield,
+    title: "Provably Fair",
+    description:
+      "Switchboard TEE-based randomness with commit-reveal pattern. Every draw is verifiable on-chain — no black boxes, no trust required.",
+  },
+  {
+    icon: Users,
+    title: "Syndicate System",
+    description:
+      "Pool capital with other players to reduce variance. On-chain syndicates with automatic prize splitting and monthly Syndicate Wars competition.",
+  },
+  {
+    icon: BarChart3,
+    title: "Pari-Mutuel Protection",
+    description:
+      "Fixed prizes during normal mode transition to pari-mutuel during rolldowns. Operator liability is always capped — the protocol is mathematically sustainable.",
+  },
+  {
+    icon: Wallet,
+    title: "Non-Custodial",
+    description:
+      "Funds stay in your wallet. Tickets, prizes, and claims are all on-chain. No deposits, no withdrawals — just direct wallet-to-protocol interaction.",
+  },
+  {
+    icon: Zap,
+    title: "Quick Pick Express",
+    description:
+      "A faster 5/35 game with draws every 4 hours. Lower stakes ($1.50/ticket), faster cycles, and a separate rolldown system with its own +EV windows.",
+  },
+];
+
+const prizeTiers = [
+  { match: "Match 5", prize: "$28,000", odds: "1 in 39,028", rolldown: "~$46,000*", color: "gold" as const },
+  { match: "Match 4", prize: "$800", odds: "1 in 800", rolldown: "~$1,330*", color: "emerald" as const },
+  { match: "Match 3", prize: "$18", odds: "1 in 47", rolldown: "~$90*", color: "muted" as const },
+  { match: "Match 2", prize: "Free Ticket", odds: "1 in 6.8", rolldown: "Free Ticket", color: "muted" as const },
+];
+
+const trustBadges = [
+  { icon: Eye, title: "On-Chain Verification", description: "Every ticket, draw, and prize distribution is recorded on Solana and publicly auditable." },
+  { icon: Shield, title: "Switchboard VRF", description: "Trusted Execution Environment randomness — even oracle operators cannot manipulate results." },
+  { icon: CheckCircle, title: "Solvency Checks", description: "Permissionless solvency verification — anyone can confirm the protocol has funds to pay all prizes." },
+  { icon: Lock, title: "Timelock Security", description: "24-hour timelock on all configuration changes. Two-step authority transfer prevents accidental control loss." },
+];
+
+const rolldownSteps = [
+  { step: "01", title: "Jackpot Builds", description: "Every $2.50 ticket grows the jackpot. 55.6% goes to prizes, 39.4% to fixed payouts, 5% to safety reserves." },
+  { step: "02", title: "Soft Cap Reached ($1.75M)", description: "Probabilistic rolldown becomes possible. Each draw has a chance to trigger full jackpot distribution." },
+  { step: "03", title: "Probability Rises", description: "The chance increases linearly as the jackpot grows. At $2M, there's a ~50% chance of rolldown each draw." },
+  { step: "04", title: "Hard Cap ($2.25M) — Forced Rolldown", description: "100% guaranteed. The entire jackpot distributes via pari-mutuel. Player edge reaches +104% under optimal conditions." },
+];
+
+/* -------------------------------------------------------------------------- */
+/*  Sub-components                                                            */
+/* -------------------------------------------------------------------------- */
 
 function FeatureCard({
   icon: Icon,
   title,
   description,
   highlight,
-}: FeatureCardProps) {
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  highlight?: boolean;
+}) {
   return (
     <div
-      className={`
-        group relative rounded-2xl p-6 transition-all duration-300
-        hover:-translate-y-0.5
-        ${highlight
-          ? "bg-linear-to-br from-emerald/10 via-emerald/5 to-transparent border border-emerald/20 glow-emerald hover:border-emerald/40"
-          : "bg-foreground/2 border border-foreground/6 hover:border-foreground/12 hover:bg-foreground/4"
-        }
-      `}
+      className={`group relative rounded-2xl p-6 transition-all duration-300 hover:-translate-y-0.5 ${highlight
+        ? "bg-linear-to-br from-emerald/10 via-emerald/5 to-transparent border border-emerald/20 glow-emerald hover:border-emerald/40"
+        : "bg-foreground/2 border border-foreground/6 hover:border-foreground/12 hover:bg-foreground/4"
+        }`}
     >
-      {/* Subtle gradient accent line at top */}
       <div
-        className={`absolute top-0 left-6 right-6 h-px ${highlight
-          ? "bg-linear-to-r from-transparent via-emerald/50 to-transparent"
-          : "bg-linear-to-r from-transparent via-foreground/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
+        className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors ${highlight
+          ? "bg-emerald/15 text-emerald-light"
+          : "bg-foreground/4 text-muted-foreground group-hover:text-foreground"
           }`}
-      />
-
-      <div className="mb-4">
-        <div
-          className={`inline-flex p-2.5 rounded-xl transition-colors duration-300 ${highlight
-            ? "bg-emerald/15 text-emerald-light group-hover:bg-emerald/25"
-            : "bg-foreground/5 text-muted-foreground group-hover:text-emerald-light group-hover:bg-emerald/10"
-            }`}
-        >
-          <Icon className="w-6 h-6" />
-        </div>
+      >
+        <Icon size={20} />
       </div>
-      <h3 className="text-lg font-bold text-foreground mb-2 tracking-tight">
-        {title}
-      </h3>
+      <h3 className="text-base font-bold mb-2 text-foreground">{title}</h3>
       <p className="text-sm text-muted-foreground leading-relaxed">
         {description}
       </p>
-    </div>
-  );
-}
-
-interface StatItemProps {
-  value: string;
-  label: string;
-  icon: LucideIcon;
-  accent?: "emerald" | "gold" | "default";
-}
-
-function StatItem({
-  value,
-  label,
-  icon: Icon,
-  accent = "default",
-}: StatItemProps) {
-  const accentColors = {
-    emerald: "text-emerald-light",
-    gold: "text-gold",
-    default: "text-foreground",
-  };
-  const iconColors = {
-    emerald: "text-emerald/60",
-    gold: "text-gold/60",
-    default: "text-muted-foreground",
-  };
-
-  return (
-    <div className="flex flex-col items-center text-center px-4 py-3">
-      <Icon size={18} className={`mb-2 ${iconColors[accent]}`} />
-      <div className={`heading-5 tracking-tight ${accentColors[accent]}`}>
-        {value}
-      </div>
-      <div className="text-[11px] text-muted-foreground mt-1 uppercase tracking-wider font-medium">
-        {label}
-      </div>
-    </div>
-  );
-}
-
-interface StepCardProps {
-  step: number;
-  title: string;
-  description: string;
-  icon: LucideIcon;
-  isLast?: boolean;
-}
-
-function StepCard({
-  step,
-  title,
-  description,
-  icon: Icon,
-  isLast,
-}: StepCardProps) {
-  return (
-    <div className="flex items-start gap-4 relative">
-      {/* Vertical line connector */}
-      {!isLast && (
-        <div className="absolute left-5 top-12 bottom-0 w-px bg-linear-to-b from-emerald/30 to-transparent" />
-      )}
-
-      {/* Step number circle */}
-      <div className="shrink-0 w-10 h-10 rounded-xl bg-linear-to-br from-emerald/20 to-emerald/5 border border-emerald/20 flex items-center justify-center">
-        <span className="text-sm font-bold text-emerald-light">{step}</span>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 pb-8">
-        <div className="flex items-center gap-2 mb-1.5">
-          <Icon size={16} className="text-emerald/60" />
-          <h4 className="text-base font-semibold text-foreground">{title}</h4>
+      {highlight && (
+        <div className="absolute top-4 right-4">
+          <Sparkles size={16} className="text-gold animate-pulse" />
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          {description}
+      )}
+    </div>
+  );
+}
+
+function HeroSection({
+  jackpotDollars,
+  rolldownActive,
+  loading,
+}: {
+  jackpotDollars: number;
+  rolldownActive: boolean;
+  loading: boolean;
+}) {
+  const { open } = useAppKit();
+  const { isConnected } = useAppKitAccount();
+
+  return (
+    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+      {/* Background effects */}
+      <div className="absolute inset-0 bg-linear-to-b from-background via-navy/30 to-background pointer-events-none" />
+      <FloatingBalls count={12} className="opacity-50" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald/5 rounded-full blur-[128px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gold/5 rounded-full blur-[128px] pointer-events-none" />
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+        {/* Badge */}
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald/10 border border-emerald/20 mb-8 animate-pulse">
+          <div className="w-2 h-2 rounded-full bg-emerald" />
+          <span className="text-xs font-semibold text-emerald-light uppercase tracking-wider">
+            Live on Solana
+          </span>
+        </div>
+
+        {/* Main heading */}
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight text-foreground leading-none mb-6">
+          The First{" "}
+          <span className="text-gradient-gold">+EV Lottery</span>
+          <br />
+          <span className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-muted-foreground">
+            Built on Solana
+          </span>
+        </h1>
+
+        <p className="max-w-2xl mx-auto text-base sm:text-lg text-muted-foreground leading-relaxed mb-10">
+          MazelProtocol creates predictable windows of{" "}
+          <span className="text-emerald-light font-semibold">
+            positive expected value
+          </span>{" "}
+          through mathematical rolldown mechanics. When the jackpot reaches the
+          soft cap, the edge flips — the math works in your favor.
+        </p>
+
+        {/* Live jackpot */}
+        <div className="max-w-lg mx-auto mb-10">
+          <JackpotDisplay
+            amount={jackpotDollars}
+            animated
+            size="lg"
+            glow={jackpotDollars >= 1_575_000}
+            showRolldownStatus
+            rolldownActive={rolldownActive}
+            softCap={1_750_000}
+          />
+          {rolldownActive && (
+            <div className="mt-3">
+              <EVBadge
+                jackpotAmount={jackpotDollars}
+                rolldownActive={rolldownActive}
+                loading={loading}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* CTA */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+          <button
+            type="button"
+            onClick={() => (isConnected ? null : open?.())}
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-linear-to-r from-emerald to-emerald-dark text-white font-bold text-lg shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all hover:-translate-y-0.5 active:translate-y-0"
+          >
+            {isConnected ? (
+              <Link to="/play" className="flex items-center gap-2">
+                Play Now <ArrowRight size={20} />
+              </Link>
+            ) : (
+              <>
+                <Wallet size={20} />
+                Connect Wallet
+                <ArrowRight size={20} />
+              </>
+            )}
+          </button>
+
+          <Link
+            to="/learn/rolldown"
+            className="inline-flex items-center gap-2 px-6 py-4 rounded-xl border border-border hover:border-foreground/20 text-muted-foreground hover:text-foreground font-semibold transition-all"
+          >
+            How It Works
+            <ArrowRight size={18} />
+          </Link>
+        </div>
+
+        {/* Countdown */}
+        <CountdownTimer size="sm" showUrgency />
+      </div>
+    </section>
+  );
+}
+
+function PrizeTiersSection() {
+  return (
+    <section className="py-20 px-4">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-black text-foreground mb-4">
+            Prize Structure
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            Fixed prizes during normal mode transition to pari-mutuel during
+            rolldown events. Estimated rolldown prizes assume ~475k tickets.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {prizeTiers.map((tier) => (
+            <div
+              key={tier.match}
+              className="relative rounded-2xl p-6 bg-card/50 border border-border/50 text-center hover:border-border transition-colors"
+            >
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                {tier.match}
+              </p>
+              <div className="mb-3">
+                <LotteryBallRow
+                  numbers={Array.from(
+                    { length: tier.match === "Match 5" ? 5 : tier.match === "Match 4" ? 4 : tier.match === "Match 3" ? 3 : 2 },
+                    (_, i) => i + 1,
+                  )}
+                  size="sm"
+                  variant={tier.color}
+                  animated={false}
+                  className="justify-center"
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-bold text-foreground">
+                  {tier.prize}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Rolldown: <span className="text-gold font-semibold">{tier.rolldown}</span>
+                </p>
+                <p className="text-[10px] text-muted-foreground/60">
+                  {tier.odds}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-center text-[10px] text-muted-foreground/50 mt-4">
+          *Rolldown prizes are pari-mutuel estimates. Actual = Pool ÷ Winners.
         </p>
       </div>
-    </div>
+    </section>
+  );
+}
+
+function HowItWorksSection() {
+  return (
+    <section className="py-20 px-4 bg-muted/20">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-black text-foreground mb-4">
+            How Rolldown Works
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            A four-phase cycle that turns the lottery math in your favor.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {rolldownSteps.map((step, i) => (
+            <div
+              key={step.step}
+              className="relative rounded-2xl p-6 bg-card/50 border border-border/50"
+            >
+              <div className="text-2xl font-black text-emerald/30 mb-3">
+                {step.step}
+              </div>
+              <h3 className="text-sm font-bold text-foreground mb-2">
+                {step.title}
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {step.description}
+              </p>
+              {i < rolldownSteps.length - 1 && (
+                <div className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 text-muted-foreground/30">
+                  <ArrowRight size={20} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RolldownLiveSection({
+  jackpotDollars,
+  rolldownActive,
+  loading,
+}: {
+  jackpotDollars: number;
+  rolldownActive: boolean;
+  loading: boolean;
+}) {
+  return (
+    <section className="py-20 px-4">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-black text-foreground mb-4">
+            Live Rolldown Monitor
+          </h2>
+          <p className="text-muted-foreground">
+            Track the jackpot's progress toward rolldown in real-time.
+          </p>
+        </div>
+
+        <RolldownGauge
+          jackpotAmount={jackpotDollars}
+          rolldownActive={rolldownActive}
+          loading={loading}
+        />
+      </div>
+    </section>
+  );
+}
+
+function EVSection({
+  jackpotDollars,
+  rolldownActive,
+  loading,
+}: {
+  jackpotDollars: number;
+  rolldownActive: boolean;
+  loading: boolean;
+}) {
+  return (
+    <section className="py-20 px-4 bg-muted/20">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-black text-foreground mb-4">
+            Calculate Your Edge
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            Use the interactive calculator to see your expected value based on
+            current jackpot and estimated ticket volume.
+          </p>
+        </div>
+
+        <EVCalculator
+          jackpotAmount={jackpotDollars}
+          rolldownActive={rolldownActive}
+          loading={loading}
+        />
+      </div>
+    </section>
+  );
+}
+
+function FeaturesSection() {
+  return (
+    <section className="py-20 px-4">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-black text-foreground mb-4">
+            Why MazelProtocol?
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            A fundamentally different approach to lottery economics.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {features.map((f) => (
+            <FeatureCard key={f.title} {...f} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TrustSection() {
+  return (
+    <section className="py-20 px-4 bg-muted/20">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-black text-foreground mb-4">
+            Trust Through Transparency
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            Every aspect of the protocol is verifiable on-chain. No trust required.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {trustBadges.map((badge) => {
+            const Icon = badge.icon;
+            return (
+              <div
+                key={badge.title}
+                className="flex gap-4 p-5 rounded-2xl bg-card/50 border border-border/50"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald/10 flex items-center justify-center shrink-0">
+                  <Icon size={20} className="text-emerald-light" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground mb-1">
+                    {badge.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {badge.description}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TimelineSection({ jackpotDollars, loading }: { jackpotDollars: number; loading: boolean }) {
+  return (
+    <section className="py-20 px-4">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-black text-foreground mb-4">
+            The Rolldown Timeline
+          </h2>
+          <p className="text-muted-foreground">
+            See how probability evolves as the jackpot grows.
+          </p>
+        </div>
+
+        <ProbabilityTimeline currentJackpot={jackpotDollars} loading={loading} />
+      </div>
+    </section>
+  );
+}
+
+function CtaSection({ rolldownActive }: { rolldownActive: boolean }) {
+  const { open } = useAppKit();
+  const { isConnected } = useAppKitAccount();
+
+  return (
+    <section className="py-20 px-4">
+      <div className="max-w-2xl mx-auto text-center">
+        <div className="rounded-3xl p-10 sm:p-14 bg-linear-to-br from-emerald/10 via-card/50 to-gold/5 border border-emerald/20">
+          <Trophy size={40} className="mx-auto mb-4 text-gold" />
+          <h2 className="text-3xl sm:text-4xl font-black text-foreground mb-4">
+            {rolldownActive
+              ? "The +EV Window Is Open"
+              : "Ready to Play?"}
+          </h2>
+          <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+            {rolldownActive
+              ? "Rolldown is active. The math favors players right now. Don't miss the window."
+              : "Every ticket brings the jackpot closer to rolldown. Start playing and be ready when the edge flips."}
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            {isConnected ? (
+              <Link
+                to="/play"
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-linear-to-r from-emerald to-emerald-dark text-white font-bold text-lg shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all hover:-translate-y-0.5"
+              >
+                <Trophy size={20} />
+                Buy Tickets
+                <ArrowRight size={20} />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => open?.()}
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-linear-to-r from-emerald to-emerald-dark text-white font-bold text-lg shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all hover:-translate-y-0.5"
+              >
+                <Wallet size={20} />
+                Connect Wallet
+                <ArrowRight size={20} />
+              </button>
+            )}
+            <Link
+              to="/learn/whitepaper"
+              className="inline-flex items-center gap-2 px-6 py-4 rounded-xl border border-border hover:border-foreground/20 text-muted-foreground hover:text-foreground font-semibold transition-all"
+            >
+              Read the Whitepaper
+              <ArrowRight size={18} />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -171,962 +544,40 @@ function StepCard({
 /* -------------------------------------------------------------------------- */
 
 function LandingPage() {
-  const { open } = useAppKit();
-  const { isConnected } = useAppKitAccount();
-  const sampleNumbers = [7, 14, 22, 31, 38, 45];
-  const quickPickNumbers = [3, 11, 19, 27, 33];
-
-  const features: FeatureCardProps[] = [
-    {
-      icon: TrendingUp,
-      title: "Positive-EV Rolldown",
-      description:
-        "When the jackpot hits $1.75M, prizes roll down to lower tiers creating up to +62% expected value per ticket. By design.",
-      highlight: true,
-    },
-    {
-      icon: Shield,
-      title: "Provably Fair",
-      description:
-        "Switchboard VRF with TEE ensures verifiable randomness for every draw. All results and balances are fully transparent on-chain.",
-    },
-    {
-      icon: Users,
-      title: "Syndicate System",
-      description:
-        "Create or join pools with automatic prize splitting. Compete in Syndicate Wars for bonus rewards and leaderboard rankings.",
-    },
-    {
-      icon: Coins,
-      title: "More Money Back to You",
-      description:
-        "During rolldown windows, up to 72% of ticket revenue flows directly into player prizes. The math literally flips in your favor.",
-    },
-    {
-      icon: Zap,
-      title: "Quick Pick Express",
-      description:
-        "5/35 mini-lottery every 4 hours with +66.7% rolldown advantage. $1.50 tickets with a $50 lifetime spend gate.",
-    },
-    {
-      icon: Lock,
-      title: "Prizes Always Guaranteed",
-      description:
-        "5% of every ticket goes to reserve and insurance funds that back your winnings. Prizes are always paid — verified on-chain.",
-    },
-  ];
-
-  const rolldownSteps: Omit<StepCardProps, "isLast">[] = [
-    {
-      step: 1,
-      title: "Jackpot Accumulates",
-      description:
-        "Daily draws with $2.50 tickets. The jackpot grows with each draw that has no Match 6 winner, approaching the $1.75M soft cap.",
-      icon: TrendingUp,
-    },
-    {
-      step: 2,
-      title: "Rolldown Triggers",
-      description:
-        "At $1.75M with no jackpot winner, the entire prize pool rolls down to lower tiers. Prizes switch from fixed to pari-mutuel.",
-      icon: Target,
-    },
-    {
-      step: 3,
-      title: "+EV Window Opens",
-      description:
-        "Expected value per $2.50 ticket becomes up to +62% — that's +$1.55 profit per ticket on average. The odds flip in your favor.",
-      icon: Sparkles,
-    },
-    {
-      step: 4,
-      title: "Strategic Play",
-      description:
-        "Sophisticated players buy tickets in volume during the rolldown window, collecting mathematically guaranteed profits.",
-      icon: BarChart3,
-    },
-  ];
-
-  const prizeTiers = [
-    {
-      match: "6 Numbers",
-      prize: "Jackpot (55.6%)",
-      odds: "1 in 9,366,819",
-      rolldown: "Entire pool cascades down",
-      color: "gold" as const,
-    },
-    {
-      match: "5 Numbers",
-      prize: "$4,000 fixed",
-      odds: "1 in 39,028",
-      rolldown: "Pari-mutuel share",
-      color: "emerald" as const,
-    },
-    {
-      match: "4 Numbers",
-      prize: "$150 fixed",
-      odds: "1 in 800",
-      rolldown: "Pari-mutuel share",
-      color: "emerald" as const,
-    },
-    {
-      match: "3 Numbers",
-      prize: "$5 fixed",
-      odds: "1 in 47",
-      rolldown: "Pari-mutuel share",
-      color: "emerald" as const,
-    },
-  ];
-
-  const trustBadges = [
-    {
-      icon: Shield,
-      title: "Open Source",
-      description: "All smart contracts are publicly auditable on-chain",
-    },
-    {
-      icon: Eye,
-      title: "Fully Transparent",
-      description:
-        "Every draw, ticket, and payout is verifiable on Solana Explorer",
-    },
-    {
-      icon: Lock,
-      title: "Non-Custodial",
-      description: "Your funds stay in your wallet until you buy a ticket",
-    },
-    {
-      icon: Gem,
-      title: "Switchboard VRF",
-      description:
-        "Randomness generated inside a Trusted Execution Environment",
-    },
-  ];
-
-  const memberAvatarIds = [useId(), useId(), useId(), useId(), useId()];
+  const { jackpotDollars, rolldownActive, loading } = useLotteryState();
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-      {/* ================================================================== */}
-      {/*  HERO SECTION                                                      */}
-      {/* ================================================================== */}
-      <section className="relative py-16 sm:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        {/* Background effects */}
-        <div className="absolute inset-0 bg-glow-top-left" />
-        <div className="absolute inset-0 bg-glow-bottom-right" />
-        <div className="absolute inset-0 hero-grid" />
-        <FloatingBalls count={10} />
+    <div className="min-h-screen">
+      <HeroSection
+        jackpotDollars={jackpotDollars}
+        rolldownActive={rolldownActive}
+        loading={loading}
+      />
 
-        <div className="relative z-10 max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left: Copy */}
-            <div className="text-center lg:text-left">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald/10 border border-emerald/20 mb-6 animate-slide-down">
-                <Sparkles size={14} className="text-emerald-light" />
-                <span className="text-xs font-semibold text-emerald-light">
-                  Revolutionary Lottery Protocol on Solana
-                </span>
-              </div>
+      <PrizeTiersSection />
 
-              <h1 className="heading-1 tracking-tight mb-6">
-                <span className="block text-foreground">The First</span>
-                <span className="block text-gradient-primary mt-1">
-                  Mathematically Transparent
-                </span>
-                <span className="block text-foreground mt-1">Lottery</span>
-              </h1>
+      <HowItWorksSection />
 
-              <p className="body-base text-muted-foreground max-w-xl mx-auto lg:mx-0 mb-8">
-                MazelProtocol introduces{" "}
-                <span className="text-emerald-light font-semibold">
-                  positive expected value windows
-                </span>{" "}
-                through mathematical rolldown mechanics. When the jackpot hits
-                the cap, the math flips in your favor.
-              </p>
+      <RolldownLiveSection
+        jackpotDollars={jackpotDollars}
+        rolldownActive={rolldownActive}
+        loading={loading}
+      />
 
-              {/* CTA buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-                {isConnected ? (
-                  <Link
-                    to="/play"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-white dark:text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-lg shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    <Trophy size={18} />
-                    <span>Start Playing</span>
-                    <ArrowRight size={16} />
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      open({ view: "Connect", namespace: "solana" })
-                    }
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-white dark:text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-lg shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    <Wallet size={18} />
-                    <span>Connect Wallet & Play</span>
-                    <ArrowRight size={16} />
-                  </button>
-                )}
-                <Link
-                  to="/learn/rolldown"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-semibold text-muted-foreground bg-foreground/5 hover:bg-foreground/10 border border-foreground/10 hover:border-foreground/20 rounded-xl transition-all duration-300"
-                >
-                  <span>Read the Docs</span>
-                  <ChevronRight size={16} />
-                </Link>
-              </div>
+      <EVSection
+        jackpotDollars={jackpotDollars}
+        rolldownActive={rolldownActive}
+        loading={loading}
+      />
 
-              {/* Quick social proof */}
-              <div className="mt-8 flex flex-wrap items-center gap-4 justify-center lg:justify-start">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle size={13} className="text-emerald/60" />
-                  <span>Provably fair</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle size={13} className="text-emerald/60" />
-                  <span>Non-custodial</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle size={13} className="text-emerald/60" />
-                  <span>On-chain transparent</span>
-                </div>
-              </div>
-            </div>
+      <TimelineSection jackpotDollars={jackpotDollars} loading={loading} />
 
-            {/* Right: Jackpot + Countdown + Sample balls */}
-            <div className="flex flex-col items-center gap-6">
-              <JackpotDisplay
-                amount={1_247_832}
-                size="lg"
-                glow
-                showRolldownStatus
-                rolldownActive={false}
-                softCap={1_750_000}
-                className="w-full max-w-md"
-              />
+      <FeaturesSection />
 
-              <div className="glass rounded-2xl px-6 py-5 w-full max-w-md">
-                <CountdownTimer size="md" label="Next Draw" />
-              </div>
+      <TrustSection />
 
-              {/* Sample winning numbers */}
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                  Last Winning Numbers
-                </span>
-                <LotteryBallRow
-                  numbers={sampleNumbers}
-                  size="md"
-                  variant="emerald"
-                  animated
-                  staggerDelay={100}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <CtaSection rolldownActive={rolldownActive} />
 
-      {/* ================================================================== */}
-      {/*  LIVE STATS BAR                                                    */}
-      {/* ================================================================== */}
-      <section className="relative">
-        <div className="section-divider" />
-        <div className="bg-card/50 dark:bg-navy-deep/50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <StatItem
-                value="1 in 9.37M"
-                label="Jackpot Odds"
-                icon={Trophy}
-                accent="gold"
-              />
-              <StatItem
-                value="+11.2%"
-                label="Rolldown EV"
-                icon={TrendingUp}
-                accent="emerald"
-              />
-              <StatItem value="$2.50" label="Ticket Price" icon={Coins} />
-              <StatItem value="Daily" label="Draw Frequency" icon={Clock} />
-            </div>
-          </div>
-        </div>
-        <div className="section-divider" />
-      </section>
-
-      {/* ================================================================== */}
-      {/*  TWO WAYS TO PLAY                                                  */}
-      {/* ================================================================== */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 relative">
-        <div className="absolute inset-0 bg-glow-emerald opacity-30" />
-
-        <div className="relative z-10 max-w-7xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="heading-2 text-foreground tracking-tight mb-3">
-              Two Ways to <span className="text-gradient-primary">Play</span>
-            </h2>
-            <p className="body-base text-muted-foreground max-w-2xl mx-auto">
-              Choose the main 6/46 lottery for massive jackpots or Quick Pick
-              Express for faster action with even higher rolldown EV.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
-            {/* Main Lottery Card */}
-            <div className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5">
-              {/* Border gradient */}
-              <div className="absolute inset-0 rounded-2xl p-px bg-linear-to-br from-emerald/30 via-emerald/10 to-transparent">
-                <div className="w-full h-full rounded-2xl bg-card dark:bg-navy-light/90" />
-              </div>
-
-              <div className="relative p-7 sm:p-8">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-5">
-                  <div>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald/10 border border-emerald/20 text-xs font-semibold text-emerald-light mb-3">
-                      <Trophy size={12} />
-                      Main Game
-                    </div>
-                    <h3 className="heading-4 text-foreground">6/46 Lottery</h3>
-                    <p className="body-small text-muted-foreground mt-1">
-                      Pick 6 from 46 numbers
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="heading-4 font-black text-gradient-gold">
-                      $2.50
-                    </div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">
-                      per ticket
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sample balls */}
-                <div className="mb-5">
-                  <LotteryBallRow
-                    numbers={sampleNumbers}
-                    size="sm"
-                    variant="emerald"
-                    animated={false}
-                  />
-                </div>
-
-                {/* Stats grid */}
-                <div className="grid grid-cols-3 gap-3 mb-5">
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
-                    <div className="text-sm font-bold text-foreground">
-                      Daily
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Draw Freq
-                    </div>
-                  </div>
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
-                    <div className="text-sm font-bold text-gold">+11.2%</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Rolldown EV
-                    </div>
-                  </div>
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
-                    <div className="text-sm font-bold text-foreground">
-                      $1.75M
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Soft Cap
-                    </div>
-                  </div>
-                </div>
-
-                {/* CTA */}
-                <Link
-                  to="/play"
-                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white dark:text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-md shadow-emerald/15 hover:shadow-emerald/25"
-                >
-                  <span>Play 6/46 Lottery</span>
-                  <ArrowRight size={16} />
-                </Link>
-              </div>
-            </div>
-
-            {/* Quick Pick Card */}
-            <div className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5">
-              {/* Border gradient */}
-              <div className="absolute inset-0 rounded-2xl p-px bg-linear-to-br from-gold/30 via-gold/10 to-transparent">
-                <div className="w-full h-full rounded-2xl bg-card dark:bg-navy-light/90" />
-              </div>
-
-              <div className="relative p-7 sm:p-8">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-5">
-                  <div>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gold/10 border border-gold/20 text-xs font-semibold text-gold mb-3">
-                      <Zap size={12} />
-                      Express
-                    </div>
-                    <h3 className="heading-4 text-foreground">Quick Pick</h3>
-                    <p className="body-small text-muted-foreground mt-1">
-                      Pick 5 from 35 numbers
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="heading-4 font-black text-gradient-gold">
-                      $1.50
-                    </div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">
-                      per ticket
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sample balls */}
-                <div className="mb-5">
-                  <LotteryBallRow
-                    numbers={quickPickNumbers}
-                    size="sm"
-                    variant="gold"
-                    animated={false}
-                  />
-                </div>
-
-                {/* Stats grid */}
-                <div className="grid grid-cols-3 gap-3 mb-5">
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
-                    <div className="text-sm font-bold text-foreground">
-                      4 hrs
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Draw Freq
-                    </div>
-                  </div>
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
-                    <div className="text-sm font-bold text-gold">+59%</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Rolldown EV
-                    </div>
-                  </div>
-                  <div className="text-center p-2.5 rounded-lg bg-foreground/3 border border-foreground/4">
-                    <div className="text-sm font-bold text-foreground">$50</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Spend Gate
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Pick countdown */}
-                <div className="flex items-center justify-center mb-4 p-2 rounded-lg bg-foreground/2 border border-foreground/5">
-                  <QuickPickCountdown size="sm" />
-                </div>
-
-                {/* CTA */}
-                <Link
-                  to="/play/quick-pick"
-                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-navy bg-linear-to-r from-gold-light to-gold hover:from-gold-light hover:to-gold-dark rounded-xl transition-all duration-300 shadow-md shadow-gold/15 hover:shadow-gold/25"
-                >
-                  <span>Play Quick Pick</span>
-                  <Zap size={16} />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ================================================================== */}
-      {/*  HOW THE ROLLDOWN WORKS                                            */}
-      {/* ================================================================== */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 relative">
-        <div className="absolute inset-0 bg-muted/40 dark:bg-navy-deep/40" />
-        <div className="section-divider absolute top-0 left-0 right-0" />
-
-        <div className="relative z-10 max-w-7xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="heading-2 text-foreground tracking-tight mb-3">
-              How the <span className="text-gradient-emerald">Rolldown</span>{" "}
-              Works
-            </h2>
-            <p className="body-base text-muted-foreground max-w-2xl mx-auto">
-              The mathematical mechanism that creates guaranteed profit
-              opportunities for strategic players.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-            {/* Steps */}
-            <div>
-              {rolldownSteps.map((step, i) => (
-                <StepCard
-                  key={step.step}
-                  {...step}
-                  isLast={i === rolldownSteps.length - 1}
-                />
-              ))}
-            </div>
-
-            {/* EV Comparison Visual */}
-            <div className="lg:sticky lg:top-24">
-              <div className="rounded-2xl overflow-hidden">
-                <div className="bg-linear-to-br from-card to-muted dark:from-navy-light dark:to-navy border border-border rounded-2xl p-6 sm:p-8">
-                  <h3 className="heading-5 text-foreground mb-6 flex items-center gap-2">
-                    <BarChart3 size={20} className="text-emerald" />
-                    Economic Advantage
-                  </h3>
-
-                  {/* Normal EV bar */}
-                  <div className="mb-5">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-muted-foreground">
-                        Normal Draw EV
-                      </span>
-                      <span className="text-sm font-semibold text-red-400">
-                        -28% to -40%
-                      </span>
-                    </div>
-                    <div className="h-2.5 bg-foreground/5 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-linear-to-r from-red-500/80 to-red-600/80 transition-all duration-1000"
-                        style={{ width: "34%" }}
-                      />
-                    </div>
-                    <p className="text-[11px] text-muted-foreground/60 mt-1.5">
-                      You lose money on average — standard for most lotteries
-                    </p>
-                  </div>
-
-                  {/* Rolldown EV bar */}
-                  <div className="mb-6">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-muted-foreground">
-                        Rolldown Draw EV
-                      </span>
-                      <span className="text-sm font-semibold text-emerald-light">
-                        +11.2%
-                      </span>
-                    </div>
-                    <div className="h-2.5 bg-foreground/5 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-linear-to-r from-emerald to-emerald-light transition-all duration-1000"
-                        style={{ width: "100%" }}
-                      />
-                    </div>
-                    <p className="text-[11px] text-muted-foreground/60 mt-1.5">
-                      The math flips — you have the mathematical advantage
-                    </p>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="section-divider my-6" />
-
-                  {/* Profit highlight */}
-                  <div className="text-center">
-                    <div className="heading-3 font-black text-gradient-emerald tracking-tight">
-                      +$1.55
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      Average profit per $2.50 ticket during rolldown
-                    </div>
-                  </div>
-
-                  {/* Quick comparison table */}
-                  <div className="mt-6 grid grid-cols-2 gap-3">
-                    <div className="text-center p-3 rounded-xl bg-red-500/5 border border-red-500/10">
-                      <div className="text-xs text-muted-foreground mb-1">
-                        Buy 1,000 Normal
-                      </div>
-                      <div className="text-base font-bold text-red-400">
-                        -$1,625
-                      </div>
-                    </div>
-                    <div className="text-center p-3 rounded-xl bg-emerald/5 border border-emerald/10">
-                      <div className="text-xs text-muted-foreground mb-1">
-                        Buy 1,000 Rolldown
-                      </div>
-                      <div className="text-base font-bold text-emerald-light">
-                        +$1,550
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="section-divider absolute bottom-0 left-0 right-0" />
-      </section>
-
-      {/* ================================================================== */}
-      {/*  FEATURES                                                          */}
-      {/* ================================================================== */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 relative">
-        <div className="absolute inset-0 bg-glow-gold opacity-20" />
-
-        <div className="relative z-10 max-w-7xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="heading-2 tracking-tight mb-3">Built Different</h2>
-            <p className="body-base text-muted-foreground max-w-2xl mx-auto">
-              Everything you need for a fair, transparent, and strategic lottery
-              experience on Solana.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {features.map((feature) => (
-              <FeatureCard key={feature.title} {...feature} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ================================================================== */}
-      {/*  PRIZE STRUCTURE                                                   */}
-      {/* ================================================================== */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 relative">
-        <div className="absolute inset-0 bg-muted/40 dark:bg-navy-deep/40" />
-        <div className="section-divider absolute top-0 left-0 right-0" />
-
-        <div className="relative z-10 max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="heading-2 text-foreground tracking-tight mb-3">
-              Prize <span className="text-gradient-gold">Structure</span>
-            </h2>
-            <p className="body-base text-muted-foreground max-w-2xl mx-auto">
-              Four tiers of prizes with a hybrid fixed → pari-mutuel system.
-              During rolldown, all prizes become pari-mutuel and scale with the
-              pool.
-            </p>
-          </div>
-
-          {/* Prize tier cards */}
-          <div className="space-y-3">
-            {prizeTiers.map((tier, i) => (
-              <div
-                key={tier.match}
-                className={`
-                  group flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 p-5 sm:p-6 rounded-xl
-                  transition-all duration-300 hover:translate-x-1
-                  ${i === 0
-                    ? "bg-linear-to-r from-gold/10 via-gold/5 to-transparent border border-gold/15 hover:border-gold/30"
-                    : "bg-foreground/2 border border-foreground/6 hover:border-emerald/20"
-                  }
-                `}
-              >
-                {/* Tier badge */}
-                <div
-                  className={`
-                    shrink-0 w-20 text-center
-                  `}
-                >
-                  <div
-                    className={`text-xs font-bold uppercase tracking-wider ${i === 0 ? "text-gold" : "text-emerald"
-                      }`}
-                  >
-                    Match
-                  </div>
-                  <div
-                    className={`heading-4 font-black mt-0.5 ${i === 0 ? "text-gold" : "text-foreground"
-                      }`}
-                  >
-                    {tier.match.split(" ")[0]}
-                  </div>
-                </div>
-
-                {/* Main info */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-base font-semibold text-foreground">
-                    {tier.prize}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Rolldown: {tier.rolldown}
-                  </div>
-                </div>
-
-                {/* Odds */}
-                <div className="shrink-0 text-right">
-                  <div className="text-sm font-medium text-foreground/80">
-                    {tier.odds}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground/60 mt-0.5">
-                    Probability
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Game parameters summary */}
-          <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: "Matrix", value: "6/46" },
-              { label: "Ticket", value: "$2.50" },
-              { label: "Seed", value: "$500K" },
-              { label: "Hard Cap", value: "$2.25M" },
-            ].map((param) => (
-              <div
-                key={param.label}
-                className="text-center p-3 rounded-xl bg-foreground/2 border border-foreground/6"
-              >
-                <div className="text-xs text-muted-foreground mb-0.5">
-                  {param.label}
-                </div>
-                <div className="text-sm font-bold text-foreground">
-                  {param.value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="section-divider absolute bottom-0 left-0 right-0" />
-      </section>
-
-      {/* ================================================================== */}
-      {/*  SYNDICATE TEASER                                                  */}
-      {/* ================================================================== */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-glow-emerald opacity-20" />
-
-        <div className="relative z-10 max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Left: Description */}
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald/10 border border-emerald/20 mb-5">
-                <Users size={14} className="text-emerald-light" />
-                <span className="text-xs font-semibold text-emerald-light">
-                  Team Play
-                </span>
-              </div>
-
-              <h2 className="heading-2 text-foreground tracking-tight mb-4">
-                Stronger <span className="text-gradient-primary">Together</span>
-              </h2>
-
-              <p className="text-muted-foreground text-base leading-relaxed mb-6">
-                Form syndicates with other players to pool resources and buy
-                tickets in bulk. Prizes are automatically split proportionally
-                based on each member's contribution. No trust required — it's
-                all on-chain.
-              </p>
-
-              <div className="space-y-3 mb-8">
-                {[
-                  "Automatic prize splitting via smart contracts",
-                  "Up to 100 members per syndicate",
-                  "Compete in monthly Syndicate Wars for bonus pools",
-                  "Manager fee capped at 10% to protect members",
-                ].map((item) => (
-                  <div key={item} className="flex items-start gap-2.5">
-                    <CheckCircle
-                      size={16}
-                      className="text-emerald mt-0.5 shrink-0"
-                    />
-                    <span className="text-sm text-foreground/80">{item}</span>
-                  </div>
-                ))}
-              </div>
-
-              <Link
-                to="/syndicates"
-                className="inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold text-foreground bg-foreground/5 hover:bg-foreground/10 border border-foreground/10 hover:border-emerald/30 rounded-xl transition-all duration-300"
-              >
-                <Users size={16} />
-                <span>Explore Syndicates</span>
-                <ArrowRight size={16} />
-              </Link>
-            </div>
-
-            {/* Right: Syndicate visual card */}
-            <div className="flex justify-center">
-              <div className="w-full max-w-sm rounded-2xl overflow-hidden">
-                <div className="bg-linear-to-br from-card to-muted dark:from-navy-light dark:to-navy border border-border rounded-2xl p-6">
-                  {/* Syndicate header */}
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald to-emerald-dark flex items-center justify-center">
-                      <Star size={18} className="text-white" />
-                    </div>
-                    <div>
-                      <div className="text-base font-bold text-foreground">
-                        Diamond Hands DAO
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        23 members · Public
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-3 mb-5">
-                    <div className="p-3 rounded-xl bg-foreground/3 border border-foreground/5">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Total Pooled
-                      </div>
-                      <div className="text-lg font-bold text-foreground mt-0.5">
-                        $4,832
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-foreground/3 border border-foreground/5">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Wins This Month
-                      </div>
-                      <div className="text-lg font-bold text-emerald-light mt-0.5">
-                        12
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-foreground/3 border border-foreground/5">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Total Won
-                      </div>
-                      <div className="text-lg font-bold text-gold mt-0.5">
-                        $18,450
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-foreground/3 border border-foreground/5">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Wars Rank
-                      </div>
-                      <div className="text-lg font-bold text-foreground mt-0.5">
-                        #3
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Member avatars placeholder */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex -space-x-2">
-                      {[
-                        "from-purple-500 to-blue-500",
-                        "from-emerald to-cyan-500",
-                        "from-gold to-orange-500",
-                        "from-pink-500 to-red-500",
-                        "from-indigo-500 to-purple-500",
-                      ].map((gradient, i) => {
-                        return (
-                          <div
-                            key={memberAvatarIds[i]}
-                            className={`w-7 h-7 rounded-full bg-linear-to-br ${gradient} border-2 border-card dark:border-navy-light flex items-center justify-center text-[10px] font-bold text-white dark:text-white`}
-                          >
-                            {String.fromCharCode(65 + i)}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      +18 more
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ================================================================== */}
-      {/*  TRUST & SECURITY                                                  */}
-      {/* ================================================================== */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 relative">
-        <div className="absolute inset-0 bg-muted/40 dark:bg-navy-deep/40" />
-        <div className="section-divider absolute top-0 left-0 right-0" />
-
-        <div className="relative z-10 max-w-7xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="heading-2 text-foreground tracking-tight mb-3">
-              Transparent by{" "}
-              <span className="text-gradient-emerald">Design</span>
-            </h2>
-            <p className="body-base text-muted-foreground max-w-2xl mx-auto">
-              Every aspect of MazelProtocol is verifiable on-chain. No black
-              boxes, no hidden mechanics, no trust required.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {trustBadges.map((badge) => (
-              <div
-                key={badge.title}
-                className="group flex flex-col items-center text-center p-6 rounded-2xl bg-foreground/2 border border-foreground/6 hover:border-emerald/20 transition-all duration-300"
-              >
-                <div className="w-12 h-12 rounded-xl bg-emerald/10 flex items-center justify-center mb-4 group-hover:bg-emerald/20 transition-colors">
-                  <badge.icon size={22} className="text-emerald" />
-                </div>
-                <h3 className="text-sm font-bold text-foreground mb-1.5">
-                  {badge.title}
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {badge.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="section-divider absolute bottom-0 left-0 right-0" />
-      </section>
-
-      {/* ================================================================== */}
-      {/*  FINAL CTA                                                         */}
-      {/* ================================================================== */}
-      <section className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-glow-emerald opacity-25" />
-        <div className="absolute inset-0 bg-glow-gold opacity-15" />
-        <FloatingBalls count={6} />
-
-        <div className="relative z-10 max-w-3xl mx-auto text-center">
-          {/* Decorative icon */}
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-emerald/20 to-gold/10 border border-emerald/20 mb-6 glow-emerald">
-            <Trophy size={28} className="text-emerald-light" />
-          </div>
-
-          <h2 className="heading-2 text-foreground tracking-tight mb-4">
-            Ready to Play <span className="text-gradient-primary">Smart</span>?
-          </h2>
-
-          <p className="body-base text-muted-foreground mb-8 max-w-xl mx-auto">
-            Join the revolution where mathematics gives players the edge.
-            Monitor rolldown windows, maximize EV, and win bigger.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            {isConnected ? (
-              <Link
-                to="/play"
-                className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold text-white dark:text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Trophy size={18} />
-                <span>Start Playing Now</span>
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={() => open({ view: "Connect", namespace: "solana" })}
-                className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold text-white dark:text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Wallet size={18} />
-                <span>Connect Wallet & Play</span>
-              </button>
-            )}
-            <Link
-              to="/learn/rolldown"
-              className="inline-flex items-center justify-center gap-2 px-7 py-4 text-sm font-semibold text-emerald-light bg-transparent border-2 border-emerald/30 hover:border-emerald/50 hover:bg-emerald/5 rounded-xl transition-all duration-300"
-            >
-              <span>View Documentation</span>
-            </Link>
-          </div>
-
-          <p className="text-muted-foreground/60 text-xs mt-8">
-            MazelProtocol &bull; Built on Solana &bull; Fully transparent &bull;
-            Non-custodial
-          </p>
-        </div>
-      </section>
-
-      {/* ================================================================== */}
-      {/*  FOOTER                                                            */}
-      {/* ================================================================== */}
       <Footer />
     </div>
   );
