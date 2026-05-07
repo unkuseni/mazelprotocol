@@ -192,12 +192,12 @@ async function fetchAllAccounts(
     const ns = program.account as Record<
       string,
       | {
-          all: (
-            filters?: unknown[],
-          ) => Promise<
-            Array<{ publicKey: PublicKey; account: Record<string, unknown> }>
-          >;
-        }
+        all: (
+          filters?: unknown[],
+        ) => Promise<
+          Array<{ publicKey: PublicKey; account: Record<string, unknown> }>
+        >;
+      }
       | undefined
     >;
     const accessor = ns[accountName];
