@@ -10,5 +10,8 @@ test-ledger
 .wrangler
 .dev.vars
 bot/src/idl/*.json
+bot/customer-bot/src/idl/mazelprotocol.json
+bot/customer-bot/src/idl/quickpick.json
 bot/dist
+bot/customer-bot/dist
 app-backup
