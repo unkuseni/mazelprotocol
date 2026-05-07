@@ -2,26 +2,46 @@ import { PublicKey } from "@solana/web3.js";
 import { env } from "@/env";
 
 // ---------------------------------------------------------------------------
+// Portable 8-byte LE helpers (no Buffer dependency)
+// ---------------------------------------------------------------------------
+
+/**
+ * Write a number/ bigint as 8-byte little-endian into a Uint8Array.
+ * Replaces Buffer.alloc(8) + writeBigUInt64LE so that this file loads
+ * correctly in Cloudflare Workers SSR where Buffer is not available.
+ */
+function writeU64LE(value: number | bigint): Uint8Array {
+  const buf = new Uint8Array(8);
+  const v = BigInt(value);
+  for (let i = 0; i < 8; i++) {
+    buf[i] = Number((v >> BigInt(i * 8)) & 0xffn);
+  }
+  return buf;
+}
+
+// ---------------------------------------------------------------------------
 // PDA Seeds — must mirror on-chain constants exactly
 // ---------------------------------------------------------------------------
 
+const enc = new TextEncoder();
+
 // Main lottery seeds
-export const LOTTERY_SEED = Buffer.from("lottery");
-export const TICKET_SEED = Buffer.from("ticket");
-export const DRAW_SEED = Buffer.from("draw");
-export const USER_SEED = Buffer.from("user");
-export const UNIFIED_TICKET_SEED = Buffer.from("unified_ticket");
-export const PRIZE_POOL_USDC_SEED = Buffer.from("prize_pool_usdc");
-export const HOUSE_FEE_USDC_SEED = Buffer.from("house_fee_usdc");
-export const INSURANCE_POOL_USDC_SEED = Buffer.from("insurance_pool_usdc");
+export const LOTTERY_SEED = enc.encode("lottery");
+export const TICKET_SEED = enc.encode("ticket");
+export const DRAW_SEED = enc.encode("draw");
+export const USER_SEED = enc.encode("user");
+export const UNIFIED_TICKET_SEED = enc.encode("unified_ticket");
+export const PRIZE_POOL_USDC_SEED = enc.encode("prize_pool_usdc");
+export const HOUSE_FEE_USDC_SEED = enc.encode("house_fee_usdc");
+export const INSURANCE_POOL_USDC_SEED = enc.encode("insurance_pool_usdc");
 
 // Quick Pick seeds
-export const QUICK_PICK_SEED = Buffer.from("quick_pick");
-export const QUICK_PICK_TICKET_SEED = Buffer.from("quick_pick_ticket");
-export const QUICK_PICK_DRAW_SEED = Buffer.from("quick_pick_draw");
-export const QP_PRIZE_POOL_USDC_SEED = Buffer.from("prize_pool_usdc");
-export const QP_HOUSE_FEE_USDC_SEED = Buffer.from("house_fee_usdc");
-export const QP_INSURANCE_POOL_USDC_SEED = Buffer.from("insurance_pool_usdc");
+export const QUICK_PICK_SEED = enc.encode("quick_pick");
+export const QUICK_PICK_TICKET_SEED = enc.encode("quick_pick_ticket");
+export const QUICK_PICK_DRAW_SEED = enc.encode("quick_pick_draw");
+export const QP_PRIZE_POOL_USDC_SEED = enc.encode("prize_pool_usdc");
+export const QP_HOUSE_FEE_USDC_SEED = enc.encode("house_fee_usdc");
+export const QP_INSURANCE_POOL_USDC_SEED = enc.encode("insurance_pool_usdc");
 
 // ---------------------------------------------------------------------------
 // On-chain constants (mirrored from programs)
@@ -93,9 +113,7 @@ export function deriveDrawResultPDA(
   drawId: number | bigint,
   programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
-  const drawIdBuf = Buffer.alloc(8);
-  drawIdBuf.writeBigUInt64LE(BigInt(drawId));
-  return PublicKey.findProgramAddressSync([DRAW_SEED, drawIdBuf], programId);
+  return PublicKey.findProgramAddressSync([DRAW_SEED, writeU64LE(drawId)], programId);
 }
 
 /**
@@ -106,12 +124,8 @@ export function deriveTicketPDA(
   ticketIndex: number | bigint,
   programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
-  const drawIdBuf = Buffer.alloc(8);
-  drawIdBuf.writeBigUInt64LE(BigInt(drawId));
-  const ticketIdxBuf = Buffer.alloc(8);
-  ticketIdxBuf.writeBigUInt64LE(BigInt(ticketIndex));
   return PublicKey.findProgramAddressSync(
-    [TICKET_SEED, drawIdBuf, ticketIdxBuf],
+    [TICKET_SEED, writeU64LE(drawId), writeU64LE(ticketIndex)],
     programId,
   );
 }
@@ -124,7 +138,7 @@ export function deriveUnifiedTicketPDA(
   programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [UNIFIED_TICKET_SEED, user.toBuffer()],
+    [UNIFIED_TICKET_SEED, user.toBytes()],
     programId,
   );
 }
@@ -137,7 +151,7 @@ export function deriveUserPDA(
   programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [USER_SEED, user.toBuffer()],
+    [USER_SEED, user.toBytes()],
     programId,
   );
 }
@@ -209,10 +223,8 @@ export function deriveQuickPickDrawResultPDA(
   drawId: number | bigint,
   programId: PublicKey = QUICK_PICK_PROGRAM_ID,
 ): [PublicKey, number] {
-  const drawIdBuf = Buffer.alloc(8);
-  drawIdBuf.writeBigUInt64LE(BigInt(drawId));
   return PublicKey.findProgramAddressSync(
-    [QUICK_PICK_DRAW_SEED, drawIdBuf],
+    [QUICK_PICK_DRAW_SEED, writeU64LE(drawId)],
     programId,
   );
 }
@@ -225,12 +237,8 @@ export function deriveQuickPickTicketPDA(
   ticketIndex: number | bigint,
   programId: PublicKey = QUICK_PICK_PROGRAM_ID,
 ): [PublicKey, number] {
-  const drawIdBuf = Buffer.alloc(8);
-  drawIdBuf.writeBigUInt64LE(BigInt(drawId));
-  const ticketIdxBuf = Buffer.alloc(8);
-  ticketIdxBuf.writeBigUInt64LE(BigInt(ticketIndex));
   return PublicKey.findProgramAddressSync(
-    [QUICK_PICK_TICKET_SEED, drawIdBuf, ticketIdxBuf],
+    [QUICK_PICK_TICKET_SEED, writeU64LE(drawId), writeU64LE(ticketIndex)],
     programId,
   );
 }
@@ -290,12 +298,10 @@ export function deriveQuickPickPDAs(
 // ---------------------------------------------------------------------------
 
 /**
- * Convert a number to a 8-byte little-endian buffer
+ * Convert a number to an 8-byte little-endian Uint8Array.
  */
-export function numberToU64Buffer(value: number | bigint): Buffer {
-  const buf = Buffer.alloc(8);
-  buf.writeBigUInt64LE(BigInt(value));
-  return buf;
+export function numberToU64Buffer(value: number | bigint): Uint8Array {
+  return writeU64LE(value);
 }
 
 /**
