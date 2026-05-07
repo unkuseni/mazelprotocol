@@ -713,3 +713,144 @@ export async function claimAllMainPrizes(
   }
   return signatures;
 }
+
+// ---------------------------------------------------------------------------
+// Quick Pick Prize Claiming
+// ---------------------------------------------------------------------------
+
+/**
+ * Build instruction to claim a prize for a Quick Pick ticket
+ */
+export async function buildClaimQuickPickPrizeInstruction(
+  provider: AnchorProvider,
+  drawId: number,
+  ticketIndex: number,
+  playerUsdc: PublicKey,
+): Promise<TransactionInstruction> {
+  const program = createQuickPickProgramWithProvider(provider);
+
+  const [quickPickStatePda] = deriveQuickPickState();
+  const [ticket] = deriveQuickPickTicketPDA(drawId, ticketIndex);
+  const [drawResult] = PublicKey.findProgramAddressSync(
+    [Buffer.from("quick_pick_draw"), new BN(drawId).toArrayLike(Buffer, "le", 8)],
+    program.programId,
+  );
+  const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA();
+
+  const instruction = await program.methods
+    .claimPrize()
+    .accounts({
+      player: provider.wallet.publicKey,
+      quickPickState: quickPickStatePda,
+      ticket,
+      drawResult,
+      playerUsdc,
+      prizePoolUsdc,
+      usdcMint: USDC_MINT,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+    .instruction();
+
+  return instruction;
+}
+
+/**
+ * Claim a Quick Pick prize for a single ticket
+ */
+export async function claimQuickPickPrize(
+  provider: AnchorProvider,
+  drawId: number,
+  ticketIndex: number,
+  playerUsdc: PublicKey,
+  options: BuyTicketOptions = {},
+): Promise<string> {
+  const instruction = await buildClaimQuickPickPrizeInstruction(
+    provider,
+    drawId,
+    ticketIndex,
+    playerUsdc,
+  );
+  const payer = {
+    publicKey: provider.wallet.publicKey,
+    signTransaction: provider.wallet.signTransaction,
+    signAllTransactions: provider.wallet.signAllTransactions,
+  } as unknown as Signer;
+  return sendInstruction(
+    instruction,
+    payer,
+    [],
+    provider.connection,
+    convertBuyTicketOptions(options),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Initialize User Stats
+// ---------------------------------------------------------------------------
+
+/**
+ * Build instruction to initialize a user's statistics account.
+ * Must be called once per wallet before buying tickets.
+ */
+export async function buildInitUserStatsInstruction(
+  provider: AnchorProvider,
+): Promise<TransactionInstruction> {
+  const program = createMainLotteryProgramWithProvider(provider);
+
+  const [userStats] = deriveUserPDA(provider.wallet.publicKey);
+
+  const instruction = await program.methods
+    .initUserStats()
+    .accounts({
+      player: provider.wallet.publicKey,
+      userStats,
+      systemProgram: SystemProgram.programId,
+    })
+    .instruction();
+
+  return instruction;
+}
+
+/**
+ * Initialize user stats account.
+ * This is a one-time setup required before purchasing tickets.
+ */
+export async function initUserStats(
+  provider: AnchorProvider,
+  options: BuyTicketOptions = {},
+): Promise<string> {
+  const instruction = await buildInitUserStatsInstruction(provider);
+  const payer = {
+    publicKey: provider.wallet.publicKey,
+    signTransaction: provider.wallet.signTransaction,
+    signAllTransactions: provider.wallet.signAllTransactions,
+  } as unknown as Signer;
+  return sendInstruction(
+    instruction,
+    payer,
+    [],
+    provider.connection,
+    convertBuyTicketOptions(options),
+  );
+}
+
+/**
+ * Ensure a user has an initialized UserStats account.
+ * Checks if account exists first; if not, initializes it.
+ * Returns true if the account already existed, false if it was just created.
+ */
+export async function ensureUserStatsInitialized(
+  provider: AnchorProvider,
+): Promise<{ existed: boolean; signature?: string }> {
+  const [userStatsPda] = deriveUserPDA(provider.wallet.publicKey);
+
+  // Check if account already exists
+  const accountInfo = await provider.connection.getAccountInfo(userStatsPda);
+  if (accountInfo && accountInfo.lamports > 0) {
+    return { existed: true };
+  }
+
+  // Initialize it
+  const signature = await initUserStats(provider);
+  return { existed: false, signature };
+}

@@ -45,6 +45,9 @@ import {
 import {
   type BotConfig,
   DRAW_COMMIT_TIMEOUT,
+  QP_COMMIT_TIMEOUT,
+  MAIN_DRAW_ADVANCEMENT_TIMEOUT,
+  QP_DRAW_ADVANCEMENT_TIMEOUT,
   deriveDrawResultPDA,
   deriveQPDrawResultPDA,
 } from "./config";
@@ -699,7 +702,7 @@ async function commitMainRandomness(
       // Newer SDK: sb.Randomness.create(program, keypair, queue)
       const sbProgram = new PublicKey(
         config.switchboardProgramId?.toBase58() ??
-          "SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv",
+        "SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv",
       );
 
       // Create the randomness account
@@ -718,7 +721,7 @@ async function commitMainRandomness(
     // Fall back to manual instruction building
     logger.warn(
       "[main] Switchboard SDK not available or API mismatch — falling back to manual Switchboard account creation. " +
-        "Ensure @switchboard-xyz/on-demand is installed and the randomness account is created externally if this fails.",
+      "Ensure @switchboard-xyz/on-demand is installed and the randomness account is created externally if this fails.",
     );
   }
 
@@ -914,7 +917,7 @@ async function finalizeMainDraw(
       indexerNonce: new BN(indexerResult.nonce.toString()),
     })
     .accounts({
-      authority: config.authorityKeypair.publicKey,
+      finalizer: config.authorityKeypair.publicKey,
       lotteryState: config.mainPDAs.lotteryState,
       drawResult: drawResultPda,
     })
@@ -968,7 +971,7 @@ async function commitQPRandomness(
     if (typeof sb.Randomness?.create === "function") {
       const sbProgram = new PublicKey(
         config.switchboardProgramId?.toBase58() ??
-          "SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv",
+        "SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv",
       );
       const [randomness, createIx_] = await sb.Randomness.create(
         // @ts-expect-error - SDK type variations
@@ -1172,7 +1175,7 @@ async function finalizeQPDraw(
       indexerNonce: new BN(indexerResult.nonce.toString()),
     })
     .accounts({
-      authority: config.authorityKeypair.publicKey,
+      finalizer: config.authorityKeypair.publicKey,
       lotteryState: config.mainPDAs.lotteryState,
       quickPickState: config.qpPDAs.quickPickState,
       drawResult: drawResultPda,
@@ -1193,6 +1196,68 @@ async function finalizeQPDraw(
   );
 
   return { signature };
+}
+
+// ---------------------------------------------------------------------------
+// Permissionless Draw Advancement (QP-4 fix)
+// ---------------------------------------------------------------------------
+
+/**
+ * Permissionless advance_draw for the main lottery.
+ *
+ * Anyone can call this after DRAW_ADVANCEMENT_TIMEOUT seconds have passed
+ * since the scheduled draw time. Skips a stuck draw and advances to the
+ * next cycle. Uses the `advance_draw` instruction on the main program.
+ */
+export async function advanceMainDraw(
+  mainProgram: Program<any>,
+  config: BotConfig,
+  logger: Logger,
+): Promise<string> {
+  logger.info("[main] Attempting permissionless advance_draw");
+
+  const signature = await (mainProgram.methods as any)
+    .advanceDraw()
+    .accounts({
+      lotteryState: config.mainPDAs.lotteryState,
+    })
+    .signers([config.authorityKeypair])
+    .rpc({
+      skipPreflight: config.skipPreflight,
+      commitment: config.commitment,
+    });
+
+  logTx(logger, "main", "advance_draw", signature);
+  return signature;
+}
+
+/**
+ * Permissionless advance_draw for Quick Pick Express (QP-4 fix).
+ *
+ * Anyone can call this after QUICK_PICK_DRAW_ADVANCEMENT_TIMEOUT seconds
+ * have passed since the scheduled draw time. Skips a stuck draw and
+ * reschedules under the same draw ID.
+ */
+export async function advanceQPDraw(
+  qpProgram: Program<any>,
+  config: BotConfig,
+  logger: Logger,
+): Promise<string> {
+  logger.info("[quickpick] Attempting permissionless advance_draw");
+
+  const signature = await (qpProgram.methods as any)
+    .advanceDraw()
+    .accounts({
+      quickPickState: config.qpPDAs.quickPickState,
+    })
+    .signers([config.authorityKeypair])
+    .rpc({
+      skipPreflight: config.skipPreflight,
+      commitment: config.commitment,
+    });
+
+  logTx(logger, "quickpick", "advance_draw", signature);
+  return signature;
 }
 
 // ---------------------------------------------------------------------------
@@ -1230,51 +1295,79 @@ async function handleStuckMainDraw(
   );
 
   if (elapsed > DRAW_COMMIT_TIMEOUT) {
-    // Commit has timed out — cancel the draw
+    // Try permissionless advance_draw first (simpler, no reason string needed).
     logPhase(logger, "main", drawId, "recovery", "start", {
-      action: "cancel_draw",
+      action: "advance_draw",
       elapsed,
     });
 
     if (config.dryRun) {
-      logger.info("[main] DRY RUN: Would call cancel_draw");
+      logger.info("[main] DRY RUN: Would call advance_draw");
       state.phase = "error";
-      state.lastError = "Stuck draw — would cancel (dry run)";
+      state.lastError = "Stuck draw — would advance (dry run)";
       return state;
     }
 
     try {
-      const signature = await (mainProgram.methods as any)
-        .cancelDraw("Bot: commit timed out after " + elapsed + "s")
-        .accounts({
-          authority: config.authorityKeypair.publicKey,
-          lotteryState: config.mainPDAs.lotteryState,
-        })
-        .signers([config.authorityKeypair])
-        .rpc({
-          skipPreflight: config.skipPreflight,
-          commitment: config.commitment,
-        });
+      const signature = await advanceMainDraw(mainProgram, config, logger);
 
       logPhase(logger, "main", drawId, "recovery", "success", {
-        action: "cancel_draw",
+        action: "advance_draw",
         signature,
       });
-      logTx(logger, "main", "cancel_draw", signature);
 
       state.phase = "idle";
-      state.lastError = "Draw cancelled due to timeout — will retry next cycle";
+      state.lastError =
+        "Draw advanced via permissionless timeout — will retry next cycle";
       return state;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      logPhase(logger, "main", drawId, "recovery", "error", {
-        action: "cancel_draw",
-        error: msg,
-      });
-      state.phase = "error";
-      state.lastError = `Failed to cancel stuck draw: ${msg}`;
-      state.errorCount++;
-      return state;
+    } catch (advanceErr: unknown) {
+      const advanceMsg =
+        advanceErr instanceof Error
+          ? advanceErr.message
+          : String(advanceErr);
+      logger.warn(
+        { drawId: Number(drawId), error: advanceMsg },
+        "[main] advance_draw failed, falling back to cancel_draw",
+      );
+
+      // Fall back to cancel_draw
+      try {
+        const signature = await (mainProgram.methods as any)
+          .cancelDraw("Bot: commit timed out after " + elapsed + "s")
+          .accounts({
+            authority: config.authorityKeypair.publicKey,
+            lotteryState: config.mainPDAs.lotteryState,
+          })
+          .signers([config.authorityKeypair])
+          .rpc({
+            skipPreflight: config.skipPreflight,
+            commitment: config.commitment,
+          });
+
+        logPhase(logger, "main", drawId, "recovery", "success", {
+          action: "cancel_draw",
+          signature,
+        });
+        logTx(logger, "main", "cancel_draw", signature);
+
+        state.phase = "idle";
+        state.lastError =
+          "Draw cancelled due to timeout — will retry next cycle";
+        return state;
+      } catch (cancelErr: unknown) {
+        const msg =
+          cancelErr instanceof Error
+            ? cancelErr.message
+            : String(cancelErr);
+        logPhase(logger, "main", drawId, "recovery", "error", {
+          action: "cancel_draw",
+          error: msg,
+        });
+        state.phase = "error";
+        state.lastError = `Failed to cancel stuck draw: ${msg}`;
+        state.errorCount++;
+        return state;
+      }
     }
   }
 
@@ -1420,55 +1513,84 @@ async function handleStuckQPDraw(
     `[quickpick] Draw #${drawId} is stuck (in progress for ${elapsed}s)`,
   );
 
-  // QP uses a 1-hour timeout too
-  const QP_COMMIT_TIMEOUT = 3600;
-
+  // QP uses a 1-hour timeout too (QP_COMMIT_TIMEOUT from config)
   if (elapsed > QP_COMMIT_TIMEOUT) {
+    // Try permissionless advance_draw first (QP-4 fix).
+    // This is simpler than cancel_draw: no reason string needed,
+    // preserves tickets under the same draw ID, and reschedules.
     logPhase(logger, "quickpick", drawId, "recovery", "start", {
-      action: "cancel_draw",
+      action: "advance_draw",
       elapsed,
     });
 
     if (config.dryRun) {
-      logger.info("[quickpick] DRY RUN: Would call cancel_draw");
+      logger.info("[quickpick] DRY RUN: Would call advance_draw");
       state.phase = "error";
-      state.lastError = "Stuck draw — would cancel (dry run)";
+      state.lastError = "Stuck draw — would advance (dry run)";
       return state;
     }
 
     try {
-      const signature = await (qpProgram.methods as any)
-        .cancelDraw("Bot: commit timed out after " + elapsed + "s")
-        .accounts({
-          authority: config.authorityKeypair.publicKey,
-          lotteryState: config.mainPDAs.lotteryState,
-          quickPickState: config.qpPDAs.quickPickState,
-        })
-        .signers([config.authorityKeypair])
-        .rpc({
-          skipPreflight: config.skipPreflight,
-          commitment: config.commitment,
-        });
+      const signature = await advanceQPDraw(qpProgram, config, logger);
 
       logPhase(logger, "quickpick", drawId, "recovery", "success", {
-        action: "cancel_draw",
+        action: "advance_draw",
         signature,
       });
-      logTx(logger, "quickpick", "cancel_draw", signature);
 
       state.phase = "idle";
-      state.lastError = "Draw cancelled due to timeout — will retry next cycle";
+      state.lastError =
+        "Draw advanced via permissionless timeout — will retry next cycle";
       return state;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      logPhase(logger, "quickpick", drawId, "recovery", "error", {
-        action: "cancel_draw",
-        error: msg,
-      });
-      state.phase = "error";
-      state.lastError = `Failed to cancel stuck draw: ${msg}`;
-      state.errorCount++;
-      return state;
+    } catch (advanceErr: unknown) {
+      const advanceMsg =
+        advanceErr instanceof Error
+          ? advanceErr.message
+          : String(advanceErr);
+      logger.warn(
+        { drawId: Number(drawId), error: advanceMsg },
+        "[quickpick] advance_draw failed, falling back to cancel_draw",
+      );
+
+      // Fall back to cancel_draw if advance_draw fails
+      try {
+        const signature = await (qpProgram.methods as any)
+          .cancelDraw("Bot: commit timed out after " + elapsed + "s")
+          .accounts({
+            authority: config.authorityKeypair.publicKey,
+            lotteryState: config.mainPDAs.lotteryState,
+            quickPickState: config.qpPDAs.quickPickState,
+          })
+          .signers([config.authorityKeypair])
+          .rpc({
+            skipPreflight: config.skipPreflight,
+            commitment: config.commitment,
+          });
+
+        logPhase(logger, "quickpick", drawId, "recovery", "success", {
+          action: "cancel_draw",
+          signature,
+        });
+        logTx(logger, "quickpick", "cancel_draw", signature);
+
+        state.phase = "idle";
+        state.lastError =
+          "Draw cancelled due to timeout — will retry next cycle";
+        return state;
+      } catch (cancelErr: unknown) {
+        const msg =
+          cancelErr instanceof Error
+            ? cancelErr.message
+            : String(cancelErr);
+        logPhase(logger, "quickpick", drawId, "recovery", "error", {
+          action: "cancel_draw",
+          error: msg,
+        });
+        state.phase = "error";
+        state.lastError = `Failed to cancel stuck draw: ${msg}`;
+        state.errorCount++;
+        return state;
+      }
     }
   }
 

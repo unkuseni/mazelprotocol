@@ -81,7 +81,7 @@ declare_id!("7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF");
 
 /// MazelProtocol Program
 #[program]
-pub mod solana_lotto {
+pub mod mazelprotocol {
     use super::*;
 
     // =========================================================================
@@ -334,11 +334,7 @@ pub mod solana_lotto {
         alternative_winner_counts: WinnerCounts,
         evidence_hash: [u8; 32],
     ) -> Result<()> {
-        instructions::admin::handler_challenge_draw(
-            ctx,
-            alternative_winner_counts,
-            evidence_hash,
-        )
+        instructions::admin::handler_challenge_draw(ctx, alternative_winner_counts, evidence_hash)
     }
 
     /// Emergency transfer funds from reserve or insurance pool to prize pool

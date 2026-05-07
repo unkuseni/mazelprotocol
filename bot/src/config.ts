@@ -49,10 +49,20 @@ export const QP_NUMBERS_PER_TICKET = 5;
 export const QP_MAX_NUMBER = 35;
 /** Commit timeout in seconds (1 hour) */
 export const DRAW_COMMIT_TIMEOUT = 3600;
+/** Draw advancement timeout for main lottery (30 minutes after scheduled draw) */
+export const MAIN_DRAW_ADVANCEMENT_TIMEOUT = 1800;
+/** Draw advancement timeout for Quick Pick (30 minutes after scheduled draw — QP-4) */
+export const QP_DRAW_ADVANCEMENT_TIMEOUT = 1800;
+/** Quick Pick commit timeout in seconds (1 hour) */
+export const QP_COMMIT_TIMEOUT = 3600;
 /** Ticket sale cutoff for main lottery (1 hour before draw) */
 export const TICKET_SALE_CUTOFF = 3600;
 /** Ticket sale cutoff for Quick Pick (5 minutes before draw) */
 export const QP_TICKET_SALE_CUTOFF = 300;
+/** Finalization delay for main lottery (2 minutes after execute) */
+export const MAIN_FINALIZATION_DELAY = 120;
+/** Finalization delay for Quick Pick (1 minute after execute) */
+export const QP_FINALIZATION_DELAY = 60;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -246,7 +256,7 @@ function envRequired(envObj: Env, key: keyof Env): string {
   if (!val || String(val).trim() === "") {
     throw new Error(
       `Missing required environment variable: ${key}. ` +
-        `Set it in wrangler.toml [vars] or via \`wrangler secret put ${key}\`.`,
+      `Set it in wrangler.toml [vars] or via \`wrangler secret put ${key}\`.`,
     );
   }
   return String(val);
@@ -286,7 +296,7 @@ function loadKeypairFromSecret(jsonStr: string): Keypair {
     if (secretKey.length !== 64) {
       throw new Error(
         `Keypair must be 64 bytes, got ${secretKey.length}. ` +
-          `Make sure you're providing the full keypair (secret + public key).`,
+        `Make sure you're providing the full keypair (secret + public key).`,
       );
     }
     return Keypair.fromSecretKey(secretKey);
@@ -294,8 +304,8 @@ function loadKeypairFromSecret(jsonStr: string): Keypair {
     if (err instanceof SyntaxError) {
       throw new Error(
         `AUTHORITY_KEYPAIR_JSON is not valid JSON. ` +
-          `It should be a JSON array like [1,2,3,...,255]. ` +
-          `Set it with: wrangler secret put AUTHORITY_KEYPAIR_JSON`,
+        `It should be a JSON array like [1,2,3,...,255]. ` +
+        `Set it with: wrangler secret put AUTHORITY_KEYPAIR_JSON`,
       );
     }
     throw err;
@@ -390,9 +400,9 @@ export function loadConfig(env: Env): BotConfig {
   const adminIdsRaw = envStr(env, "TELEGRAM_ADMIN_IDS", "");
   const telegramAdminIds = adminIdsRaw
     ? adminIdsRaw
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean)
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
     : [];
 
   return {
