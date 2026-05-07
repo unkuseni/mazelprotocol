@@ -151,26 +151,6 @@ impl<'info> BuyQuickPickTicket<'info> {
     }
 }
 
-/// Validate Quick Pick numbers (5 unique numbers from 1-35)
-fn validate_quick_pick_numbers_internal(numbers: &[u8; 5]) -> Result<()> {
-    // Check each number is in valid range
-    for &num in numbers.iter() {
-        require!(
-            num >= 1 && num <= QUICK_PICK_RANGE,
-            QuickPickError::NumbersOutOfRange
-        );
-    }
-
-    // Check for duplicates
-    let mut sorted = *numbers;
-    sorted.sort();
-    for i in 0..4 {
-        require!(sorted[i] != sorted[i + 1], QuickPickError::DuplicateNumbers);
-    }
-
-    Ok(())
-}
-
 /// Buy a Quick Pick Express ticket
 ///
 /// This instruction:
@@ -267,8 +247,9 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
         QuickPickError::InsufficientMainLotterySpend
     );
 
-    // Validate numbers first (before any borrows)
-    validate_quick_pick_numbers_internal(&params.numbers)?;
+    // Validate numbers first (before any borrows) - uses the consolidated
+    // validate_quick_pick_numbers from constants.rs (H-1 fix).
+    validate_quick_pick_numbers(&params.numbers)?;
 
     // Sort numbers for consistent storage
     let mut sorted_numbers = params.numbers;
@@ -448,36 +429,36 @@ mod tests {
     #[test]
     fn test_validate_quick_pick_numbers_valid() {
         let numbers = [1, 15, 20, 30, 35];
-        assert!(validate_quick_pick_numbers_internal(&numbers).is_ok());
+        assert!(validate_quick_pick_numbers(&numbers).is_ok());
     }
 
     #[test]
     fn test_validate_quick_pick_numbers_unsorted() {
         let numbers = [35, 1, 20, 15, 30];
-        assert!(validate_quick_pick_numbers_internal(&numbers).is_ok());
+        assert!(validate_quick_pick_numbers(&numbers).is_ok());
     }
 
     #[test]
     fn test_validate_quick_pick_numbers_out_of_range_zero() {
         let numbers = [0, 15, 20, 30, 35];
-        assert!(validate_quick_pick_numbers_internal(&numbers).is_err());
+        assert!(validate_quick_pick_numbers(&numbers).is_err());
     }
 
     #[test]
     fn test_validate_quick_pick_numbers_out_of_range_high() {
         let numbers = [1, 15, 20, 30, 36];
-        assert!(validate_quick_pick_numbers_internal(&numbers).is_err());
+        assert!(validate_quick_pick_numbers(&numbers).is_err());
     }
 
     #[test]
     fn test_validate_quick_pick_numbers_duplicates() {
         let numbers = [1, 15, 15, 30, 35];
-        assert!(validate_quick_pick_numbers_internal(&numbers).is_err());
+        assert!(validate_quick_pick_numbers(&numbers).is_err());
     }
 
     #[test]
     fn test_validate_quick_pick_numbers_all_same() {
-        let numbers = [10, 10, 10, 10, 10];
-        assert!(validate_quick_pick_numbers_internal(&numbers).is_err());
+        let numbers = [7, 7, 7, 7, 7];
+        assert!(validate_quick_pick_numbers(&numbers).is_err());
     }
 }

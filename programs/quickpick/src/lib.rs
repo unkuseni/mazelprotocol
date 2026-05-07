@@ -129,11 +129,11 @@ pub mod quickpick {
     // ADMIN INSTRUCTIONS
     // =========================================================================
 
-    /// Update Quick Pick Express configuration
+    /// Update Quick Pick Express configuration (legacy immediate mode).
     ///
     /// Updates various configuration parameters such as ticket price,
     /// caps, prizes, and draw interval. Can only be called when paused
-    /// or no draw is in progress.
+    /// or no draw is in progress. Rejected if a timelock proposal is pending.
     ///
     /// # Arguments
     /// * `ctx` - UpdateQuickPickConfig accounts context
@@ -143,6 +143,46 @@ pub mod quickpick {
         params: UpdateQuickPickConfigParams,
     ) -> Result<()> {
         instructions::admin::handler_update_config(ctx, params)
+    }
+
+    /// Propose Quick Pick configuration changes (Phase 1 of timelock).
+    ///
+    /// Starts a 24-hour timelock. Changes are NOT applied until
+    /// execute_config is called after the timelock expires (H-2 fix).
+    ///
+    /// # Arguments
+    /// * `ctx` - UpdateQuickPickConfig accounts context
+    /// * `params` - Proposed configuration parameters
+    pub fn propose_config(
+        ctx: Context<UpdateQuickPickConfig>,
+        params: UpdateQuickPickConfigParams,
+    ) -> Result<()> {
+        instructions::admin::handler_propose_quick_pick_config(ctx, params)
+    }
+
+    /// Execute proposed Quick Pick configuration changes (Phase 2 of timelock).
+    ///
+    /// Applies the previously proposed changes after the timelock expires.
+    /// Params must exactly match the proposal (verified via SHA256 hash) (H-2 fix).
+    ///
+    /// # Arguments
+    /// * `ctx` - UpdateQuickPickConfig accounts context
+    /// * `params` - Configuration parameters (must match proposal)
+    pub fn execute_config(
+        ctx: Context<UpdateQuickPickConfig>,
+        params: UpdateQuickPickConfigParams,
+    ) -> Result<()> {
+        instructions::admin::handler_execute_quick_pick_config(ctx, params)
+    }
+
+    /// Cancel a pending Quick Pick configuration proposal (H-2 fix).
+    ///
+    /// Clears the pending config hash and timelock, preventing execution.
+    ///
+    /// # Arguments
+    /// * `ctx` - UpdateQuickPickConfig accounts context
+    pub fn cancel_config_proposal(ctx: Context<UpdateQuickPickConfig>) -> Result<()> {
+        instructions::admin::handler_cancel_quick_pick_config(ctx)
     }
 
     /// Withdraw accumulated house fees

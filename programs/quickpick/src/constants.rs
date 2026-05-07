@@ -3,6 +3,8 @@
 //! This module contains all constants specific to the Quick Pick Express lottery,
 //! a high-frequency 5/35 matrix lottery running every 4 hours.
 
+use crate::errors::QuickPickError;
+
 // ============================================================================
 // PDA SEEDS
 // ============================================================================
@@ -25,7 +27,18 @@ pub const USER_SEED: &[u8] = b"user";
 pub const LOTTERY_SEED: &[u8] = b"lottery";
 
 /// Main lottery program ID (for cross-program PDA derivation of UserStats)
-/// This must match the deployed main lottery program ID in Anchor.toml
+///
+/// ## ⚠️ CRITICAL DEPENDENCY
+/// This value MUST match the deployed main lottery program ID in Anchor.toml.
+/// If either program is redeployed with a different ID, this constant and the
+/// Anchor.toml [programs.localnet] section must be updated together, or the
+/// $50 spend-gate verification will break silently.
+///
+/// ## Verification
+/// A test should assert that:
+/// ```ignore
+/// Pubkey::from_str(MAIN_LOTTERY_PROGRAM_ID).unwrap() == mazelprotocol::ID
+/// ```
 pub const MAIN_LOTTERY_PROGRAM_ID: &str = "7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF";
 
 // ============================================================================
@@ -114,6 +127,19 @@ pub const QUICK_PICK_FIXED_PRIZE_ALLOCATION_BPS: u16 = 3700;
 pub const QUICK_PICK_INSURANCE_ALLOCATION_BPS: u16 = 300;
 
 // ============================================================================
+// CONFIG TIMELOCK (H-2 fix)
+// ============================================================================
+
+/// Config timelock delay: 24 hours (in seconds).
+/// Authority must wait this long between proposing and executing config changes.
+/// This prevents a compromised authority from instantly changing critical parameters.
+pub const QUICK_PICK_CONFIG_TIMELOCK_DELAY: i64 = 24 * 60 * 60; // 86400 seconds
+
+/// Maximum length of `reason` strings in admin instructions.
+/// Exceeding this causes the transaction to fail due to compute budget limits.
+pub const MAX_REASON_LENGTH: usize = 200;
+
+// ============================================================================
 // SYSTEM LIMITS
 // ============================================================================
 
@@ -121,12 +147,18 @@ pub const QUICK_PICK_INSURANCE_ALLOCATION_BPS: u16 = 300;
 pub const BPS_DENOMINATOR: u64 = 10000;
 /// Ticket claim expiration: 90 days (in seconds)
 pub const TICKET_CLAIM_EXPIRATION: i64 = 90 * 24 * 60 * 60;
+/// Maximum per-withdrawal amount for house fees as fraction of jackpot balance (in bps).
+/// Set to 5000 (50%) to limit damage from a compromised authority (M-2 fix).
+pub const QUICK_PICK_HOUSE_FEE_WITHDRAWAL_CAP_BPS: u64 = 5000;
 
 // ============================================================================
 // ACCOUNT SIZES
 // ============================================================================
 
 /// Quick Pick State account size
+/// NOTE: This constant is for documentation/reference only.
+/// The canonical size is `QuickPickState::LEN` defined in state.rs.
+/// If you add fields to QuickPickState, update BOTH places.
 pub const QUICK_PICK_STATE_SIZE: usize = 8 +   // discriminator
     8 +    // current_draw
     8 +    // ticket_price
@@ -151,11 +183,14 @@ pub const QUICK_PICK_STATE_SIZE: usize = 8 +   // discriminator
     8 +    // commit_slot
     8 +    // commit_timestamp
     1 +    // is_draw_in_progress
+    1 +    // is_awaiting_finalization
     1 +    // is_rolldown_pending
     1 +    // is_paused
     1 +    // is_funded
     1 +    // bump
-    32; // padding for future use
+    8 +    // config_timelock_end
+    32 +   // pending_config_hash
+    24; // padding for future use
 
 /// Quick Pick Ticket account size
 pub const QUICK_PICK_TICKET_SIZE: usize = 8 +  // discriminator
@@ -210,16 +245,20 @@ pub fn calculate_quick_pick_house_fee_bps(jackpot_balance: u64, is_rolldown: boo
 
 /// Validate Quick Pick numbers (5 unique numbers from 1-35)
 ///
+/// This is the SINGLE SOURCE OF TRUTH for Quick Pick number validation.
+/// It returns a Result so callers get specific error codes instead of a
+/// generic boolean (H-1 fix: consolidated from duplicate implementations).
+///
 /// # Arguments
-/// * `numbers` - Array of 5 numbers to validate
+/// * `numbers` - Array of 5 numbers to validate (need not be pre-sorted)
 ///
 /// # Returns
-/// * `bool` - True if numbers are valid
-pub fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> bool {
+/// * `Result<(), QuickPickError>` - Ok if valid, Err with specific error code otherwise
+pub fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> Result<(), QuickPickError> {
     // Check each number is in valid range
     for &num in numbers.iter() {
         if num < 1 || num > QUICK_PICK_RANGE {
-            return false;
+            return Err(QuickPickError::NumbersOutOfRange);
         }
     }
 
@@ -228,11 +267,11 @@ pub fn validate_quick_pick_numbers(numbers: &[u8; 5]) -> bool {
     sorted.sort();
     for i in 0..4 {
         if sorted[i] == sorted[i + 1] {
-            return false;
+            return Err(QuickPickError::DuplicateNumbers);
         }
     }
 
-    true
+    Ok(())
 }
 
 /// Calculate fixed prize for a given match count (Normal Mode)
@@ -257,31 +296,31 @@ mod tests {
     #[test]
     fn test_validate_quick_pick_numbers_valid() {
         let numbers = [1, 15, 20, 30, 35];
-        assert!(validate_quick_pick_numbers(&numbers));
+        assert!(validate_quick_pick_numbers(&numbers).is_ok());
     }
 
     #[test]
     fn test_validate_quick_pick_numbers_unsorted() {
         let numbers = [35, 1, 20, 15, 30];
-        assert!(validate_quick_pick_numbers(&numbers));
+        assert!(validate_quick_pick_numbers(&numbers).is_ok());
     }
 
     #[test]
     fn test_validate_quick_pick_numbers_out_of_range_zero() {
         let numbers = [0, 15, 20, 30, 35];
-        assert!(!validate_quick_pick_numbers(&numbers));
+        assert!(validate_quick_pick_numbers(&numbers).is_err());
     }
 
     #[test]
     fn test_validate_quick_pick_numbers_out_of_range_high() {
         let numbers = [1, 15, 20, 30, 36];
-        assert!(!validate_quick_pick_numbers(&numbers));
+        assert!(validate_quick_pick_numbers(&numbers).is_err());
     }
 
     #[test]
     fn test_validate_quick_pick_numbers_duplicates() {
         let numbers = [1, 15, 15, 30, 35];
-        assert!(!validate_quick_pick_numbers(&numbers));
+        assert!(validate_quick_pick_numbers(&numbers).is_err());
     }
 
     #[test]

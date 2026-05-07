@@ -162,6 +162,13 @@ fn transfer_quick_pick_prize<'info>(
 /// - Match 4: 60% of jackpot (pari-mutuel)
 /// - Match 3: 40% of jackpot (pari-mutuel)
 ///
+/// # ⚠️  INSURANCE POOL NOTE (L-4)
+/// The QuickPickState::can_pay_prizes() method considers insurance_balance
+/// when computing available funds, but claim_prize ONLY transfers from
+/// prize_pool_usdc. If prize_pool_usdc is insufficient but the insurance
+/// pool has funds, the claim will fail. An explicit admin instruction to
+/// sweep insurance → prize pool is required before claims in that scenario.
+///
 /// # Arguments
 /// * `ctx` - The context containing all required accounts
 ///
