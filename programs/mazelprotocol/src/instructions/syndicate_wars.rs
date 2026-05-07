@@ -709,21 +709,21 @@ pub fn handler_distribute_syndicate_wars_prizes<'info>(
     let third_prize = prize_pool * 15 / 100; // 15%
     let runner_up_prize = prize_pool * 10 / 100 / 7; // 10% split among 7 runners-up
 
-    // FIXED: Use proper Anchor deserialization instead of fragile raw byte offsets.
+    // M5 FIXED: Use proper Anchor deserialization with on-chain sorting.
     // The previous approach manually computed a byte offset to write final_rank,
     // which is brittle (breaks if field order/types change) and unsafe (no
     // discriminator or owner validation on the remaining accounts).
     let remaining_accounts = ctx.remaining_accounts;
+    let mut entries: Vec<(Pubkey, SyndicateWarsEntry, usize)> = Vec::new();
+
     for (i, account_info) in remaining_accounts.iter().enumerate() {
         if i >= 10 {
             break; // Only process up to 10 entries
         }
 
-        // Verify the account matches the expected syndicate
-        let expected_syndicate = params.ranked_syndicates[i];
-        if expected_syndicate == Pubkey::default() {
-            continue; // Skip empty slots
-        }
+        // M5 FIX: Instead of trusting authority ordering, we collect entries
+        // and sort them on-chain by win_rate. The ranked_syndicates param is
+        // now used as a verification set, not an ordering.
 
         // Verify account is owned by this program
         require!(
@@ -735,29 +735,46 @@ pub fn handler_distribute_syndicate_wars_prizes<'info>(
         // Account deserialization (validates discriminator automatically).
         // Scope the immutable borrow so it's dropped before we take a
         // mutable borrow for writing back.
-        let mut entry = {
+        let entry = {
             let data = account_info.try_borrow_data()?;
             let mut slice: &[u8] = &data;
             SyndicateWarsEntry::try_deserialize(&mut slice)
                 .map_err(|_| LottoError::InvalidAccountData)?
-        }; // immutable borrow dropped here
+        };
 
         // Validate the entry belongs to the expected syndicate
         require!(
-            entry.syndicate == expected_syndicate,
+            params.ranked_syndicates.contains(&entry.syndicate),
             LottoError::InvalidSyndicateConfig
         );
 
         // Validate the entry is for this competition month
         require!(entry.month == month, LottoError::InvalidSyndicateConfig);
 
-        // Set the rank
-        let rank = (i + 1) as u32;
-        entry.final_rank = Some(rank);
+        // Store entry for on-chain sorting (rank assigned after sort)
+        let syndicate_key = entry.syndicate;
+        entries.push((syndicate_key, entry, i));
 
-        // Re-serialize the modified entry back into the account data.
-        // The immutable borrow is already dropped, so we can safely
-        // take a mutable borrow here.
+        // Entry stored for later write-back
+    }
+
+    // If no entries provided, nothing to distribute
+    if entries.is_empty() {
+        msg!("No entries to rank");
+        return Ok(());
+    }
+
+    // Step 2: Sort by win_rate descending
+    entries.sort_by(|a, b| b.1.win_rate.cmp(&a.1.win_rate));
+
+    // Step 3: Assign ranks and write back
+    let winner_key = entries[0].0;
+    let winner_win_rate = entries[0].1.win_rate;
+
+    for (rank_idx, (_key, entry, orig_idx)) in entries.iter_mut().enumerate() {
+        let rank = (rank_idx + 1) as u32;
+        entry.final_rank = Some(rank);
+        let account_info = &remaining_accounts[*orig_idx];
         {
             let mut entry_data = account_info.try_borrow_mut_data()?;
             let mut writer: &mut [u8] = &mut entry_data;
@@ -765,16 +782,15 @@ pub fn handler_distribute_syndicate_wars_prizes<'info>(
                 .try_serialize(&mut writer)
                 .map_err(|_| LottoError::InvalidAccountData)?;
         }
-
-        msg!("Set rank {} for syndicate {}", rank, expected_syndicate);
+        msg!("Rank {}: syndicate {}", rank, entry.syndicate);
     }
 
-    // Emit conclusion event with winner
+    // Emit conclusion event with on-chain computed winner
     emit!(SyndicateWarsConcluded {
         month,
         total_distributed: prize_pool,
-        winner: params.ranked_syndicates[0],
-        winner_win_rate: 0, // Would need to be calculated from entries
+        winner: winner_key,
+        winner_win_rate: winner_win_rate as u64,
         timestamp: Clock::get()?.unix_timestamp,
     });
 
@@ -790,7 +806,7 @@ pub fn handler_distribute_syndicate_wars_prizes<'info>(
     msg!("  2nd place: {} USDC lamports", second_prize);
     msg!("  3rd place: {} USDC lamports", third_prize);
     msg!("  4th-10th place: {} USDC lamports each", runner_up_prize);
-    msg!("  Winner: {}", params.ranked_syndicates[0]);
+    msg!("  Winner: {}", winner_key);
 
     Ok(())
 }

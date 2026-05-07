@@ -220,6 +220,7 @@ pub fn handler(ctx: Context<Initialize>, params: InitializeParams) -> Result<()>
     lottery_state.emergency_transfer_total = 0;
     lottery_state.emergency_transfer_window_start = 0;
     lottery_state.is_draw_in_progress = false;
+    lottery_state.is_awaiting_finalization = false;
     lottery_state.is_rolldown_active = false;
     lottery_state.is_paused = true; // FIXED: Start paused until funded
     lottery_state.is_funded = false; // FIXED: Track funding status

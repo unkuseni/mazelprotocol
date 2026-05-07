@@ -466,6 +466,10 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
 
     draw_result.bump = ctx.bumps.draw_result;
 
+    // SECURITY: Mark draw as executed. Prevents advance_draw/cancel_draw
+    // from skipping a draw whose winning numbers are on-chain.
+    ctx.accounts.lottery_state.is_awaiting_finalization = true;
+
     // Emit event
     emit!(DrawExecuted {
         draw_id: current_draw_id,

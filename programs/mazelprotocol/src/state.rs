@@ -93,8 +93,14 @@ pub struct LotteryState {
     /// May differ from total_prizes_paid due to unclaimed/expired tickets.
     pub total_prizes_committed: u64,
 
-    /// Whether a draw is currently in progress
+    /// Whether a draw is currently in progress (commit_randomness called)
     pub is_draw_in_progress: bool,
+
+    /// Whether execute_draw has completed and the system is awaiting
+    /// finalize_draw. Set true in execute_draw, cleared in finalize_draw.
+    /// Prevents advance_draw/cancel_draw from skipping draws whose
+    /// winning numbers are already publicly visible on-chain.
+    pub is_awaiting_finalization: bool,
 
     /// Whether rolldown is active for the next draw
     pub is_rolldown_active: bool,
@@ -235,6 +241,7 @@ impl LotteryState {
     /// of draw state and should persist across draw resets.
     pub fn reset_draw_state(&mut self, reset_tickets: bool) {
         self.is_draw_in_progress = false;
+        self.is_awaiting_finalization = false;
         self.is_rolldown_active = false;
         self.commit_slot = 0;
         self.commit_timestamp = 0;

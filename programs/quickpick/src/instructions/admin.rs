@@ -155,6 +155,9 @@ pub fn handler_update_config(
             draw_interval
         );
         quick_pick_state.draw_interval = draw_interval;
+        // SECURITY (M6 fix): Recalculate next draw timestamp so the new
+        // interval takes effect immediately rather than one draw later.
+        quick_pick_state.next_draw_timestamp = clock.unix_timestamp + draw_interval;
     }
 
     // Update Match 4 prize
@@ -234,7 +237,12 @@ pub struct WithdrawQuickPickHouseFees<'info> {
     pub house_fee_usdc: Account<'info, TokenAccount>,
 
     /// Destination USDC token account
-    #[account(mut)]
+    /// SECURITY (M3 fix): Must be owned by the authority to prevent
+    /// draining house fees to an arbitrary wallet.
+    #[account(
+        mut,
+        constraint = destination_usdc.owner == authority.key() @ QuickPickError::InvalidTokenAccount
+    )]
     pub destination_usdc: Account<'info, TokenAccount>,
 
     /// Token program
@@ -350,6 +358,12 @@ pub fn handler_cancel_draw(ctx: Context<CancelQuickPickDraw>, reason: String) ->
     let draw_id = quick_pick_state.current_draw;
     let tickets_affected = quick_pick_state.current_draw_tickets;
 
+    // SECURITY: Cannot cancel a draw that has been executed.
+    require!(
+        !quick_pick_state.is_awaiting_finalization,
+        QuickPickError::DrawNotInProgress
+    );
+
     // Reset draw state (preserve tickets for rescheduled draw)
     quick_pick_state.reset_draw_state(false);
 
@@ -444,6 +458,12 @@ pub fn handler_force_finalize_draw(
             draw_result.is_explicitly_finalized = true;
         }
     }
+
+    // SECURITY: Cannot cancel a draw that has been executed.
+    require!(
+        !quick_pick_state.is_awaiting_finalization,
+        QuickPickError::DrawNotInProgress
+    );
 
     // Reset draw state (including tickets) and advance to next draw
     quick_pick_state.reset_draw_state(true);

@@ -63,6 +63,12 @@ pub const DRAW_COMMIT_TIMEOUT: i64 = 3600;
 /// before fallback kicks in.
 pub const DRAW_ADVANCEMENT_TIMEOUT: i64 = 1800; // 30 minutes
 
+/// Minimum delay in seconds between execute_draw and finalize_draw.
+/// Gives independent indexers time to compute winner counts and submit
+/// them before a malicious operator can fabricate counts. Combined with
+/// permissionless finalization, this prevents unilateral winner-count control.
+pub const FINALIZATION_DELAY: i64 = 120; // 2 minutes
+
 /// Ticket claim expiration period (90 days in seconds)
 /// After this period from draw execution, tickets can no longer be claimed
 /// Set to 0 to disable expiration (tickets can be claimed forever)
@@ -253,6 +259,7 @@ pub const LOTTERY_STATE_SIZE: usize = 8 + // discriminator
     8 +  // total_prizes_committed (committed at finalization time)
     1 +  // is_draw_in_progress
     1 +  // is_rolldown_active
+    1 +  // is_awaiting_finalization
     1 +  // is_paused
     1 +  // is_funded
     1 +  // version

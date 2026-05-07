@@ -24,6 +24,10 @@ use crate::state::{LotteryState, UnifiedTicket, UserStats};
 pub struct BuyBulkParams {
     /// Array of ticket number sets, each containing 6 numbers between 1 and 46
     pub tickets: Vec<[u8; 6]>,
+    /// M8: Number of free tickets to redeem in this bulk purchase.
+    /// Each free ticket deducts one ticket's price from the total cost.
+    /// Limited by user_stats.free_tickets_available and MAX_FREE_TICKETS.
+    pub free_tickets_to_use: u8,
 }
 
 /// Accounts required for buying multiple tickets
@@ -266,8 +270,22 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     //      - jackpot_contribution = prize_pool_transfer * 55.6%
     //      - reserve_contribution = prize_pool_transfer * 3%
     //      - fixed_prize_pool = prize_pool_transfer * 39.4% (implicit)
+    // M8: Free ticket redemption - deduct from cost, still count toward stats
+    let free_tickets_to_use = params.free_tickets_to_use as u64;
+    let paid_ticket_count = ticket_count.saturating_sub(free_tickets_to_use as usize);
+    if free_tickets_to_use > 0 {
+        require!(
+            free_tickets_to_use <= ticket_count as u64,
+            LottoError::InvalidTicketArraySize
+        );
+        require!(
+            free_tickets_to_use <= MAX_FREE_TICKETS,
+            LottoError::MaxFreeTicketsReached
+        );
+    }
+
     let total_price = ticket_price
-        .checked_mul(ticket_count as u64)
+        .checked_mul(paid_ticket_count as u64)
         .ok_or(LottoError::Overflow)?;
 
     // Calculate dynamic house fee based on current jackpot level
@@ -415,6 +433,23 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     // Update user stats
     let user_stats = &mut ctx.accounts.user_stats;
 
+    // M8: Validate and consume free tickets
+    if free_tickets_to_use > 0 {
+        let available = user_stats.free_tickets_available as u64;
+        require!(
+            available >= free_tickets_to_use,
+            LottoError::NoFreeTicketsAvailable
+        );
+        user_stats.free_tickets_available = user_stats
+            .free_tickets_available
+            .saturating_sub(free_tickets_to_use as u32);
+        msg!(
+            "Redeemed {} free ticket(s). {} remaining.",
+            free_tickets_to_use,
+            user_stats.free_tickets_available
+        );
+    }
+
     // FIXED: Track tickets per draw for limit enforcement
     // Always update last_draw_participated to current draw
     if user_stats.last_draw_participated != current_draw_id {
@@ -558,7 +593,9 @@ mod tests {
     fn test_bulk_params() {
         let params = BuyBulkParams {
             tickets: vec![[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]],
+            free_tickets_to_use: 0,
         };
         assert_eq!(params.tickets.len(), 2);
+        assert_eq!(params.free_tickets_to_use, 0);
     }
 }

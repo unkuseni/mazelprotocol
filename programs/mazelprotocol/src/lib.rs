@@ -317,6 +317,30 @@ pub mod solana_lotto {
         instructions::advance_draw::handler(ctx)
     }
 
+    /// Challenge a draw finalization (permissionless dispute)
+    ///
+    /// Anyone who detects incorrect winner counts can challenge the draw.
+    /// This pauses the lottery and records alternative counts on-chain.
+    /// Combined with permissionless finalization and the finalization delay,
+    /// this creates a system where fabricating winner counts is detectable
+    /// and punishable (M1 fix).
+    ///
+    /// # Arguments
+    /// * `ctx` - ChallengeDraw accounts context
+    /// * `alternative_winner_counts` - Corrected winner counts
+    /// * `evidence_hash` - SHA256 hash of supporting off-chain evidence
+    pub fn challenge_draw(
+        ctx: Context<ChallengeDraw>,
+        alternative_winner_counts: WinnerCounts,
+        evidence_hash: [u8; 32],
+    ) -> Result<()> {
+        instructions::admin::handler_challenge_draw(
+            ctx,
+            alternative_winner_counts,
+            evidence_hash,
+        )
+    }
+
     /// Emergency transfer funds from reserve or insurance pool to prize pool
     ///
     /// Transfers funds from reserve or insurance pools to the prize pool
