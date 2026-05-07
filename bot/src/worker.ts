@@ -69,7 +69,6 @@ import { KV_KEYS } from "./env";
 // If the IDL files are missing, wrangler will fail at build time with a
 // clear error pointing to these imports.
 
-// @ts-expect-error — JSON import resolved by wrangler bundler
 import mainIDL from "./idl/mazelprotocol.json";
 import qpIDL from "./idl/quickpick.json";
 
@@ -168,16 +167,16 @@ function drawStateToKV(state: DrawState): PersistedDrawState {
     lastAttemptTimestamp: state.lastAttemptTimestamp,
     indexerResult: state.indexerResult
       ? {
-          winnerCounts: state.indexerResult.winnerCounts as unknown as Record<
-            string,
-            number
-          >,
-          totalTicketsScanned: state.indexerResult.totalTicketsScanned,
-          verificationHash: Buffer.from(
-            state.indexerResult.verificationHash,
-          ).toString("hex"),
-          nonce: state.indexerResult.nonce.toString(),
-        }
+        winnerCounts: state.indexerResult.winnerCounts as unknown as Record<
+          string,
+          number
+        >,
+        totalTicketsScanned: state.indexerResult.totalTicketsScanned,
+        verificationHash: Buffer.from(
+          state.indexerResult.verificationHash,
+        ).toString("hex"),
+        nonce: state.indexerResult.nonce.toString(),
+      }
       : undefined,
   };
 }

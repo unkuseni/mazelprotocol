@@ -123,7 +123,6 @@ export {
   getBalance,
   getTokenAccountBalance,
   getCurrentSlot,
-  testConnection,
 } from "./connection";
 
 // PDA derivation
