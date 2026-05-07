@@ -2310,7 +2310,7 @@ describe("mazelprotocol", () => {
             indexerNonce: new anchor.BN(0),
           })
           .accountsPartial({
-            authority: authority.publicKey,
+            finalizer: authority.publicKey,
             lotteryState: pdas.lotteryState,
             drawResult: drawResultPda,
           })

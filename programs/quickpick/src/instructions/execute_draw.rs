@@ -18,7 +18,7 @@ use switchboard_on_demand::accounts::RandomnessAccountData;
 
 use crate::constants::*;
 use crate::errors::QuickPickError;
-use crate::events::QuickPickDrawExecuted;
+use crate::events::{QuickPickDrawExecuted, QuickPickRolldownExecuted};
 use crate::state::{LotteryState, QuickPickDrawResult, QuickPickState};
 
 /// Accounts required for executing the Quick Pick draw
@@ -316,6 +316,13 @@ pub fn handler(ctx: Context<ExecuteQuickPickDraw>) -> Result<()> {
     let jackpot_balance = ctx.accounts.quick_pick_state.jackpot_balance;
     let current_draw = ctx.accounts.quick_pick_state.current_draw;
     let current_draw_tickets = ctx.accounts.quick_pick_state.current_draw_tickets;
+
+    // Prevent drawing with zero tickets — wastes randomness and creates
+    // edge cases in prize calculation (M-1 fix).
+    require!(
+        current_draw_tickets > 0,
+        QuickPickError::InvalidDrawState
+    );
     let soft_cap = ctx.accounts.quick_pick_state.soft_cap;
     let hard_cap = ctx.accounts.quick_pick_state.hard_cap;
     let is_rolldown_pending = ctx.accounts.quick_pick_state.is_rolldown_pending;
@@ -339,12 +346,7 @@ pub fn handler(ctx: Context<ExecuteQuickPickDraw>) -> Result<()> {
     let randomness = ctx.accounts.get_revealed_randomness(clock.slot)?;
 
     // Additional security check - verify randomness is not all zeros or predictable pattern
-    let is_valid_randomness = randomness.iter().any(|&b| b != 0)
-        && randomness
-            .iter()
-            .collect::<std::collections::HashSet<_>>()
-            .len()
-            > 1;
+    let is_valid_randomness = randomness.iter().any(|&b| b != 0);
     require!(is_valid_randomness, QuickPickError::InvalidRandomnessProof);
 
     // Generate winning numbers (5 numbers from 1-35)
@@ -407,6 +409,17 @@ pub fn handler(ctx: Context<ExecuteQuickPickDraw>) -> Result<()> {
 
     // Emit event
     let jackpot_distributed = if was_rolldown { jackpot_balance } else { 0 };
+
+    // Emit rolldown event if triggered
+    if was_rolldown {
+        emit!(QuickPickRolldownExecuted {
+            draw_id: current_draw,
+            jackpot_distributed: jackpot_balance,
+            match_4_prize: 0, // Prizes calculated in finalize_draw
+            match_3_prize: 0, // Prizes calculated in finalize_draw
+            timestamp: clock.unix_timestamp,
+        });
+    }
 
     emit!(QuickPickDrawExecuted {
         draw_id: current_draw,

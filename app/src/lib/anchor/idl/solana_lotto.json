@@ -180,6 +180,61 @@
       ]
     },
     {
+      "name": "advance_draw",
+      "docs": [
+        "Permissionless draw advancement (timeout fallback)",
+        "",
+        "Anyone can call this after DRAW_ADVANCEMENT_TIMEOUT seconds have",
+        "passed since the scheduled draw time. Skips a stuck draw and",
+        "advances to the next cycle. This is a fallback for when the bot",
+        "is unavailable.",
+        "",
+        "# Arguments",
+        "* `ctx` - AdvanceDraw accounts context"
+      ],
+      "discriminator": [
+        81,
+        91,
+        246,
+        172,
+        52,
+        85,
+        32,
+        201
+      ],
+      "accounts": [
+        {
+          "name": "caller",
+          "docs": [
+            "Anyone can call this (permissionless)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "buy_bulk",
       "docs": [
         "Buy multiple lottery tickets in a single transaction",
@@ -390,13 +445,13 @@
         {
           "name": "usdc_mint",
           "docs": [
-            "USDC mint"
+            "USDC mint (must be 6 decimals)"
           ]
         },
         {
           "name": "user_stats",
           "docs": [
-            "User statistics account"
+            "User statistics account (must be initialized via `init_user_stats` first)"
           ],
           "writable": true,
           "pda": {
@@ -741,7 +796,10 @@
         {
           "name": "lottery_state",
           "docs": [
-            "The main lottery state account"
+            "The main lottery state account",
+            "NOTE: Boxed to reduce stack frame size below SBF's 4096-byte limit.",
+            "LotteryState is large (~350+ bytes) and combined with 10 other accounts",
+            "in this struct, the unboxed version exceeds the stack offset limit."
           ],
           "writable": true,
           "pda": {
@@ -899,13 +957,13 @@
         {
           "name": "usdc_mint",
           "docs": [
-            "USDC mint"
+            "USDC mint (must be 6 decimals)"
           ]
         },
         {
           "name": "user_stats",
           "docs": [
-            "User statistics account"
+            "User statistics account (must be initialized via `init_user_stats` first)"
           ],
           "writable": true,
           "pda": {
@@ -1120,6 +1178,110 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "challenge_draw",
+      "docs": [
+        "Challenge a draw finalization (permissionless dispute)",
+        "",
+        "Anyone who detects incorrect winner counts can challenge the draw.",
+        "This pauses the lottery and records alternative counts on-chain.",
+        "Combined with permissionless finalization and the finalization delay,",
+        "this creates a system where fabricating winner counts is detectable",
+        "and punishable (M1 fix).",
+        "",
+        "# Arguments",
+        "* `ctx` - ChallengeDraw accounts context",
+        "* `alternative_winner_counts` - Corrected winner counts",
+        "* `evidence_hash` - SHA256 hash of supporting off-chain evidence"
+      ],
+      "discriminator": [
+        196,
+        106,
+        16,
+        253,
+        227,
+        79,
+        168,
+        44
+      ],
+      "accounts": [
+        {
+          "name": "challenger",
+          "docs": [
+            "Anyone can challenge (permissionless)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "draw_result",
+          "docs": [
+            "The draw result being challenged"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lottery_state.current_draw_id",
+                "account": "LotteryState"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "alternative_winner_counts",
+          "type": {
+            "defined": {
+              "name": "WinnerCounts"
+            }
+          }
+        },
+        {
+          "name": "evidence_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "check_solvency",
@@ -1367,7 +1529,7 @@
         {
           "name": "usdc_mint",
           "docs": [
-            "USDC mint"
+            "USDC mint (must be 6 decimals)"
           ]
         },
         {
@@ -1530,7 +1692,7 @@
         {
           "name": "usdc_mint",
           "docs": [
-            "USDC mint"
+            "USDC mint (must be 6 decimals)"
           ]
         },
         {
@@ -1715,7 +1877,7 @@
         {
           "name": "usdc_mint",
           "docs": [
-            "USDC mint"
+            "USDC mint (must be 6 decimals)"
           ]
         },
         {
@@ -3294,9 +3456,9 @@
       ],
       "accounts": [
         {
-          "name": "authority",
+          "name": "finalizer",
           "docs": [
-            "The authority finalizing the draw"
+            "Anyone can finalize (permissionless). Pays for the transaction."
           ],
           "writable": true,
           "signer": true
@@ -3655,6 +3817,71 @@
             "Token program"
           ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_user_stats",
+      "docs": [
+        "Initialize user statistics account",
+        "",
+        "Creates the UserStats PDA for a player. Must be called once per wallet",
+        "before purchasing tickets. This replaces the `init_if_needed` pattern",
+        "with an explicit initialization step for better security.",
+        "",
+        "# Arguments",
+        "* `ctx` - InitUserStats accounts context"
+      ],
+      "discriminator": [
+        177,
+        113,
+        20,
+        232,
+        181,
+        87,
+        120,
+        62
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "docs": [
+            "The user initializing their stats (pays for account creation)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_stats",
+          "docs": [
+            "User statistics account to initialize"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "System program"
+          ],
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -4883,68 +5110,6 @@
       ]
     },
     {
-      "name": "transfer_authority",
-      "docs": [
-        "Transfer authority (DEPRECATED - use propose_authority + accept_authority)",
-        "",
-        "Legacy single-step authority transfer. Now only sets pending_authority",
-        "and requires accept_authority to complete.",
-        "",
-        "# Arguments",
-        "* `ctx` - TransferAuthority accounts context"
-      ],
-      "discriminator": [
-        48,
-        169,
-        76,
-        72,
-        229,
-        180,
-        55,
-        161
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "docs": [
-            "The current authority"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "new_authority",
-          "docs": [
-            "The new authority"
-          ]
-        },
-        {
-          "name": "lottery_state",
-          "docs": [
-            "The main lottery state account"
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  111,
-                  116,
-                  116,
-                  101,
-                  114,
-                  121
-                ]
-              }
-            ]
-          }
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "transfer_syndicate_creator",
       "docs": [
         "Transfer syndicate creator role to another member",
@@ -5600,7 +5765,9 @@
         {
           "name": "destination_usdc",
           "docs": [
-            "Destination USDC token account for withdrawn fees"
+            "Destination USDC token account for withdrawn fees",
+            "M3 FIX: Constrain destination to be owned by the authority to prevent",
+            "a compromised authority from draining house fees to an arbitrary wallet."
           ],
           "writable": true
         },
@@ -5975,32 +6142,6 @@
       ]
     },
     {
-      "name": "LuckyNumbersBonusClaimed",
-      "discriminator": [
-        18,
-        68,
-        45,
-        169,
-        82,
-        197,
-        189,
-        7
-      ]
-    },
-    {
-      "name": "LuckyNumbersNFTMinted",
-      "discriminator": [
-        182,
-        173,
-        81,
-        151,
-        214,
-        1,
-        74,
-        126
-      ]
-    },
-    {
       "name": "NewStreakRecord",
       "discriminator": [
         158,
@@ -6102,6 +6243,19 @@
         251,
         213,
         19
+      ]
+    },
+    {
+      "name": "SoloAuthorityWarning",
+      "discriminator": [
+        189,
+        25,
+        10,
+        249,
+        61,
+        75,
+        228,
+        61
       ]
     },
     {
@@ -6820,36 +6974,26 @@
     },
     {
       "code": 12214,
-      "name": "LuckyNumbersLimitReached",
-      "msg": "Lucky Numbers limit reached."
-    },
-    {
-      "code": 12215,
-      "name": "InsufficientMatchForNft",
-      "msg": "Insufficient match tier for NFT."
-    },
-    {
-      "code": 12216,
       "name": "SyndicateWarsNotActive",
       "msg": "Syndicate Wars not active."
     },
     {
-      "code": 12217,
+      "code": 12215,
       "name": "StreakBonusError",
       "msg": "Streak bonus error."
     },
     {
-      "code": 12218,
+      "code": 12216,
       "name": "UserStatsValidationError",
       "msg": "User statistics validation error."
     },
     {
-      "code": 12219,
+      "code": 12217,
       "name": "InvalidDrawStateTransition",
       "msg": "Invalid draw state transition."
     },
     {
-      "code": 12220,
+      "code": 12218,
       "name": "SecondChanceNotEligible",
       "msg": "Not eligible for Second Chance."
     },
@@ -6962,6 +7106,16 @@
       "code": 12288,
       "name": "InvalidTicketAccount",
       "msg": "Failed to deserialize ticket account from remaining_accounts."
+    },
+    {
+      "code": 12289,
+      "name": "RolldownTicketCapReached",
+      "msg": "Rolldown ticket cap reached. No more tickets can be purchased this draw."
+    },
+    {
+      "code": 12290,
+      "name": "DrawAdvancementNotReady",
+      "msg": "Draw advancement not ready. Timeout period has not elapsed."
     }
   ],
   "types": [
@@ -7041,6 +7195,15 @@
                 ]
               }
             }
+          },
+          {
+            "name": "free_tickets_to_use",
+            "docs": [
+              "M8: Number of free tickets to redeem in this bulk purchase.",
+              "Each free ticket deducts one ticket's price from the total cost.",
+              "Limited by user_stats.free_tickets_available and MAX_FREE_TICKETS."
+            ],
+            "type": "u8"
           }
         ]
       }
@@ -8502,7 +8665,9 @@
           {
             "name": "jackpot_cap",
             "docs": [
-              "Maximum jackpot before forced rolldown"
+              "Configurable jackpot display cap (UI only, NOT the rolldown trigger).",
+              "The actual rolldown mechanics use `soft_cap` (probabilistic) and",
+              "`hard_cap` (forced). Defaults to SOFT_CAP ($1.75M)."
             ],
             "type": "u64"
           },
@@ -8589,7 +8754,17 @@
           {
             "name": "is_draw_in_progress",
             "docs": [
-              "Whether a draw is currently in progress"
+              "Whether a draw is currently in progress (commit_randomness called)"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "is_awaiting_finalization",
+            "docs": [
+              "Whether execute_draw has completed and the system is awaiting",
+              "finalize_draw. Set true in execute_draw, cleared in finalize_draw.",
+              "Prevents advance_draw/cancel_draw from skipping draws whose",
+              "winning numbers are already publicly visible on-chain."
             ],
             "type": "bool"
           },
@@ -8610,9 +8785,19 @@
           {
             "name": "is_funded",
             "docs": [
-              "Whether the lottery has been funded with initial seed"
+              "Set to true once on initial seed funding. Never cleared afterward.",
+              "New-cycle solvency is checked via `jackpot_balance >= seed_amount`,",
+              "NOT via this flag. This flag gates initial ticket sales only."
             ],
             "type": "bool"
+          },
+          {
+            "name": "version",
+            "docs": [
+              "Protocol version. Incremented on breaking changes. Clients should",
+              "check this to detect incompatible state layouts."
+            ],
+            "type": "u8"
           },
           {
             "name": "bump",
@@ -8660,110 +8845,15 @@
               "the total resets. Prevents unlimited repeated small drains."
             ],
             "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "LuckyNumbersBonusClaimed",
-      "docs": [
-        "Emitted when a Lucky Numbers NFT bonus is claimed"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "mint",
-            "docs": [
-              "NFT mint address"
-            ],
-            "type": "pubkey"
           },
           {
-            "name": "owner",
+            "name": "max_rolldown_tickets",
             "docs": [
-              "Owner wallet address"
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "draw_id",
-            "docs": [
-              "Draw ID"
+              "Maximum tickets allowed during a rolldown draw (0 = unlimited).",
+              "Prevents per-winner prizes from becoming microscopic during extreme",
+              "volume events. Default 0 (no limit) preserves backward compatibility."
             ],
             "type": "u64"
-          },
-          {
-            "name": "bonus_amount",
-            "docs": [
-              "Bonus amount"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "timestamp",
-            "docs": [
-              "Timestamp"
-            ],
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "LuckyNumbersNFTMinted",
-      "docs": [
-        "Emitted when a Lucky Numbers NFT is minted"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "mint",
-            "docs": [
-              "NFT mint address"
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "owner",
-            "docs": [
-              "Owner wallet address"
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "numbers",
-            "docs": [
-              "The winning numbers"
-            ],
-            "type": {
-              "array": [
-                "u8",
-                6
-              ]
-            }
-          },
-          {
-            "name": "draw_id",
-            "docs": [
-              "Draw ID where numbers won"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "match_tier",
-            "docs": [
-              "Match tier (4, 5, or 6)"
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "timestamp",
-            "docs": [
-              "Timestamp"
-            ],
-            "type": "i64"
           }
         ]
       }
@@ -8856,6 +8946,13 @@
               "Whether a free ticket was issued (Match 2)"
             ],
             "type": "bool"
+          },
+          {
+            "name": "individual_ticket_id",
+            "docs": [
+              "M7: Individual ticket ID for bulk claims. 0 for single-ticket claims."
+            ],
+            "type": "u64"
           },
           {
             "name": "timestamp",
@@ -9215,6 +9312,27 @@
               "Timestamp"
             ],
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SoloAuthorityWarning",
+      "docs": [
+        "Emitted when the authority is set to a regular (non-PDA) keypair.",
+        "Multi-sig wallets (Squads, etc.) use PDAs as their address.",
+        "A regular keypair authority is a centralization risk."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "message",
+            "type": "string"
           }
         ]
       }
