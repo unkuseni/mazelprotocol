@@ -148,6 +148,66 @@
       ]
     },
     {
+      "name": "advance_draw",
+      "docs": [
+        "Permissionless draw advancement (timeout fallback) (QP-4 fix).",
+        "",
+        "Anyone can call this after QUICK_PICK_DRAW_ADVANCEMENT_TIMEOUT seconds",
+        "have passed since the scheduled draw time without a commit. Ensures",
+        "liveness even if the bot/operator is offline.",
+        "",
+        "# Arguments",
+        "* `ctx` - AdvanceQuickPickDraw accounts context"
+      ],
+      "discriminator": [
+        81,
+        91,
+        246,
+        172,
+        52,
+        85,
+        32,
+        201
+      ],
+      "accounts": [
+        {
+          "name": "caller",
+          "docs": [
+            "Anyone can advance a stuck draw (permissionless for liveness)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "buy_ticket",
       "docs": [
         "Buy a Quick Pick Express ticket",
@@ -393,6 +453,85 @@
           }
         }
       ]
+    },
+    {
+      "name": "cancel_config_proposal",
+      "docs": [
+        "Cancel a pending Quick Pick configuration proposal (H-2 fix).",
+        "",
+        "Clears the pending config hash and timelock, preventing execution.",
+        "",
+        "# Arguments",
+        "* `ctx` - UpdateQuickPickConfig accounts context"
+      ],
+      "discriminator": [
+        33,
+        21,
+        178,
+        69,
+        114,
+        73,
+        168,
+        250
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
     },
     {
       "name": "cancel_draw",
@@ -856,6 +995,96 @@
         {
           "name": "reason",
           "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "execute_config",
+      "docs": [
+        "Execute proposed Quick Pick configuration changes (Phase 2 of timelock).",
+        "",
+        "Applies the previously proposed changes after the timelock expires.",
+        "Params must exactly match the proposal (verified via SHA256 hash) (H-2 fix).",
+        "",
+        "# Arguments",
+        "* `ctx` - UpdateQuickPickConfig accounts context",
+        "* `params` - Configuration parameters (must match proposal)"
+      ],
+      "discriminator": [
+        189,
+        36,
+        99,
+        231,
+        117,
+        10,
+        8,
+        134
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "UpdateQuickPickConfigParams"
+            }
+          }
         }
       ]
     },
@@ -1680,6 +1909,96 @@
       ]
     },
     {
+      "name": "propose_config",
+      "docs": [
+        "Propose Quick Pick configuration changes (Phase 1 of timelock).",
+        "",
+        "Starts a 24-hour timelock. Changes are NOT applied until",
+        "execute_config is called after the timelock expires (H-2 fix).",
+        "",
+        "# Arguments",
+        "* `ctx` - UpdateQuickPickConfig accounts context",
+        "* `params` - Proposed configuration parameters"
+      ],
+      "discriminator": [
+        163,
+        247,
+        238,
+        160,
+        236,
+        129,
+        153,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (must be lottery authority)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "lottery_state",
+          "docs": [
+            "The main lottery state (to verify authority)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quick_pick_state",
+          "docs": [
+            "The Quick Pick state account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "UpdateQuickPickConfigParams"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "unpause",
       "docs": [
         "Unpause Quick Pick Express",
@@ -1763,11 +2082,11 @@
     {
       "name": "update_config",
       "docs": [
-        "Update Quick Pick Express configuration",
+        "Update Quick Pick Express configuration (legacy immediate mode).",
         "",
         "Updates various configuration parameters such as ticket price,",
         "caps, prizes, and draw interval. Can only be called when paused",
-        "or no draw is in progress.",
+        "or no draw is in progress. Rejected if a timelock proposal is pending.",
         "",
         "# Arguments",
         "* `ctx` - UpdateQuickPickConfig accounts context",
@@ -3944,6 +4263,42 @@
               "PDA bump seed"
             ],
             "type": "u8"
+          },
+          {
+            "name": "config_timelock_end",
+            "docs": [
+              "Config timelock: Unix timestamp after which a proposed config can be executed.",
+              "0 means no pending config proposal (H-2 fix)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "pending_config_hash",
+            "docs": [
+              "SHA256 hash of the pending config proposal parameters.",
+              "Used to verify that execute_config receives the exact same parameters as",
+              "what was proposed (prevents bait-and-switch) (H-2 fix)."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "emergency_transfer_total",
+            "docs": [
+              "Total emergency transfers in the current window (QP-3 fix)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "emergency_transfer_window_start",
+            "docs": [
+              "Unix timestamp when the current emergency transfer window started (QP-3 fix)."
+            ],
+            "type": "i64"
           }
         ]
       }
