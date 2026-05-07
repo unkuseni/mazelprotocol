@@ -1025,16 +1025,17 @@
       ],
       "accounts": [
         {
-          "name": "authority",
+          "name": "finalizer",
           "docs": [
-            "The authority (must be lottery authority)"
+            "Anyone can finalize (permissionless). Pays for the transaction."
           ],
+          "writable": true,
           "signer": true
         },
         {
           "name": "lottery_state",
           "docs": [
-            "The main lottery state (to verify authority)"
+            "The main lottery state (for reference, not authority check)"
           ],
           "pda": {
             "seeds": [
@@ -1960,7 +1961,9 @@
         {
           "name": "destination_usdc",
           "docs": [
-            "Destination USDC token account"
+            "Destination USDC token account",
+            "SECURITY (M3 fix): Must be owned by the authority to prevent",
+            "draining house fees to an arbitrary wallet."
           ],
           "writable": true
         },
@@ -3903,6 +3906,14 @@
             "name": "is_draw_in_progress",
             "docs": [
               "Is a draw currently in progress (between commit and finalize)"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "is_awaiting_finalization",
+            "docs": [
+              "Prevents cancel_draw from skipping draws whose winning numbers",
+              "are already publicly visible on-chain."
             ],
             "type": "bool"
           },

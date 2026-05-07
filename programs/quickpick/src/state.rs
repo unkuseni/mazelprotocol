@@ -130,6 +130,7 @@ impl QuickPickState {
         8 +    // commit_slot
         8 +    // commit_timestamp
         1 +    // is_draw_in_progress
+        1 +    // is_awaiting_finalization
         1 +    // is_rolldown_pending
         1 +    // is_paused
         1 +    // is_funded
