@@ -262,7 +262,9 @@ pub fn handler(
     // execution so independent indexers can submit honest counts first.
     // ==========================================================================
     const QP_FINALIZATION_DELAY: i64 = 60; // 1 minute
-    let eligible_time = ctx.accounts.draw_result
+    let eligible_time = ctx
+        .accounts
+        .draw_result
         .timestamp
         .checked_add(QP_FINALIZATION_DELAY)
         .ok_or(QuickPickError::InvalidDrawState)?;
@@ -437,44 +439,58 @@ pub fn handler(
 
     // Handle jackpot based on mode
     if was_rolldown {
-        // SECURITY FIX (Issue #7): Verify that the internal accounting balances
-        // can actually back the seed amount before resetting. Previously, rolldown
-        // reset jackpot to seed_amount without checking whether the prize pool
-        // actually has funds to cover it, producing phantom balances.
-        //
-        // Use reserve_balance to fund reseeding (analogous to main lottery behavior).
-        // If reserve is insufficient, seed with whatever is available and pause.
-        let available_for_seed = quick_pick_state
-            .reserve_balance
-            .saturating_add(quick_pick_state.prize_pool_balance);
-        let actual_seed = seed_amount.min(available_for_seed);
-
-        // Deduct seed from reserve first, then prize_pool_balance
-        let from_reserve = actual_seed.min(quick_pick_state.reserve_balance);
-        quick_pick_state.reserve_balance = quick_pick_state
-            .reserve_balance
-            .saturating_sub(from_reserve);
-        let remainder_from_pool = actual_seed.saturating_sub(from_reserve);
-        if remainder_from_pool > 0 {
-            quick_pick_state.prize_pool_balance = quick_pick_state
-                .prize_pool_balance
-                .saturating_sub(remainder_from_pool);
-        }
-
-        quick_pick_state.jackpot_balance = actual_seed;
-        quick_pick_state.is_rolldown_pending = false;
-
-        if actual_seed < seed_amount {
+        // CRITICAL FIX (C-1): When rolldown triggers but there are zero winners
+        // in any tier, the jackpot must be carried forward instead of being
+        // silently destroyed by resetting to seed_amount. Previously,
+        // total_distributed == 0 would still reset the jackpot, causing the
+        // accumulated funds to vanish from internal accounting.
+        if prize_calc.total_distributed == 0 {
+            // No winners in any tier — jackpot carries forward
+            quick_pick_state.is_rolldown_pending = false;
             msg!(
-                "⚠️  Rolldown reseed: only {} of {} available (reserve + prize pool insufficient)",
-                actual_seed,
-                seed_amount
+                "⚠️  Rolldown triggered but no winners — jackpot preserved at {} USDC",
+                quick_pick_state.jackpot_balance
             );
         } else {
-            msg!(
-                "  Jackpot reset to seed amount: {} USDC (funded from reserve)",
-                seed_amount
-            );
+            // SECURITY FIX (Issue #7): Verify that the internal accounting balances
+            // can actually back the seed amount before resetting. Previously, rolldown
+            // reset jackpot to seed_amount without checking whether the prize pool
+            // actually has funds to cover it, producing phantom balances.
+            //
+            // Use reserve_balance to fund reseeding (analogous to main lottery behavior).
+            // If reserve is insufficient, seed with whatever is available and pause.
+            let available_for_seed = quick_pick_state
+                .reserve_balance
+                .saturating_add(quick_pick_state.prize_pool_balance);
+            let actual_seed = seed_amount.min(available_for_seed);
+
+            // Deduct seed from reserve first, then prize_pool_balance
+            let from_reserve = actual_seed.min(quick_pick_state.reserve_balance);
+            quick_pick_state.reserve_balance = quick_pick_state
+                .reserve_balance
+                .saturating_sub(from_reserve);
+            let remainder_from_pool = actual_seed.saturating_sub(from_reserve);
+            if remainder_from_pool > 0 {
+                quick_pick_state.prize_pool_balance = quick_pick_state
+                    .prize_pool_balance
+                    .saturating_sub(remainder_from_pool);
+            }
+
+            quick_pick_state.jackpot_balance = actual_seed;
+            quick_pick_state.is_rolldown_pending = false;
+
+            if actual_seed < seed_amount {
+                msg!(
+                    "⚠️  Rolldown reseed: only {} of {} available (reserve + prize pool insufficient)",
+                    actual_seed,
+                    seed_amount
+                );
+            } else {
+                msg!(
+                    "  Jackpot reset to seed amount: {} USDC (funded from reserve)",
+                    seed_amount
+                );
+            }
         }
     } else if params.winner_counts.match_5 > 0 {
         // Jackpot won: reset to seed amount, funded from reserve

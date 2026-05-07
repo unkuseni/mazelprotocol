@@ -382,6 +382,10 @@ pub fn handler_cancel_draw(ctx: Context<CancelQuickPickDraw>, reason: String) ->
     msg!("  Reason: {}", reason);
     msg!("  Tickets affected: {}", tickets_affected);
     msg!("  Next draw time: {}", quick_pick_state.next_draw_timestamp);
+    msg!(
+        "Tickets for draw {} will carry over to the rescheduled draw.",
+        draw_id
+    );
     msg!("  Note: Ticket holders should be able to claim refunds or tickets carry over");
 
     Ok(())
@@ -459,10 +463,22 @@ pub fn handler_force_finalize_draw(
         }
     }
 
-    // SECURITY: Cannot cancel a draw that has been executed.
+    // SECURITY (C-2/C-3 fix): force_finalize_draw is only allowed when a draw
+    // has been executed (is_awaiting_finalization == true) and is stuck. It
+    // cannot be used to skip draws before winning numbers are revealed.
+    // Previously the guard was INVERTED, allowing pre-execution abuse and
+    // rejecting the legitimate post-execution recovery case.
     require!(
-        !quick_pick_state.is_awaiting_finalization,
+        quick_pick_state.is_awaiting_finalization,
         QuickPickError::DrawNotInProgress
+    );
+
+    // SECURITY: Only allow force-finalize if the commit has timed out (1 hour),
+    // to prevent an operator from immediately force-finalizing after execute
+    // and bypassing the indexer's finalization window.
+    require!(
+        quick_pick_state.is_commit_timed_out(clock.unix_timestamp),
+        QuickPickError::Timeout
     );
 
     // Reset draw state (including tickets) and advance to next draw
@@ -611,6 +627,31 @@ pub fn handler_emergency_fund_transfer(
         ctx.accounts.destination_usdc.mint == ctx.accounts.usdc_mint.key(),
         QuickPickError::InvalidUsdcMint
     );
+
+    // SECURITY (C-5 fix): Verify source token account matches the declared
+    // source PDA. Without this check, an attacker could pass arbitrary token
+    // accounts and drain funds from unverified sources.
+    {
+        let (expected_prize_pool, _) =
+            Pubkey::find_program_address(&[PRIZE_POOL_USDC_SEED], ctx.program_id);
+        let (expected_insurance, _) =
+            Pubkey::find_program_address(&[INSURANCE_POOL_USDC_SEED], ctx.program_id);
+
+        match source {
+            QuickPickFundSource::PrizePool | QuickPickFundSource::Reserve => {
+                require!(
+                    ctx.accounts.source_usdc.key() == expected_prize_pool,
+                    QuickPickError::InvalidTokenAccount
+                );
+            }
+            QuickPickFundSource::Insurance => {
+                require!(
+                    ctx.accounts.source_usdc.key() == expected_insurance,
+                    QuickPickError::InvalidTokenAccount
+                );
+            }
+        }
+    }
 
     // SECURITY FIX (Issue #5): Cap per-call transfer amount for PrizePool source
     // to limit damage from a compromised authority. Reserve and Insurance transfers
