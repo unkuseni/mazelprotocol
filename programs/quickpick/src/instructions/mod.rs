@@ -55,7 +55,7 @@ pub use claim_prize::ClaimQuickPickPrize;
 
 // Re-export account structs and params from admin
 pub use admin::{
-    AddQuickPickReserveFunds, CancelQuickPickDraw, EmergencyQuickPickFundTransfer,
-    ForceFinalizequickPickDraw, QuickPickFundSource, UpdateQuickPickConfig,
-    UpdateQuickPickConfigParams, WithdrawQuickPickHouseFees,
+    AddQuickPickReserveFunds, AdvanceQuickPickDraw, CancelQuickPickDraw,
+    EmergencyQuickPickFundTransfer, ForceFinalizequickPickDraw, QuickPickFundSource,
+    UpdateQuickPickConfig, UpdateQuickPickConfigParams, WithdrawQuickPickHouseFees,
 };

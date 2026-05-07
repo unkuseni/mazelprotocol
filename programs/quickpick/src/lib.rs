@@ -212,6 +212,18 @@ pub mod quickpick {
         instructions::admin::handler_add_reserve_funds(ctx, amount)
     }
 
+    /// Permissionless draw advancement (timeout fallback) (QP-4 fix).
+    ///
+    /// Anyone can call this after QUICK_PICK_DRAW_ADVANCEMENT_TIMEOUT seconds
+    /// have passed since the scheduled draw time without a commit. Ensures
+    /// liveness even if the bot/operator is offline.
+    ///
+    /// # Arguments
+    /// * `ctx` - AdvanceQuickPickDraw accounts context
+    pub fn advance_draw(ctx: Context<AdvanceQuickPickDraw>) -> Result<()> {
+        instructions::admin::handler_advance_draw(ctx)
+    }
+
     /// Cancel a Quick Pick draw
     ///
     /// Cancels the current draw in progress, resetting the state

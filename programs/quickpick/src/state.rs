@@ -111,6 +111,26 @@ pub struct QuickPickState {
     /// Used to verify that execute_config receives the exact same parameters as
     /// what was proposed (prevents bait-and-switch) (H-2 fix).
     pub pending_config_hash: [u8; 32],
+
+    /// Total emergency transfers in the current window (QP-3 fix).
+    pub emergency_transfer_total: u64,
+
+    /// Unix timestamp when the current emergency transfer window started (QP-3 fix).
+    pub emergency_transfer_window_start: i64,
+}
+
+/// Type of draw state transition (QP-2: unified state machine).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum DrawTransition {
+    /// Cancel: Keep tickets, reset commit state, reschedule timestamp.
+    /// Used by cancel_draw (admin) and advance_draw (permissionless timeout).
+    Cancel,
+    /// Finalize: Reset tickets, advance draw number, advance timestamp.
+    /// Used by finalize_draw.
+    Finalize,
+    /// ForceFinalize: Reset tickets, advance draw number, advance timestamp.
+    /// Jackpot carries over (no winners). Used by force_finalize_draw (emergency).
+    ForceFinalize,
 }
 
 impl QuickPickState {
@@ -146,7 +166,9 @@ impl QuickPickState {
         1 +    // bump
         8 +    // config_timelock_end (H-2)
         32 +   // pending_config_hash (H-2)
-        24; // padding for future use
+        8 +    // emergency_transfer_total (QP-3)
+        8 +    // emergency_transfer_window_start (QP-3)
+        8; // padding for future use
 
     /// Get current house fee based on jackpot level
     pub fn get_current_house_fee_bps(&self) -> u16 {
@@ -222,16 +244,37 @@ impl QuickPickState {
         ((excess as u128 * 10000) / range as u128) as u16
     }
 
-    /// Reset state for next draw after finalization
-    pub fn advance_to_next_draw(&mut self) {
-        self.current_draw = self.current_draw.saturating_add(1);
-        self.current_draw_tickets = 0;
-        self.next_draw_timestamp = self.next_draw_timestamp.saturating_add(self.draw_interval);
+    /// Transition the draw state machine (QP-2: unified enum-driven approach).
+    ///
+    /// Replaces `advance_to_next_draw()` and `reset_draw_state()` with a single
+    /// method that handles all draw state transitions consistently. This prevents
+    /// individual handlers from diverging in their state-reset logic.
+    ///
+    /// # Arguments
+    /// * `transition` - The type of transition (Cancel, Finalize, ForceFinalize)
+    /// * `current_timestamp` - Current unix timestamp for rescheduling
+    pub fn transition_draw(&mut self, transition: DrawTransition, current_timestamp: i64) {
+        // Common: clear commit-reveal cycle state
         self.is_draw_in_progress = false;
         self.is_awaiting_finalization = false;
         self.current_randomness_account = Pubkey::default();
         self.commit_slot = 0;
         self.commit_timestamp = 0;
+
+        match transition {
+            DrawTransition::Cancel => {
+                // Preserve tickets for the rescheduled draw (same draw_id).
+                // Only reschedule the timestamp from now.
+                self.next_draw_timestamp = current_timestamp + self.draw_interval;
+            }
+            DrawTransition::Finalize | DrawTransition::ForceFinalize => {
+                // Reset tickets and advance to the next draw
+                self.current_draw_tickets = 0;
+                self.current_draw = self.current_draw.saturating_add(1);
+                self.next_draw_timestamp =
+                    self.next_draw_timestamp.saturating_add(self.draw_interval);
+            }
+        }
     }
 
     /// Reset jackpot after rolldown
@@ -245,32 +288,10 @@ impl QuickPickState {
         if self.commit_timestamp == 0 {
             return false;
         }
-        // 1 hour timeout for commit-reveal
         const COMMIT_TIMEOUT: i64 = 3600;
-        // Use checked_add to prevent overflow
         match self.commit_timestamp.checked_add(COMMIT_TIMEOUT) {
             Some(timeout_timestamp) => current_timestamp > timeout_timestamp,
-            None => {
-                // Overflow occurred - treat as timed out for safety
-                true
-            }
-        }
-    }
-
-    /// Reset draw state (for cancellation or timeout)
-    ///
-    /// # Arguments
-    /// * `reset_tickets` - If true, also resets `current_draw_tickets` to 0.
-    ///   Set to `true` when finalizing or advancing a draw.
-    ///   Set to `false` when cancelling a draw (preserves tickets for reschedule).
-    pub fn reset_draw_state(&mut self, reset_tickets: bool) {
-        self.is_draw_in_progress = false;
-        self.is_awaiting_finalization = false;
-        self.current_randomness_account = Pubkey::default();
-        self.commit_slot = 0;
-        self.commit_timestamp = 0;
-        if reset_tickets {
-            self.current_draw_tickets = 0;
+            None => true, // Overflow - treat as timed out for safety
         }
     }
 
