@@ -53,6 +53,14 @@ pub fn handler(ctx: Context<AdvanceDraw>) -> Result<()> {
         LottoError::DrawAdvancementNotReady
     );
 
+    // SECURITY: Cannot advance a draw that has already been executed.
+    // Winning numbers are on-chain; skipping now would let the operator
+    // selectively invalidate unfavorable draws (C2/C3 fix).
+    require!(
+        !lottery_state.is_awaiting_finalization,
+        LottoError::DrawNotInProgress
+    );
+
     // Only advance if a draw is stuck
     require!(
         lottery_state.is_draw_in_progress,

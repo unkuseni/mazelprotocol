@@ -87,6 +87,10 @@ pub struct QuickPickState {
     /// Is a draw currently in progress (between commit and finalize)
     pub is_draw_in_progress: bool,
 
+    /// Prevents cancel_draw from skipping draws whose winning numbers
+    /// are already publicly visible on-chain.
+    pub is_awaiting_finalization: bool,
+
     /// Rolldown pending flag (set when jackpot >= soft_cap)
     pub is_rolldown_pending: bool,
 
@@ -212,6 +216,7 @@ impl QuickPickState {
         self.current_draw_tickets = 0;
         self.next_draw_timestamp = self.next_draw_timestamp.saturating_add(self.draw_interval);
         self.is_draw_in_progress = false;
+        self.is_awaiting_finalization = false;
         self.current_randomness_account = Pubkey::default();
         self.commit_slot = 0;
         self.commit_timestamp = 0;
@@ -248,6 +253,7 @@ impl QuickPickState {
     ///   Set to `false` when cancelling a draw (preserves tickets for reschedule).
     pub fn reset_draw_state(&mut self, reset_tickets: bool) {
         self.is_draw_in_progress = false;
+        self.is_awaiting_finalization = false;
         self.current_randomness_account = Pubkey::default();
         self.commit_slot = 0;
         self.commit_timestamp = 0;

@@ -40,7 +40,7 @@ pub mod advance_draw;
 
 // Re-export account structs and params from admin
 pub use admin::{
-    AcceptAuthority, CancelAuthorityTransfer, CancelDraw, CheckSolvency, EmergencyFundTransfer,
+    AcceptAuthority, CancelAuthorityTransfer, CancelDraw, ChallengeDraw, CheckSolvency, EmergencyFundTransfer,
     ForceFinalizeDraw, FundSource, Pause, ProposeAuthority, ReclaimExpiredPrizes,
     ReclaimExpiredPrizesParams, TransferAuthority, Unpause, UpdateConfig, UpdateConfigParams,
     WithdrawHouseFees,

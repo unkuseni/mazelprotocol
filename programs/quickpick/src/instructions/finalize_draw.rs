@@ -31,15 +31,17 @@ pub struct FinalizeQuickPickDrawParams {
 }
 
 /// Accounts required for finalizing the Quick Pick draw
+///
+/// SECURITY (M1 fix): finalize_draw is now PERMISSIONLESS.
+/// Anyone can submit winner counts, preventing unilateral operator control.
 #[derive(Accounts)]
 pub struct FinalizeQuickPickDraw<'info> {
-    /// The authority (must be lottery authority)
-    #[account(
-        constraint = authority.key() == lottery_state.authority @ QuickPickError::Unauthorized
-    )]
-    pub authority: Signer<'info>,
+    /// Anyone can finalize (permissionless). Pays for the transaction.
+    #[account(mut)]
+    pub finalizer: Signer<'info>,
 
-    /// The main lottery state (to verify authority)
+    /// The main lottery state (for reference, not authority check)
+    /// CHECK: Read-only reference to main lottery for cross-program context
     #[account(
         seeds = [LOTTERY_SEED],
         bump = lottery_state.bump
@@ -254,6 +256,21 @@ pub fn handler(
     params: FinalizeQuickPickDrawParams,
 ) -> Result<()> {
     let clock = Clock::get()?;
+
+    // ==========================================================================
+    // FINALIZATION DELAY CHECK (M1 fix): Require minimum delay after draw
+    // execution so independent indexers can submit honest counts first.
+    // ==========================================================================
+    const QP_FINALIZATION_DELAY: i64 = 60; // 1 minute
+    let eligible_time = ctx.accounts.draw_result
+        .timestamp
+        .checked_add(QP_FINALIZATION_DELAY)
+        .ok_or(QuickPickError::InvalidDrawState)?;
+
+    require!(
+        clock.unix_timestamp >= eligible_time,
+        QuickPickError::DrawNotReady
+    );
 
     // Get values before mutable borrows
     let current_draw = ctx.accounts.quick_pick_state.current_draw;
@@ -548,6 +565,9 @@ pub fn handler(
         "  Prizes committed (to be paid at claim time): {} USDC lamports",
         prize_calc.total_distributed
     );
+
+    // SECURITY: Clear awaiting-finalization flag now that draw is complete.
+    quick_pick_state.is_awaiting_finalization = false;
 
     // Reset draw state (commit-reveal cycle complete, including tickets)
     quick_pick_state.reset_draw_state(true);

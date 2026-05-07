@@ -167,6 +167,7 @@ pub fn handler(ctx: Context<InitializeQuickPick>, params: InitializeQuickPickPar
     quick_pick_state.commit_slot = 0;
     quick_pick_state.commit_timestamp = 0;
     quick_pick_state.is_draw_in_progress = false;
+    quick_pick_state.is_awaiting_finalization = false;
 
     // Set initial house fee (will be dynamic based on jackpot)
     quick_pick_state.house_fee_bps = QUICK_PICK_FEE_TIER_1_BPS;
@@ -374,6 +375,13 @@ pub fn handler_unpause(ctx: Context<PauseQuickPick>) -> Result<()> {
     require!(
         ctx.accounts.quick_pick_state.jackpot_balance > 0,
         QuickPickError::NotInitialized
+    );
+
+    // SECURITY (C3 fix): Verify solvency before unpausing.
+    // The prize pool must have enough funds to cover the seed amount.
+    require!(
+        ctx.accounts.quick_pick_state.jackpot_balance >= ctx.accounts.quick_pick_state.seed_amount,
+        QuickPickError::InsufficientFunds
     );
 
     ctx.accounts.quick_pick_state.is_paused = false;

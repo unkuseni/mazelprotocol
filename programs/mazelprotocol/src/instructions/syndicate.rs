@@ -547,19 +547,31 @@ pub fn handler_leave_syndicate(ctx: Context<LeaveSyndicate>) -> Result<()> {
         }
     }
 
-    // Use the remove_member helper to get contribution and update state
-    let contribution = ctx.accounts.syndicate.remove_member(&member_key)?;
+    // M2 FIX: Capture member's share percentage BEFORE removal, then compute
+    // refund as proportional share of the CURRENT syndicate USDC balance.
+    // This ensures fairness even after ticket purchases or prize wins.
+    let share_bps = ctx
+        .accounts
+        .syndicate
+        .find_member(&member_key)
+        .map(|m| m.share_percentage_bps)
+        .ok_or(LottoError::NotSyndicateMember)?;
+
+    // Remove the member (updates state and recalculates remaining shares)
+    let _ = ctx.accounts.syndicate.remove_member(&member_key)?;
 
     let remaining_members = ctx.accounts.syndicate.member_count;
 
-    // FIXED: Actually transfer the contribution back to the member
-    if contribution > 0 {
-        // Verify syndicate has enough balance
-        require!(
-            ctx.accounts.syndicate_usdc.amount >= contribution,
-            LottoError::InsufficientTokenBalance
-        );
+    // Calculate refund based on proportional share of CURRENT syndicate balance
+    let syndicate_usdc_amount = ctx.accounts.syndicate_usdc.amount;
+    let refund = if syndicate_usdc_amount > 0 && share_bps > 0 {
+        (syndicate_usdc_amount as u128 * share_bps as u128 / BPS_DENOMINATOR as u128) as u64
+    } else {
+        0
+    };
 
+    // Transfer the proportional refund to the member
+    if refund > 0 {
         // SECURITY FIX (Issue #1): Use original_creator for signer seeds
         let seeds = &[
             SYNDICATE_SEED,
@@ -578,7 +590,7 @@ pub fn handler_leave_syndicate(ctx: Context<LeaveSyndicate>) -> Result<()> {
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
-        token::transfer(cpi_ctx, contribution)?;
+        token::transfer(cpi_ctx, refund)?;
 
         msg!("Refund transferred successfully!");
     }
@@ -586,7 +598,7 @@ pub fn handler_leave_syndicate(ctx: Context<LeaveSyndicate>) -> Result<()> {
     msg!("Member left syndicate!");
     msg!("  Syndicate: {}", syndicate_key);
     msg!("  Member: {}", member_key);
-    msg!("  Refund amount: {} USDC lamports", contribution);
+    msg!("  Refund amount: {} USDC lamports", refund);
     msg!("  Remaining members: {}", remaining_members);
     msg!(
         "  Remaining contribution pool: {} USDC lamports",
@@ -820,20 +832,26 @@ pub fn handler_withdraw_creator_contribution(
     let creator_key = ctx.accounts.creator.key();
     let syndicate_key = ctx.accounts.syndicate.key();
 
-    // Find creator's contribution
-    let creator_contribution = ctx
+    // M2 FIX: Get creator's share percentage and calculate max withdrawable
+    // as proportional share of CURRENT syndicate USDC balance, not the
+    // original contribution (which may have been spent on tickets).
+    let share_bps = ctx
         .accounts
         .syndicate
         .find_member(&creator_key)
-        .map(|m| m.contribution)
+        .map(|m| m.share_percentage_bps)
         .ok_or(LottoError::NotSyndicateMember)?;
+
+    let syndicate_usdc_amount = ctx.accounts.syndicate_usdc.amount;
+    let max_withdrawable = if syndicate_usdc_amount > 0 && share_bps > 0 {
+        (syndicate_usdc_amount as u128 * share_bps as u128 / BPS_DENOMINATOR as u128) as u64
+    } else {
+        0
+    };
 
     // Validate withdrawal amount
     require!(amount > 0, LottoError::InvalidSeedAmount);
-    require!(
-        amount <= creator_contribution,
-        LottoError::InsufficientFunds
-    );
+    require!(amount <= max_withdrawable, LottoError::InsufficientFunds);
     require!(
         ctx.accounts.syndicate_usdc.amount >= amount,
         LottoError::InsufficientTokenBalance
@@ -876,7 +894,7 @@ pub fn handler_withdraw_creator_contribution(
     msg!("  Amount withdrawn: {} USDC lamports", amount);
     msg!(
         "  Remaining creator contribution: {} USDC lamports",
-        creator_contribution - amount
+        max_withdrawable.saturating_sub(amount)
     );
     msg!(
         "  Total syndicate contribution: {} USDC lamports",
@@ -1135,6 +1153,15 @@ pub fn handler_buy_syndicate_tickets(
     // Update syndicate total contribution (deduct spent amount)
     let syndicate = &mut ctx.accounts.syndicate;
     syndicate.total_contribution = syndicate.total_contribution.saturating_sub(total_cost);
+
+    // M2 FIX: Decrement each member's contribution proportionally by their
+    // share of the total ticket cost. Without this, members could leave and
+    // claim their full original contribution even though funds were spent.
+    for member in syndicate.members.iter_mut() {
+        let member_cost = (total_cost as u128 * member.share_percentage_bps as u128
+            / BPS_DENOMINATOR as u128) as u64;
+        member.contribution = member.contribution.saturating_sub(member_cost);
+    }
 
     // Update lottery state
     let lottery_state = &mut ctx.accounts.lottery_state;
@@ -1904,11 +1931,22 @@ pub fn handler_update_syndicate_config(
     }
 
     // Update manager fee if provided
+    // M4 FIX: Block manager fee changes when any member has unclaimed prize
+    // to prevent the creator from raising fees right before prize distribution.
     if let Some(manager_fee_bps) = params.manager_fee_bps {
         require!(
             manager_fee_bps <= MAX_MANAGER_FEE_BPS,
             LottoError::ManagerFeeTooHigh
         );
+
+        // Ensure no pending prize distributions exist
+        for member in &ctx.accounts.syndicate.members {
+            require!(
+                member.unclaimed_prize == 0,
+                LottoError::InvalidSyndicateConfig
+            );
+        }
+
         ctx.accounts.syndicate.manager_fee_bps = manager_fee_bps;
         updated = true;
         msg!("Updated manager fee: {} BPS", manager_fee_bps);
@@ -2025,12 +2063,29 @@ pub fn handler_remove_syndicate_member(
     let syndicate_id = ctx.accounts.syndicate.syndicate_id;
     let syndicate_bump = ctx.accounts.syndicate.bump;
 
-    // Find and remove the member, getting their contribution
-    let refund_amount = ctx
+    // M2 FIX: Capture member's share percentage BEFORE removal, then compute
+    // refund as proportional share of the CURRENT syndicate USDC balance.
+    let share_bps = ctx
+        .accounts
+        .syndicate
+        .find_member(&member_wallet)
+        .map(|m| m.share_percentage_bps)
+        .ok_or(LottoError::NotSyndicateMember)?;
+
+    // Remove the member (updates state and recalculates remaining shares)
+    let _ = ctx
         .accounts
         .syndicate
         .remove_member(&member_wallet)
         .map_err(|_| LottoError::NotSyndicateMember)?;
+
+    // Calculate refund based on proportional share of CURRENT syndicate balance
+    let syndicate_usdc_amount = ctx.accounts.syndicate_usdc.amount;
+    let refund_amount = if syndicate_usdc_amount > 0 && share_bps > 0 {
+        (syndicate_usdc_amount as u128 * share_bps as u128 / BPS_DENOMINATOR as u128) as u64
+    } else {
+        0
+    };
 
     // Validate syndicate has enough funds for refund
     require!(

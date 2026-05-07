@@ -407,15 +407,16 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
             .ok_or(LottoError::Overflow)?;
     }
 
-    // Emit event - use a unique identifier for the ticket
-    let ticket_id = start_ticket_id + ticket_index as u64;
+    // Emit event with individual ticket ID for traceability
+    let individual_ticket_id = start_ticket_id + ticket_index as u64;
     emit!(PrizeClaimed {
-        ticket: unified_ticket_key, // We use the unified ticket key, index is in the logs
+        ticket: unified_ticket_key,
         player: player_key,
         draw_id: ticket_draw_id,
         match_count,
         prize_amount,
         free_ticket_issued: free_ticket_credited,
+        individual_ticket_id,
         timestamp: clock.unix_timestamp,
     });
 
@@ -423,7 +424,7 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
         msg!("Prize claimed successfully from unified ticket!");
         msg!("  Unified Ticket: {}", unified_ticket_key);
         msg!("  Ticket Index: {}", ticket_index);
-        msg!("  Internal Ticket ID: {}", ticket_id);
+        msg!("  Internal Ticket ID: {}", individual_ticket_id);
         msg!("  Player: {}", player_key);
         msg!("  Draw ID: {}", ticket_draw_id);
         msg!("  Ticket numbers: {:?}", ticket_numbers);

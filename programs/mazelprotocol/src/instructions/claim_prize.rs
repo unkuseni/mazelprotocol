@@ -402,6 +402,7 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
         match_count,
         prize_amount,
         free_ticket_issued: free_ticket_credited,
+        individual_ticket_id: 0, // Single ticket, no bulk index
         timestamp: clock.unix_timestamp,
     });
 

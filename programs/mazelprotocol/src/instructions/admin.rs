@@ -23,7 +23,7 @@ use crate::events::{
     EmergencyUnpause, ExpiredPrizesReclaimed, HouseFeesWithdrawn, InsurancePoolFunded,
     SolvencyCheckPerformed,
 };
-use crate::state::{DrawResult, LotteryState};
+use crate::state::{DrawResult, LotteryState, WinnerCounts};
 
 // ============================================================================
 // PAUSE INSTRUCTION
@@ -121,6 +121,14 @@ pub struct Unpause<'info> {
 pub fn handler_unpause(ctx: Context<Unpause>) -> Result<()> {
     let clock = Clock::get()?;
     let lottery_state = &mut ctx.accounts.lottery_state;
+
+    // SECURITY: Re-verify solvency before allowing the lottery to resume.
+    // Prevents the authority from unpausing an insolvent lottery where
+    // the prize pool cannot cover committed prizes (C3 fix).
+    require!(
+        lottery_state.check_solvency_detailed(0, 0).0,
+        LottoError::PrizePoolSolvencyFailed
+    );
 
     lottery_state.is_paused = false;
 
@@ -568,7 +576,18 @@ pub fn handler_execute_config(
         });
 
         lottery_state.draw_interval = draw_interval;
-        msg!("Updated draw_interval: {}", draw_interval);
+        // M6 FIX: Recalculate next_draw_timestamp when draw_interval changes.
+        // Without this, the old timestamp persists, potentially causing draws
+        // to fire at the wrong time.
+        lottery_state.next_draw_timestamp = clock
+            .unix_timestamp
+            .checked_add(draw_interval)
+            .ok_or(LottoError::Overflow)?;
+        msg!(
+            "Updated draw_interval: {} (next draw: {})",
+            draw_interval,
+            lottery_state.next_draw_timestamp
+        );
     }
 
     // Validate relationships after updates
@@ -642,6 +661,14 @@ pub fn handler_update_config(ctx: Context<UpdateConfig>, params: UpdateConfigPar
         params.jackpot_cap.is_none(),
         LottoError::ConfigValidationFailed
     );
+
+    // SECURITY: switchboard_queue changes must go through the timelock
+    // flow (propose_config/execute_config). An instant change could point
+    // the lottery to a malicious randomness oracle (H4 fix).
+    require!(
+        params.switchboard_queue.is_none(),
+        LottoError::ConfigValidationFailed
+    );
     require!(
         params.seed_amount.is_none(),
         LottoError::ConfigValidationFailed
@@ -708,7 +735,12 @@ pub struct WithdrawHouseFees<'info> {
     pub house_fee_usdc: Account<'info, TokenAccount>,
 
     /// Destination USDC token account for withdrawn fees
-    #[account(mut)]
+    /// M3 FIX: Constrain destination to be owned by the authority to prevent
+    /// a compromised authority from draining house fees to an arbitrary wallet.
+    #[account(
+        mut,
+        constraint = destination_usdc.owner == authority.key() @ LottoError::InvalidTokenAccount
+    )]
     pub destination_usdc: Account<'info, TokenAccount>,
 
     /// Token program
@@ -777,7 +809,8 @@ pub fn handler_check_solvency(ctx: Context<CheckSolvency>) -> Result<()> {
 
     let expected_prize_pool = lottery_state
         .jackpot_balance
-        .saturating_add(lottery_state.reserve_balance);
+        .saturating_add(lottery_state.reserve_balance)
+        .saturating_add(lottery_state.fixed_prize_balance);
     let expected_insurance = lottery_state.insurance_balance;
 
     // Allow a small tolerance for rounding dust (100 lamports = $0.0001)
@@ -1118,6 +1151,13 @@ pub struct CancelDraw<'info> {
 pub fn handler_cancel_draw(ctx: Context<CancelDraw>) -> Result<()> {
     let clock = Clock::get()?;
     let lottery_state = &mut ctx.accounts.lottery_state;
+
+    // SECURITY: Cannot cancel a draw whose winning numbers are on-chain.
+    // The is_awaiting_finalization flag is set by execute_draw.
+    require!(
+        !lottery_state.is_awaiting_finalization,
+        LottoError::DrawNotInProgress
+    );
 
     // Verify the draw has timed out
     require!(
@@ -1849,6 +1889,105 @@ pub fn handler_reclaim_expired_prizes(
         "  New total_prizes_committed: {} USDC lamports",
         lottery_state.total_prizes_committed
     );
+
+    Ok(())
+
+
+
+}
+// ============================================================================
+// CHALLENGE DRAW INSTRUCTION (M1 fix: permissionless dispute mechanism)
+// ============================================================================
+// Allows ANYONE to challenge the winner counts submitted in finalize_draw.
+// If a challenge is raised, the draw is paused for admin review and the
+// challenger's alternative winner counts are recorded on-chain. This creates
+// accountability: a malicious operator who fabricates counts can be caught
+// and the draw can be corrected before prizes are claimed.
+//
+// The challenger does NOT need to stake funds — the mere existence of an
+// on-chain challenge with alternative counts is sufficient to alert the
+// community and trigger manual review.
+
+/// Accounts required for challenging a draw finalization
+#[derive(Accounts)]
+pub struct ChallengeDraw<'info> {
+    /// Anyone can challenge (permissionless)
+    #[account(mut)]
+    pub challenger: Signer<'info>,
+
+    /// The main lottery state account
+    #[account(
+        mut,
+        seeds = [LOTTERY_SEED],
+        bump = lottery_state.bump,
+        constraint = lottery_state.is_awaiting_finalization @ LottoError::DrawNotInProgress
+    )]
+    pub lottery_state: Account<'info, LotteryState>,
+
+    /// The draw result being challenged
+    #[account(
+        mut,
+        seeds = [DRAW_SEED, &lottery_state.current_draw_id.to_le_bytes()],
+        bump = draw_result.bump,
+        constraint = !draw_result.is_explicitly_finalized @ LottoError::DrawAlreadyCompleted
+    )]
+    pub draw_result: Account<'info, DrawResult>,
+}
+
+/// Challenge a draw finalization with alternative winner counts.
+///
+/// This is the primary defense against operator-fabricated winner counts (M1).
+/// Anyone who detects incorrect counts can call this instruction to:
+/// 1. Pause the lottery (prevents prize claims on fabricated counts)
+/// 2. Record their alternative counts on-chain for audit
+/// 3. Trigger admin review
+///
+/// After a challenge, the lottery remains paused until the authority:
+/// - Accepts the challenger's counts (calls finalize_draw with corrected data)
+/// - Or overrides via force_finalize_draw with a public explanation
+///
+/// # Arguments
+/// * `ctx` - ChallengeDraw accounts context
+/// * `alternative_winner_counts` - The challenger's corrected winner counts
+/// * `evidence_hash` - SHA256 hash of supporting evidence (off-chain data)
+pub fn handler_challenge_draw(
+    ctx: Context<ChallengeDraw>,
+    alternative_winner_counts: WinnerCounts,
+    evidence_hash: [u8; 32],
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let lottery_state = &mut ctx.accounts.lottery_state;
+
+    // Pause the lottery to prevent prize claims on potentially fabricated counts
+    lottery_state.is_paused = true;
+
+    // Emit emergency pause event with challenge details
+    emit!(EmergencyPause {
+        authority: ctx.accounts.challenger.key(),
+        reason: format!(
+            "DRAW_CHALLENGE: draw_id={}, alt_match6={}, alt_match5={}, alt_match4={}, alt_match3={}, alt_match2={}, evidence_hash={:?}",
+            lottery_state.current_draw_id,
+            alternative_winner_counts.match_6,
+            alternative_winner_counts.match_5,
+            alternative_winner_counts.match_4,
+            alternative_winner_counts.match_3,
+            alternative_winner_counts.match_2,
+            evidence_hash,
+        ),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!("DRAW CHALLENGED!");
+    msg!("  Draw ID: {}", lottery_state.current_draw_id);
+    msg!("  Challenger: {}", ctx.accounts.challenger.key());
+    msg!("  Alternative counts: 6={}, 5={}, 4={}, 3={}, 2={}",
+        alternative_winner_counts.match_6,
+        alternative_winner_counts.match_5,
+        alternative_winner_counts.match_4,
+        alternative_winner_counts.match_3,
+        alternative_winner_counts.match_2,
+    );
+    msg!("  Lottery PAUSED for admin review.");
 
     Ok(())
 }

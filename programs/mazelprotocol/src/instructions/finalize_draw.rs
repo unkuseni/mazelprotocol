@@ -38,18 +38,24 @@ pub struct FinalizeDrawParams {
 }
 
 /// Accounts required for finalizing the draw
+///
+/// SECURITY (M1 fix): finalize_draw is now PERMISSIONLESS.
+/// Anyone can submit winner counts. Combined with the FINALIZATION_DELAY
+/// (minimum time between execute_draw and finalize_draw), independent
+/// indexers have time to compute and submit honest counts before a malicious
+/// operator can fabricate them. The verification_hash still provides a
+/// cryptographic commitment for post-hoc auditing.
 #[derive(Accounts)]
 pub struct FinalizeDraw<'info> {
-    /// The authority finalizing the draw
+    /// Anyone can finalize (permissionless). Pays for the transaction.
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub finalizer: Signer<'info>,
 
     /// The main lottery state account
     #[account(
         mut,
         seeds = [LOTTERY_SEED],
         bump = lottery_state.bump,
-        constraint = lottery_state.authority == authority.key() @ LottoError::Unauthorized,
         constraint = lottery_state.is_draw_in_progress @ LottoError::DrawNotInProgress
     )]
     pub lottery_state: Account<'info, LotteryState>,
@@ -466,6 +472,23 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     let old_fee_tier_description = lottery_state.get_fee_tier_description();
 
     // ==========================================================================
+    // FINALIZATION DELAY CHECK (M1 fix: prevents instant fabrication)
+    // ==========================================================================
+    // Require a minimum delay between execute_draw (when winning numbers
+    // become public) and finalize_draw. This gives independent indexers
+    // time to compute and submit honest winner counts before a malicious
+    // operator can fabricate them.
+    let finalization_eligible_time = draw_result
+        .timestamp
+        .checked_add(FINALIZATION_DELAY)
+        .ok_or(LottoError::ArithmeticError)?;
+
+    require!(
+        clock.unix_timestamp >= finalization_eligible_time,
+        LottoError::DrawNotReady
+    );
+
+    // ==========================================================================
     // VERIFICATION HASH CHECK (Issue 2 fix: tamper-resistant winner count audit)
     // ==========================================================================
     // The verification_hash is SHA256(draw_id || winning_numbers || match_6 || match_5 ||
@@ -850,6 +873,10 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     // total_reclaimed was already initialized to 0 in execute_draw.
     draw_result.total_committed = prize_calc.total_distributed;
 
+    // SECURITY: Clear awaiting-finalization flag now that the draw
+    // has been fully completed.
+    lottery_state.is_awaiting_finalization = false;
+
     // Reset for next draw using helper method (including tickets)
     lottery_state.reset_draw_state(true);
     lottery_state.current_draw_id = lottery_state.current_draw_id.saturating_add(1);
@@ -884,7 +911,7 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
 
         // Emit emergency pause event
         emit!(EmergencyPause {
-            authority: ctx.accounts.authority.key(),
+            authority: ctx.accounts.finalizer.key(),
             reason: format!(
                 "Jackpot funding insufficient: {} < {} (minimum)",
                 lottery_state.jackpot_balance, minimum_jackpot

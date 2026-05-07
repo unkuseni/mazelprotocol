@@ -147,6 +147,8 @@ pub struct PrizeClaimed {
     pub prize_amount: u64,
     /// Whether a free ticket was issued (Match 2)
     pub free_ticket_issued: bool,
+    /// M7: Individual ticket ID for bulk claims. 0 for single-ticket claims.
+    pub individual_ticket_id: u64,
     /// Timestamp
     pub timestamp: i64,
 }

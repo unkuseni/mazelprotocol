@@ -402,6 +402,9 @@ pub fn handler(ctx: Context<ExecuteQuickPickDraw>) -> Result<()> {
 
     draw_result.bump = ctx.bumps.draw_result;
 
+    // SECURITY: Mark draw as executed to prevent skipping.
+    ctx.accounts.quick_pick_state.is_awaiting_finalization = true;
+
     // Emit event
     let jackpot_distributed = if was_rolldown { jackpot_balance } else { 0 };
 
