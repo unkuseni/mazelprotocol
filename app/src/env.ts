@@ -16,24 +16,18 @@ export const env = createEnv({
    * These are only available in Cloudflare Workers and server-side functions.
    */
   server: {
-    // // Application configuration
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
 
-    // // Server URLs
+    // TODO: Server URLs — needed when API layer moves to dedicated endpoint
     // SERVER_URL: z.string().url().optional(),
     // API_BASE_URL: z.string().url().optional(),
 
-    // // Database and storage
+    // TODO: Database URL — needed when D1 or another DB is integrated
     // DATABASE_URL: z.string().url().optional(),
 
-    // // Authentication and API keys
-    // API_KEY: z.string().min(1).optional(),
-    // JWT_SECRET: z.string().min(32).optional(),
-
-    // // Cloudflare-specific bindings (these will be provided by Cloudflare Workers)
-    // // Note: These are defined here for type safety but will be populated by Cloudflare
+    // TODO: Cloudflare-specific bindings — provided by Cloudflare Workers runtime
     // KV_NAMESPACE: z.custom<KVNamespace>().optional(),
     // D1_DATABASE: z.custom<D1Database>().optional(),
     // R2_BUCKET: z.custom<R2Bucket>().optional(),
@@ -41,7 +35,7 @@ export const env = createEnv({
     // Third-party service credentials
     REOWN_PROJECT_ID: z.string().min(1).optional(),
 
-    // // Feature flags
+    // TODO: Feature flags — enable when analytics and debug tooling are added
     // ENABLE_ANALYTICS: z
     //   .enum(["true", "false"])
     //   .default("false")
@@ -61,16 +55,16 @@ export const env = createEnv({
   client: {
     // Application metadata
     VITE_APP_TITLE: z.string().min(1).default("mazelProtocol"),
+    // TODO: Add when SEO metadata needs are defined
     // VITE_APP_DESCRIPTION: z.string().optional(),
     // VITE_APP_VERSION: z.string().default("1.0.0"),
 
-    // // API endpoints (public URLs)
+    // TODO: API endpoints — needed when API layer is separated from frontend
     // VITE_API_BASE_URL: z.string().url().optional(),
     // VITE_WS_URL: z.string().url().optional(),
 
     // Third-party services (public keys only)
     VITE_REOWN_PROJECT_ID: z.string().min(1),
-    // VITE_GOOGLE_ANALYTICS_ID: z.string().optional(),
 
     // Blockchain configuration
     VITE_SOLANA_RPC_URL: z
@@ -91,7 +85,7 @@ export const env = createEnv({
       .min(1)
       .default("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
 
-    // Feature flags for client-side
+    // TODO: Client feature flags — enable when dev tooling is expanded
     // VITE_ENABLE_DEV_TOOLS: z
     //   .enum(["true", "false"])
     //   .default("false")
@@ -161,11 +155,10 @@ export function getCloudflareEnv(
       NODE_ENV: z
         .enum(["development", "test", "production"])
         .default("development"),
+      // TODO: Add when these env vars are activated in the main schema above
       // SERVER_URL: z.string().url().optional(),
       // API_BASE_URL: z.string().url().optional(),
       // DATABASE_URL: z.string().url().optional(),
-      // API_KEY: z.string().min(1).optional(),
-      // JWT_SECRET: z.string().min(32).optional(),
       REOWN_PROJECT_ID: z.string().min(1).optional(),
       // ENABLE_ANALYTICS: z
       //   .enum(["true", "false"])
@@ -208,23 +201,3 @@ export function isDevelopment(): boolean {
 export function isProduction(): boolean {
   return env.NODE_ENV === "production";
 }
-
-/**
- * Helper to get the appropriate API base URL.
- * Falls back to client-side URL if server URL is not available.
- */
-// export function getApiBaseUrl(): string {
-//   if (env.API_BASE_URL) {
-//     return env.API_BASE_URL;
-//   }
-
-//   if (env.VITE_API_BASE_URL) {
-//     return env.VITE_API_BASE_URL;
-//   }
-
-//   if (isDevelopment()) {
-//     return "http://localhost:3000/api";
-//   }
-
-//   return "/api";
-// }

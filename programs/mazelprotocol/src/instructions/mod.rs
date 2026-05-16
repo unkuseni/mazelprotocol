@@ -29,6 +29,9 @@ pub mod finalize_draw;
 // Prize claiming
 pub mod claim_prize;
 
+// Prize calculation logic (extracted from finalize_draw)
+pub mod prizes;
+
 // Syndicate management
 pub mod syndicate;
 
@@ -40,10 +43,10 @@ pub mod advance_draw;
 
 // Re-export account structs and params from admin
 pub use admin::{
-    AcceptAuthority, CancelAuthorityTransfer, CancelDraw, ChallengeDraw, CheckSolvency, EmergencyFundTransfer,
-    ForceFinalizeDraw, FundSource, Pause, ProposeAuthority, ReclaimExpiredPrizes,
-    ReclaimExpiredPrizesParams, TransferAuthority, Unpause, UpdateConfig, UpdateConfigParams,
-    WithdrawHouseFees,
+    AcceptAuthority, CancelAuthorityTransfer, CancelDraw, ChallengeDraw, CheckSolvency,
+    EmergencyFundTransfer, ForceFinalizeDraw, FundSource, Pause, ProposeAuthority,
+    ReclaimExpiredPrizes, ReclaimExpiredPrizesParams, TransferAuthority, Unpause, UpdateConfig,
+    UpdateConfigParams, WithdrawHouseFees,
 };
 
 // Re-export account structs and params from initialize

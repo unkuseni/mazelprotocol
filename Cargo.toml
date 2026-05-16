@@ -4,7 +4,21 @@ members = [
 ]
 resolver = "2"
 
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+rust_2018_idioms = "warn"
+future_incompatible = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+variant_size_differences = "warn"
 
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+dbg_macro = "warn"
+print_stdout = "warn"
+todo = "warn"
 
 [profile.release]
 overflow-checks = true
