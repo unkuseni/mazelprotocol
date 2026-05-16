@@ -41,40 +41,20 @@ pub mod events;
 pub mod instructions;
 pub mod state;
 
-// Re-export everything needed by the program and clients
-// Note: Using glob exports as required by Anchor framework
-// Warnings about ambiguous re-exports are expected and acceptable
+// Re-export everything needed by the program and clients.
+// Using glob exports as required by the Anchor framework.
+// The ambiguous_glob_reexports warning is expected and harmless here.
 #[allow(ambiguous_glob_reexports)]
-pub use constants::*;
-pub use errors::*;
-pub use events::*;
-pub use state::*;
+pub use {constants::*, errors::*, events::*, state::*};
 
-// Re-export all instruction account structs at crate root (required by Anchor)
+// Re-export all instruction account structs at crate root (required by Anchor).
+// Grouped to avoid repetitive allow attributes.
 #[allow(ambiguous_glob_reexports)]
-pub use instructions::admin::*;
-#[allow(ambiguous_glob_reexports)]
-pub use instructions::advance_draw::*;
-#[allow(ambiguous_glob_reexports)]
-pub use instructions::buy_bulk::*;
-#[allow(ambiguous_glob_reexports)]
-pub use instructions::buy_ticket::*;
-#[allow(ambiguous_glob_reexports)]
-pub use instructions::claim_bulk_prize::*;
-#[allow(ambiguous_glob_reexports)]
-pub use instructions::claim_prize::*;
-#[allow(ambiguous_glob_reexports)]
-pub use instructions::commit_randomness::*;
-#[allow(ambiguous_glob_reexports)]
-pub use instructions::execute_draw::*;
-#[allow(ambiguous_glob_reexports)]
-pub use instructions::finalize_draw::*;
-#[allow(ambiguous_glob_reexports)]
-pub use instructions::initialize::*;
-#[allow(ambiguous_glob_reexports)]
-pub use instructions::syndicate::*;
-#[allow(ambiguous_glob_reexports)]
-pub use instructions::syndicate_wars::*;
+pub use instructions::{
+    admin::*, advance_draw::*, buy_bulk::*, buy_ticket::*, claim_bulk_prize::*, claim_prize::*,
+    commit_randomness::*, execute_draw::*, finalize_draw::*, initialize::*, syndicate::*,
+    syndicate_wars::*,
+};
 
 // Program ID - Update this after deployment
 declare_id!("7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF");
