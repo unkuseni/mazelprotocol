@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import {
   TrendingUp,
   ChevronRight,
@@ -23,9 +23,7 @@ import {
 import { FloatingBalls } from "@/components/LotteryBalls";
 import Footer from "@/components/Footer";
 
-export const Route = createFileRoute("/learn/rolldown")({
-  component: LearnRolldownPage,
-});
+
 
 /* -------------------------------------------------------------------------- */
 /*  Sub-components                                                            */
@@ -88,8 +86,8 @@ function FlowStep({
         <div className="flex items-start gap-3">
           <div
             className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black ${highlight
-                ? "bg-emerald/20 border border-emerald/30 text-emerald-light"
-                : "bg-foreground/4 border border-foreground/6 text-muted-foreground"
+              ? "bg-emerald/20 border border-emerald/30 text-emerald-light"
+              : "bg-foreground/4 border border-foreground/6 text-muted-foreground"
               }`}
           >
             {step}
@@ -176,8 +174,8 @@ function EVBar({ label, ev, maxEv, isPositive }: EVBarProps) {
       <div className="h-2.5 bg-foreground/5 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-700 ease-out ${isPositive
-              ? "bg-linear-to-r from-emerald-dark to-emerald-light"
-              : "bg-linear-to-r from-red-600 to-red-400"
+            ? "bg-linear-to-r from-emerald-dark to-emerald-light"
+            : "bg-linear-to-r from-red-600 to-red-400"
             }`}
           style={{ width: `${width}%` }}
         />
@@ -394,7 +392,7 @@ function MathCallout({
 /*  Main Component                                                            */
 /* -------------------------------------------------------------------------- */
 
-function LearnRolldownPage() {
+export default function LearnRolldownPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* ================================================================ */}
@@ -998,8 +996,8 @@ function LearnRolldownPage() {
                     <div
                       key={lottery.name}
                       className={`p-2.5 rounded-lg text-center ${lottery.name === "MazelProtocol"
-                          ? "bg-emerald/6 border border-emerald/20"
-                          : "bg-foreground/2"
+                        ? "bg-emerald/6 border border-emerald/20"
+                        : "bg-foreground/2"
                         }`}
                     >
                       <div className="text-[10px] text-muted-foreground mb-0.5">

@@ -1,3 +1,15 @@
+/*
+ * This file uses Tailwind CSS v4 syntax (@apply in @layer blocks,
+ * @theme inline, @custom-variant, etc.). Language servers that do not
+ * recognize Tailwind v4 may report these directives as errors. All
+ * directives in this file are valid Tailwind CSS v4.
+ *
+ * Responsive design strategy:
+ *   - Fluid typography via clamp() for all text sizes (320px–1920px)
+ *   - Mobile-first @apply utilities in component markup
+ *   - CSS custom properties for theme switching (light/dark)
+ */
+
 @import "tailwindcss";
 
 @import "tw-animate-css";
@@ -6,36 +18,47 @@
 .text-xs {
     font-size: var(--text-xs);
 }
+
 .text-sm {
     font-size: var(--text-sm);
 }
+
 .text-base {
     font-size: var(--text-base);
 }
+
 .text-lg {
     font-size: var(--text-lg);
 }
+
 .text-xl {
     font-size: var(--text-xl);
 }
+
 .text-2xl {
     font-size: var(--text-2xl);
 }
+
 .text-3xl {
     font-size: var(--text-3xl);
 }
+
 .text-4xl {
     font-size: var(--text-4xl);
 }
+
 .text-5xl {
     font-size: var(--text-5xl);
 }
+
 .text-6xl {
     font-size: var(--text-6xl);
 }
+
 .text-7xl {
     font-size: var(--text-7xl);
 }
+
 .text-8xl {
     font-size: var(--text-8xl);
 }
@@ -43,18 +66,23 @@
 .leading-none {
     line-height: var(--leading-none);
 }
+
 .leading-tight {
     line-height: var(--leading-tight);
 }
+
 .leading-snug {
     line-height: var(--leading-snug);
 }
+
 .leading-normal {
     line-height: var(--leading-normal);
 }
+
 .leading-relaxed {
     line-height: var(--leading-relaxed);
 }
+
 .leading-loose {
     line-height: var(--leading-loose);
 }
@@ -63,36 +91,47 @@
 .text-responsive-xs {
     font-size: clamp(0.625rem, 0.55rem + 0.375vw, 0.875rem);
 }
+
 .text-responsive-sm {
     font-size: clamp(0.75rem, 0.675rem + 0.375vw, 1rem);
 }
+
 .text-responsive-base {
     font-size: clamp(0.875rem, 0.8rem + 0.375vw, 1.125rem);
 }
+
 .text-responsive-lg {
     font-size: clamp(1rem, 0.9rem + 0.5vw, 1.375rem);
 }
+
 .text-responsive-xl {
     font-size: clamp(1.125rem, 1rem + 0.625vw, 1.625rem);
 }
+
 .text-responsive-2xl {
     font-size: clamp(1.25rem, 1.1rem + 0.75vw, 1.875rem);
 }
+
 .text-responsive-3xl {
     font-size: clamp(1.5rem, 1.3rem + 1vw, 2.25rem);
 }
+
 .text-responsive-4xl {
     font-size: clamp(1.75rem, 1.5rem + 1.25vw, 2.75rem);
 }
+
 .text-responsive-5xl {
     font-size: clamp(2rem, 1.7rem + 1.5vw, 3.25rem);
 }
+
 .text-responsive-6xl {
     font-size: clamp(2.25rem, 1.9rem + 1.75vw, 3.75rem);
 }
+
 .text-responsive-7xl {
     font-size: clamp(2.5rem, 2.1rem + 2vw, 4.25rem);
 }
+
 .text-responsive-8xl {
     font-size: clamp(3rem, 2.5rem + 2.5vw, 5rem);
 }
@@ -158,19 +197,19 @@
 }
 
 /* Responsive spacing for typography */
-.typography-spacing-tight > * + * {
+.typography-spacing-tight>*+* {
     margin-top: 0.5em;
 }
 
-.typography-spacing-normal > * + * {
+.typography-spacing-normal>*+* {
     margin-top: 0.75em;
 }
 
-.typography-spacing-relaxed > * + * {
+.typography-spacing-relaxed>*+* {
     margin-top: 1em;
 }
 
-.typography-spacing-loose > * + * {
+.typography-spacing-loose>*+* {
     margin-top: 1.5em;
 }
 
@@ -404,6 +443,7 @@ code {
     * {
         @apply border-border outline-ring/50;
     }
+
     body {
         @apply bg-background text-foreground;
     }
@@ -430,28 +470,22 @@ code {
     }
 
     ::-webkit-scrollbar-track {
-        background: color-mix(
-            in oklch,
-            var(--color-muted, oklch(0.93 0.005 240)),
-            transparent 0%
-        );
+        background: color-mix(in oklch,
+                var(--color-muted, oklch(0.93 0.005 240)),
+                transparent 0%);
     }
 
     ::-webkit-scrollbar-thumb {
-        background: color-mix(
-            in oklch,
-            var(--color-border, oklch(0.88 0.005 240)),
-            transparent 0%
-        );
+        background: color-mix(in oklch,
+                var(--color-border, oklch(0.88 0.005 240)),
+                transparent 0%);
         border-radius: 4px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-        background: color-mix(
-            in oklch,
-            var(--color-primary, oklch(0.55 0.17 160)),
-            transparent 0%
-        );
+        background: color-mix(in oklch,
+                var(--color-primary, oklch(0.55 0.17 160)),
+                transparent 0%);
     }
 
     .dark ::-webkit-scrollbar-track {
@@ -468,16 +502,12 @@ code {
 
     /* Selection color - adapts to theme */
     ::selection {
-        background: color-mix(
-            in oklch,
-            var(--color-primary, oklch(0.55 0.17 160)),
-            transparent 70%
-        );
-        color: color-mix(
-            in oklch,
-            var(--color-primary-foreground, oklch(0.99 0 0)),
-            transparent 0%
-        );
+        background: color-mix(in oklch,
+                var(--color-primary, oklch(0.55 0.17 160)),
+                transparent 70%);
+        color: color-mix(in oklch,
+                var(--color-primary-foreground, oklch(0.99 0 0)),
+                transparent 0%);
     }
 
     .dark ::selection {
@@ -487,37 +517,28 @@ code {
 }
 
 @layer utilities {
+
     /* Glass card effect */
     .glass {
-        background: color-mix(
-            in oklch,
-            var(--color-card, oklch(0.97 0.003 240)),
-            transparent 40%
-        );
+        background: color-mix(in oklch,
+                var(--color-card, oklch(0.97 0.003 240)),
+                transparent 40%);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border: 1px solid
-            color-mix(
-                in oklch,
+        border: 1px solid color-mix(in oklch,
                 var(--color-border, oklch(0.88 0.005 240)),
-                transparent 50%
-            );
+                transparent 50%);
     }
 
     .glass-strong {
-        background: color-mix(
-            in oklch,
-            var(--color-card, oklch(0.97 0.003 240)),
-            transparent 20%
-        );
+        background: color-mix(in oklch,
+                var(--color-card, oklch(0.97 0.003 240)),
+                transparent 20%);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        border: 1px solid
-            color-mix(
-                in oklch,
+        border: 1px solid color-mix(in oklch,
                 var(--color-border, oklch(0.88 0.005 240)),
-                transparent 50%
-            );
+                transparent 50%);
     }
 
     .dark .glass {
@@ -532,15 +553,15 @@ code {
 
     /* Text gradient helpers */
     .text-gradient-emerald {
-        @apply bg-gradient-to-r from-emerald-light to-emerald bg-clip-text text-transparent;
+        @apply bg-linear-to-r from-emerald-light to-emerald bg-clip-text text-transparent;
     }
 
     .text-gradient-gold {
-        @apply bg-gradient-to-r from-gold-light to-gold bg-clip-text text-transparent;
+        @apply bg-linear-to-r from-gold-light to-gold bg-clip-text text-transparent;
     }
 
     .text-gradient-primary {
-        @apply bg-gradient-to-r from-emerald-light via-emerald to-gold bg-clip-text text-transparent;
+        @apply bg-linear-to-r from-emerald-light via-emerald to-gold bg-clip-text text-transparent;
     }
 
     /* Glow effects */
@@ -574,6 +595,7 @@ code {
     .noise {
         position: relative;
     }
+
     .noise::after {
         content: "";
         position: absolute;
@@ -587,11 +609,9 @@ code {
     /* Lottery ball styling */
     .lottery-ball {
         @apply w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg;
-        background: radial-gradient(
-            circle at 35% 35%,
-            var(--color-emerald-light, oklch(0.72 0.19 160)),
-            var(--color-emerald-dark, oklch(0.45 0.15 160))
-        );
+        background: radial-gradient(circle at 35% 35%,
+                var(--color-emerald-light, oklch(0.72 0.19 160)),
+                var(--color-emerald-dark, oklch(0.45 0.15 160)));
         box-shadow:
             inset 0 -3px 6px oklch(0.3 0.12 160 / 0.4),
             inset 0 3px 6px oklch(0.85 0.1 160 / 0.3),
@@ -601,11 +621,9 @@ code {
     }
 
     .lottery-ball-gold {
-        background: radial-gradient(
-            circle at 35% 35%,
-            var(--color-gold-light, oklch(0.85 0.13 85)),
-            var(--color-gold-dark, oklch(0.6 0.15 85))
-        );
+        background: radial-gradient(circle at 35% 35%,
+                var(--color-gold-light, oklch(0.85 0.13 85)),
+                var(--color-gold-dark, oklch(0.6 0.15 85)));
         box-shadow:
             inset 0 -3px 6px oklch(0.5 0.14 85 / 0.4),
             inset 0 3px 6px oklch(0.9 0.1 85 / 0.3),
@@ -619,30 +637,23 @@ code {
         border: 1px solid transparent;
         background-clip: padding-box;
     }
+
     .border-gradient-emerald::before {
         content: "";
         position: absolute;
         inset: -1px;
         border-radius: inherit;
         padding: 1px;
-        background: linear-gradient(
-            135deg,
-            color-mix(
-                in oklch,
-                var(--color-emerald, oklch(0.55 0.17 160)),
-                transparent 50%
-            ),
-            color-mix(
-                in oklch,
-                var(--color-gold, oklch(0.75 0.15 85)),
-                transparent 70%
-            ),
-            color-mix(
-                in oklch,
-                var(--color-emerald, oklch(0.55 0.17 160)),
-                transparent 90%
-            )
-        );
+        background: linear-gradient(135deg,
+                color-mix(in oklch,
+                    var(--color-emerald, oklch(0.55 0.17 160)),
+                    transparent 50%),
+                color-mix(in oklch,
+                    var(--color-gold, oklch(0.75 0.15 85)),
+                    transparent 70%),
+                color-mix(in oklch,
+                    var(--color-emerald, oklch(0.55 0.17 160)),
+                    transparent 90%));
         -webkit-mask:
             linear-gradient(#fff 0 0) content-box,
             linear-gradient(#fff 0 0);
@@ -657,49 +668,42 @@ code {
     /* Section divider */
     .section-divider {
         height: 1px;
-        background: linear-gradient(
-            90deg,
-            transparent,
-            color-mix(
-                    in oklch,
+        background: linear-gradient(90deg,
+                transparent,
+                color-mix(in oklch,
                     var(--color-emerald, oklch(0.55 0.17 160)),
-                    transparent 70%
-                )
-                20%,
-            color-mix(
-                    in oklch,
+                    transparent 70%) 20%,
+                color-mix(in oklch,
                     var(--color-gold, oklch(0.75 0.15 85)),
-                    transparent 80%
-                )
-                50%,
-            color-mix(
-                    in oklch,
+                    transparent 80%) 50%,
+                color-mix(in oklch,
                     var(--color-emerald, oklch(0.55 0.17 160)),
-                    transparent 70%
-                )
-                80%,
-            transparent
-        );
+                    transparent 70%) 80%,
+                transparent);
     }
 }
 
 /* Keyframes */
 @keyframes float {
+
     0%,
     100% {
         transform: translateY(0);
     }
+
     50% {
         transform: translateY(-10px);
     }
 }
 
 @keyframes pulse-glow {
+
     0%,
     100% {
         opacity: 0.6;
         transform: scale(1);
     }
+
     50% {
         opacity: 1;
         transform: scale(1.05);
@@ -710,6 +714,7 @@ code {
     0% {
         background-position: -200% 0;
     }
+
     100% {
         background-position: 200% 0;
     }
@@ -720,6 +725,7 @@ code {
         opacity: 0;
         transform: translateY(20px);
     }
+
     100% {
         opacity: 1;
         transform: translateY(0);
@@ -731,6 +737,7 @@ code {
         opacity: 0;
         transform: translateY(-20px);
     }
+
     100% {
         opacity: 1;
         transform: translateY(0);
@@ -742,9 +749,11 @@ code {
         opacity: 0;
         transform: translateY(10px);
     }
+
     60% {
         opacity: 1;
     }
+
     100% {
         transform: translateY(0);
     }
@@ -755,12 +764,15 @@ code {
         opacity: 0;
         transform: scale(0) translateY(-20px);
     }
+
     60% {
         transform: scale(1.15) translateY(0);
     }
+
     80% {
         transform: scale(0.95);
     }
+
     100% {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -768,10 +780,12 @@ code {
 }
 
 @keyframes gradient-x {
+
     0%,
     100% {
         background-position: 0% 50%;
     }
+
     50% {
         background-position: 100% 50%;
     }
@@ -781,6 +795,7 @@ code {
     0% {
         transform: translateX(0);
     }
+
     100% {
         transform: translateX(-50%);
     }
@@ -788,10 +803,12 @@ code {
 
 /* Hero background pattern */
 @keyframes hero-grid-pulse {
+
     0%,
     100% {
         opacity: 0.03;
     }
+
     50% {
         opacity: 0.06;
     }
@@ -799,95 +816,125 @@ code {
 
 .hero-grid {
     background-image:
-        linear-gradient(
-            color-mix(
-                    in oklch,
-                    var(--color-emerald, oklch(0.55 0.17 160)),
-                    transparent 93%
-                )
-                1px,
-            transparent 1px
-        ),
-        linear-gradient(
-            90deg,
-            color-mix(
-                    in oklch,
-                    var(--color-emerald, oklch(0.55 0.17 160)),
-                    transparent 93%
-                )
-                1px,
-            transparent 1px
-        );
+        linear-gradient(color-mix(in oklch,
+                var(--color-emerald, oklch(0.55 0.17 160)),
+                transparent 93%) 1px,
+            transparent 1px),
+        linear-gradient(90deg,
+            color-mix(in oklch,
+                var(--color-emerald, oklch(0.55 0.17 160)),
+                transparent 93%) 1px,
+            transparent 1px);
     background-size: 60px 60px;
     animation: hero-grid-pulse 4s ease-in-out infinite;
 }
 
 /* Radial glow backgrounds for sections */
 .bg-glow-emerald {
-    background: radial-gradient(
-        ellipse 50% 50% at 50% 50%,
-        color-mix(
-                in oklch,
+    background: radial-gradient(ellipse 50% 50% at 50% 50%,
+            color-mix(in oklch,
                 var(--color-emerald, oklch(0.55 0.17 160)),
-                transparent 92%
-            )
-            0%,
-        transparent 70%
-    );
+                transparent 92%) 0%,
+            transparent 70%);
 }
 
 .bg-glow-gold {
-    background: radial-gradient(
-        ellipse 50% 50% at 50% 50%,
-        color-mix(
-                in oklch,
+    background: radial-gradient(ellipse 50% 50% at 50% 50%,
+            color-mix(in oklch,
                 var(--color-gold, oklch(0.75 0.15 85)),
-                transparent 94%
-            )
-            0%,
-        transparent 70%
-    );
+                transparent 94%) 0%,
+            transparent 70%);
 }
 
 .bg-glow-top-left {
-    background: radial-gradient(
-        ellipse 60% 60% at 10% 10%,
-        color-mix(
-                in oklch,
+    background: radial-gradient(ellipse 60% 60% at 10% 10%,
+            color-mix(in oklch,
                 var(--color-emerald, oklch(0.55 0.17 160)),
-                transparent 94%
-            )
-            0%,
-        transparent 70%
-    );
+                transparent 94%) 0%,
+            transparent 70%);
 }
 
 .bg-glow-bottom-right {
-    background: radial-gradient(
-        ellipse 60% 60% at 90% 90%,
-        color-mix(
-                in oklch,
+    background: radial-gradient(ellipse 60% 60% at 90% 90%,
+            color-mix(in oklch,
                 var(--color-gold, oklch(0.75 0.15 85)),
-                transparent 95%
-            )
-            0%,
-        transparent 70%
-    );
+                transparent 95%) 0%,
+            transparent 70%);
 }
 
 /* Shimmer loading effect for jackpot numbers */
 .shimmer-text {
-    background: linear-gradient(
-        110deg,
-        var(--color-gold, oklch(0.75 0.15 85)) 0%,
-        var(--color-gold-light, oklch(0.85 0.13 85)) 40%,
-        oklch(0.95 0.05 85) 50%,
-        var(--color-gold-light, oklch(0.85 0.13 85)) 60%,
-        var(--color-gold, oklch(0.75 0.15 85)) 100%
-    );
+    background: linear-gradient(110deg,
+            var(--color-gold, oklch(0.75 0.15 85)) 0%,
+            var(--color-gold-light, oklch(0.85 0.13 85)) 40%,
+            oklch(0.95 0.05 85) 50%,
+            var(--color-gold-light, oklch(0.85 0.13 85)) 60%,
+            var(--color-gold, oklch(0.75 0.15 85)) 100%);
     background-size: 200% 100%;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     animation: shimmer 2.5s linear infinite;
+}
+
+/* ---------------------------------------------------------------------------
+ * Responsive Adjustments — mobile 320px to large desktop 1920px
+ *
+ * Fluid typography (via clamp()) handles text scaling across all viewports.
+ * These media queries adjust fixed-size elements that need explicit breakpoints.
+ * --------------------------------------------------------------------------- */
+
+/* Mobile: < 640px */
+@media (max-width: 639px) {
+    .lottery-ball {
+        width: 2.25rem;
+        height: 2.25rem;
+        font-size: var(--text-sm);
+    }
+
+    .hero-grid {
+        background-size: 32px 32px;
+    }
+
+    .glass,
+    .glass-strong {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .section-divider {
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+    }
+}
+
+/* Tablet: 640px – 1023px */
+@media (min-width: 640px) and (max-width: 1023px) {
+    .lottery-ball {
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+
+    .hero-grid {
+        background-size: 44px 44px;
+    }
+}
+
+/* Desktop: 1024px – 1919px */
+@media (min-width: 1024px) and (max-width: 1919px) {
+    .hero-grid {
+        background-size: 56px 56px;
+    }
+}
+
+/* Large desktop: 1920px+ */
+@media (min-width: 1920px) {
+    .hero-grid {
+        background-size: 72px 72px;
+    }
+
+    .lottery-ball {
+        width: 3.5rem;
+        height: 3.5rem;
+    }
 }

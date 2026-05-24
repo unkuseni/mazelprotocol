@@ -1,8 +1,26 @@
 import { useState, useCallback, useEffect } from "react";
-import type {
-  ChatMessage,
-  ChatMember,
-} from "@/integrations/trpc/routers/chatRouter";
+
+export interface ChatMessage {
+  id: string;
+  sender: string;
+  senderShort: string;
+  text: string;
+  timestamp: number;
+  type: "message" | "system" | "announcement";
+  role?: "manager" | "member";
+  isPinned?: boolean;
+  replyTo?: string;
+  reactions?: Record<string, string[]>;
+}
+
+export interface ChatMember {
+  address: string;
+  addressShort: string;
+  role: "manager" | "member";
+  isOnline: boolean;
+  joinedAt: string;
+  ticketsContributed: number;
+}
 
 interface UseChatOptions {
   syndicateId: string;

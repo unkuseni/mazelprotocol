@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   Check,
@@ -28,8 +28,6 @@ import { useLotteryState, SOFT_CAP_USDC } from "@/hooks/use-lottery-state";
 import { useAnchorProvider } from "@/lib/anchor/provider";
 import { buyMainTicket, ensureUsdcTokenAccount } from "@/lib/anchor/transactions";
 import { useLotteryQueryClient } from "@/lib/anchor/hooks";
-
-export const Route = createFileRoute("/play/")({ component: PlayMainLottery });
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                 */
@@ -262,7 +260,7 @@ function CartSummary({
 /*  Main Component                                                            */
 /* -------------------------------------------------------------------------- */
 
-function PlayMainLottery() {
+export default function PlayMainLottery() {
   const [selectedNumbers, setSelectedNumbers] = useState<Set<number>>(
     new Set(),
   );

@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, NavLink } from "react-router-dom";
 import {
   BarChart3,
   BookOpen,
@@ -432,11 +432,10 @@ export default function Header() {
     <>
       {/* Main Header */}
       <header
-        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
-          scrolled
-            ? "glass-strong shadow-lg shadow-black/10 dark:shadow-black/20"
-            : "bg-transparent"
-        }`}
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${scrolled
+          ? "glass-strong shadow-lg shadow-black/10 dark:shadow-black/20"
+          : "bg-transparent"
+          }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -468,18 +467,18 @@ export default function Header() {
                 }
 
                 return (
-                  <Link
+                  <NavLink
                     key={link.label}
                     to={(link as { to: string }).to}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/5"
-                    activeProps={{
-                      className:
-                        "flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg",
-                    }}
+                    className={({ isActive }) =>
+                      isActive
+                        ? "flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg"
+                        : "flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/5"
+                    }
                   >
                     <link.icon size={16} className="opacity-70" />
                     <span>{link.label}</span>
-                  </Link>
+                  </NavLink>
                 );
               })}
             </nav>
@@ -537,9 +536,8 @@ export default function Header() {
 
       {/* Mobile Menu Panel */}
       <aside
-        className={`fixed top-0 right-0 h-full w-80 max-w-[85vw] z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${
-          mobileOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed top-0 right-0 h-full w-80 max-w-[85vw] z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${mobileOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <div className="h-full flex flex-col bg-card/95 dark:bg-navy-deep/95 backdrop-blur-xl border-l border-border">
           {/* Mobile header */}
@@ -576,18 +574,18 @@ export default function Header() {
 
           {/* Mobile nav links */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-            <Link
+            <NavLink
               to="/"
               onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
-              activeProps={{
-                className:
-                  "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg",
-              }}
+              className={({ isActive }) =>
+                isActive
+                  ? "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg"
+                  : "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+              }
             >
               <Trophy size={18} className="opacity-70" />
               <span>Home</span>
-            </Link>
+            </NavLink>
 
             {navLinks.map((link) => {
               if ("children" in link && link.children) {
@@ -610,9 +608,8 @@ export default function Header() {
                       </div>
                       <ChevronDown
                         size={16}
-                        className={`opacity-50 transition-transform duration-200 ${
-                          isExpanded ? "rotate-180" : ""
-                        }`}
+                        className={`opacity-50 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""
+                          }`}
                       />
                     </button>
                     {isExpanded && (
@@ -641,20 +638,20 @@ export default function Header() {
                           }
 
                           return (
-                            <Link
+                            <NavLink
                               key={child.label}
                               // biome-ignore lint/style/noNonNullAssertion: child.to is guaranteed when href is absent
                               to={child.to!}
                               onClick={() => setMobileOpen(false)}
-                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
-                              activeProps={{
-                                className:
-                                  "flex items-center gap-2.5 px-3 py-2 text-sm text-emerald-light bg-emerald/10 rounded-lg",
-                              }}
+                              className={({ isActive }) =>
+                                isActive
+                                  ? "flex items-center gap-2.5 px-3 py-2 text-sm text-emerald-light bg-emerald/10 rounded-lg"
+                                  : "flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                              }
                             >
                               <ChildIcon size={15} className="opacity-60" />
                               <span>{child.label}</span>
-                            </Link>
+                            </NavLink>
                           );
                         })}
                       </div>
@@ -664,19 +661,19 @@ export default function Header() {
               }
 
               return (
-                <Link
+                <NavLink
                   key={link.label}
                   to={(link as { to: string }).to}
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
-                  activeProps={{
-                    className:
-                      "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg",
-                  }}
+                  className={({ isActive }) =>
+                    isActive
+                      ? "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg"
+                      : "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                  }
                 >
                   <link.icon size={18} className="opacity-70" />
                   <span>{link.label}</span>
-                </Link>
+                </NavLink>
               );
             })}
           </nav>

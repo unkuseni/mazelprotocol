@@ -5,7 +5,7 @@
 // by web3.js) are safe for both environments.
 
 import type { Connection, PublicKey } from "@solana/web3.js";
-import type { Idl, Bn } from "@coral-xyz/anchor";
+import type { Idl, BN } from "@coral-xyz/anchor";
 
 // IDL files — pure JSON, always safe
 import mainLotteryIdl from "./idl/mazelprotocol.json";
@@ -13,7 +13,7 @@ import quickPickIdl from "./idl/quickpick.json";
 
 // Local modules — no problematic Node.js dependencies
 import { getConnection } from "./connection";
-import { mainPDAs, quickPickPDAs, type MainPDAs, type QuickPickPDAs } from "./pda";
+import { MAIN_LOTTERY_PROGRAM_ID, QUICK_PICK_PROGRAM_ID, USDC_MINT, mainPDAs, quickPickPDAs, type MainPDAs, type QuickPickPDAs } from "./pda";
 
 // ---------------------------------------------------------------------------
 // Guards & lazy module holder
@@ -262,7 +262,7 @@ export async function fetchMainLotteryState(
 }
 
 export async function fetchMainDrawResult(
-  drawId: number | Bn,
+  drawId: number | BN,
   connection?: Connection,
 ): Promise<Record<string, unknown> | null> {
   if (!isClient) return null;
@@ -286,7 +286,7 @@ export async function fetchMainDrawResult(
 
 export async function fetchUserMainTicketsForDraw(
   user: PublicKey,
-  drawId: number | Bn,
+  drawId: number | BN,
   connection?: Connection,
 ): Promise<Record<string, unknown>[]> {
   if (!isClient) return [];
@@ -331,7 +331,7 @@ export async function fetchQuickPickState(
 }
 
 export async function fetchQuickPickDrawResult(
-  drawId: number | Bn,
+  drawId: number | BN,
   connection?: Connection,
 ): Promise<Record<string, unknown> | null> {
   if (!isClient) return null;
@@ -355,7 +355,7 @@ export async function fetchQuickPickDrawResult(
 
 export async function fetchUserQuickPickTicketsForDraw(
   user: PublicKey,
-  drawId: number | Bn,
+  drawId: number | BN,
   connection?: Connection,
 ): Promise<Record<string, unknown>[]> {
   if (!isClient) return [];

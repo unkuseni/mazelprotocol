@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { useState, useCallback, useMemo } from "react";
 import {
   Zap,
@@ -26,10 +26,6 @@ import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { QuickPickCountdown } from "@/components/CountdownTimer";
 import { LotteryBallRow, FloatingBalls } from "@/components/LotteryBalls";
 import Footer from "@/components/Footer";
-
-export const Route = createFileRoute("/play/quick-pick")({
-  component: PlayQuickPickExpress,
-});
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                 */
@@ -232,7 +228,7 @@ function GateLockedOverlay({ lifetimeSpend }: { lifetimeSpend: number }) {
 /*  Main Component                                                            */
 /* -------------------------------------------------------------------------- */
 
-function PlayQuickPickExpress() {
+export default function PlayQuickPickExpress() {
   const [selectedNumbers, setSelectedNumbers] = useState<Set<number>>(
     new Set(),
   );
@@ -793,10 +789,10 @@ function PlayQuickPickExpress() {
                             <div className="flex items-center gap-2">
                               <div
                                 className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${tier.color === "gold"
-                                    ? "bg-gold/20 text-gold"
-                                    : tier.color === "emerald"
-                                      ? "bg-emerald/20 text-emerald-light"
-                                      : "bg-foreground/5 text-muted-foreground"
+                                  ? "bg-gold/20 text-gold"
+                                  : tier.color === "emerald"
+                                    ? "bg-emerald/20 text-emerald-light"
+                                    : "bg-foreground/5 text-muted-foreground"
                                   }`}
                               >
                                 {tier.match}
@@ -808,10 +804,10 @@ function PlayQuickPickExpress() {
                             <div className="text-right">
                               <span
                                 className={`text-xs font-bold ${tier.color === "gold"
-                                    ? "text-gold"
-                                    : tier.color === "emerald"
-                                      ? "text-emerald-light"
-                                      : "text-muted-foreground"
+                                  ? "text-gold"
+                                  : tier.color === "emerald"
+                                    ? "text-emerald-light"
+                                    : "text-muted-foreground"
                                   }`}
                               >
                                 {tier.prize}

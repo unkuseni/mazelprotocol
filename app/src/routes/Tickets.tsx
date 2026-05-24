@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowUpDown,
@@ -31,9 +31,7 @@ import { Button } from "@/components/ui/button";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 import { useTickets, type UserTicket } from "@/hooks/use-tickets";
 
-export const Route = createFileRoute("/tickets/")({
-  component: MyTicketsPage,
-});
+
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -951,7 +949,7 @@ function mapUserTicketToTicketData(t: UserTicket): TicketData {
 /*  Main Component                                                            */
 /* -------------------------------------------------------------------------- */
 
-function MyTicketsPage() {
+export default function MyTicketsPage() {
   const { open } = useAppKit();
   const { isConnected } = useAppKitAccount();
   const [filter, setFilter] = useState<TicketFilter>("all");
