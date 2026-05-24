@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowUpDown,
@@ -30,9 +30,7 @@ import { FloatingBalls } from "@/components/LotteryBalls";
 import { Button } from "@/components/ui/button";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
-export const Route = createFileRoute("/syndicates/")({
-  component: SyndicatesPage,
-});
+
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -221,8 +219,7 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
 
   return (
     <Link
-      to="/syndicates/$syndicateId"
-      params={{ syndicateId: syndicate.id }}
+      to={`/syndicates/${syndicate.id}`}
       className="group block glass rounded-2xl p-5 transition-all duration-300 hover:border-emerald/20 hover:shadow-lg hover:shadow-emerald/5"
     >
       {/* Header */}
@@ -230,13 +227,12 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
         <div className="flex items-center gap-3 min-w-0">
           {/* Avatar */}
           <div
-            className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${
-              syndicate.totalWinnings >= 20_000
-                ? "bg-linear-to-br from-gold/30 to-gold-dark/20 text-gold border border-gold/20"
-                : syndicate.totalWinnings >= 10_000
-                  ? "bg-linear-to-br from-emerald/20 to-emerald-dark/10 text-emerald-light border border-emerald/20"
-                  : "bg-foreground/4 text-muted-foreground border border-foreground/6"
-            }`}
+            className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${syndicate.totalWinnings >= 20_000
+              ? "bg-linear-to-br from-gold/30 to-gold-dark/20 text-gold border border-gold/20"
+              : syndicate.totalWinnings >= 10_000
+                ? "bg-linear-to-br from-emerald/20 to-emerald-dark/10 text-emerald-light border border-emerald/20"
+                : "bg-foreground/4 text-muted-foreground border border-foreground/6"
+              }`}
           >
             {syndicate.name.charAt(0)}
           </div>
@@ -260,17 +256,16 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
           {syndicate.tags.slice(0, 2).map((tag) => (
             <span
               key={tag}
-              className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider ${
-                tag === "Top Earner"
-                  ? "bg-gold/15 text-gold border border-gold/20"
-                  : tag === "Full"
-                    ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                    : tag === "New"
-                      ? "bg-emerald/10 text-emerald-light border border-emerald/20"
-                      : tag === "No Fee"
-                        ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                        : "bg-foreground/5 text-muted-foreground border border-foreground/6"
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider ${tag === "Top Earner"
+                ? "bg-gold/15 text-gold border border-gold/20"
+                : tag === "Full"
+                  ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                  : tag === "New"
+                    ? "bg-emerald/10 text-emerald-light border border-emerald/20"
+                    : tag === "No Fee"
+                      ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                      : "bg-foreground/5 text-muted-foreground border border-foreground/6"
+                }`}
             >
               {tag}
             </span>
@@ -324,13 +319,12 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
         </div>
         <div className="h-1.5 bg-foreground/5 rounded-full overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              isFull
-                ? "bg-linear-to-r from-red-500 to-red-400"
-                : fillPercent >= 80
-                  ? "bg-linear-to-r from-gold-dark to-gold"
-                  : "bg-linear-to-r from-emerald-dark to-emerald"
-            }`}
+            className={`h-full rounded-full transition-all duration-500 ${isFull
+              ? "bg-linear-to-r from-red-500 to-red-400"
+              : fillPercent >= 80
+                ? "bg-linear-to-r from-gold-dark to-gold"
+                : "bg-linear-to-r from-emerald-dark to-emerald"
+              }`}
             style={{ width: `${fillPercent}%` }}
           />
         </div>
@@ -556,11 +550,10 @@ function CreateSyndicateModal({
               <button
                 type="button"
                 onClick={() => setIsPublic(true)}
-                className={`flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition-all ${
-                  isPublic
-                    ? "bg-emerald/15 border border-emerald/30 text-emerald-light"
-                    : "bg-foreground/3 border border-foreground/6 text-muted-foreground hover:bg-foreground/5"
-                }`}
+                className={`flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition-all ${isPublic
+                  ? "bg-emerald/15 border border-emerald/30 text-emerald-light"
+                  : "bg-foreground/3 border border-foreground/6 text-muted-foreground hover:bg-foreground/5"
+                  }`}
               >
                 <Unlock size={12} />
                 Public
@@ -568,11 +561,10 @@ function CreateSyndicateModal({
               <button
                 type="button"
                 onClick={() => setIsPublic(false)}
-                className={`flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition-all ${
-                  !isPublic
-                    ? "bg-gold/15 border border-gold/30 text-gold"
-                    : "bg-foreground/3 border border-foreground/6 text-muted-foreground hover:bg-foreground/5"
-                }`}
+                className={`flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition-all ${!isPublic
+                  ? "bg-gold/15 border border-gold/30 text-gold"
+                  : "bg-foreground/3 border border-foreground/6 text-muted-foreground hover:bg-foreground/5"
+                  }`}
               >
                 <Lock size={12} />
                 Private
@@ -694,7 +686,7 @@ function StatsBar() {
 /*  Main Component                                                            */
 /* -------------------------------------------------------------------------- */
 
-function SyndicatesPage() {
+export default function SyndicatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("totalWinnings");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -839,11 +831,10 @@ function SyndicatesPage() {
                       key={vis}
                       type="button"
                       onClick={() => setFilterVisibility(vis)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                        filterVisibility === vis
-                          ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                          : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filterVisibility === vis
+                        ? "bg-emerald/15 text-emerald-light border border-emerald/20"
+                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                        }`}
                     >
                       {vis === "all"
                         ? "All"
@@ -870,11 +861,10 @@ function SyndicatesPage() {
                     key={field}
                     type="button"
                     onClick={() => handleSort(field)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
-                      sortField === field
-                        ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${sortField === field
+                      ? "bg-emerald/15 text-emerald-light border border-emerald/20"
+                      : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                      }`}
                   >
                     {label}
                     {sortField === field && (

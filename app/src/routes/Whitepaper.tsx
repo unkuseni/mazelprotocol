@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import {
   TrendingUp,
   ChevronRight,
@@ -33,9 +33,7 @@ import {
 import { FloatingBalls } from "@/components/LotteryBalls";
 import Footer from "@/components/Footer";
 
-export const Route = createFileRoute("/learn/whitepaper")({
-  component: WhitepaperPage,
-});
+
 
 /* -------------------------------------------------------------------------- */
 /*  Shared sub-components                                                     */
@@ -486,7 +484,7 @@ function RolldownDistributionDiagram() {
 /*  Main Component                                                            */
 /* -------------------------------------------------------------------------- */
 
-function WhitepaperPage() {
+export default function WhitepaperPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* ================================================================ */}

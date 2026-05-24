@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import {
   TrendingUp,
   Shield,
@@ -23,8 +23,6 @@ import { EVCalculator, EVBadge } from "@/components/EVCalculator";
 import { ProbabilityTimeline } from "@/components/ProbabilityTimeline";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 import { useLotteryState } from "@/hooks/use-lottery-state";
-
-export const Route = createFileRoute("/")({ component: LandingPage });
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                  */
@@ -543,7 +541,7 @@ function CtaSection({ rolldownActive }: { rolldownActive: boolean }) {
 /*  Main Page                                                                 */
 /* -------------------------------------------------------------------------- */
 
-function LandingPage() {
+export default function LandingPage() {
   const { jackpotDollars, rolldownActive, loading } = useLotteryState();
 
   return (

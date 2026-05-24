@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import {
   BarChart3,
   Trophy,
@@ -28,10 +28,6 @@ import { useDraws } from "@/hooks/use-draws";
 import { useLotteryState } from "@/hooks/use-lottery-state";
 import { useTickets } from "@/hooks/use-tickets";
 import { cn } from "@/lib/utils";
-
-export const Route = createFileRoute("/dashboard/")({
-  component: DashboardPage,
-});
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
@@ -319,7 +315,7 @@ function WalletNotConnected() {
 /*  Main Dashboard Page                                                       */
 /* -------------------------------------------------------------------------- */
 
-function DashboardPage() {
+export default function DashboardPage() {
   const { isConnected } = useAppKitAccount();
   const { jackpotDollars, rolldownActive, loading: jackpotLoading } = useLotteryState();
   const { draws, currentDrawId, loading: drawsLoading } = useDraws();

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link, useParams } from "react-router-dom";
 import {
   BarChart3,
   Bell,
@@ -29,9 +29,7 @@ import SyndicateChat, { type ChatMember } from "@/components/SyndicateChat";
 import { Button } from "@/components/ui/button";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
-export const Route = createFileRoute("/syndicates/$syndicateId")({
-  component: SyndicateDetailPage,
-});
+
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -405,17 +403,16 @@ function SyndicateInfoPanel({
               {syndicate.tags.map((tag) => (
                 <span
                   key={tag}
-                  className={`px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider ${
-                    tag === "Top Earner"
-                      ? "bg-gold/15 text-gold border border-gold/20"
-                      : tag.includes("+EV")
-                        ? "bg-emerald/10 text-emerald-light border border-emerald/20"
-                        : tag === "No Fee"
-                          ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                          : tag === "New"
-                            ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                            : "bg-foreground/5 text-muted-foreground border border-foreground/6"
-                  }`}
+                  className={`px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider ${tag === "Top Earner"
+                    ? "bg-gold/15 text-gold border border-gold/20"
+                    : tag.includes("+EV")
+                      ? "bg-emerald/10 text-emerald-light border border-emerald/20"
+                      : tag === "No Fee"
+                        ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                        : tag === "New"
+                          ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                          : "bg-foreground/5 text-muted-foreground border border-foreground/6"
+                    }`}
                 >
                   {tag}
                 </span>
@@ -505,13 +502,12 @@ function SyndicateInfoPanel({
           </div>
           <div className="h-1.5 bg-foreground/5 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                isFull
-                  ? "bg-linear-to-r from-red-500 to-red-400"
-                  : fillPercent >= 80
-                    ? "bg-linear-to-r from-gold-dark to-gold"
-                    : "bg-linear-to-r from-emerald-dark to-emerald"
-              }`}
+              className={`h-full rounded-full transition-all duration-500 ${isFull
+                ? "bg-linear-to-r from-red-500 to-red-400"
+                : fillPercent >= 80
+                  ? "bg-linear-to-r from-gold-dark to-gold"
+                  : "bg-linear-to-r from-emerald-dark to-emerald"
+                }`}
               style={{ width: `${fillPercent}%` }}
             />
           </div>
@@ -689,15 +685,19 @@ function SyndicateNotFound() {
 /*  Main Component                                                            */
 /* -------------------------------------------------------------------------- */
 
-function SyndicateDetailPage() {
-  const { syndicateId } = Route.useParams();
+export default function SyndicateDetailPage() {
+  const { syndicateId } = useParams();
   const { isConnected } = useAppKitAccount();
   const { open } = useAppKit();
 
   // Simulated member state (in real app, check on-chain)
   const [isMember, setIsMember] = useState(true);
 
-  const syndicate = MOCK_SYNDICATES[syndicateId];
+  if (!syndicateId) {
+    return <SyndicateNotFound />;
+  }
+
+  const syndicate = MOCK_SYNDICATES[syndicateId as keyof typeof MOCK_SYNDICATES];
 
   if (!syndicate) {
     return <SyndicateNotFound />;

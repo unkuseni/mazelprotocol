@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -30,9 +30,7 @@ import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 import { useDraws } from "@/hooks/use-draws";
 import type { DrawResultData } from "@/hooks/use-draws";
 
-export const Route = createFileRoute("/results/")({
-  component: ResultsPage,
-});
+
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -1101,7 +1099,7 @@ function Pagination({
 /*  Main Component                                                            */
 /* -------------------------------------------------------------------------- */
 
-function ResultsPage() {
+export default function ResultsPage() {
   const { open } = useAppKit();
   const { isConnected } = useAppKitAccount();
   const { draws: rawDraws, loading: drawsLoading } = useDraws();
