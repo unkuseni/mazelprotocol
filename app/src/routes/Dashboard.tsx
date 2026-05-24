@@ -286,25 +286,25 @@ function WalletNotConnected() {
   const { open } = useAppKit();
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center px-4">
+    <div className="min-h-[60vh] flex items-center justify-center px-4 sm:px-6 lg:px-8">
       <div className="text-center max-w-md">
-        <div className="w-16 h-16 rounded-2xl bg-emerald/10 flex items-center justify-center mx-auto mb-6">
-          <Wallet size={28} className="text-emerald-light" />
+        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald/10 flex items-center justify-center mx-auto mb-6">
+          <Wallet size={24} className="text-emerald-light sm:size-7" />
         </div>
-        <h2 className="text-2xl font-black text-foreground mb-3">
+        <h2 className="text-xl sm:text-2xl font-black text-foreground mb-3">
           Connect Your Wallet
         </h2>
-        <p className="text-muted-foreground mb-8">
+        <p className="text-sm sm:text-base text-muted-foreground mb-8">
           View your lottery dashboard, track tickets, monitor jackpots, and manage your syndicates — all from one place.
         </p>
         <button
           type="button"
           onClick={() => open?.()}
-          className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-linear-to-r from-emerald to-emerald-dark text-white font-bold text-lg shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all hover:-translate-y-0.5"
+          className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-linear-to-r from-emerald to-emerald-dark text-white font-bold text-base sm:text-lg shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all hover:-translate-y-0.5"
         >
-          <Wallet size={20} />
+          <Wallet size={18} className="sm:size-5" />
           Connect Wallet
-          <ArrowRight size={20} />
+          <ArrowRight size={18} className="sm:size-5" />
         </button>
       </div>
     </div>
@@ -353,13 +353,13 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Page header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-black text-foreground tracking-tight mb-2">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground tracking-tight mb-2">
             Dashboard
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm md:text-base text-muted-foreground">
             Your lottery command center — track jackpots, monitor your tickets, and stay ahead of rolldown events.
           </p>
         </div>
@@ -400,7 +400,7 @@ export default function DashboardPage() {
 
             {/* Quick stats */}
             {playerStats && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                   label="Tickets Bought"
                   value={playerStats.totalTickets.toString()}
@@ -436,7 +436,7 @@ export default function DashboardPage() {
             {/* Recent draws */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
                   <Clock size={18} className="text-muted-foreground" />
                   Recent Draws
                 </h2>
@@ -455,10 +455,10 @@ export default function DashboardPage() {
                   ))}
                 </div>
               ) : draws.length === 0 ? (
-                <div className="text-center py-12 rounded-2xl bg-card/50 border border-border/50">
+                <div className="text-center py-8 sm:py-12 rounded-2xl bg-card/50 border border-border/50">
                   <Activity size={32} className="mx-auto mb-3 text-muted-foreground/30" />
-                  <p className="text-sm text-muted-foreground">No draw results yet</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground">No draw results yet</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground/60 mt-1">
                     Draw #{currentDrawId} is currently active
                   </p>
                 </div>
@@ -492,8 +492,8 @@ export default function DashboardPage() {
             <ActiveTicketsPanel />
 
             {/* Quick links */}
-            <div className="p-6 rounded-2xl bg-card/50 border border-border/50">
-              <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+            <div className="p-4 sm:p-6 rounded-2xl bg-card/50 border border-border/50">
+              <h3 className="text-xs sm:text-sm font-bold text-foreground mb-4 flex items-center gap-2">
                 <Zap size={16} className="text-gold" />
                 Quick Actions
               </h3>
@@ -503,40 +503,40 @@ export default function DashboardPage() {
                   className="flex items-center justify-between p-3 rounded-xl bg-emerald/5 border border-emerald/10 hover:bg-emerald/10 transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <Trophy size={16} className="text-emerald-light" />
-                    <span className="text-sm font-medium text-foreground">Buy Tickets</span>
+                    <Trophy size={16} className="text-emerald-light shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium text-foreground">Buy Tickets</span>
                   </div>
-                  <ArrowRight size={14} className="text-emerald-light opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ArrowRight size={14} className="text-emerald-light opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 </Link>
                 <Link
                   to="/syndicates"
                   className="flex items-center justify-between p-3 rounded-xl bg-foreground/3 border border-foreground/5 hover:bg-foreground/5 transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <Users size={16} className="text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground">Syndicates</span>
+                    <Users size={16} className="text-muted-foreground shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium text-foreground">Syndicates</span>
                   </div>
-                  <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 </Link>
                 <Link
                   to="/results"
                   className="flex items-center justify-between p-3 rounded-xl bg-foreground/3 border border-foreground/5 hover:bg-foreground/5 transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <BarChart3 size={16} className="text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground">Draw Results</span>
+                    <BarChart3 size={16} className="text-muted-foreground shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium text-foreground">Draw Results</span>
                   </div>
-                  <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 </Link>
                 <Link
                   to="/learn/rolldown"
                   className="flex items-center justify-between p-3 rounded-xl bg-foreground/3 border border-foreground/5 hover:bg-foreground/5 transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <Shield size={16} className="text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground">How Rolldown Works</span>
+                    <Shield size={16} className="text-muted-foreground shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium text-foreground">How Rolldown Works</span>
                   </div>
-                  <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 </Link>
               </div>
             </div>
