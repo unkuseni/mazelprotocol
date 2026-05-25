@@ -1,6 +1,11 @@
 /**
  * MazelProtocol – Post-Deployment Verification Script
  *
+ * ⚠️ CANONICAL SOURCE: Constants and PDA derivation functions live in
+ *    bot/shared/src/constants.ts and bot/shared/src/pdas.ts.
+ *    When updating on-chain constants, update those files FIRST,
+ *    then sync changes here.
+ *
  * This script fetches all on-chain state for both the main lottery (MazelProtocol)
  * and Quick Pick Express programs, checks token balances, validates solvency
  * invariants, and reports any issues.
