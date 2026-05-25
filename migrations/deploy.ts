@@ -1,6 +1,11 @@
 /**
  * MazelProtocol – Deployment Migration Script
  *
+ * ⚠️ CANONICAL SOURCE: Constants and PDA derivation functions live in
+ *    bot/shared/src/constants.ts and bot/shared/src/pdas.ts.
+ *    When updating on-chain constants, update those files FIRST,
+ *    then sync changes here.
+ *
  * This script performs the complete on-chain initialization sequence for both
  * the main lottery (MazelProtocol) and Quick Pick Express programs.
  *
@@ -203,13 +208,13 @@ async function deploy() {
   if (!mainProgram) {
     throw new Error(
       "Could not load main lottery program from workspace. " +
-        "Make sure `anchor build` has been run and the IDL exists.",
+      "Make sure `anchor build` has been run and the IDL exists.",
     );
   }
   if (!qpProgram) {
     throw new Error(
       "Could not load quickpick program from workspace. " +
-        "Make sure `anchor build` has been run and the IDL exists.",
+      "Make sure `anchor build` has been run and the IDL exists.",
     );
   }
 

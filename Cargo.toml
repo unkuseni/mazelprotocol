@@ -1,6 +1,8 @@
 [workspace]
 members = [
-    "programs/*"
+    "programs/*",
+    "bot-rust",
+    "customer-bot-rust",
 ]
 resolver = "2"
 
