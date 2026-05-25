@@ -74,6 +74,13 @@ pub const FINALIZATION_DELAY: i64 = 120; // 2 minutes
 /// Set to 0 to disable expiration (tickets can be claimed forever)
 pub const TICKET_CLAIM_EXPIRATION: i64 = 90 * 24 * 60 * 60; // 90 days
 
+/// Safety buffer after claim expiration before prizes can be reclaimed.
+/// This prevents a race condition where a legitimate claim transaction
+/// submitted just before the deadline could fail because the authority
+/// reclaimed the funds first. The buffer gives pending claims time to
+/// finalize before funds are swept back to reserve.
+pub const RECLAIM_BUFFER: i64 = 24 * 60 * 60; // 24 hours
+
 // ============================================================================
 // DYNAMIC FEE TIERS
 // ============================================================================
@@ -362,6 +369,13 @@ pub const EMERGENCY_TRANSFER_DAILY_CAP_BPS: u64 = 2000; // 20% of hard cap per 2
 pub const EMERGENCY_TRANSFER_WINDOW_DURATION: i64 = 86400;
 
 /// Quick Pick state account size
+///
+/// ## ⚠️ IMPORTANT — READ BEFORE EDITING
+/// This constant is for documentation only. The canonical size is
+/// `QuickPickState::LEN` defined in `quickpick/src/state.rs`.
+/// If you add/remove fields from `QuickPickState`, update the struct AND
+/// the `QuickPickState::LEN` impl in quickpick — this doc constant must
+/// be kept in sync manually or removed in favor of using `::LEN` directly.
 pub const QUICK_PICK_STATE_SIZE: usize = 8 + // discriminator
     8 +  // current_draw
     8 +  // ticket_price
@@ -379,10 +393,23 @@ pub const QUICK_PICK_STATE_SIZE: usize = 8 + // discriminator
     8 +  // current_draw_tickets
     8 +  // prize_pool_balance
     8 +  // insurance_balance
+    8 +  // reserve_balance
+    8 +  // total_tickets_sold
+    8 +  // total_prizes_paid
+    32 + // current_randomness_account
+    8 +  // commit_slot
+    8 +  // commit_timestamp
+    1 +  // is_draw_in_progress
+    1 +  // is_awaiting_finalization
     1 +  // is_rolldown_pending
     1 +  // is_paused
+    1 +  // is_funded
     1 +  // bump
-    32; // padding
+    8 +  // config_timelock_end (H-2 fix)
+    32 + // pending_config_hash (H-2 fix)
+    8 +  // emergency_transfer_total (QP-3 fix)
+    8 +  // emergency_transfer_window_start (QP-3 fix)
+    8; // padding
 
 /// Quick Pick ticket size
 pub const QUICK_PICK_TICKET_SIZE: usize = 8 + // discriminator
@@ -624,22 +651,10 @@ mod tests {
     #[test]
     fn test_calculate_house_fee_bps() {
         assert_eq!(calculate_house_fee_bps(0, false), FEE_TIER_1_BPS);
-        assert_eq!(
-            calculate_house_fee_bps(500_000_000_000, false),
-            FEE_TIER_2_BPS
-        );
-        assert_eq!(
-            calculate_house_fee_bps(1_000_000_000_000, false),
-            FEE_TIER_3_BPS
-        );
-        assert_eq!(
-            calculate_house_fee_bps(2_000_000_000_000, false),
-            FEE_TIER_4_BPS
-        );
-        assert_eq!(
-            calculate_house_fee_bps(2_000_000_000_000, true),
-            FEE_ROLLDOWN_BPS
-        );
+        assert_eq!(calculate_house_fee_bps(500_000_000_000, false), FEE_TIER_2_BPS);
+        assert_eq!(calculate_house_fee_bps(1_000_000_000_000, false), FEE_TIER_3_BPS);
+        assert_eq!(calculate_house_fee_bps(2_000_000_000_000, false), FEE_TIER_4_BPS);
+        assert_eq!(calculate_house_fee_bps(2_000_000_000_000, true), FEE_ROLLDOWN_BPS);
     }
 
     #[test]

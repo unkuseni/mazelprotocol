@@ -125,10 +125,7 @@ pub fn handler_unpause(ctx: Context<Unpause>) -> Result<()> {
     // SECURITY: Re-verify solvency before allowing the lottery to resume.
     // Prevents the authority from unpausing an insolvent lottery where
     // the prize pool cannot cover committed prizes (C3 fix).
-    require!(
-        lottery_state.check_solvency_detailed(0, 0).0,
-        LottoError::PrizePoolSolvencyFailed
-    );
+    require!(lottery_state.check_solvency_detailed(0, 0).0, LottoError::PrizePoolSolvencyFailed);
 
     lottery_state.is_paused = false;
 
@@ -314,10 +311,7 @@ pub fn handler_propose_config(
     let lottery_state = &mut ctx.accounts.lottery_state;
 
     // Reject if there's already a pending proposal
-    require!(
-        lottery_state.config_timelock_end == 0,
-        LottoError::InvalidDrawState
-    );
+    require!(lottery_state.config_timelock_end == 0, LottoError::InvalidDrawState);
 
     // Pre-validate params so we catch errors early (before waiting 24h)
     if let Some(ticket_price) = params.ticket_price {
@@ -333,10 +327,7 @@ pub fn handler_propose_config(
         require!(house_fee_bps <= 5000, LottoError::InvalidHouseFee);
     }
     if let Some(draw_interval) = params.draw_interval {
-        require!(
-            draw_interval >= 3600 && draw_interval <= 604800,
-            LottoError::InvalidDrawInterval
-        );
+        require!(draw_interval >= 3600 && draw_interval <= 604800, LottoError::InvalidDrawInterval);
     }
 
     // Simulate the final state to validate relationships
@@ -347,28 +338,17 @@ pub fn handler_propose_config(
 
     require!(simulated_soft_cap > 0, LottoError::InvalidCapConfig);
     require!(simulated_hard_cap > 0, LottoError::InvalidCapConfig);
-    require!(
-        simulated_soft_cap < simulated_hard_cap,
-        LottoError::InvalidCapConfig
-    );
+    require!(simulated_soft_cap < simulated_hard_cap, LottoError::InvalidCapConfig);
     require!(simulated_seed_amount > 0, LottoError::InvalidSeedAmount);
-    require!(
-        simulated_seed_amount < simulated_soft_cap,
-        LottoError::InvalidSeedAmount
-    );
+    require!(simulated_seed_amount < simulated_soft_cap, LottoError::InvalidSeedAmount);
     require!(simulated_jackpot_cap > 0, LottoError::InvalidJackpotCap);
-    require!(
-        simulated_jackpot_cap <= simulated_hard_cap,
-        LottoError::InvalidJackpotCap
-    );
+    require!(simulated_jackpot_cap <= simulated_hard_cap, LottoError::InvalidJackpotCap);
 
     // Store the proposal hash and set the timelock
     let config_hash = params.compute_hash();
     lottery_state.pending_config_hash = config_hash;
-    lottery_state.config_timelock_end = clock
-        .unix_timestamp
-        .checked_add(CONFIG_TIMELOCK_DELAY)
-        .ok_or(LottoError::Overflow)?;
+    lottery_state.config_timelock_end =
+        clock.unix_timestamp.checked_add(CONFIG_TIMELOCK_DELAY).ok_or(LottoError::Overflow)?;
 
     emit!(ConfigUpdated {
         parameter: "config_proposed".to_string(),
@@ -379,19 +359,9 @@ pub fn handler_propose_config(
     });
 
     msg!("⏳ Configuration change PROPOSED (timelock started)");
-    msg!(
-        "  Config hash: {:?}",
-        &lottery_state.pending_config_hash[..8]
-    );
-    msg!(
-        "  Executable after: {} (unix timestamp)",
-        lottery_state.config_timelock_end
-    );
-    msg!(
-        "  Delay: {} seconds ({} hours)",
-        CONFIG_TIMELOCK_DELAY,
-        CONFIG_TIMELOCK_DELAY / 3600
-    );
+    msg!("  Config hash: {:?}", &lottery_state.pending_config_hash[..8]);
+    msg!("  Executable after: {} (unix timestamp)", lottery_state.config_timelock_end);
+    msg!("  Delay: {} seconds ({} hours)", CONFIG_TIMELOCK_DELAY, CONFIG_TIMELOCK_DELAY / 3600);
     msg!("  Call execute_config with the same params after the timelock expires.");
 
     Ok(())
@@ -410,10 +380,7 @@ pub fn handler_cancel_config_proposal(ctx: Context<UpdateConfig>) -> Result<()> 
     let clock = Clock::get()?;
     let lottery_state = &mut ctx.accounts.lottery_state;
 
-    require!(
-        lottery_state.config_timelock_end != 0,
-        LottoError::InvalidDrawState
-    );
+    require!(lottery_state.config_timelock_end != 0, LottoError::InvalidDrawState);
 
     lottery_state.pending_config_hash = [0u8; 32];
     lottery_state.config_timelock_end = 0;
@@ -455,10 +422,7 @@ pub fn handler_execute_config(
     let lottery_state = &mut ctx.accounts.lottery_state;
 
     // Verify there is a pending proposal
-    require!(
-        lottery_state.config_timelock_end != 0,
-        LottoError::InvalidDrawState
-    );
+    require!(lottery_state.config_timelock_end != 0, LottoError::InvalidDrawState);
 
     // Verify the timelock has expired
     require!(
@@ -468,10 +432,7 @@ pub fn handler_execute_config(
 
     // Verify the params hash matches the proposal (prevents bait-and-switch)
     let config_hash = params.compute_hash();
-    require!(
-        config_hash == lottery_state.pending_config_hash,
-        LottoError::ConfigValidationFailed
-    );
+    require!(config_hash == lottery_state.pending_config_hash, LottoError::ConfigValidationFailed);
 
     // Clear the timelock state
     lottery_state.pending_config_hash = [0u8; 32];
@@ -568,10 +529,7 @@ pub fn handler_execute_config(
     }
 
     if let Some(draw_interval) = params.draw_interval {
-        require!(
-            draw_interval >= 3600 && draw_interval <= 604800,
-            LottoError::InvalidDrawInterval
-        );
+        require!(draw_interval >= 3600 && draw_interval <= 604800, LottoError::InvalidDrawInterval);
 
         emit!(ConfigUpdated {
             parameter: "draw_interval".to_string(),
@@ -585,10 +543,8 @@ pub fn handler_execute_config(
         // M6 FIX: Recalculate next_draw_timestamp when draw_interval changes.
         // Without this, the old timestamp persists, potentially causing draws
         // to fire at the wrong time.
-        lottery_state.next_draw_timestamp = clock
-            .unix_timestamp
-            .checked_add(draw_interval)
-            .ok_or(LottoError::Overflow)?;
+        lottery_state.next_draw_timestamp =
+            clock.unix_timestamp.checked_add(draw_interval).ok_or(LottoError::Overflow)?;
         msg!(
             "Updated draw_interval: {} (next draw: {})",
             draw_interval,
@@ -599,20 +555,11 @@ pub fn handler_execute_config(
     // Validate relationships after updates
     require!(lottery_state.soft_cap > 0, LottoError::InvalidCapConfig);
     require!(lottery_state.hard_cap > 0, LottoError::InvalidCapConfig);
-    require!(
-        lottery_state.soft_cap < lottery_state.hard_cap,
-        LottoError::InvalidCapConfig
-    );
+    require!(lottery_state.soft_cap < lottery_state.hard_cap, LottoError::InvalidCapConfig);
     require!(lottery_state.seed_amount > 0, LottoError::InvalidSeedAmount);
-    require!(
-        lottery_state.seed_amount < lottery_state.soft_cap,
-        LottoError::InvalidSeedAmount
-    );
+    require!(lottery_state.seed_amount < lottery_state.soft_cap, LottoError::InvalidSeedAmount);
     require!(lottery_state.jackpot_cap > 0, LottoError::InvalidJackpotCap);
-    require!(
-        lottery_state.jackpot_cap <= lottery_state.hard_cap,
-        LottoError::InvalidJackpotCap
-    );
+    require!(lottery_state.jackpot_cap <= lottery_state.hard_cap, LottoError::InvalidJackpotCap);
 
     msg!("✅ Configuration EXECUTED after timelock!");
 
@@ -648,49 +595,22 @@ pub fn handler_update_config(ctx: Context<UpdateConfig>, params: UpdateConfigPar
     let lottery_state = &mut ctx.accounts.lottery_state;
 
     // SECURITY: Reject if there's a pending timelock proposal to prevent bypass
-    require!(
-        lottery_state.config_timelock_end == 0,
-        LottoError::InvalidDrawState
-    );
+    require!(lottery_state.config_timelock_end == 0, LottoError::InvalidDrawState);
 
     // SECURITY FIX (Issue #2): Block ALL sensitive financial parameter updates
     // via this legacy immediate path. They MUST use the timelock flow.
-    require!(
-        params.ticket_price.is_none(),
-        LottoError::ConfigValidationFailed
-    );
-    require!(
-        params.house_fee_bps.is_none(),
-        LottoError::ConfigValidationFailed
-    );
-    require!(
-        params.jackpot_cap.is_none(),
-        LottoError::ConfigValidationFailed
-    );
+    require!(params.ticket_price.is_none(), LottoError::ConfigValidationFailed);
+    require!(params.house_fee_bps.is_none(), LottoError::ConfigValidationFailed);
+    require!(params.jackpot_cap.is_none(), LottoError::ConfigValidationFailed);
 
     // SECURITY: switchboard_queue changes must go through the timelock
     // flow (propose_config/execute_config). An instant change could point
     // the lottery to a malicious randomness oracle (H4 fix).
-    require!(
-        params.switchboard_queue.is_none(),
-        LottoError::ConfigValidationFailed
-    );
-    require!(
-        params.seed_amount.is_none(),
-        LottoError::ConfigValidationFailed
-    );
-    require!(
-        params.soft_cap.is_none(),
-        LottoError::ConfigValidationFailed
-    );
-    require!(
-        params.hard_cap.is_none(),
-        LottoError::ConfigValidationFailed
-    );
-    require!(
-        params.draw_interval.is_none(),
-        LottoError::ConfigValidationFailed
-    );
+    require!(params.switchboard_queue.is_none(), LottoError::ConfigValidationFailed);
+    require!(params.seed_amount.is_none(), LottoError::ConfigValidationFailed);
+    require!(params.soft_cap.is_none(), LottoError::ConfigValidationFailed);
+    require!(params.hard_cap.is_none(), LottoError::ConfigValidationFailed);
+    require!(params.draw_interval.is_none(), LottoError::ConfigValidationFailed);
 
     // Only switchboard_queue can be updated immediately (operational, non-financial)
     if let Some(switchboard_queue) = params.switchboard_queue {
@@ -844,11 +764,7 @@ pub fn handler_check_solvency(ctx: Context<CheckSolvency>) -> Result<()> {
         prize_pool_actual,
         expected_prize_pool
     );
-    msg!(
-        "  Insurance:  actual={}, expected={}",
-        insurance_actual,
-        expected_insurance
-    );
+    msg!("  Insurance:  actual={}, expected={}", insurance_actual, expected_insurance);
 
     if !is_solvent {
         // Auto-pause the lottery on mismatch
@@ -976,16 +892,10 @@ pub fn handler_propose_authority(
     let lottery_state = &mut ctx.accounts.lottery_state;
 
     // Cannot propose self
-    require!(
-        new_authority != lottery_state.authority,
-        LottoError::InvalidAuthority
-    );
+    require!(new_authority != lottery_state.authority, LottoError::InvalidAuthority);
 
     // Cannot propose zero address
-    require!(
-        new_authority != Pubkey::default(),
-        LottoError::InvalidAuthority
-    );
+    require!(new_authority != Pubkey::default(), LottoError::InvalidAuthority);
 
     lottery_state.pending_authority = Some(new_authority);
 
@@ -1160,16 +1070,10 @@ pub fn handler_cancel_draw(ctx: Context<CancelDraw>) -> Result<()> {
 
     // SECURITY: Cannot cancel a draw whose winning numbers are on-chain.
     // The is_awaiting_finalization flag is set by execute_draw.
-    require!(
-        !lottery_state.is_awaiting_finalization,
-        LottoError::DrawNotInProgress
-    );
+    require!(!lottery_state.is_awaiting_finalization, LottoError::DrawNotInProgress);
 
     // Verify the draw has timed out
-    require!(
-        lottery_state.is_commit_timed_out(clock.unix_timestamp),
-        LottoError::DrawNotReady
-    );
+    require!(lottery_state.is_commit_timed_out(clock.unix_timestamp), LottoError::DrawNotReady);
 
     let draw_id = lottery_state.current_draw_id;
     let commit_timestamp = lottery_state.commit_timestamp;
@@ -1198,18 +1102,9 @@ pub fn handler_cancel_draw(ctx: Context<CancelDraw>) -> Result<()> {
     msg!("  Tickets in draw: {} (preserved)", tickets_affected);
     msg!("  Commit timestamp: {}", commit_timestamp);
     msg!("  Current timestamp: {}", clock.unix_timestamp);
-    msg!(
-        "  Time elapsed: {} seconds",
-        clock.unix_timestamp - commit_timestamp
-    );
-    msg!(
-        "  Next draw attempt scheduled for: {}",
-        lottery_state.next_draw_timestamp
-    );
-    msg!(
-        "  ✓ Tickets for draw {} remain valid for the rescheduled draw.",
-        draw_id
-    );
+    msg!("  Time elapsed: {} seconds", clock.unix_timestamp - commit_timestamp);
+    msg!("  Next draw attempt scheduled for: {}", lottery_state.next_draw_timestamp);
+    msg!("  ✓ Tickets for draw {} remain valid for the rescheduled draw.", draw_id);
     msg!("  ✓ No refunds needed - same draw will be attempted again.");
 
     Ok(())
@@ -1330,10 +1225,7 @@ pub fn handler_force_finalize_draw(ctx: Context<ForceFinalizeDraw>, reason: Stri
     msg!("  New draw ID: {}", lottery_state.current_draw_id);
     msg!("  ✅ DrawResult marked as finalized with zero prizes.");
     msg!("  Tickets can still call claim_prize and will see 0 prize (no error).");
-    msg!(
-        "  Next draw scheduled for: {}",
-        lottery_state.next_draw_timestamp
-    );
+    msg!("  Next draw scheduled for: {}", lottery_state.next_draw_timestamp);
 
     Ok(())
 }
@@ -1382,16 +1274,10 @@ pub fn handler_transfer_authority(ctx: Context<TransferAuthority>) -> Result<()>
     let new_authority = ctx.accounts.new_authority.key();
 
     // Cannot propose self
-    require!(
-        new_authority != lottery_state.authority,
-        LottoError::InvalidAuthority
-    );
+    require!(new_authority != lottery_state.authority, LottoError::InvalidAuthority);
 
     // Cannot propose zero address
-    require!(
-        new_authority != Pubkey::default(),
-        LottoError::InvalidAuthority
-    );
+    require!(new_authority != Pubkey::default(), LottoError::InvalidAuthority);
 
     // Set pending authority (requires accept_authority to complete)
     lottery_state.pending_authority = Some(new_authority);
@@ -1506,10 +1392,7 @@ pub fn handler_emergency_fund_transfer(
     let clock = Clock::get()?;
 
     // Validate lottery is paused for emergency operations
-    require!(
-        ctx.accounts.lottery_state.is_paused,
-        LottoError::InvalidDrawState
-    );
+    require!(ctx.accounts.lottery_state.is_paused, LottoError::InvalidDrawState);
 
     // Validate amount
     require!(amount > 0, LottoError::InsufficientFunds);
@@ -1592,17 +1475,12 @@ pub fn handler_emergency_fund_transfer(
             // Reserve is just accounting - the USDC is already in the prize pool
             // This moves funds from reserve accounting to jackpot accounting
             let before = lottery_state.reserve_balance;
-            require!(
-                amount <= lottery_state.reserve_balance,
-                LottoError::InsufficientFunds
-            );
+            require!(amount <= lottery_state.reserve_balance, LottoError::InsufficientFunds);
 
             // Move from reserve accounting to jackpot accounting
             lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(amount);
-            lottery_state.jackpot_balance = lottery_state
-                .jackpot_balance
-                .checked_add(amount)
-                .ok_or(LottoError::Overflow)?;
+            lottery_state.jackpot_balance =
+                lottery_state.jackpot_balance.checked_add(amount).ok_or(LottoError::Overflow)?;
 
             let after = lottery_state.reserve_balance;
             (before, after, "reserve_to_jackpot_accounting".to_string())
@@ -1614,10 +1492,7 @@ pub fn handler_emergency_fund_transfer(
                 amount <= ctx.accounts.insurance_pool_usdc.amount,
                 LottoError::InsufficientFunds
             );
-            require!(
-                amount <= lottery_state.insurance_balance,
-                LottoError::InsufficientFunds
-            );
+            require!(amount <= lottery_state.insurance_balance, LottoError::InsufficientFunds);
 
             // Transfer USDC from insurance to prize pool
             let cpi_accounts = Transfer {
@@ -1633,10 +1508,8 @@ pub fn handler_emergency_fund_transfer(
             lottery_state.insurance_balance =
                 lottery_state.insurance_balance.saturating_sub(amount);
             // Add to jackpot to make it available for prizes
-            lottery_state.jackpot_balance = lottery_state
-                .jackpot_balance
-                .checked_add(amount)
-                .ok_or(LottoError::Overflow)?;
+            lottery_state.jackpot_balance =
+                lottery_state.jackpot_balance.checked_add(amount).ok_or(LottoError::Overflow)?;
 
             let after = lottery_state.insurance_balance;
             (before, after, "insurance_to_prize_pool".to_string())
@@ -1646,10 +1519,7 @@ pub fn handler_emergency_fund_transfer(
             // SECURITY FIX (Issue #5): Destination is already validated above to be
             // the house_fee_usdc PDA. Amount is capped to 10% of hard_cap per call.
             let before = ctx.accounts.prize_pool_usdc.amount;
-            require!(
-                amount <= ctx.accounts.prize_pool_usdc.amount,
-                LottoError::InsufficientFunds
-            );
+            require!(amount <= ctx.accounts.prize_pool_usdc.amount, LottoError::InsufficientFunds);
 
             // Transfer USDC from prize pool to treasury destination
             let cpi_accounts = Transfer {
@@ -1710,18 +1580,9 @@ pub fn handler_emergency_fund_transfer(
     msg!("  Balance after: {} USDC lamports", balance_after);
     msg!("");
     msg!("  📊 Current Fund Status:");
-    msg!(
-        "    Jackpot balance: {} USDC lamports",
-        lottery_state.jackpot_balance
-    );
-    msg!(
-        "    Reserve balance: {} USDC lamports",
-        lottery_state.reserve_balance
-    );
-    msg!(
-        "    Insurance balance: {} USDC lamports",
-        lottery_state.insurance_balance
-    );
+    msg!("    Jackpot balance: {} USDC lamports", lottery_state.jackpot_balance);
+    msg!("    Reserve balance: {} USDC lamports", lottery_state.reserve_balance);
+    msg!("    Insurance balance: {} USDC lamports", lottery_state.insurance_balance);
     msg!(
         "    Safety buffer (reserve + insurance): {} USDC lamports",
         lottery_state.get_safety_buffer()
@@ -1808,18 +1669,20 @@ pub fn handler_reclaim_expired_prizes(
     // 1. Verify the draw has been finalized
     require!(draw_result.is_finalized(), LottoError::InvalidDrawState);
 
-    // 2. Verify the claim window has fully expired
-    // TICKET_CLAIM_EXPIRATION is the number of seconds after draw execution
-    // that tickets can still be claimed.
+    // 2. Verify the claim window has fully expired WITH safety buffer.
+    // Tickets can be claimed up to TICKET_CLAIM_EXPIRATION seconds after
+    // draw execution. After that, an additional RECLAIM_BUFFER must elapse
+    // before the authority can sweep unclaimed funds. This prevents race
+    // conditions where a legitimate claim submitted just before the deadline
+    // could fail because the authority reclaimed first.
     require!(TICKET_CLAIM_EXPIRATION > 0, LottoError::InvalidConfig);
     let claim_deadline = draw_result
         .timestamp
         .checked_add(TICKET_CLAIM_EXPIRATION)
         .ok_or(LottoError::ArithmeticError)?;
-    require!(
-        clock.unix_timestamp > claim_deadline,
-        LottoError::ClaimWindowNotExpired
-    );
+    let reclaim_eligible_at =
+        claim_deadline.checked_add(RECLAIM_BUFFER).ok_or(LottoError::ArithmeticError)?;
+    require!(clock.unix_timestamp > reclaim_eligible_at, LottoError::ClaimWindowNotExpired);
 
     // 3. Validate amount
     require!(params.amount > 0, LottoError::InvalidAmount);
@@ -1833,10 +1696,7 @@ pub fn handler_reclaim_expired_prizes(
 
     // 4a. Per-draw bound: reclaim cannot exceed what remains for this draw
     let reclaimable = draw_result.get_reclaimable_amount();
-    require!(
-        params.amount <= reclaimable,
-        LottoError::ReclaimAmountExceedsCommitted
-    );
+    require!(params.amount <= reclaimable, LottoError::ReclaimAmountExceedsCommitted);
 
     // 4b. Defense-in-depth: also enforce the global bound
     let lottery_state = &mut ctx.accounts.lottery_state;
@@ -1847,10 +1707,8 @@ pub fn handler_reclaim_expired_prizes(
 
     // 5. Increment per-draw total_reclaimed (must happen before global update)
     let draw_result = &mut ctx.accounts.draw_result;
-    draw_result.total_reclaimed = draw_result
-        .total_reclaimed
-        .checked_add(params.amount)
-        .ok_or(LottoError::Overflow)?;
+    draw_result.total_reclaimed =
+        draw_result.total_reclaimed.checked_add(params.amount).ok_or(LottoError::Overflow)?;
 
     msg!(
         "  Per-draw accounting: committed={}, reclaimed={} (reclaimable_before={})",
@@ -1860,13 +1718,10 @@ pub fn handler_reclaim_expired_prizes(
     );
 
     // 6. Decrement global total_prizes_committed and credit reserve_balance
-    lottery_state.total_prizes_committed = lottery_state
-        .total_prizes_committed
-        .saturating_sub(params.amount);
-    lottery_state.reserve_balance = lottery_state
-        .reserve_balance
-        .checked_add(params.amount)
-        .ok_or(LottoError::Overflow)?;
+    lottery_state.total_prizes_committed =
+        lottery_state.total_prizes_committed.saturating_sub(params.amount);
+    lottery_state.reserve_balance =
+        lottery_state.reserve_balance.checked_add(params.amount).ok_or(LottoError::Overflow)?;
 
     // 7. Emit audit event
     emit!(ExpiredPrizesReclaimed {
@@ -1882,19 +1737,10 @@ pub fn handler_reclaim_expired_prizes(
     msg!("  Draw ID: {}", params.draw_id);
     msg!("  Draw timestamp: {}", draw_result.timestamp);
     msg!("  Claim deadline was: {}", claim_deadline);
-    msg!(
-        "  Time since expiry: {} seconds",
-        clock.unix_timestamp.saturating_sub(claim_deadline)
-    );
+    msg!("  Time since expiry: {} seconds", clock.unix_timestamp.saturating_sub(claim_deadline));
     msg!("  Amount reclaimed: {} USDC lamports", params.amount);
-    msg!(
-        "  New reserve balance: {} USDC lamports",
-        lottery_state.reserve_balance
-    );
-    msg!(
-        "  New total_prizes_committed: {} USDC lamports",
-        lottery_state.total_prizes_committed
-    );
+    msg!("  New reserve balance: {} USDC lamports", lottery_state.reserve_balance);
+    msg!("  New total_prizes_committed: {} USDC lamports", lottery_state.total_prizes_committed);
 
     Ok(())
 }

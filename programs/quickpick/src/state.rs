@@ -474,9 +474,7 @@ impl QuickPickDrawResult {
         let match_3_total =
             (self.match_3_winners as u64).saturating_mul(self.match_3_prize_per_winner);
 
-        match_5_total
-            .saturating_add(match_4_total)
-            .saturating_add(match_3_total)
+        match_5_total.saturating_add(match_4_total).saturating_add(match_3_total)
     }
 
     /// Get total number of winners across all tiers
@@ -505,9 +503,7 @@ pub struct QuickPickWinnerCounts {
 impl QuickPickWinnerCounts {
     /// Get total winner count
     pub fn total(&self) -> u32 {
-        self.match_5
-            .saturating_add(self.match_4)
-            .saturating_add(self.match_3)
+        self.match_5.saturating_add(self.match_4).saturating_add(self.match_3)
     }
 
     /// Validate winner counts don't exceed total tickets
@@ -588,6 +584,36 @@ impl UserStats {
 ///
 /// This structure is used to verify authority for Quick Pick operations.
 /// The actual LotteryState account is owned by the main lottery program.
+///
+/// ## ⚠️  CRITICAL — CROSS-PROGRAM DESERIALIZATION RISK
+///
+/// This struct is a **partial mirror** of the main lottery program's
+/// `LotteryState`. Anchor deserializes ALL fields when this account is
+/// loaded, so any field addition/removal/reordering in the main program
+/// WILL silently corrupt deserialization here.
+///
+/// **Fields actually accessed by quickpick:**
+/// - `authority` — used for authority constraint checks
+/// - `bump` — used for PDA seed derivation
+///
+/// **Mitigation:**
+/// 1. Never reorder or remove existing fields in the main LotteryState.
+/// 2. Only add new fields at the END of the struct.
+/// 3. Update this shadow struct when the main struct changes.
+/// 4. A cross-program test should verify deserialization correctness.
+///
+/// **Known gaps vs main LotteryState:**
+/// - Missing: `fixed_prize_balance`, `total_prizes_committed`,
+///   `is_awaiting_finalization`, `version`, `config_timelock_end`,
+///   `pending_config_hash`, `emergency_transfer_total`,
+///   `emergency_transfer_window_start`, `max_rolldown_tickets`
+/// - `current_randomness_account` is Option<Pubkey> here but plain
+///   Pubkey in main — this is safe because the authority field we
+///   actually read comes before it in the struct layout
+///
+/// TODO: Replace this with a proper cross-program type import when
+/// Anchor supports it, or use raw AccountInfo with manual offset reads
+/// to eliminate the deserialization dependency entirely.
 #[account]
 pub struct LotteryState {
     /// Authority (owner) of the lottery
@@ -675,30 +701,21 @@ mod tests {
 
     #[test]
     fn test_quick_pick_ticket_calculate_matches_full() {
-        let ticket = QuickPickTicket {
-            numbers: [1, 2, 3, 4, 5],
-            ..Default::default()
-        };
+        let ticket = QuickPickTicket { numbers: [1, 2, 3, 4, 5], ..Default::default() };
         let winning = [1, 2, 3, 4, 5];
         assert_eq!(ticket.calculate_matches(&winning), 5);
     }
 
     #[test]
     fn test_quick_pick_ticket_calculate_matches_none() {
-        let ticket = QuickPickTicket {
-            numbers: [1, 2, 3, 4, 5],
-            ..Default::default()
-        };
+        let ticket = QuickPickTicket { numbers: [1, 2, 3, 4, 5], ..Default::default() };
         let winning = [6, 7, 8, 9, 10];
         assert_eq!(ticket.calculate_matches(&winning), 0);
     }
 
     #[test]
     fn test_quick_pick_ticket_calculate_matches_partial() {
-        let ticket = QuickPickTicket {
-            numbers: [1, 2, 3, 4, 5],
-            ..Default::default()
-        };
+        let ticket = QuickPickTicket { numbers: [1, 2, 3, 4, 5], ..Default::default() };
         let winning = [1, 2, 3, 10, 20];
         assert_eq!(ticket.calculate_matches(&winning), 3);
     }
@@ -730,11 +747,7 @@ mod tests {
 
     #[test]
     fn test_winner_counts_validate() {
-        let counts = QuickPickWinnerCounts {
-            match_5: 1,
-            match_4: 10,
-            match_3: 100,
-        };
+        let counts = QuickPickWinnerCounts { match_5: 1, match_4: 10, match_3: 100 };
 
         assert!(counts.validate(1000));
         assert!(counts.validate(111));
