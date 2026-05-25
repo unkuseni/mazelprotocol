@@ -1,0 +1,31 @@
+[package]
+name = "mazelprotocol-customer-bot"
+version = "1.0.0"
+edition = "2021"
+description = "Customer-facing Telegram bot for MazelProtocol — Rust edition. Check jackpots, results, generate Quick Picks, wallet guidance, and more."
+license = "MIT"
+
+[[bin]]
+name = "mazelprotocol-customer-bot"
+path = "src/main.rs"
+
+[dependencies]
+solana-client = "2.2"
+solana-sdk = "2.2"
+anchor-lang = "0.32"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+clap = { version = "4", features = ["derive", "env"] }
+thiserror = "2"
+anyhow = "1"
+chrono = "0.4"
+rand = "0.8"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1

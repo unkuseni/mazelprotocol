@@ -1,0 +1,202 @@
+//! Command handlers for the customer bot.
+
+use crate::config::BotConfig;
+use crate::solana::{self, Solana};
+use crate::store::Store;
+use std::sync::Arc;
+
+/// Route a command to its handler and return the reply text.
+pub async fn handle(
+    text: &str,
+    uid: u64,
+    username: &str,
+    chat_id: i64,
+    solana: &Arc<Solana>,
+    store: &Arc<Store>,
+    cfg: &BotConfig,
+) -> String {
+    if !text.starts_with('/') {
+        if chat_id > 0 {
+            return format!("👋 Hi {username}! I'm the MazelProtocol bot.\n\n💳 Register and buy tickets:\n/register <address> — Link your wallet\n/help — All commands");
+        }
+        return String::new();
+    }
+
+    let parts: Vec<&str> = text[1..].split_whitespace().collect();
+    let cmd = parts.first().map(|c| c.split('@').next().unwrap_or(c)).unwrap_or("").to_lowercase();
+    let args: Vec<&str> = parts.iter().skip(1).copied().collect();
+
+    match cmd.as_str() {
+        "start" => format!("👋 Welcome to <b>MazelProtocol</b>, {username}!\n\n🎰 <b>Main Lottery</b> (6/46) — Draws every 24h\n⚡ <b>Quick Pick</b> (5/35) — Draws every 5 min\n\nCommands:\n/jackpot — View jackpots\n/quickpick — Generate numbers\n/draw — Latest results\n/register — Link wallet\n/help — All commands"),
+        "help" => help(),
+        "jackpot" | "jp" => jackpot(solana).await,
+        "draw" | "results" => draw(solana, &args).await,
+        "quickpick" | "qp" => quickpick(&args),
+        "prizes" | "payouts" => prizes(),
+        "rules" | "howto" => rules(),
+        "rolldown" | "ev" => rolldown(),
+        "register" => register(store, uid, username, &args).await,
+        "balance" | "bal" => balance(store, uid, solana).await,
+        "stats" | "mystats" => stats(solana, store, uid).await,
+        "wallet" | "fund" => wallet(cfg, store, uid).await,
+        _ => format!("❓ Unknown command: /{cmd}\nType /help to see all commands."),
+    }
+}
+
+fn help() -> String {
+    concat!(
+        "<b>🎰 MazelProtocol Commands</b>\n\n",
+        "/jackpot — View current jackpots\n",
+        "/draw [id] — Latest draw results\n",
+        "/quickpick [count] — Generate Quick Pick numbers\n",
+        "/prizes — Prize tiers & payouts\n",
+        "/rules — How to play\n",
+        "/rolldown — Rolldown system explained\n",
+        "/register <address> — Link your wallet\n",
+        "/balance — Check your balance\n",
+        "/stats — Your stats\n",
+        "/wallet — Deposit info\n",
+        "/help — This menu"
+    )
+    .to_string()
+}
+
+async fn jackpot(solana: &Solana) -> String {
+    match solana.fetch_main_state() {
+        Ok(s) => {
+            let draw_id = s.current_draw_id;
+            let status = if s.is_paused {
+                "⏸ Paused"
+            } else if s.is_draw_in_progress {
+                "🔒 Draw in progress"
+            } else {
+                "🟢 Open"
+            };
+            format!(
+                "<b>🎰 Main Lottery (6/46)</b>\n\nDraw #{draw_id}\nTickets sold: {}\nStatus: {status}\n\nUse /quickpick to get random numbers!",
+                s.current_draw_tickets
+            )
+        }
+        Err(e) => format!("❌ Error: {e}"),
+    }
+}
+
+async fn draw(solana: &Solana, args: &[&str]) -> String {
+    match solana.fetch_main_state() {
+        Ok(s) => {
+            let did = args
+                .first()
+                .and_then(|a| a.parse().ok())
+                .unwrap_or(s.current_draw_id.saturating_sub(1));
+            match solana.fetch_main_draw(did) {
+                Ok(Some(dr)) => {
+                    let nums: Vec<String> =
+                        dr.winning_numbers[..6].iter().map(|n| n.to_string()).collect();
+                    let rd = if dr.was_rolldown { " 🎰 ROLLDOWN!" } else { "" };
+                    format!(
+                        "<b>Main Lottery Draw #{did}{rd}</b>\n\n🎯 Numbers: <code>{nums}</code>\n👥 Tickets: {}\n\n🏆 Winners:\nMatch 6: {} → {}\nMatch 5: {} → {}\nMatch 4: {} → {}\nMatch 3: {} → {}",
+                        nums = nums.join(", "),
+                        dr.total_tickets,
+                        dr.match6_win, solana::format_usdc(dr.m6_prize),
+                        dr.match5_win, solana::format_usdc(dr.m5_prize),
+                        dr.match4_win, solana::format_usdc(dr.m4_prize),
+                        dr.match3_win, solana::format_usdc(dr.m3_prize),
+                    )
+                }
+                Ok(None) => format!("❌ Draw #{did} not found"),
+                Err(e) => format!("❌ Error: {e}"),
+            }
+        }
+        Err(e) => format!("❌ Error: {e}"),
+    }
+}
+
+fn quickpick(args: &[&str]) -> String {
+    use rand::seq::SliceRandom;
+    let count: usize = args.first().and_then(|a| a.parse().ok()).unwrap_or(1).min(10);
+    let mut rng = rand::thread_rng();
+    let mut result = "<b>🎲 Quick Pick Numbers</b>\n\n".to_string();
+    for i in 0..count {
+        let mut pool: Vec<u8> = (1..=46).collect();
+        pool.shuffle(&mut rng);
+        let mut nums: Vec<u8> = pool[..6].to_vec();
+        nums.sort();
+        let s: Vec<String> = nums.iter().map(|n| format!("{:02}", n)).collect();
+        result.push_str(&format!("Ticket {}: <code>{}</code>\n", i + 1, s.join(" ")));
+    }
+    result.push_str("\n💡 Save these numbers and buy tickets with /register!");
+    result
+}
+
+fn prizes() -> String {
+    "<b>🏆 Main Lottery (6/46) Prizes</b>\n\nMatch 6: Jackpot (starts at $500K)\nMatch 5: $4,000 each\nMatch 4: $150 each\nMatch 3: $5 each\nMatch 2: Free ticket ($2.50 value)\n\n<b>⚡ Quick Pick (5/35) Prizes</b>\n\nMatch 5: Jackpot\nMatch 4: $100 each\nMatch 3: $4 each\n\n<b>Rolldown:</b> If no Match 6, jackpot rolls down to lower tiers!".to_string()
+}
+
+fn rules() -> String {
+    "<b>📖 How to Play</b>\n\n1️⃣ Pick 6 numbers from 1–46 (or use /quickpick)\n2️⃣ Buy tickets before cutoff (1h before draw)\n3️⃣ Draws run every 24h for Main, every 5min for QP\n4️⃣ Match numbers to win prizes\n5️⃣ Rolldown: Unwon jackpots roll down to lower tiers\n\n🎯 The more you match, the more you win!\n🔐 Fully on-chain, provably fair via Switchboard VRF.".to_string()
+}
+
+fn rolldown() -> String {
+    "<b>🎰 Rolldown System</b>\n\nWhen nobody matches all 6 numbers, the jackpot doesn't sit idle — it <b>rolls down</b> to lower prize tiers!\n\nMatch 5: +25% of jackpot\nMatch 4: +35% of jackpot\nMatch 3: +40% of jackpot\n\nThis creates predictable <b>+EV windows</b> when the jackpot is large. Check /jackpot to see current EV!\n\n📊 Rolldown is triggered automatically after each draw with no jackpot winner.".to_string()
+}
+
+async fn register(store: &Store, uid: u64, username: &str, args: &[&str]) -> String {
+    let wallet = match args.first() {
+        Some(w) if w.len() >= 32 => *w,
+        _ => return "❌ Usage: /register <SOLANA_WALLET_ADDRESS>\n\nExample: /register 7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF".to_string(),
+    };
+    match store.register_user(uid, username, wallet) {
+        Ok(rec) => format!(
+            "✅ Registered!\n\nWallet: <code>{}</code>\nUser: {}\n\nUse /balance to check funds.",
+            rec.wallet_address, rec.username
+        ),
+        Err(e) => format!("❌ Error: {e}"),
+    }
+}
+
+async fn balance(store: &Store, uid: u64, solana: &Solana) -> String {
+    match store.get_user(uid) {
+        Some(u) => {
+            match solana.fetch_main_state() {
+                Ok(s) => format!(
+                    "<b>💰 Your Account</b>\n\nWallet: <code>{}</code>\nCurrent Draw: #{}\nTickets this draw: {}\n\nUse /quickpick to get numbers,\nthen buy tickets on the dApp!",
+                    &u.wallet_address[..12], s.current_draw_id, s.current_draw_tickets
+                ),
+                Err(e) => format!("❌ Error fetching state: {e}"),
+            }
+        }
+        None => "❌ Not registered. Use /register <SOLANA_WALLET_ADDRESS> first.".to_string(),
+    }
+}
+
+async fn stats(solana: &Solana, store: &Store, uid: u64) -> String {
+    let user = store.get_user(uid);
+    match solana.fetch_main_state() {
+        Ok(s) => {
+            let did = s.current_draw_id;
+            let reg = user
+                .map(|u| {
+                    format!(
+                        "\nWallet: <code>{}</code>\nRegistered: {}",
+                        &u.wallet_address[..12],
+                        &u.registered_at[..10]
+                    )
+                })
+                .unwrap_or_default();
+            format!(
+                "<b>📊 Lottery Info</b>\n\nCurrent Draw: #{did}\nTickets Sold: {}\nStatus: {}{reg}\n\nUse /draw to see latest results!",
+                s.current_draw_tickets,
+                if s.is_paused { "Paused" } else if s.is_draw_in_progress { "In Progress" } else { "Open" },
+            )
+        }
+        Err(e) => format!("❌ Error: {e}"),
+    }
+}
+
+async fn wallet(cfg: &BotConfig, store: &Store, uid: u64) -> String {
+    let user = store.get_user(uid);
+    let addr = user.map(|u| u.wallet_address).unwrap_or_else(|| "Not registered".to_string());
+    format!(
+        "<b>💳 Wallet</b>\n\nYour wallet: <code>{addr}</code>\n\nTo deposit USDC, send to your wallet address above.\nThe bot will track your balance.\n\nUse /register to link a different wallet."
+    )
+}

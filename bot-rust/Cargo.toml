@@ -1,0 +1,61 @@
+[package]
+name = "mazelprotocol-draw-bot"
+version = "2.0.0"
+edition = "2021"
+description = "Draw lifecycle bot for MazelProtocol — Rust edition. Handles commit, execute, index, and finalize phases for both Main Lottery and Quick Pick Express."
+license = "MIT"
+
+[[bin]]
+name = "mazelprotocol-draw-bot"
+path = "src/main.rs"
+
+[dependencies]
+# Solana SDK
+solana-client = "2.2"
+solana-sdk = "2.2"
+solana-program = "2.2"
+solana-account-decoder = "2.2"
+
+# Anchor — for account deserialization
+anchor-lang = "0.32"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP client for Telegram API
+reqwest = { version = "0.12", features = ["json"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+
+# Cryptography
+sha2 = "0.10"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Time
+chrono = "0.4"
+
+# UUID for nonces
+uuid = { version = "1", features = ["v4"] }
+
+# Cron scheduling
+tokio-cron-scheduler = "0.13"
+
+[dev-dependencies]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+overflow-checks = true
