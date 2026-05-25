@@ -14,5 +14,13 @@
   },
   "site": {
     "bucket": "./dist"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "CHAT_DB",
+      "database_name": "mazel-chat",
+      "database_id": "your-database-id-here"
+    }
+  ],
+  "pages_build_output_dir": "./dist"
 }

@@ -8,7 +8,11 @@
     "serve": "vite preview",
     "test": "vitest run",
     "deploy": "pnpm run build && wrangler deploy",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "db:create": "npx wrangler d1 create mazel-chat",
+    "db:migrate": "npx wrangler d1 execute mazel-chat --file=./db/schema.sql",
+    "db:seed": "npx wrangler d1 execute mazel-chat --file=./db/seed.sql",
+    "db:setup": "pnpm run db:migrate && pnpm run db:seed"
   },
   "dependencies": {
     "@biomejs/biome": "^2.3.14",
