@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   TrendingUp,
   ChevronRight,
+  ChevronDown,
   Zap,
   Trophy,
   Target,
@@ -485,6 +487,8 @@ function RolldownDistributionDiagram() {
 /* -------------------------------------------------------------------------- */
 
 export default function WhitepaperPage() {
+  const [tocOpen, setTocOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       {/* ================================================================ */}
@@ -494,9 +498,9 @@ export default function WhitepaperPage() {
         <div className="absolute inset-0 hero-grid opacity-30" />
         <div className="absolute inset-0 bg-glow-emerald opacity-20" />
         <div className="absolute inset-0 bg-glow-bottom-right opacity-15" />
-        <FloatingBalls count={6} />
+        <FloatingBalls count={6} className="hidden sm:block" />
 
-        <div className="relative z-10 max-w-4xl mx-auto">
+        <div className="relative z-10 max-w-7xl mx-auto">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-8">
             <Link to="/" className="hover:text-foreground transition-colors">
@@ -553,8 +557,8 @@ export default function WhitepaperPage() {
       {/* ================================================================ */}
       {/*  ABSTRACT + TOC                                                  */}
       {/* ================================================================ */}
-      <section className="relative px-4 sm:px-6 lg:px-8 pb-12">
-        <div className="max-w-4xl mx-auto">
+      <section className="relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {/* Abstract */}
           <div className="glass rounded-2xl p-5 sm:p-6 mb-8">
             <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
@@ -576,12 +580,26 @@ export default function WhitepaperPage() {
           </div>
 
           {/* Table of Contents */}
-          <div className="glass rounded-2xl p-5 sm:p-6">
-            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-              <Layers size={14} className="text-emerald" />
-              Table of Contents
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+          <div className="glass rounded-2xl p-4 sm:p-6 lg:p-8">
+            <button
+              type="button"
+              onClick={() => setTocOpen(!tocOpen)}
+              className="w-full flex items-center justify-between gap-2 text-sm font-bold text-foreground mb-0 sm:mb-4 sm:cursor-default"
+              aria-expanded={tocOpen}
+            >
+              <span className="flex items-center gap-2">
+                <Layers size={14} className="text-emerald" />
+                Table of Contents
+              </span>
+              <ChevronDown
+                size={16}
+                className={`text-muted-foreground transition-transform duration-200 sm:hidden ${tocOpen ? "rotate-180" : ""
+                  }`}
+              />
+            </button>
+            <div
+              className={`grid grid-cols-1 md:grid-cols-2 gap-1 ${tocOpen ? "" : "hidden"} sm:grid`}
+            >
               <TocItem number="1" title="Introduction" icon={Gem} />
               <TocItem
                 number="2"
@@ -624,8 +642,8 @@ export default function WhitepaperPage() {
       {/* ================================================================ */}
       {/*  CONTENT                                                         */}
       {/* ================================================================ */}
-      <section className="relative px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="max-w-4xl mx-auto space-y-16">
+      <section className="relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-16">
           {/* ------------------------------------------------------------ */}
           {/*  Section 1: Introduction                                      */}
           {/* ------------------------------------------------------------ */}

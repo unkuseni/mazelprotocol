@@ -390,7 +390,7 @@ function SyndicateInfoPanel({
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-lg font-black text-foreground">
+              <h2 className="text-base sm:text-lg font-black text-foreground">
                 {syndicate.name}
               </h2>
               {syndicate.isPublic ? (
@@ -627,7 +627,7 @@ function NotConnectedView() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-foreground/4 border border-foreground/6 mb-6">
             <Users size={28} className="text-muted-foreground" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-3">
+          <h1 className="text-xl sm:text-3xl font-black text-foreground mb-3">
             Connect to View Syndicate
           </h1>
           <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto">
@@ -636,7 +636,7 @@ function NotConnectedView() {
           </p>
           <Button
             onClick={() => open()}
-            className="h-12 px-8 text-sm font-bold bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-xl shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full sm:w-auto h-12 px-8 text-sm font-bold bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-xl shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
           >
             <Wallet size={18} />
             Connect Wallet
@@ -660,7 +660,7 @@ function SyndicateNotFound() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-foreground/4 border border-foreground/6 mb-6">
             <Shield size={28} className="text-muted-foreground" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-3">
+          <h1 className="text-xl sm:text-3xl font-black text-foreground mb-3">
             Syndicate Not Found
           </h1>
           <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto">
@@ -669,7 +669,7 @@ function SyndicateNotFound() {
           </p>
           <Link
             to="/syndicates"
-            className="inline-flex items-center gap-2 h-11 px-6 text-sm font-bold bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-lg shadow-emerald/20 transition-all"
+            className="inline-flex items-center gap-2 w-full sm:w-auto justify-center h-11 px-6 text-sm font-bold bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-lg shadow-emerald/20 transition-all"
           >
             <ChevronLeft size={16} />
             Browse Syndicates
@@ -728,13 +728,13 @@ export default function SyndicateDetailPage() {
       {/* ================================================================ */}
       {/*  Top Navigation                                                   */}
       {/* ================================================================ */}
-      <section className="relative pt-20 sm:pt-24 px-4 sm:px-6 lg:px-8">
+      <section className="relative pt-20 sm:pt-24 pb-4 sm:pb-6 px-4 sm:px-6 lg:px-8">
         <div className="absolute inset-0 hero-grid opacity-20" />
         <div className="absolute inset-0 bg-glow-emerald opacity-10" />
 
         <div className="relative z-10 max-w-7xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+          <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-3 sm:mb-4 overflow-x-auto whitespace-nowrap pb-1">
             <Link to="/" className="hover:text-foreground transition-colors">
               Home
             </Link>
@@ -756,13 +756,13 @@ export default function SyndicateDetailPage() {
       {/* ================================================================ */}
       {/*  Main Content                                                     */}
       {/* ================================================================ */}
-      <section className="relative flex-1 px-4 sm:px-6 lg:px-8 pb-6">
+      <section className="relative flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="relative z-10 max-w-7xl mx-auto">
-          <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
             {/* ========================================================== */}
             {/*  Left Column: Info + Stats                                  */}
             {/* ========================================================== */}
-            <div className="lg:w-80 xl:w-96 shrink-0 space-y-4">
+            <div className="w-full lg:w-80 xl:w-96 shrink-0 space-y-4">
               {/* Syndicate Info */}
               <SyndicateInfoPanel
                 syndicate={syndicate}
@@ -772,7 +772,7 @@ export default function SyndicateDetailPage() {
               />
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2 sm:gap-3">
                 <StatCard
                   label="Total Winnings"
                   value={`$${syndicate.totalWinnings.toLocaleString()}`}
@@ -826,8 +826,8 @@ export default function SyndicateDetailPage() {
             {/* ========================================================== */}
             {/*  Right Column: Chat                                         */}
             {/* ========================================================== */}
-            <div className="flex-1 min-w-0">
-              <div className="glass rounded-2xl overflow-hidden h-[calc(100vh-10rem)] min-h-125">
+            <div className="flex-1 min-w-0 w-full">
+              <div className="glass rounded-2xl overflow-hidden h-[calc(100vh-10rem)] min-h-80 sm:min-h-125">
                 {isMember ? (
                   <SyndicateChat
                     syndicateId={syndicate.id}
@@ -852,7 +852,7 @@ export default function SyndicateDetailPage() {
                       syndicate.members < syndicate.maxMembers && (
                         <Button
                           onClick={handleJoin}
-                          className="h-10 px-6 text-xs font-bold bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-lg shadow-emerald/20"
+                          className="w-full sm:w-auto h-10 px-6 text-xs font-bold bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-lg shadow-emerald/20"
                         >
                           <Users size={14} />
                           Join to Chat
@@ -866,7 +866,6 @@ export default function SyndicateDetailPage() {
         </div>
       </section>
 
-      <Footer />
     </div>
   );
 }

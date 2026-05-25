@@ -536,7 +536,7 @@ function ProtocolStats() {
     ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
       {items.map((item) => {
         const Icon = item.icon;
         return (
@@ -607,10 +607,10 @@ function DrawCard({
           <div className="flex-1 min-w-0">
             {/* Header badges */}
             <div className="flex items-center gap-2 flex-wrap mb-2.5">
-              <span className="text-sm font-bold text-foreground">
+              <span className="text-sm font-bold text-foreground truncate max-w-30 sm:max-w-none">
                 Draw #{draw.drawId}
               </span>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[10px] text-muted-foreground shrink-0">
                 {formatDate(draw.date)} · {draw.time}
               </span>
 
@@ -641,13 +641,13 @@ function DrawCard({
           </div>
 
           {/* Right: Key stats */}
-          <div className="flex items-center gap-4 sm:gap-6 shrink-0">
+          <div className="flex items-center gap-3 sm:gap-6 shrink-0">
             {/* Jackpot */}
             <div className="text-right">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
+              <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
                 Jackpot
               </div>
-              <div className="text-sm font-black text-gradient-gold tabular-nums">
+              <div className="text-xs sm:text-sm font-black text-gradient-gold tabular-nums truncate max-w-20 sm:max-w-none">
                 {formatCurrency(draw.jackpotAtDraw, true)}
               </div>
             </div>
@@ -720,16 +720,16 @@ function DrawCard({
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-foreground/5">
-                    <th className="text-left py-2 pr-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                    <th className="text-left py-2 pr-2 sm:pr-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
                       Tier
                     </th>
-                    <th className="text-right py-2 px-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                    <th className="text-right py-2 px-2 sm:px-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
                       Winners
                     </th>
-                    <th className="text-right py-2 px-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                      Prize Each
+                    <th className="text-right py-2 px-2 sm:px-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                      Prize
                     </th>
-                    <th className="text-right py-2 pl-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                    <th className="text-right py-2 pl-2 sm:pl-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold hidden sm:table-cell">
                       Total Paid
                     </th>
                   </tr>
@@ -754,8 +754,8 @@ function DrawCard({
                         key={key}
                         className="border-b border-foreground/3 last:border-0"
                       >
-                        <td className="py-2.5 pr-4">
-                          <div className="flex items-center gap-2">
+                        <td className="py-2.5 pr-2 sm:pr-4">
+                          <div className="flex items-center gap-1.5 sm:gap-2">
                             <div
                               className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${tier === "jackpot"
                                 ? "bg-gold/20 text-gold"
@@ -790,7 +790,7 @@ function DrawCard({
                             )}
                           </div>
                         </td>
-                        <td className="py-2.5 px-4 text-right tabular-nums">
+                        <td className="py-2.5 px-2 sm:px-4 text-right tabular-nums">
                           <span
                             className={`font-semibold ${winners > 0
                               ? "text-foreground"
@@ -800,7 +800,7 @@ function DrawCard({
                             {winners.toLocaleString()}
                           </span>
                         </td>
-                        <td className="py-2.5 px-4 text-right tabular-nums">
+                        <td className="py-2.5 px-2 sm:px-4 text-right tabular-nums">
                           {prizeEach > 0 ? (
                             <span
                               className={`font-bold ${tier === "jackpot"
@@ -829,7 +829,7 @@ function DrawCard({
                             <span className="text-muted-foreground/60">—</span>
                           )}
                         </td>
-                        <td className="py-2.5 pl-4 text-right tabular-nums">
+                        <td className="py-2.5 pl-2 sm:pl-4 text-right tabular-nums hidden sm:table-cell">
                           {totalPaid > 0 ? (
                             <span className="font-semibold text-muted-foreground">
                               {formatCurrency(totalPaid, totalPaid >= 10_000)}
@@ -844,14 +844,14 @@ function DrawCard({
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-foreground/6">
-                    <td className="py-2.5 pr-4 text-xs font-bold text-foreground">
+                    <td className="py-2.5 pr-2 sm:pr-4 text-xs font-bold text-foreground">
                       Total
                     </td>
-                    <td className="py-2.5 px-4 text-right text-xs font-bold text-foreground tabular-nums">
+                    <td className="py-2.5 px-2 sm:px-4 text-right text-xs font-bold text-foreground tabular-nums">
                       {totalWinners.toLocaleString()}
                     </td>
-                    <td className="py-2.5 px-4 text-right" />
-                    <td className="py-2.5 pl-4 text-right text-xs font-black text-gradient-gold tabular-nums">
+                    <td className="py-2.5 px-2 sm:px-4 text-right" />
+                    <td className="py-2.5 pl-2 sm:pl-4 text-right text-xs font-black text-gradient-gold tabular-nums hidden sm:table-cell">
                       {formatCurrency(
                         draw.totalPrizesPaid,
                         draw.totalPrizesPaid >= 10_000,
@@ -948,7 +948,7 @@ function RolldownHistory({ draws }: { draws?: DrawResult[] }) {
   return (
     <div className="glass-strong rounded-2xl p-5 sm:p-6 border-gradient-emerald">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+        <h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
           <TrendingUp size={16} className="text-emerald" />
           Recent Rolldown Events
         </h3>
@@ -957,7 +957,7 @@ function RolldownHistory({ draws }: { draws?: DrawResult[] }) {
         </span>
       </div>
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {rolldownDraws.map((draw) => {
           const isMain = draw.gameType === "main";
           return (
@@ -1057,7 +1057,7 @@ function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="flex items-center justify-center gap-1 sm:gap-2">
       <Button
         variant="ghost"
         size="icon-sm"
@@ -1068,19 +1068,27 @@ function Pagination({
         <ArrowLeft size={14} />
       </Button>
 
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-        <button
-          key={page}
-          type="button"
-          onClick={() => onPageChange(page)}
-          className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${page === currentPage
-            ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-            : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-            }`}
-        >
-          {page}
-        </button>
-      ))}
+      {/* Mobile: current page indicator */}
+      <span className="sm:hidden text-xs font-semibold text-emerald-light px-2">
+        {currentPage} / {totalPages}
+      </span>
+
+      {/* Desktop: all page buttons */}
+      <div className="hidden sm:flex items-center gap-2">
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+          <button
+            key={page}
+            type="button"
+            onClick={() => onPageChange(page)}
+            className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${page === currentPage
+              ? "bg-emerald/15 text-emerald-light border border-emerald/20"
+              : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+              }`}
+          >
+            {page}
+          </button>
+        ))}
+      </div>
 
       <Button
         variant="ghost"
@@ -1185,7 +1193,7 @@ export default function ResultsPage() {
         <div className="absolute inset-0 bg-glow-emerald opacity-15" />
         <FloatingBalls count={4} />
 
-        <div className="relative z-10 max-w-7xl mx-auto">
+        <div className="relative z-10 max-w-7xl mx-auto py-6 sm:py-8">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
             <Link to="/" className="hover:text-foreground transition-colors">
@@ -1226,7 +1234,7 @@ export default function ResultsPage() {
               {isConnected ? (
                 <Link
                   to="/tickets"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
                 >
                   <Ticket size={16} />
                   Check My Tickets
@@ -1235,7 +1243,7 @@ export default function ResultsPage() {
                 <button
                   type="button"
                   onClick={() => open({ view: "Connect", namespace: "solana" })}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
                 >
                   <Wallet size={16} />
                   Connect to Check Tickets
@@ -1250,7 +1258,7 @@ export default function ResultsPage() {
       {/*  MAIN CONTENT                                                    */}
       {/* ================================================================ */}
       <section className="relative px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto py-6 sm:py-8 space-y-6">
           {/* Protocol Stats */}
           <ProtocolStats />
 
@@ -1261,7 +1269,7 @@ export default function ResultsPage() {
               {/* Filters */}
               <div className="glass rounded-2xl p-4 sm:p-5 space-y-3">
                 {/* Search + Game filter */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
                   <div className="relative flex-1 w-full">
                     <Search
                       size={14}
@@ -1413,7 +1421,7 @@ export default function ResultsPage() {
                     }}
                     variant="outline"
                     size="sm"
-                    className="text-xs border-emerald/20 text-emerald-light hover:bg-emerald/5"
+                    className="w-full sm:w-auto text-xs border-emerald/20 text-emerald-light hover:bg-emerald/5"
                   >
                     Clear Filters
                   </Button>
@@ -1450,7 +1458,7 @@ export default function ResultsPage() {
 
               {/* How to Read Results */}
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
+                <h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2 mb-4">
                   <Eye size={16} className="text-emerald" />
                   Understanding Results
                 </h3>
@@ -1604,7 +1612,6 @@ export default function ResultsPage() {
         </div>
       </section>
 
-      <Footer />
     </div>
   );
 }

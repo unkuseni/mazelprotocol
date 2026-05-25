@@ -95,7 +95,7 @@ function NumberGrid({ selected, onToggle, disabled }: NumberGridProps) {
             disabled={disabled || isFull}
             onClick={() => onToggle(num)}
             className={`
-              relative aspect-square rounded-xl flex items-center justify-center
+              relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center
               text-sm sm:text-base font-bold transition-all duration-200
               select-none cursor-pointer
               ${isSelected
@@ -174,7 +174,7 @@ function GateLockedOverlay({ lifetimeSpend }: { lifetimeSpend: number }) {
   const progress = Math.min((lifetimeSpend / LIFETIME_GATE) * 100, 100);
 
   return (
-    <div className="relative glass-strong rounded-2xl p-8 sm:p-12 text-center border border-gold/20 overflow-hidden">
+    <div className="relative glass-strong rounded-2xl p-6 sm:p-8 lg:p-12 text-center border border-gold/20 overflow-hidden mx-auto max-w-lg">
       {/* Background */}
       <div className="absolute inset-0 bg-glow-gold opacity-10" />
 
@@ -183,10 +183,10 @@ function GateLockedOverlay({ lifetimeSpend }: { lifetimeSpend: number }) {
           <Lock size={28} className="text-gold" />
         </div>
 
-        <h2 className="text-xl sm:text-2xl font-black text-foreground mb-2">
+        <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-foreground mb-2">
           Quick Pick Express Locked
         </h2>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
+        <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6 px-4">
           You need to spend at least{" "}
           <span className="font-bold text-gold">${LIFETIME_GATE}</span> in the
           main 6/46 lottery to unlock Quick Pick Express.
@@ -346,7 +346,7 @@ export default function PlayQuickPickExpress() {
                   <Zap size={24} className="text-emerald-light" />
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-black tracking-tight text-foreground">
                     Quick Pick Express
                     <span className="ml-2 text-sm font-bold text-gold bg-gold/10 px-2 py-0.5 rounded-full border border-gold/20 align-middle">
                       5/35
@@ -401,7 +401,7 @@ export default function PlayQuickPickExpress() {
             </div>
 
             {/* Jackpot & Countdown */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6 max-md:mx-auto">
               <JackpotDisplay
                 amount={mockJackpot}
                 size="sm"
@@ -422,15 +422,15 @@ export default function PlayQuickPickExpress() {
       {/*  MAIN CONTENT                                                    */}
       {/* ================================================================ */}
       <section className="relative px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto px-0 py-4 sm:py-6">
           {!isUnlocked ? (
             <GateLockedOverlay lifetimeSpend={mockLifetimeSpend} />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
               {/* ------------------------------------------------------ */}
               {/*  LEFT: Number Picker + Ticket Builder                  */}
               {/* ------------------------------------------------------ */}
-              <div className="lg:col-span-2 space-y-6">
+              <div className="flex-1 min-w-0 space-y-6">
                 {/* +EV Alert Banner */}
                 {rolldownActive && (
                   <div className="relative glass rounded-xl p-4 border border-emerald/20 overflow-hidden">
@@ -461,7 +461,7 @@ export default function PlayQuickPickExpress() {
                 <div className="glass rounded-2xl p-5 sm:p-6">
                   <div className="flex items-center justify-between mb-5">
                     <div>
-                      <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                      <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
                         <Star size={18} className="text-gold" />
                         Pick Your Numbers
                       </h2>
@@ -515,7 +515,7 @@ export default function PlayQuickPickExpress() {
                         selectedNumbers.size !== PICK_COUNT ||
                         tickets.length >= MAX_TICKETS
                       }
-                      className="bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/20 disabled:opacity-40 disabled:shadow-none transition-all"
+                      className="w-full lg:w-auto bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/20 disabled:opacity-40 disabled:shadow-none transition-all"
                       size="lg"
                     >
                       <Plus size={16} />
@@ -527,7 +527,7 @@ export default function PlayQuickPickExpress() {
                       disabled={selectedNumbers.size === 0}
                       variant="ghost"
                       size="lg"
-                      className="text-muted-foreground hover:text-foreground"
+                      className="w-full lg:w-auto text-muted-foreground hover:text-foreground"
                     >
                       <RotateCcw size={14} />
                       Clear
@@ -540,7 +540,7 @@ export default function PlayQuickPickExpress() {
                       disabled={tickets.length >= MAX_TICKETS}
                       variant="outline"
                       size="lg"
-                      className="border-emerald/20 hover:border-emerald/40 hover:bg-emerald/5 text-emerald-light"
+                      className="w-full lg:w-auto border-emerald/20 hover:border-emerald/40 hover:bg-emerald/5 text-emerald-light"
                     >
                       <Shuffle size={14} />
                       Quick Pick
@@ -551,7 +551,7 @@ export default function PlayQuickPickExpress() {
                       disabled={tickets.length >= MAX_TICKETS - 4}
                       variant="outline"
                       size="lg"
-                      className="border-emerald/20 hover:border-emerald/40 hover:bg-emerald/5 text-emerald-light"
+                      className="w-full lg:w-auto border-emerald/20 hover:border-emerald/40 hover:bg-emerald/5 text-emerald-light"
                     >
                       <Zap size={14} />
                       Quick Pick ×5
@@ -581,7 +581,7 @@ export default function PlayQuickPickExpress() {
                 {/* Tickets List */}
                 <div className="glass rounded-2xl p-5 sm:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
                       <ShoppingCart size={18} className="text-emerald" />
                       Your Tickets
                       {tickets.length > 0 && (
@@ -642,7 +642,7 @@ export default function PlayQuickPickExpress() {
               {/* ------------------------------------------------------ */}
               {/*  RIGHT: Cart + Prize Info                               */}
               {/* ------------------------------------------------------ */}
-              <div className="space-y-6">
+              <div className="lg:w-80 xl:w-96 shrink-0 space-y-6">
                 <div className="lg:sticky lg:top-20">
                   {/* Cart */}
                   <div className="glass-strong rounded-2xl p-5 sm:p-6 border-gradient-emerald">
@@ -742,9 +742,9 @@ export default function PlayQuickPickExpress() {
                       ].map((row) => (
                         <div
                           key={row.label}
-                          className="flex items-center justify-between text-[11px]"
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-[11px] gap-1"
                         >
-                          <span className="text-muted-foreground">
+                          <span className="text-muted-foreground shrink-0">
                             {row.label}
                           </span>
                           <div className="flex items-center gap-3">
@@ -780,44 +780,46 @@ export default function PlayQuickPickExpress() {
                     </button>
 
                     {showPrizeInfo && (
-                      <div className="mt-4 space-y-2">
-                        {PRIZE_TIERS.map((tier) => (
-                          <div
-                            key={tier.match}
-                            className="flex items-center justify-between py-2 px-3 rounded-lg bg-foreground/2"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${tier.color === "gold"
-                                  ? "bg-gold/20 text-gold"
-                                  : tier.color === "emerald"
-                                    ? "bg-emerald/20 text-emerald-light"
-                                    : "bg-foreground/5 text-muted-foreground"
-                                  }`}
-                              >
-                                {tier.match}
+                      <div className="mt-4 overflow-x-auto pb-1 -mx-1 px-1">
+                        <div className="flex lg:block gap-2 min-w-max">
+                          {PRIZE_TIERS.map((tier) => (
+                            <div
+                              key={tier.match}
+                              className="flex items-center justify-between py-2 px-3 rounded-lg bg-foreground/2 shrink-0"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${tier.color === "gold"
+                                    ? "bg-gold/20 text-gold"
+                                    : tier.color === "emerald"
+                                      ? "bg-emerald/20 text-emerald-light"
+                                      : "bg-foreground/5 text-muted-foreground"
+                                    }`}
+                                >
+                                  {tier.match}
+                                </div>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  Match {tier.match}
+                                </span>
                               </div>
-                              <span className="text-xs text-muted-foreground">
-                                Match {tier.match}
-                              </span>
-                            </div>
-                            <div className="text-right">
-                              <span
-                                className={`text-xs font-bold ${tier.color === "gold"
-                                  ? "text-gold"
-                                  : tier.color === "emerald"
-                                    ? "text-emerald-light"
-                                    : "text-muted-foreground"
-                                  }`}
-                              >
-                                {tier.prize}
-                              </span>
-                              <div className="text-[9px] text-muted-foreground/60">
-                                {tier.odds}
+                              <div className="text-right ml-4">
+                                <span
+                                  className={`text-xs font-bold whitespace-nowrap ${tier.color === "gold"
+                                    ? "text-gold"
+                                    : tier.color === "emerald"
+                                      ? "text-emerald-light"
+                                      : "text-muted-foreground"
+                                    }`}
+                                >
+                                  {tier.prize}
+                                </span>
+                                <div className="text-[9px] text-muted-foreground/60 whitespace-nowrap">
+                                  {tier.odds}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
 
                         <p className="text-[10px] text-muted-foreground pt-2 border-t border-foreground/5">
                           No prize for Match 2 in Quick Pick Express (unlike the
@@ -853,19 +855,19 @@ export default function PlayQuickPickExpress() {
                             className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-emerald/3 border border-emerald/10"
                           >
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-emerald/20 text-emerald-light">
+                              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-emerald/20 text-emerald-light shrink-0">
                                 {tier.match}
                               </div>
                               <div>
-                                <span className="text-xs text-muted-foreground font-medium">
+                                <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">
                                   Match {tier.match}
                                 </span>
-                                <div className="text-[9px] text-muted-foreground">
+                                <div className="text-[9px] text-muted-foreground whitespace-nowrap">
                                   {tier.share} of jackpot pool
                                 </div>
                               </div>
                             </div>
-                            <span className="text-sm font-bold text-emerald-light">
+                            <span className="text-sm font-bold text-emerald-light whitespace-nowrap ml-4">
                               {tier.estimate}*
                             </span>
                           </div>
@@ -941,8 +943,6 @@ export default function PlayQuickPickExpress() {
           )}
         </div>
       </section>
-
-      <Footer />
     </div>
   );
 }
