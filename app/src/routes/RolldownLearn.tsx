@@ -21,7 +21,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { FloatingBalls } from "@/components/LotteryBalls";
-import Footer from "@/components/Footer";
 
 
 
@@ -48,7 +47,7 @@ function SectionHeading({
         {number}
       </div>
       <div>
-        <h2 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">
+        <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-foreground flex items-center gap-2">
           {title}
           <Icon size={20} className="text-emerald/60" />
         </h2>
@@ -80,7 +79,7 @@ function FlowStep({
   return (
     <div className="relative">
       <div
-        className={`glass rounded-xl p-4 sm:p-5 transition-all ${highlight ? "border-emerald/20 shadow-sm shadow-emerald/5" : ""
+        className={`glass rounded-xl p-4 sm:p-6 lg:p-8 transition-all ${highlight ? "border-emerald/20 shadow-sm shadow-emerald/5" : ""
           }`}
       >
         <div className="flex items-start gap-3">
@@ -102,7 +101,7 @@ function FlowStep({
                 }
               />
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
               {description}
             </p>
           </div>
@@ -221,7 +220,7 @@ function VisualDiagram() {
         </div>
 
         {/* Distribution split */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* Match 5 */}
           <div className="glass rounded-xl p-3 sm:p-4 text-center border border-gold/10">
             <div className="text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider mb-1">
@@ -299,13 +298,13 @@ function VisualDiagram() {
 
 function QuickPickExpressDiagram() {
   return (
-    <div className="glass rounded-2xl p-4 sm:p-5 lg:p-6 border border-emerald/10">
+    <div className="glass rounded-2xl p-4 sm:p-6 lg:p-8 border border-emerald/10">
       <h4 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
         <Zap size={14} className="text-emerald-light" />
         Quick Pick Express (5/35) Rolldown
       </h4>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
         <div className="p-3 sm:p-4 rounded-xl bg-emerald/3 border border-emerald/10 text-center">
           <div className="text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider mb-1">
             60% → Match 4
@@ -373,8 +372,8 @@ function MathCallout({
         <Target size={12} className="text-gold" />
         {title}
       </div>
-      <div className="p-3 rounded-lg bg-card/50 dark:bg-navy-deep/50 border border-foreground/4 mb-2">
-        <div className="text-xs text-muted-foreground font-mono text-center">
+      <div className="p-3 rounded-lg bg-card/50 dark:bg-navy-deep/50 border border-foreground/4 mb-2 overflow-x-auto">
+        <div className="text-xs text-muted-foreground font-mono text-center whitespace-nowrap min-w-max px-1">
           {formula}
         </div>
       </div>
@@ -402,9 +401,9 @@ export default function LearnRolldownPage() {
         <div className="absolute inset-0 hero-grid opacity-30" />
         <div className="absolute inset-0 bg-glow-emerald opacity-20" />
         <div className="absolute inset-0 bg-glow-bottom-right opacity-15" />
-        <FloatingBalls count={6} />
+        <FloatingBalls count={6} className="hidden sm:block" />
 
-        <div className="relative z-10 max-w-4xl mx-auto">
+        <div className="relative z-10 max-w-7xl mx-auto">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-8">
             <Link to="/" className="hover:text-foreground transition-colors">
@@ -423,7 +422,7 @@ export default function LearnRolldownPage() {
               <TrendingUp size={32} className="text-emerald-light" />
             </div>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-foreground mb-4">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-foreground mb-4">
               How the <span className="text-gradient-primary">Rolldown</span>{" "}
               Works
             </h1>
@@ -464,8 +463,8 @@ export default function LearnRolldownPage() {
       {/* ================================================================ */}
       {/*  CONTENT                                                         */}
       {/* ================================================================ */}
-      <section className="relative px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="max-w-4xl mx-auto space-y-16">
+      <section className="relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-16">
           {/* -------------------------------------------------------------- */}
           {/*  Section 1: The Big Idea                                       */}
           {/* -------------------------------------------------------------- */}
@@ -478,8 +477,8 @@ export default function LearnRolldownPage() {
             />
 
             <div className="space-y-4">
-              <div className="glass rounded-2xl p-5 sm:p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="glass rounded-2xl p-4 sm:p-6 lg:p-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Traditional */}
                   <div>
                     <h3 className="text-sm font-bold text-red-400 mb-3 flex items-center gap-2">
@@ -544,7 +543,7 @@ export default function LearnRolldownPage() {
                     <p className="text-xs font-bold text-gold mb-1">
                       Inspired by Real History
                     </p>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                       MazelProtocol&apos;s rolldown mechanism is inspired by the
                       Massachusetts Cash WinFall lottery (2004–2012), where
                       strategic syndicates discovered that the rolldown created
@@ -637,7 +636,7 @@ export default function LearnRolldownPage() {
 
             <div className="space-y-4">
               {/* EV Comparison */}
-              <div className="glass rounded-2xl p-5 sm:p-6">
+              <div className="glass rounded-2xl p-4 sm:p-6 lg:p-8">
                 <h3 className="text-sm font-bold text-foreground mb-5 flex items-center gap-2">
                   <BarChart3 size={14} className="text-emerald" />
                   Expected Value Comparison
@@ -671,7 +670,7 @@ export default function LearnRolldownPage() {
                 </div>
 
                 <div className="mt-5 p-3 rounded-xl bg-emerald/3 border border-emerald/10">
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                     <span className="font-bold text-emerald-light">
                       Positive EV means the math favors players.
                     </span>{" "}
@@ -684,7 +683,7 @@ export default function LearnRolldownPage() {
               </div>
 
               {/* Math formulas */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <MathCallout
                   title="Normal Mode EV (6/46)"
                   formula="EV = Σ(P(match) × Prize) - $2.50"
@@ -700,12 +699,12 @@ export default function LearnRolldownPage() {
               </div>
 
               {/* Break-even analysis */}
-              <div className="glass rounded-xl p-5 sm:p-6">
+              <div className="glass rounded-xl p-4 sm:p-6 lg:p-8">
                 <h4 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
                   <DollarSign size={14} className="text-gold" />
                   Break-Even Point
                 </h4>
-                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                   <div className="text-center p-3 sm:p-4 rounded-xl bg-foreground/2">
                     <div className="text-base sm:text-lg font-black text-gold tabular-nums">
                       $1.75M
@@ -755,7 +754,7 @@ export default function LearnRolldownPage() {
               icon={Trophy}
             />
 
-            <div className="glass rounded-2xl p-5 sm:p-6">
+            <div className="glass rounded-2xl p-4 sm:p-6 lg:p-8">
               <h3 className="text-sm font-bold text-foreground mb-4">
                 6/46 Main Lottery Prizes
               </h3>
@@ -832,7 +831,7 @@ export default function LearnRolldownPage() {
               icon={Star}
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
                 {
                   title: "Monitor the Jackpot",
@@ -865,7 +864,7 @@ export default function LearnRolldownPage() {
               ].map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.title} className="glass rounded-xl p-4 sm:p-5">
+                  <div key={item.title} className="glass rounded-xl p-4 sm:p-6 lg:p-8">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-lg bg-emerald/10 border border-emerald/20">
                         <Icon size={14} className="text-emerald-light" />
@@ -874,7 +873,7 @@ export default function LearnRolldownPage() {
                         {item.title}
                       </h3>
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed mb-3">
                       {item.description}
                     </p>
                     <div className="flex items-center gap-1.5 text-[10px] text-gold/70">
@@ -896,7 +895,7 @@ export default function LearnRolldownPage() {
                   <p className="text-xs font-bold text-gold mb-1">
                     Important: Responsible Gaming
                   </p>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                     Even during +EV windows, lottery outcomes are still
                     probabilistic. Positive expected value means the{" "}
                     <em>average</em> return is favorable over many plays, not
@@ -920,14 +919,14 @@ export default function LearnRolldownPage() {
               icon={TrendingUp}
             />
 
-            <div className="glass rounded-2xl p-5 sm:p-6 space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="glass rounded-2xl p-4 sm:p-6 lg:p-8 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h4 className="text-xs font-bold text-foreground mb-2 flex items-center gap-1.5">
                     <TrendingUp size={11} className="text-emerald" />
                     The Rolldown Is Your Edge
                   </h4>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                     Every other lottery keeps the unclaimed jackpot and rolls it
                     forward forever — you never see that money. MazelProtocol{" "}
                     <strong>
@@ -947,7 +946,7 @@ export default function LearnRolldownPage() {
                     <DollarSign size={11} className="text-gold" />
                     Pari-Mutuel = Fewer Winners, Bigger Prizes
                   </h4>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                     During rolldown, prizes are <strong>pari-mutuel</strong>{" "}
                     (Pool ÷ Winners). This means{" "}
                     <span className="text-gold font-semibold">
@@ -966,7 +965,7 @@ export default function LearnRolldownPage() {
                   <Target size={11} className="text-emerald" />
                   Your Odds vs Other Lotteries
                 </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
                   {[
                     {
                       name: "Powerball",
@@ -1022,7 +1021,7 @@ export default function LearnRolldownPage() {
                   <Sparkles size={11} className="text-gold" />
                   What This Means For You
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                   <div className="p-3 sm:p-4 rounded-xl bg-emerald/4 border border-emerald/10">
                     <div className="text-base sm:text-lg font-black text-emerald-light">
                       31× Better
@@ -1058,7 +1057,7 @@ export default function LearnRolldownPage() {
               </div>
 
               <div className="p-3 rounded-xl bg-emerald/3 border border-emerald/10">
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                   <span className="font-bold text-emerald-light">
                     The rolldown is designed for you to benefit from.
                   </span>{" "}
@@ -1120,11 +1119,11 @@ export default function LearnRolldownPage() {
                   a: "MazelProtocol uses Switchboard's Trusted Execution Environment (TEE) randomness with a commit-reveal pattern. The randomness is committed before ticket purchases close, then revealed to execute the draw. Everything is on-chain and verifiable. You can audit every single draw yourself.",
                 },
               ].map((faq) => (
-                <div key={faq.q} className="glass rounded-xl p-4 sm:p-5">
+                <div key={faq.q} className="glass rounded-xl p-4 sm:p-6 lg:p-8">
                   <h3 className="text-xs font-bold text-foreground mb-2">
                     {faq.q}
                   </h3>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                     {faq.a}
                   </p>
                 </div>
@@ -1156,21 +1155,21 @@ export default function LearnRolldownPage() {
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
                   to="/play"
-                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl transition-all duration-300 shadow-xl shadow-emerald/25 hover:shadow-emerald/40 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <Trophy size={16} />
                   Play 6/46 Lottery
                 </Link>
                 <Link
                   to="/play/quick-pick"
-                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-bold text-emerald-light bg-transparent border-2 border-emerald/30 hover:border-emerald/50 hover:bg-emerald/5 rounded-xl transition-all duration-300"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-bold text-emerald-light bg-transparent border-2 border-emerald/30 hover:border-emerald/50 hover:bg-emerald/5 rounded-xl transition-all duration-300"
                 >
                   <Zap size={16} />
                   Quick Pick Express
                 </Link>
                 <Link
                   to="/dashboard"
-                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-semibold text-muted-foreground bg-transparent border border-foreground/10 hover:border-foreground/20 hover:bg-foreground/3 rounded-xl transition-all duration-300"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-semibold text-muted-foreground bg-transparent border border-foreground/10 hover:border-foreground/20 hover:bg-foreground/3 rounded-xl transition-all duration-300"
                 >
                   <BarChart3 size={16} />
                   Monitor Rolldown
@@ -1181,7 +1180,6 @@ export default function LearnRolldownPage() {
         </div>
       </section>
 
-      <Footer />
     </div>
   );
 }

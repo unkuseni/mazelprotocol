@@ -82,7 +82,7 @@ function NumberGrid({ selected, onToggle, disabled }: NumberGridProps) {
             disabled={disabled || isFull}
             onClick={() => onToggle(num)}
             className={`
-              relative aspect-square rounded-xl flex items-center justify-center
+              relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center
               text-sm sm:text-base font-bold transition-all duration-200
               select-none cursor-pointer
               ${isSelected
@@ -413,7 +413,7 @@ export default function PlayMainLottery() {
                   <Trophy size={24} className="text-emerald-light" />
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-black tracking-tight text-foreground">
                     6/46 Main Lottery
                   </h1>
                   <p className="text-sm text-muted-foreground mt-0.5">
@@ -449,7 +449,7 @@ export default function PlayMainLottery() {
             </div>
 
             {/* Jackpot & Countdown */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6 max-md:mx-auto">
               {/* Loading skeleton */}
               {jackpotLoading && (
                 <div className="relative rounded-2xl overflow-hidden px-5 py-4 bg-card/50 border border-border/50">
@@ -502,17 +502,17 @@ export default function PlayMainLottery() {
       {/*  MAIN CONTENT                                                    */}
       {/* ================================================================ */}
       <section className="relative px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="max-w-7xl mx-auto px-0 py-4 sm:py-6">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             {/* ---------------------------------------------------------- */}
             {/*  LEFT: Number Picker + Ticket Builder                      */}
             {/* ---------------------------------------------------------- */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="flex-1 min-w-0 space-y-6">
               {/* Number Selection */}
               <div className="glass rounded-2xl p-5 sm:p-6">
                 <div className="flex items-center justify-between mb-5">
                   <div>
-                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
                       <Star size={18} className="text-gold" />
                       Pick Your Numbers
                     </h2>
@@ -566,7 +566,7 @@ export default function PlayMainLottery() {
                       selectedNumbers.size !== PICK_COUNT ||
                       tickets.length >= MAX_TICKETS
                     }
-                    className="bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/20 disabled:opacity-40 disabled:shadow-none transition-all"
+                    className="w-full lg:w-auto bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/20 disabled:opacity-40 disabled:shadow-none transition-all"
                     size="lg"
                   >
                     <Plus size={16} />
@@ -578,7 +578,7 @@ export default function PlayMainLottery() {
                     disabled={selectedNumbers.size === 0}
                     variant="ghost"
                     size="lg"
-                    className="text-muted-foreground hover:text-foreground"
+                    className="w-full lg:w-auto text-muted-foreground hover:text-foreground"
                   >
                     <RotateCcw size={14} />
                     Clear
@@ -591,7 +591,7 @@ export default function PlayMainLottery() {
                     disabled={tickets.length >= MAX_TICKETS}
                     variant="outline"
                     size="lg"
-                    className="border-emerald/20 hover:border-emerald/40 hover:bg-emerald/5 text-emerald-light"
+                    className="w-full lg:w-auto border-emerald/20 hover:border-emerald/40 hover:bg-emerald/5 text-emerald-light"
                   >
                     <Shuffle size={14} />
                     Quick Pick
@@ -602,7 +602,7 @@ export default function PlayMainLottery() {
                     disabled={tickets.length >= MAX_TICKETS - 4}
                     variant="outline"
                     size="lg"
-                    className="border-emerald/20 hover:border-emerald/40 hover:bg-emerald/5 text-emerald-light"
+                    className="w-full lg:w-auto border-emerald/20 hover:border-emerald/40 hover:bg-emerald/5 text-emerald-light"
                   >
                     <Zap size={14} />
                     Quick Pick ×5
@@ -632,7 +632,7 @@ export default function PlayMainLottery() {
               {/* Tickets List */}
               <div className="glass rounded-2xl p-5 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
                     <ShoppingCart size={18} className="text-emerald" />
                     Your Tickets
                     {tickets.length > 0 && (
@@ -696,7 +696,7 @@ export default function PlayMainLottery() {
             {/* ---------------------------------------------------------- */}
             {/*  RIGHT: Cart + Prize Info                                   */}
             {/* ---------------------------------------------------------- */}
-            <div className="space-y-6">
+            <div className="lg:w-80 xl:w-96 shrink-0 space-y-6">
               {/* Cart */}
               <div className="lg:sticky lg:top-20">
                 <CartSummary
@@ -732,56 +732,58 @@ export default function PlayMainLottery() {
                     onClick={() => setShowPrizeInfo(!showPrizeInfo)}
                     className="w-full flex items-center justify-between"
                   >
-                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2 shrink-0">
                       <Info size={14} className="text-emerald" />
                       Prize Tiers
                     </h3>
                     <ChevronRight
                       size={14}
-                      className={`text-muted-foreground transition-transform duration-200 ${showPrizeInfo ? "rotate-90" : ""
+                      className={`text-muted-foreground transition-transform duration-200 shrink-0 ${showPrizeInfo ? "rotate-90" : ""
                         }`}
                     />
                   </button>
 
                   {showPrizeInfo && (
-                    <div className="mt-4 space-y-2">
-                      {PRIZE_TIERS.map((tier) => (
-                        <div
-                          key={tier.match}
-                          className="flex items-center justify-between py-2 px-3 rounded-lg bg-foreground/2"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${tier.color === "gold"
-                                ? "bg-gold/20 text-gold"
-                                : tier.color === "emerald"
-                                  ? "bg-emerald/20 text-emerald-light"
-                                  : "bg-foreground/5 text-muted-foreground"
-                                }`}
-                            >
-                              {tier.match}
+                    <div className="mt-4 overflow-x-auto pb-1 -mx-1 px-1">
+                      <div className="flex lg:block gap-2 min-w-max">
+                        {PRIZE_TIERS.map((tier) => (
+                          <div
+                            key={tier.match}
+                            className="flex items-center justify-between py-2 px-3 rounded-lg bg-foreground/2 shrink-0"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${tier.color === "gold"
+                                  ? "bg-gold/20 text-gold"
+                                  : tier.color === "emerald"
+                                    ? "bg-emerald/20 text-emerald-light"
+                                    : "bg-foreground/5 text-muted-foreground"
+                                  }`}
+                              >
+                                {tier.match}
+                              </div>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                Match {tier.match}
+                              </span>
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              Match {tier.match}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <span
-                              className={`text-xs font-bold ${tier.color === "gold"
-                                ? "text-gold"
-                                : tier.color === "emerald"
-                                  ? "text-emerald-light"
-                                  : "text-muted-foreground"
-                                }`}
-                            >
-                              {tier.prize}
-                            </span>
-                            <div className="text-[9px] text-muted-foreground/60">
-                              {tier.odds}
+                            <div className="text-right ml-4">
+                              <span
+                                className={`text-xs font-bold whitespace-nowrap ${tier.color === "gold"
+                                  ? "text-gold"
+                                  : tier.color === "emerald"
+                                    ? "text-emerald-light"
+                                    : "text-muted-foreground"
+                                  }`}
+                              >
+                                {tier.prize}
+                              </span>
+                              <div className="text-[9px] text-muted-foreground/60 whitespace-nowrap">
+                                {tier.odds}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
 
                       <div className="pt-2 border-t border-foreground/5">
                         <div className="flex items-start gap-2 text-[10px] text-muted-foreground">
@@ -863,7 +865,6 @@ export default function PlayMainLottery() {
         </div>
       </section>
 
-      <Footer />
     </div>
   );
 }

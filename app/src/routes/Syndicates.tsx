@@ -443,7 +443,7 @@ function CreateSyndicateModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
       {/* Backdrop */}
       <button
         type="button"
@@ -454,7 +454,7 @@ function CreateSyndicateModal({
       />
 
       {/* Modal */}
-      <div className="relative glass-strong rounded-2xl p-6 sm:p-8 max-w-md w-full border border-emerald/20 shadow-2xl shadow-black/50 animate-slide-up">
+      <div className="relative glass-strong rounded-none sm:rounded-2xl p-6 sm:p-8 max-w-md w-full h-full sm:h-auto sm:max-w-lg border border-emerald/20 shadow-2xl shadow-black/50 animate-slide-up overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-emerald/15 border border-emerald/20">
@@ -784,7 +784,7 @@ export default function SyndicatesPage() {
                   setShowCreateModal(true);
                 }
               }}
-              className="h-11 px-6 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full sm:w-auto h-11 px-6 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             >
               {isConnected ? <Plus size={16} /> : <Wallet size={16} />}
               {isConnected ? "Create Syndicate" : "Connect to Create"}
@@ -916,13 +916,13 @@ export default function SyndicatesPage() {
                 }}
                 variant="outline"
                 size="sm"
-                className="text-xs border-emerald/20 text-emerald-light hover:bg-emerald/5"
+                className="w-full sm:w-auto text-xs border-emerald/20 text-emerald-light hover:bg-emerald/5"
               >
                 Clear Filters
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredSyndicates.map((syndicate) => (
                 <SyndicateCard key={syndicate.id} syndicate={syndicate} />
               ))}
@@ -931,7 +931,7 @@ export default function SyndicatesPage() {
 
           {/* How Syndicates Work */}
           <div className="glass rounded-2xl p-6 sm:p-8 mt-8">
-            <h2 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-foreground mb-6 flex items-center gap-2">
               <Sparkles size={18} className="text-gold" />
               How Syndicates Work
             </h2>
@@ -1058,8 +1058,6 @@ export default function SyndicatesPage() {
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
       />
-
-      <Footer />
     </div>
   );
 }

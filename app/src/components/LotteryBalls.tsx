@@ -44,12 +44,11 @@ export function LotteryBall({
         rounded-full flex items-center justify-center
         select-none cursor-default
         transition-all duration-300
-        ${
-          animated
-            ? visible
-              ? "animate-ball-bounce opacity-100"
-              : "opacity-0 scale-0"
-            : ""
+        ${animated
+          ? visible
+            ? "animate-ball-bounce opacity-100"
+            : "opacity-0 scale-0"
+          : ""
         }
       `}
       style={animated ? { animationDelay: `${delay}ms` } : undefined}
@@ -150,11 +149,10 @@ export function FloatingBalls({
           }}
         >
           <div
-            className={`w-full h-full rounded-full flex items-center justify-center text-[10px] font-bold ${
-              ball.isGold
+            className={`w-full h-full rounded-full flex items-center justify-center text-[10px] font-bold ${ball.isGold
                 ? "bg-linear-to-br from-gold-light to-gold-dark text-white/70"
                 : "bg-linear-to-br from-emerald-light to-emerald-dark text-white/70"
-            }`}
+              }`}
             style={{
               boxShadow: ball.isGold
                 ? "inset 0 -2px 4px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,0.15)"
@@ -194,10 +192,9 @@ export function WinningNumbers({
               ${size === "sm" ? "w-7 h-7 text-[11px]" : "w-9 h-9 text-sm"}
               rounded-full flex items-center justify-center font-bold
               transition-colors duration-300
-              ${
-                isMatched
-                  ? "bg-linear-to-br from-gold-light to-gold text-navy shadow-sm shadow-gold/20"
-                  : "bg-foreground/5 text-muted-foreground border border-foreground/10"
+              ${isMatched
+                ? "bg-linear-to-br from-gold-light to-gold text-navy shadow-sm shadow-gold/20"
+                : "bg-foreground/5 text-muted-foreground border border-foreground/10"
               }
             `}
           >

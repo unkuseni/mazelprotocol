@@ -444,7 +444,7 @@ function TrustSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {trustBadges.map((badge) => {
             const Icon = badge.icon;
             return (
@@ -588,7 +588,6 @@ export default function LandingPage() {
 
       <CtaSection rolldownActive={rolldownActive} />
 
-      <Footer />
     </div>
   );
 }

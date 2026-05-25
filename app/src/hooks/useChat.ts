@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 export interface ChatMessage {
   id: string;
@@ -72,7 +72,66 @@ interface UseChatReturn {
   refetchPinned: () => Promise<void>;
 }
 
-// Helper to generate mock members
+// ---------------------------------------------------------------------------
+// localStorage persistence helpers
+// ---------------------------------------------------------------------------
+const STORAGE_PREFIX = "mazel_chat_";
+
+function loadMessages(syndicateId: string): ChatMessage[] {
+  try {
+    const stored = localStorage.getItem(
+      `${STORAGE_PREFIX}${syndicateId}_msgs`,
+    );
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // Corrupted data — fall through to mock seed
+  }
+  return generateMockMessages();
+}
+
+function saveMessages(syndicateId: string, msgs: ChatMessage[]) {
+  try {
+    localStorage.setItem(
+      `${STORAGE_PREFIX}${syndicateId}_msgs`,
+      JSON.stringify(msgs),
+    );
+  } catch {
+    // Storage full or unavailable — silently ignore
+  }
+}
+
+function loadMembers(syndicateId: string): ChatMember[] {
+  try {
+    const stored = localStorage.getItem(
+      `${STORAGE_PREFIX}${syndicateId}_members`,
+    );
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // Corrupted data — fall through to mock seed
+  }
+  return generateMockMembers();
+}
+
+function saveMembers(syndicateId: string, mems: ChatMember[]) {
+  try {
+    localStorage.setItem(
+      `${STORAGE_PREFIX}${syndicateId}_members`,
+      JSON.stringify(mems),
+    );
+  } catch {
+    // Storage full or unavailable — silently ignore
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mock data generators (seeds for first-time visitors)
+// ---------------------------------------------------------------------------
 function generateMockMembers(): ChatMember[] {
   const mockAddresses = [
     "7xKXabc123456789def9fGh",
@@ -102,7 +161,6 @@ function generateMockMembers(): ChatMember[] {
   }));
 }
 
-// Helper to generate mock messages
 function generateMockMessages(): ChatMessage[] {
   const now = Date.now();
   const mockAddresses = [
@@ -238,42 +296,109 @@ function generateMockMessages(): ChatMessage[] {
   ];
 }
 
+// ---------------------------------------------------------------------------
+// Bot message pool (simulated activity every ~45s)
+// ---------------------------------------------------------------------------
+const BOT_MESSAGE_POOL = [
+  "Hey team, any updates on the draw?",
+  "Looking good! The prize pool is growing.",
+  "I'm thinking of increasing my contribution next round.",
+  "Has anyone checked the latest odds?",
+  "Let's coordinate our ticket numbers for better coverage.",
+  "The EV on this draw is looking really strong.",
+  "Good luck everyone! 🍀",
+  "Just saw the pool stats — we're doing great!",
+  "Should we adjust our strategy for the next rolldown window?",
+  "Count me in for the next draw! 🎯",
+  "Anyone else think we should go bigger on this one?",
+  "The rolldown potential here is massive 💰",
+];
+
+const BOT_SENDERS = [
+  { address: "7xKXabc123456789def9fGh", short: "7xKX...9fGh", role: "manager" as const },
+  { address: "3mNPabc123456789def2wVd", short: "3mNP...2wVd", role: "member" as const },
+  { address: "9bQRabc123456789def5tLe", short: "9bQR...5tLe", role: "member" as const },
+  { address: "4jWSabc123456789def8kMn", short: "4jWS...8kMn", role: "member" as const },
+  { address: "6cYTabc123456789def1pAo", short: "6cYT...1pAo", role: "member" as const },
+  { address: "8dZUabc123456789def7rBq", short: "8dZU...7rBq", role: "member" as const },
+];
+
+function generateBotMessage(): ChatMessage {
+  const sender =
+    BOT_SENDERS[Math.floor(Math.random() * BOT_SENDERS.length)] ??
+    { address: "7xKX...9fGh", short: "7xKX...9fGh", role: "manager" as const };
+  const text =
+    BOT_MESSAGE_POOL[Math.floor(Math.random() * BOT_MESSAGE_POOL.length)] ??
+    "Hey team! ";
+
+  return {
+    id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+    sender: sender.address,
+    senderShort: sender.short,
+    text,
+    timestamp: Date.now(),
+    type: "message" as const,
+    role: sender.role,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// useChat hook
+// ---------------------------------------------------------------------------
 export function useChat({
   syndicateId,
   sender,
   pollInterval = 10000,
-  limit = 50,
+  limit: _limit = 50,
 }: UseChatOptions): UseChatReturn {
-  const [messages, setMessages] = useState<ChatMessage[]>(generateMockMessages);
-  const [members] = useState<ChatMember[]>(generateMockMembers);
+  // ------ Lazy-initialized state (localStorage → mock fallback) ------
+  const [messages, setMessages] = useState<ChatMessage[]>(() =>
+    loadMessages(syndicateId),
+  );
+  const [members, setMembers] = useState<ChatMember[]>(() =>
+    loadMembers(syndicateId),
+  );
+
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isLoadingPinned, setIsLoadingPinned] = useState(false);
   const [hasMoreMessages] = useState(false);
 
+  // ------ Persist messages & members to localStorage on every change ------
+  useEffect(() => {
+    saveMessages(syndicateId, messages);
+  }, [messages, syndicateId]);
+
+  useEffect(() => {
+    saveMembers(syndicateId, members);
+  }, [members, syndicateId]);
+
   const onlineCount = members.filter((m) => m.isOnline).length;
   const totalMembers = members.length;
   const pinnedMessages = messages.filter((msg) => msg.isPinned);
 
-  // Simulate polling for messages
+  // ------ Simulated polling: inject bot messages every ~45 seconds ------
+  const lastBotMessageRef = useRef(Date.now());
+  const isBotActiveRef = useRef(true); // paused when sender goes offline
+
   useEffect(() => {
     if (pollInterval <= 0) return;
 
     const interval = setInterval(() => {
-      // In a real implementation, this would fetch new messages
-      // For mock, we just update timestamps to make it feel live
-      setMessages((prev) =>
-        prev.map((msg) => ({
-          ...msg,
-          timestamp: msg.type === "system" ? Date.now() - 1000 : msg.timestamp,
-        })),
-      );
+      if (!isBotActiveRef.current) return;
+
+      const now = Date.now();
+      if (now - lastBotMessageRef.current >= 45_000) {
+        lastBotMessageRef.current = now;
+        setMessages((prev) => [...prev, generateBotMessage()]);
+      }
     }, pollInterval);
 
     return () => clearInterval(interval);
   }, [pollInterval]);
 
+  // ------ sendMessage ------
   const sendMessage = useCallback(
     async (
       text: string,
@@ -308,6 +433,7 @@ export function useChat({
     [sender],
   );
 
+  // ------ reactToMessage ------
   const reactToMessage = useCallback(
     async (
       messageId: string,
@@ -348,12 +474,40 @@ export function useChat({
     [sender],
   );
 
-  const updateMemberStatus = useCallback(async (isOnline: boolean) => {
-    // In mock implementation, we don't track individual user status
-    // This would be handled by the server in a real implementation
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }, []);
+  // ------ updateMemberStatus ------
+  const updateMemberStatus = useCallback(
+    async (isOnline: boolean) => {
+      // Simulate network delay
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
+      isBotActiveRef.current = isOnline;
+
+      if (!sender) return;
+
+      setMembers((prev) => {
+        const existing = prev.find((m) => m.address === sender);
+        if (existing) {
+          // Update existing member's online status
+          return prev.map((m) =>
+            m.address === sender ? { ...m, isOnline } : m,
+          );
+        }
+        // New member joining
+        const newMember: ChatMember = {
+          address: sender,
+          addressShort: `${sender.slice(0, 4)}...${sender.slice(-4)}`,
+          role: "member" as const,
+          isOnline,
+          joinedAt: new Date().toISOString(),
+          ticketsContributed: 0,
+        };
+        return [...prev, newMember];
+      });
+    },
+    [sender],
+  );
+
+  // ------ togglePinMessage ------
   const togglePinMessage = useCallback(
     async (messageId: string, pinned: boolean) => {
       // Simulate network delay
@@ -371,6 +525,7 @@ export function useChat({
     [],
   );
 
+  // ------ loadMoreMessages ------
   const loadMoreMessages = useCallback(async () => {
     setIsLoadingMessages(true);
     // Simulate loading more messages
@@ -378,6 +533,7 @@ export function useChat({
     setIsLoadingMessages(false);
   }, []);
 
+  // ------ refetchMessages ------
   const refetchMessages = useCallback(async () => {
     setIsLoadingMessages(true);
     // Simulate refetching messages
@@ -385,6 +541,7 @@ export function useChat({
     setIsLoadingMessages(false);
   }, []);
 
+  // ------ refetchMembers ------
   const refetchMembers = useCallback(async () => {
     setIsLoadingMembers(true);
     // Simulate refetching members
@@ -392,6 +549,7 @@ export function useChat({
     setIsLoadingMembers(false);
   }, []);
 
+  // ------ refetchPinned ------
   const refetchPinned = useCallback(async () => {
     setIsLoadingPinned(true);
     // Simulate refetching pinned messages

@@ -492,7 +492,7 @@ function TicketRow({
               </span>
             )}
             {ticket.isSyndicateTicket && (
-              <span className="text-[9px] text-emerald-light/70 font-medium flex items-center gap-0.5">
+              <span className="text-[9px] text-emerald-light/70 font-medium flex items-center gap-0.5 truncate max-w-30">
                 <Star size={7} />
                 {ticket.syndicateName}
               </span>
@@ -506,18 +506,18 @@ function TicketRow({
           </div>
         </div>
 
-        {/* Draw info */}
-        <div className="hidden sm:block text-right shrink-0">
+        {/* Draw info - compact on mobile */}
+        <div className="text-right shrink-0">
           <div className="text-[10px] text-muted-foreground">
-            Draw #{ticket.drawId}
+            <span className="sm:hidden">#</span>Draw <span className="hidden sm:inline">#</span>{ticket.drawId}
           </div>
-          <div className="text-[10px] text-muted-foreground/60">
+          <div className="text-[10px] text-muted-foreground/60 truncate max-w-25 sm:max-w-none">
             {ticket.drawDate}
           </div>
         </div>
 
         {/* Match count / Prize */}
-        <div className="text-right shrink-0 min-w-15">
+        <div className="text-right shrink-0 min-w-12.5 sm:min-w-15">
           {ticket.status === "pending" ? (
             <div className="text-xs text-blue-400 font-semibold">Pending</div>
           ) : ticket.matchCount > 0 ? (
@@ -691,11 +691,11 @@ function UnclaimedBanner({
   if (total <= 0) return null;
 
   return (
-    <div className="relative glass-strong rounded-2xl p-5 sm:p-6 overflow-hidden border border-gold/20">
+    <div className="relative glass-strong rounded-2xl p-4 sm:p-6 overflow-hidden border border-gold/20 w-full">
       <div className="absolute inset-0 bg-linear-to-br from-gold/4 via-transparent to-emerald/2" />
       <div className="absolute top-0 right-0 w-40 h-40 bg-glow-gold opacity-15" />
 
-      <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gold/15 border border-gold/20 shrink-0">
             <Gift size={22} className="text-gold" />
@@ -717,7 +717,7 @@ function UnclaimedBanner({
 
         <Button
           onClick={onClaimAll}
-          className="h-11 px-6 bg-linear-to-r from-gold-dark to-gold-light hover:from-gold hover:to-gold-light text-navy font-bold rounded-xl shadow-lg shadow-gold/25 hover:shadow-gold/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+          className="w-full sm:w-auto h-11 px-6 bg-linear-to-r from-gold-dark to-gold-light hover:from-gold hover:to-gold-light text-navy font-bold rounded-xl shadow-lg shadow-gold/25 hover:shadow-gold/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
         >
           <Gift size={16} />
           Claim All (${total.toFixed(2)})
@@ -736,7 +736,7 @@ function TicketStats({ tickets }: { tickets: TicketData[] }) {
   const totalPrizes = tickets.reduce((sum, t) => sum + t.prize, 0);
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
       <div className="glass rounded-xl p-3 text-center">
         <div className="text-lg font-black text-foreground">{totalTickets}</div>
         <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
@@ -789,7 +789,7 @@ function WalletNotConnected() {
         <div className="absolute inset-0 bg-glow-emerald opacity-15" />
         <FloatingBalls count={5} />
 
-        <div className="relative z-10 max-w-2xl mx-auto text-center mt-16 sm:mt-24">
+        <div className="relative z-10 max-w-2xl mx-auto text-center py-6 sm:py-8 mt-16 sm:mt-24">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-linear-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20 mb-6 glow-emerald">
             <Ticket size={36} className="text-emerald-light" />
           </div>
@@ -882,7 +882,7 @@ function EmptyState({ filter }: { filter: TicketFilter }) {
       {filter === "all" && (
         <Link
           to="/play"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
         >
           <Trophy size={14} />
           Buy Tickets
@@ -1108,9 +1108,9 @@ export default function MyTicketsPage() {
           </div>
         </section>
         <section className="px-4 sm:px-6 lg:px-8 pb-16">
-          <div className="max-w-7xl mx-auto space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              {Array.from({ length: 5 }).map((_, i) => (
+          <div className="max-w-7xl mx-auto py-6 sm:py-8 space-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholder
                 <div key={`skel-stat-${i}`} className="glass rounded-xl p-3 text-center animate-pulse">
                   <div className="h-6 w-12 bg-foreground/8 rounded mx-auto mb-1" />
@@ -1146,7 +1146,7 @@ export default function MyTicketsPage() {
       <div className="min-h-screen bg-background">
         <section className="relative pt-24 pb-6 sm:pt-28 sm:pb-8 px-4 sm:px-6 lg:px-8 overflow-hidden">
           <div className="absolute inset-0 hero-grid opacity-20" />
-          <div className="relative z-10 max-w-7xl mx-auto text-center">
+          <div className="relative z-10 max-w-7xl mx-auto text-center py-6 sm:py-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 mb-4">
               <AlertTriangle size={28} className="text-red-400" />
             </div>
@@ -1177,7 +1177,7 @@ export default function MyTicketsPage() {
         <div className="absolute inset-0 bg-glow-top-left" />
         <FloatingBalls count={4} />
 
-        <div className="relative z-10 max-w-7xl mx-auto">
+        <div className="relative z-10 max-w-7xl mx-auto py-6 sm:py-8">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
             <Link to="/" className="hover:text-foreground transition-colors">
@@ -1215,7 +1215,7 @@ export default function MyTicketsPage() {
               )}
               <Link
                 to="/play"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Trophy size={16} />
                 Buy Tickets
@@ -1229,7 +1229,7 @@ export default function MyTicketsPage() {
       {/*  MAIN CONTENT                                                    */}
       {/* ================================================================ */}
       <section className="relative px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto py-6 sm:py-8 space-y-6">
           {/* Stats */}
           <TicketStats tickets={allTickets} />
 
@@ -1320,7 +1320,7 @@ export default function MyTicketsPage() {
               </div>
 
               {/* Sort */}
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0 flex-wrap">
                 <ArrowUpDown size={12} className="text-muted-foreground mr-1" />
                 {(
                   [
@@ -1402,7 +1402,7 @@ export default function MyTicketsPage() {
 
           {/* Bottom info */}
           <div className="glass rounded-2xl p-5 sm:p-6">
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
+            <h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2 mb-4">
               <Shield size={16} className="text-emerald" />
               Ticket Information
             </h3>
@@ -1465,8 +1465,6 @@ export default function MyTicketsPage() {
           </div>
         </div>
       </section>
-
-      <Footer />
     </div>
   );
 }
