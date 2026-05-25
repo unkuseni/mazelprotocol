@@ -17,7 +17,6 @@ import {
   RotateCcw,
   Check,
   AlertTriangle,
-  Lock,
   ArrowRight,
 } from "lucide-react";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
@@ -25,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { QuickPickCountdown } from "@/components/CountdownTimer";
 import { LotteryBallRow, FloatingBalls } from "@/components/LotteryBalls";
-import Footer from "@/components/Footer";
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                 */
@@ -180,16 +178,17 @@ function GateLockedOverlay({ lifetimeSpend }: { lifetimeSpend: number }) {
 
       <div className="relative z-10">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gold/10 border border-gold/20 mb-5">
-          <Lock size={28} className="text-gold" />
+          <Sparkles size={28} className="text-gold" />
         </div>
 
         <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-foreground mb-2">
-          Quick Pick Express Locked
+          Unlock Quick Pick Express Premium Access
         </h2>
         <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6 px-4">
-          You need to spend at least{" "}
-          <span className="font-bold text-gold">${LIFETIME_GATE}</span> in the
-          main 6/46 lottery to unlock Quick Pick Express.
+          Quick Pick Express is a premium feature unlocked after{" "}
+          <span className="font-bold text-gold">${LIFETIME_GATE}</span> in main
+          lottery play. It's our way of rewarding committed players with
+          higher-frequency draws at a lower price point.
         </p>
 
         {/* Progress */}
@@ -390,10 +389,10 @@ export default function PlayQuickPickExpress() {
                     </span>
                   </div>
                 ) : (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20">
-                    <Lock size={10} className="text-red-400" />
-                    <span className="text-xs font-semibold text-red-400">
-                      Requires $50 spend
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald/10 border border-emerald/20">
+                    <Sparkles size={10} className="text-emerald-light" />
+                    <span className="text-xs font-semibold text-emerald-light">
+                      Premium Feature
                     </span>
                   </div>
                 )}

@@ -662,11 +662,12 @@ export default function WhitepaperPage() {
                   1.1 The Problem with Traditional Lotteries
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
-                  Traditional lotteries operate on a simple principle: the house
-                  always wins. With typical house edges ranging from 40–60%,
-                  players face overwhelming negative expected value on every
-                  ticket purchased. While jackpot dreams attract players, the
-                  mathematical reality ensures consistent losses over time.
+                  Traditional lotteries hide their odds, offer no transparency,
+                  and keep 40–60% of every dollar. Players never know when — or
+                  if — they're getting a fair deal. While jackpot dreams attract
+                  players, the opaque structure means participants have no way
+                  to evaluate whether the game is worth playing at any given
+                  moment.
                 </p>
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
                   This creates a paradox: lotteries depend on player
@@ -676,7 +677,7 @@ export default function WhitepaperPage() {
                 </p>
                 <ul className="space-y-1.5 ml-1">
                   {[
-                    "Psychological manipulation (jackpot marketing)",
+                    "Opaque marketing tactics",
                     "Regulatory monopolies (no competition)",
                     "Information asymmetry (hidden odds)",
                   ].map((item) => (
@@ -684,11 +685,15 @@ export default function WhitepaperPage() {
                       key={item}
                       className="flex items-start gap-2 text-xs text-muted-foreground"
                     >
-                      <span className="shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-red-500/40" />
+                      <span className="shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500/50" />
                       {item}
                     </li>
                   ))}
                 </ul>
+                <p className="text-[10px] text-emerald mt-2 ml-3">
+                  MazelProtocol: Fully transparent odds — every parameter
+                  verifiable on-chain.
+                </p>
               </div>
 
               {/* 1.2 The Solution */}
@@ -706,7 +711,7 @@ export default function WhitepaperPage() {
                     {
                       icon: Eye,
                       title: "Transparent Normal Operation",
-                      desc: "Negative-EV phase builds the prize pool openly",
+                      desc: "Prize accumulation phase — every ticket transparently builds the jackpot for upcoming +EV rolldown events",
                     },
                     {
                       icon: TrendingUp,
@@ -778,7 +783,7 @@ export default function WhitepaperPage() {
                 />
 
                 <Callout
-                  variant="warning"
+                  variant="info"
                   title="Critical Design Feature: Prize Transition System"
                 >
                   All prizes START as FIXED amounts during normal operation,
@@ -866,7 +871,7 @@ export default function WhitepaperPage() {
                       "Timelocked config changes (24h delay) with permissionless solvency checks",
                     ],
                     [
-                      "Single operator risk",
+                      "Decentralized operations",
                       "Multi-sig authority recommended; all state verifiable on-chain",
                     ],
                   ]}
@@ -883,8 +888,8 @@ export default function WhitepaperPage() {
                   rows={[
                     [
                       "PoolTogether",
-                      "No-loss savings game",
-                      "Low yields, no jackpot excitement",
+                      "Zero-loss savings protocol",
+                      "Low yields, different category — savings, not lottery",
                     ],
                     [
                       "Standard VRF Lotteries",
@@ -1019,7 +1024,7 @@ export default function WhitepaperPage() {
                   3.3 Expected Value — Rolldown Mode (Pari-Mutuel Prizes)
                 </h3>
                 <Callout
-                  variant="warning"
+                  variant="info"
                   title="Prize Mode Transition: FIXED → PARI-MUTUEL"
                 >
                   During rolldown events, ALL prizes transition from fixed
@@ -1262,7 +1267,7 @@ export default function WhitepaperPage() {
                 </p>
               </div>
 
-              {/* Risk Scenarios */}
+              {/* Cycle Scenarios */}
               <div className="glass rounded-2xl p-5 sm:p-6">
                 <h3 className="text-sm font-bold text-foreground mb-3">
                   4.4 Cycle Scenarios
@@ -1426,7 +1431,7 @@ export default function WhitepaperPage() {
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Several factors prevent perfect equilibrium: information
                     asymmetry (not all players calculate EV), transaction costs,
-                    capital constraints, and risk aversion (EV ≠ certainty).
+                    capital constraints, and strategic timing (EV ≠ certainty).
                   </p>
                 </div>
               </div>

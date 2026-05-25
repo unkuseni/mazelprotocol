@@ -14,7 +14,6 @@ import {
   Lock,
   type LucideIcon,
 } from "lucide-react";
-import Footer from "@/components/Footer";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { FloatingBalls, LotteryBallRow } from "@/components/LotteryBalls";
 import { CountdownTimer } from "@/components/CountdownTimer";
@@ -510,7 +509,7 @@ function CtaSection({ rolldownActive }: { rolldownActive: boolean }) {
             </h2>
             <p className="text-sm sm:text-base text-muted-foreground mb-8 max-w-md mx-auto">
               {rolldownActive
-                ? "Rolldown is active. The math favors players right now. Don't miss the window."
+                ? "The rolldown window is open — a mathematically proven advantage for players. Play now while conditions are optimal."
                 : "Every ticket brings the jackpot closer to rolldown. Start playing and be ready when the edge flips."}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

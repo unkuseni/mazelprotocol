@@ -68,18 +68,21 @@ function StatCard({
   icon: Icon,
   accent = "default",
   positive,
+  negativeLabel,
 }: {
   label: string;
   value: string;
   sub?: string;
   icon: LucideIcon;
-  accent?: "emerald" | "gold" | "default" | "red";
+  accent?: "emerald" | "gold" | "amber" | "default" | "red";
   positive?: boolean;
+  negativeLabel?: string;
 }) {
   const colorMap = {
     emerald: { iconBg: "bg-emerald/10", iconColor: "text-emerald-light", valueColor: "text-emerald-light" },
     gold: { iconBg: "bg-gold/10", iconColor: "text-gold", valueColor: "text-gold" },
     red: { iconBg: "bg-red-500/10", iconColor: "text-red-400", valueColor: "text-red-400" },
+    amber: { iconBg: "bg-amber-400/10", iconColor: "text-amber-400", valueColor: "text-amber-400" },
     default: { iconBg: "bg-foreground/5", iconColor: "text-muted-foreground", valueColor: "text-foreground" },
   };
 
@@ -108,10 +111,10 @@ function StatCard({
           {positive ? (
             <ArrowUpRight size={12} className="text-emerald-light" />
           ) : (
-            <ArrowDownRight size={12} className="text-red-400" />
+            <ArrowDownRight size={12} className={colors.iconColor} />
           )}
-          <span className={cn("text-[10px] font-bold", positive ? "text-emerald-light" : "text-red-400")}>
-            {positive ? "Profitable" : "Negative"}
+          <span className={cn("text-[10px] font-bold", positive ? "text-emerald-light" : colors.valueColor)}>
+            {positive ? "Profitable" : (negativeLabel ?? "Negative")}
           </span>
         </div>
       )}
@@ -420,8 +423,9 @@ export default function DashboardPage() {
                   value={formatCurrency(Math.abs(playerStats.netProfit))}
                   sub="Lifetime"
                   icon={TrendingUp}
-                  accent={playerStats.netProfit >= 0 ? "emerald" : "red"}
+                  accent={playerStats.netProfit >= 0 ? "emerald" : "amber"}
                   positive={playerStats.netProfit >= 0}
+                  negativeLabel="In Play"
                 />
                 <StatCard
                   label="Unclaimed"

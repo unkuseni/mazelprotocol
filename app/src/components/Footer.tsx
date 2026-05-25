@@ -8,6 +8,8 @@ import {
   Github,
   Twitter,
   MessageCircle,
+  Check,
+  Globe,
 } from "lucide-react";
 
 const footerSections = [
@@ -241,15 +243,17 @@ export default function Footer() {
             </Link>
             <Link
               to="/"
-              className="hover:text-muted-foreground transition-colors"
+              className="hover:text-muted-foreground transition-colors inline-flex items-center gap-1"
             >
-              Responsible Gaming
+              <Check size={10} />
+              Fair Play Pledge
             </Link>
             <Link
               to="/"
-              className="hover:text-muted-foreground transition-colors"
+              className="hover:text-muted-foreground transition-colors inline-flex items-center gap-1"
             >
-              Restricted Jurisdictions
+              <Globe size={10} />
+              Supported Regions
             </Link>
           </div>
         </div>
