@@ -50,7 +50,8 @@ mazelprotocol/
 │   ├── mazelprotocol/          # Main lottery program (6/46 matrix)
 │   └── quickpick/              # Quick Pick Express program (5/35 matrix)
 ├── app/                        # Web frontend (TanStack + React)
-├── bot/                        # Draw lifecycle bot (Cloudflare Worker)
+├── bot-rust/                   # Draw lifecycle bot (Rust binary)
+├── customer-bot-rust/          # Customer-facing Telegram bot (Rust binary)
 ├── tests/                      # Integration tests
 ├── migrations/                 # Deployment scripts
 ├── docs/                       # Comprehensive documentation
@@ -161,35 +162,53 @@ The frontend will be available at `http://localhost:5173`.
 > ⚠️ **Operational Note**: The draw lifecycle bot is currently the sole executor
 > of draws for both lotteries. If the bot is unavailable, draws will not advance
 > until it recovers or until the permissionless `advance_draw` fallback is called
-> (after a 30-minute timeout). The bot runs on Cloudflare Workers with scheduled
-> CRON triggers. For production deployments, run redundant bot instances.
+> (after a 30-minute timeout). The bot runs as a native Rust binary with a built-in
+> cron scheduler and HTTP server. For production deployments, run redundant instances.
 
-## 🤖 Running the Bot
+## 🤖 Running the Bots
 
-The Cloudflare Worker bot handles the complete draw lifecycle for both lotteries:
+Two Rust binaries manage the protocol:
+
+### Draw Lifecycle Bot (`bot-rust/`)
+
+Handles the complete 4-phase draw lifecycle (commit → execute → index → finalize):
 
 ```bash
-cd bot
-pnpm install    # Install bot dependencies
-pnpm dev        # Start development server (requires Cloudflare account)
+cargo build --release -p mazelprotocol-draw-bot
+
+cargo run --release -p mazelprotocol-draw-bot -- \
+  --rpc-url https://api.devnet.solana.com \
+  --keypair ~/.config/solana/id.json \
+  --switchboard-queue <QUEUE_PUBKEY> \
+  --usdc-mint <USDC_MINT> \
+  --telegram-bot-token <TOKEN> \
+  --telegram-chat-id <ID>
 ```
 
-### Bot Configuration
-1. **Set up Cloudflare Workers**: Create a Workers account and KV namespace
-2. **Configure Secrets**: Set required environment variables:
-   ```bash
-   pnpm run secret:keypair          # Authority keypair (JSON)
-   pnpm run secret:telegram-token   # Telegram bot token
-   pnpm run secret:telegram-chat    # Telegram chat ID
-   ```
-3. **Deploy**: `pnpm run deploy`
+### Customer Bot (`customer-bot-rust/`)
+
+Customer-facing Telegram bot with polling and webhook modes:
+
+```bash
+# Polling mode (simplest)
+cargo run --release -p mazelprotocol-customer-bot -- \
+  --telegram-bot-token <TOKEN> --mode polling
+
+# Webhook mode
+cargo run --release -p mazelprotocol-customer-bot -- \
+  --telegram-bot-token <TOKEN> --mode webhook \
+  --webhook-url https://my-bot.example.com
+```
 
 ### Bot Responsibilities
 - **Commit Phase**: Request randomness from Switchboard
 - **Execute Phase**: Reveal randomness and determine winners  
 - **Finalize Phase**: Distribute prizes and prepare next draw
+- **Index Phase**: Scan all tickets and compute winner counts + verification hash
+- **State Persistence**: Draw state saved after each phase for crash recovery
 - **Telegram Notifications**: Real-time updates for draws
 - **Error Recovery**: Handle failed draws and timeouts
+- **Customer Commands**: /jackpot, /draw, /quickpick, /register, /balance, etc.
 
 ## 🧪 Testing
 
