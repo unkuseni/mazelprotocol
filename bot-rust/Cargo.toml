@@ -18,6 +18,7 @@ solana-account-decoder = "2.2"
 
 # Anchor — for account deserialization
 anchor-lang = "0.32"
+borsh = "0.10"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
