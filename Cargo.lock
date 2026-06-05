@@ -2598,7 +2598,7 @@ version = "1.0.0"
 dependencies = [
  "anchor-lang",
  "anyhow",
- "borsh 1.6.0",
+ "borsh 0.10.4",
  "chrono",
  "clap",
  "rand 0.8.5",
@@ -2619,6 +2619,7 @@ version = "2.0.0"
 dependencies = [
  "anchor-lang",
  "anyhow",
+ "borsh 0.10.4",
  "chrono",
  "clap",
  "reqwest",
