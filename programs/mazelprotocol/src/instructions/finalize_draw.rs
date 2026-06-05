@@ -66,7 +66,8 @@ pub struct FinalizeDraw<'info> {
         mut,
         seeds = [DRAW_SEED, &lottery_state.current_draw_id.to_le_bytes()],
         bump = draw_result.bump,
-        constraint = draw_result.draw_id == lottery_state.current_draw_id @ LottoError::DrawIdMismatch
+        constraint = draw_result.draw_id == lottery_state.current_draw_id @ LottoError::DrawIdMismatch,
+        constraint = !draw_result.is_finalized() @ LottoError::DrawAlreadyCompleted
     )]
     pub draw_result: Account<'info, DrawResult>,
 }
@@ -364,16 +365,20 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         msg!("  Details: {}", prize_calc.calculation_details);
     }
 
+    // FIXED: Explicitly mark draw as finalized BEFORE writing prize amounts.
+    // This ensures is_finalized() returns true atomically — there is no window
+    // where prizes are visible but the draw appears not-yet-finalized.
+    // Previously this was set AFTER prize writes, creating a narrow race window
+    // where a claim transaction could see is_finalized() == false despite prizes
+    // already being set.
+    draw_result.is_explicitly_finalized = true;
+
     // Update draw result with prizes
     draw_result.match_6_prize_per_winner = prize_calc.match_6_prize;
     draw_result.match_5_prize_per_winner = prize_calc.match_5_prize;
     draw_result.match_4_prize_per_winner = prize_calc.match_4_prize;
     draw_result.match_3_prize_per_winner = prize_calc.match_3_prize;
     draw_result.match_2_prize_per_winner = prize_calc.match_2_prize;
-
-    // FIXED: Explicitly mark draw as finalized to handle edge cases
-    // (e.g., rolldowns with only Match 3/4 winners where prize values might be 0 for other tiers)
-    draw_result.is_explicitly_finalized = true;
 
     // FIXED: Add any undistributed funds to reserve (from empty tiers or integer division)
     if prize_calc.undistributed > 0 {

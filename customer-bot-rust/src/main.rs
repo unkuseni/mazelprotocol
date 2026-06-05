@@ -15,7 +15,7 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 #[derive(Parser, Debug, Clone)]
 #[command(name = "mazelprotocol-customer-bot", version, about)]
 pub struct Cli {
-    #[arg(long, env = "RPC_URL", default_value = "https://api.devnet.solana.com")]
+    #[arg(long, env = "RPC_URL")]
     pub rpc_url: String,
 
     #[arg(long, env = "TELEGRAM_BOT_TOKEN")]

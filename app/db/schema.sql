@@ -31,3 +31,11 @@ CREATE INDEX IF NOT EXISTS idx_messages_syndicate
 -- Index for fetching reactions for a message
 CREATE INDEX IF NOT EXISTS idx_reactions_message
   ON reactions(message_id);
+
+-- Index for global message queries (moderation, admin dashboards)
+CREATE INDEX IF NOT EXISTS idx_messages_created_at
+  ON messages(created_at DESC);
+
+-- Index for filtering system/announcement messages across syndicates
+CREATE INDEX IF NOT EXISTS idx_messages_type_created
+  ON messages(type, created_at DESC);

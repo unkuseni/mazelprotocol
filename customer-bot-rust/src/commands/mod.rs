@@ -4,6 +4,21 @@ use crate::config::BotConfig;
 use crate::solana::{self, Solana};
 use crate::store::Store;
 use std::sync::Arc;
+use std::time::Duration;
+
+/// Maximum time to wait for an RPC call before returning an error.
+/// Prevents a single slow RPC from hanging the entire bot.
+const RPC_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Execute an async future with a timeout, returning a formatted error on timeout.
+async fn with_timeout<F, T>(label: &str, future: F) -> Result<T, String>
+where
+    F: std::future::Future<Output = T>,
+{
+    tokio::time::timeout(RPC_TIMEOUT, future)
+        .await
+        .map_err(|_| format!("⏱️ {label} request timed out — please try again"))
+}
 
 /// Route a command to its handler and return the reply text.
 pub async fn handle(
@@ -62,53 +77,61 @@ fn help() -> String {
 }
 
 async fn jackpot(solana: &Solana) -> String {
-    match solana.fetch_main_state() {
-        Ok(s) => {
-            let draw_id = s.current_draw_id;
-            let status = if s.is_paused {
-                "⏸ Paused"
-            } else if s.is_draw_in_progress {
-                "🔒 Draw in progress"
-            } else {
-                "🟢 Open"
-            };
-            format!(
-                "<b>🎰 Main Lottery (6/46)</b>\n\nDraw #{draw_id}\nTickets sold: {}\nStatus: {status}\n\nUse /quickpick to get random numbers!",
-                s.current_draw_tickets
-            )
+    with_timeout("Jackpot query", async {
+        match solana.fetch_main_state() {
+            Ok(s) => {
+                let draw_id = s.current_draw_id;
+                let status = if s.is_paused {
+                    "⏸ Paused"
+                } else if s.is_draw_in_progress {
+                    "🔒 Draw in progress"
+                } else {
+                    "🟢 Open"
+                };
+                format!(
+                    "<b>🎰 Main Lottery (6/46)</b>\n\nDraw #{draw_id}\nTickets sold: {}\nStatus: {status}\n\nUse /quickpick to get random numbers!",
+                    s.current_draw_tickets
+                )
+            }
+            Err(e) => format!("❌ Error: {e}"),
         }
-        Err(e) => format!("❌ Error: {e}"),
-    }
+    }).await.unwrap_or_else(|e| e)
 }
 
 async fn draw(solana: &Solana, args: &[&str]) -> String {
-    match solana.fetch_main_state() {
-        Ok(s) => {
-            let did = args
-                .first()
-                .and_then(|a| a.parse().ok())
-                .unwrap_or(s.current_draw_id.saturating_sub(1));
-            match solana.fetch_main_draw(did) {
-                Ok(Some(dr)) => {
-                    let nums: Vec<String> =
-                        dr.winning_numbers[..6].iter().map(|n| n.to_string()).collect();
-                    let rd = if dr.was_rolldown { " 🎰 ROLLDOWN!" } else { "" };
-                    format!(
-                        "<b>Main Lottery Draw #{did}{rd}</b>\n\n🎯 Numbers: <code>{nums}</code>\n👥 Tickets: {}\n\n🏆 Winners:\nMatch 6: {} → {}\nMatch 5: {} → {}\nMatch 4: {} → {}\nMatch 3: {} → {}",
-                        nums = nums.join(", "),
-                        dr.total_tickets,
-                        dr.match6_win, solana::format_usdc(dr.m6_prize),
-                        dr.match5_win, solana::format_usdc(dr.m5_prize),
-                        dr.match4_win, solana::format_usdc(dr.m4_prize),
-                        dr.match3_win, solana::format_usdc(dr.m3_prize),
-                    )
+    let args_owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+    with_timeout("Draw results", async {
+        match solana.fetch_main_state() {
+            Ok(s) => {
+                let did = args_owned
+                    .first()
+                    .and_then(|a| a.parse().ok())
+                    .unwrap_or(s.current_draw_id.saturating_sub(1));
+                match solana.fetch_main_draw(did) {
+                    Ok(Some(dr)) => {
+                        let nums: Vec<String> =
+                            dr.winning_numbers[..6].iter().map(|n| n.to_string()).collect();
+                        let nums_str = nums.join(", ");
+                        let rd = if dr.was_rolldown { " 🎰 ROLLDOWN!" } else { "" };
+                        format!(
+                            "<b>Main Lottery Draw #{did}{rd}</b>\n\n🎯 Numbers: <code>{nums_str}</code>\n👥 Tickets: {tickets}\n\n🏆 Winners:\nMatch 6: {m6w} → {m6p}\nMatch 5: {m5w} → {m5p}\nMatch 4: {m4w} → {m4p}\nMatch 3: {m3w} → {m3p}",
+                            did = did,
+                            rd = rd,
+                            nums_str = nums_str,
+                            tickets = dr.total_tickets,
+                            m6w = dr.match6_win, m6p = solana::format_usdc(dr.m6_prize),
+                            m5w = dr.match5_win, m5p = solana::format_usdc(dr.m5_prize),
+                            m4w = dr.match4_win, m4p = solana::format_usdc(dr.m4_prize),
+                            m3w = dr.match3_win, m3p = solana::format_usdc(dr.m3_prize),
+                        )
+                    }
+                    Ok(None) => format!("❌ Draw #{did} not found"),
+                    Err(e) => format!("❌ Error: {e}"),
                 }
-                Ok(None) => format!("❌ Draw #{did} not found"),
-                Err(e) => format!("❌ Error: {e}"),
             }
+            Err(e) => format!("❌ Error: {e}"),
         }
-        Err(e) => format!("❌ Error: {e}"),
-    }
+    }).await.unwrap_or_else(|e| e)
 }
 
 fn quickpick(args: &[&str]) -> String {
