@@ -14,6 +14,7 @@ future_incompatible = "warn"
 unreachable_pub = "warn"
 unused_qualifications = "warn"
 variant_size_differences = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }
 
 [workspace.lints.clippy]
 unwrap_used = "warn"

@@ -4,7 +4,7 @@
 
 ## Project Identity
 
-**MazelProtocol** is a decentralized, provably fair lottery protocol on Solana. It features two on-chain programs (Main Lottery 6/46 and Quick Pick Express 5/35), a TanStack Start + React frontend, and a Cloudflare Worker draw-lifecycle bot. The protocol uses Switchboard TEE-based randomness with a commit-reveal pattern and a unique probabilistic rolldown system that creates predictable +EV windows for players.
+**MazelProtocol** is a decentralized, provably fair lottery protocol on Solana. It features two on-chain programs (Main Lottery 6/46 and Quick Pick Express 5/35), a TanStack Start + React frontend, and two Rust bot binaries (draw lifecycle orchestrator and customer-facing Telegram bot). The protocol uses Switchboard TEE-based randomness with a commit-reveal pattern and a unique probabilistic rolldown system that creates predictable +EV windows for players.
 
 ## Tech Stack
 
@@ -16,12 +16,12 @@
 | Styling | Tailwind CSS | 4.0.6 |
 | State Management | TanStack Query | 5.90.20 |
 | Wallet Integration | Reown AppKit | 1.8.17 |
-| Bot Runtime | Cloudflare Workers | wrangler 4.x / 3.x |
+| Bot Runtime | Rust (tokio) | 1.89.0 |
 | Randomness Oracle | Switchboard On-Demand | 0.11.3 |
 | Smart Contract Deps | anchor-spl, sha2 | — |
 | Testing (Rust) | Anchor test framework | — |
 | Testing (TS) | Vitest (app), mocha (root) | 3.x / 10.x |
-| Package Manager | pnpm (app, bot), yarn (root) | — |
+| Package Manager | pnpm (app), yarn (root) | — |
 | Linting/Formatting | Biome (app), rustfmt + clippy (Rust) | — |
 
 ## Key Directories
@@ -38,15 +38,27 @@ mazelprotocol/
 │       ├── hooks/            # Custom React hooks
 │       ├── integrations/     # Third-party integrations (Reown, etc.)
 │       └── lib/              # Shared utilities
-├── bot/                     # Cloudflare Worker draw-lifecycle bot
+├── bot-rust/                 # Draw lifecycle bot (Rust binary)
 │   └── src/
-│       ├── worker.ts         # Worker entry point
-│       ├── draw-executor.ts  # Draw phase execution (commit → execute → finalize)
-│       ├── indexer.ts        # On-chain event indexing
-│       ├── telegram.ts       # Telegram notification integration
-│       ├── config.ts         # Bot configuration
-│       ├── logger.ts         # Structured logging
-│       └── env.ts            # Environment variable validation
+│       ├── main.rs           # CLI entry point (clap)
+│       ├── bot.rs            # Orchestrator (cron + HTTP)
+│       ├── config.rs         # BotConfig, PDA derivation, on-chain constants
+│       ├── store.rs          # JSON file persistence (draw state, stats)
+│       ├── telegram.rs       # Telegram notification client
+│       ├── indexer.rs        # Ticket indexer + SHA256 verification hash
+│       └── draw/
+│           ├── mod.rs        # Lifecycle orchestration (main + QP)
+│           ├── commit.rs     # Phase 1: commit_randomness
+│           ├── execute.rs    # Phase 2: execute_draw
+│           ├── finalize.rs   # Phase 4: finalize_draw
+│           └── recovery.rs   # Stuck draw recovery
+├── customer-bot-rust/        # Customer-facing Telegram bot (Rust binary)
+│   └── src/
+│       ├── main.rs           # CLI (webhook or polling mode)
+│       ├── solana.rs         # RPC queries (fetch state, draw results)
+│       ├── telegram.rs       # Telegram API (polling + webhook)
+│       ├── store.rs          # User registration store
+│       └── commands/mod.rs   # All command handlers
 ├── tests/                   # TypeScript integration tests (mocha)
 ├── migrations/              # Deployment and verification scripts
 ├── docs/                    # Whitepaper, specs, guides
@@ -142,36 +154,21 @@ pnpm deploy
 pnpm cf-typegen
 ```
 
-### Bot (from `bot/`)
+### Bot (Rust binaries)
 
 ```bash
-cd bot
+# Draw lifecycle bot
+cd bot-rust
+cargo build --release
+cargo run --release -- --dry-run true --help
+cargo test
 
-# Install dependencies
-pnpm install
+# Customer bot (polling mode)
+cd customer-bot-rust
+cargo run --release -- --telegram-bot-token <TOKEN> --mode polling
 
-# Start local development (wrangler dev)
-pnpm dev
-
-# Type-check
-pnpm typecheck
-
-# Deploy
-pnpm deploy
-
-# Deploy to staging
-pnpm deploy:staging
-
-# Deploy to production
-pnpm deploy:production
-
-# Set secrets
-pnpm secret:keypair
-pnpm secret:telegram-token
-pnpm secret:telegram-chat
-
-# View logs
-pnpm tail
+# Customer bot (webhook mode)
+cargo run --release -- --telegram-bot-token <TOKEN> --mode webhook --webhook-url https://my-bot.example.com
 ```
 
 ### Root (yarn)
@@ -196,9 +193,13 @@ anchor test
 | `app/src/env.ts` | Environment variable validation (t3-oss/env-core + Zod) |
 | `app/src/router.tsx` | TanStack Router configuration |
 | `app/src/routeTree.gen.ts` | Auto-generated route tree — **never edit manually** |
-| `bot/wrangler.toml` | Cloudflare Worker config for the draw bot |
-| `bot/src/worker.ts` | Bot entry point — CRON-triggered draw lifecycle |
-| `bot/src/draw-executor.ts` | Core draw logic: commit → execute → index → finalize |
+| `bot-rust/src/main.rs` | Draw bot CLI entry point — clap arg parsing |
+| `bot-rust/src/bot.rs` | Orchestrator: cron scheduler + HTTP health/admin server |
+| `bot-rust/src/draw/mod.rs` | Core draw lifecycle: commit → execute → index → finalize |
+| `bot-rust/src/indexer.rs` | Ticket scanning + winner counting + SHA256 verification hash |
+| `bot-rust/src/config.rs` | BotConfig, PDA derivation, on-chain constants |
+| `customer-bot-rust/src/main.rs` | Customer bot CLI entry point |
+| `customer-bot-rust/src/commands/mod.rs` | All Telegram command handlers |
 | `programs/mazelprotocol/src/lib.rs` | Main lottery program entry point |
 | `programs/quickpick/src/lib.rs` | Quick Pick program entry point |
 | `tests/mazelprotocol.ts` | Main lottery integration tests |
@@ -223,10 +224,13 @@ anchor test
 - Auto-generated `routeTree.gen.ts` is read-only (configured in `.vscode/settings.json`)
 
 ### Bot Architecture
-- **Cloudflare Workers** with CRON triggers for scheduled draw execution
-- **KV namespace** (`DRAW_STATE`) for persistent draw state
-- **Telegram integration** for real-time operator notifications
+- **Native Rust binaries** with tokio async runtime
+- **Built-in cron scheduler** for draw polling (every 60 seconds)
+- **Built-in HTTP server** for health checks and admin endpoints
+- **File-based persistence** (JSON) for draw state and bot statistics
+- **Telegram integration** for real-time operator notifications and customer commands
 - Handles both Main Lottery and Quick Pick Express draw lifecycles
+- **Draw state persisted after each phase** for crash recovery
 - Permissionless fallback: `advance_draw` after 30-minute timeout
 
 ## Code Quality Standards

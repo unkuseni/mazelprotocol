@@ -31,8 +31,8 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 #[derive(Parser, Debug, Clone)]
 #[command(name = "mazelprotocol-draw-bot", version, about)]
 pub struct Cli {
-    /// Solana RPC URL
-    #[arg(long, env = "RPC_URL", default_value = "https://api.devnet.solana.com")]
+    /// Solana RPC URL (required — no default to prevent accidental devnet usage)
+    #[arg(long, env = "RPC_URL")]
     pub rpc_url: String,
 
     /// Path to authority keypair file or JSON array of 64 bytes

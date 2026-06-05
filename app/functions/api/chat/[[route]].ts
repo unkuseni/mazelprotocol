@@ -15,8 +15,49 @@ interface Env {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Validation & Sanitization
 // ---------------------------------------------------------------------------
+
+/** Max message text length (prevents abuse) */
+const MAX_TEXT_LENGTH = 2000;
+
+/** Solana base58 address pattern (32-44 base58 chars) */
+const SOLANA_ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+/** Safe ID pattern: alphanumeric + underscore + hyphen, max 64 chars */
+const SAFE_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
+
+/**
+ * Strip HTML tags and dangerous content from user-provided text.
+ * Converts < > & " to safe equivalents and removes any remaining tags.
+ */
+function sanitizeText(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .slice(0, MAX_TEXT_LENGTH);
+}
+
+/**
+ * Validate an ID parameter is safe (alphanumeric, underscores, hyphens).
+ * Returns the ID if valid, null otherwise.
+ */
+function validateSafeId(id: string): string | null {
+  if (!id || id.length > 64) return null;
+  if (!SAFE_ID_RE.test(id)) return null;
+  return id;
+}
+
+/**
+ * Validate a Solana wallet address (base58).
+ * Returns the address if valid, null otherwise.
+ */
+function validateSolanaAddress(address: string): string | null {
+  if (!address || !SOLANA_ADDRESS_RE.test(address)) return null;
+  return address;
+}
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -88,10 +129,12 @@ export async function onRequest(context: {
       route.length === 2 &&
       route[1] === "messages"
     ) {
-      const syndicateId = route[0];
+      const syndicateId = validateSafeId(route[0]);
+      if (!syndicateId) return error("Invalid syndicate ID");
+
       const url = new URL(request.url);
       const limit = Math.min(
-        parseInt(url.searchParams.get("limit") ?? "50"),
+        parseInt(url.searchParams.get("limit") ?? "50", 10),
         100,
       );
       const before = url.searchParams.get("before");
@@ -159,7 +202,9 @@ export async function onRequest(context: {
       route.length === 2 &&
       route[1] === "messages"
     ) {
-      const syndicateId = route[0];
+      const syndicateId = validateSafeId(route[0]);
+      if (!syndicateId) return error("Invalid syndicate ID");
+
       const body: {
         text?: string;
         type?: string;
@@ -170,11 +215,26 @@ export async function onRequest(context: {
 
       if (!body.text?.trim()) return error("Text is required");
       if (!body.sender) return error("Sender address is required");
+      if (!validateSolanaAddress(body.sender)) return error("Invalid sender address");
+
+      // Validate replyTo if present
+      if (body.replyTo && !validateSafeId(body.replyTo)) return error("Invalid reply target");
+
+      // Validate message type
+      const validTypes = new Set(["message", "system", "announcement"]);
+      const msgType = body.type && validTypes.has(body.type) ? body.type : "message";
 
       const id = generateId();
       const now = Date.now();
-      const senderShort =
-        body.senderShort || formatSenderShort(body.sender);
+      const sanitizedText = sanitizeText(body.text.trim());
+      const senderShort = body.senderShort
+        ? sanitizeText(body.senderShort).slice(0, 16)
+        : formatSenderShort(body.sender);
+
+      // Only allow "system" type messages from the system sender
+      if (msgType === "system" && body.sender !== "system") {
+        return error("Only the system account can send system messages", 403);
+      }
 
       await db
         .prepare(
@@ -186,8 +246,8 @@ export async function onRequest(context: {
           syndicateId,
           body.sender,
           senderShort,
-          body.text.trim(),
-          body.type ?? "message",
+          sanitizedText,
+          msgType,
           null,
           body.replyTo ?? null,
           now,
@@ -199,8 +259,8 @@ export async function onRequest(context: {
         syndicate_id: syndicateId,
         sender: body.sender,
         sender_short: senderShort,
-        text: body.text.trim(),
-        type: body.type ?? "message",
+        text: sanitizedText,
+        type: msgType,
         role: null,
         is_pinned: 0,
         reply_to: body.replyTo ?? undefined,
@@ -217,7 +277,9 @@ export async function onRequest(context: {
       route.length === 3 &&
       route[1] === "react"
     ) {
-      const messageId = route[0];
+      const messageId = validateSafeId(route[0]);
+      if (!messageId) return error("Invalid message ID");
+
       const body: {
         emoji?: string;
         action?: string;
@@ -226,8 +288,12 @@ export async function onRequest(context: {
 
       if (!body.emoji) return error("Emoji is required");
       if (!body.sender) return error("Sender address is required");
+      if (!validateSolanaAddress(body.sender)) return error("Invalid sender address");
       if (body.action !== "add" && body.action !== "remove")
         return error("Action must be 'add' or 'remove'");
+
+      // Validate emoji is a single character (or simple emoji sequence)
+      if (body.emoji.length > 8) return error("Invalid emoji");
 
       if (body.action === "add") {
         await db
@@ -268,7 +334,9 @@ export async function onRequest(context: {
       route.length === 3 &&
       route[1] === "pin"
     ) {
-      const messageId = route[0];
+      const messageId = validateSafeId(route[0]);
+      if (!messageId) return error("Invalid message ID");
+
       const body: { pinned?: boolean } = await request.json();
 
       if (typeof body.pinned !== "boolean")
