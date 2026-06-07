@@ -1,4 +1,3 @@
-import { Link, NavLink } from "react-router-dom";
 import {
   BarChart3,
   BookOpen,
@@ -17,7 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { ThemeToggleCompact } from "@/components/ThemeToggle";
+import { Link, NavLink } from "react-router-dom";
 import {
   useAppKit,
   useAppKitAccount,
@@ -104,28 +103,21 @@ const navLinks = [
 
 function LogoMark() {
   return (
-    <div className="relative w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center bg-linear-to-br from-emerald to-emerald-dark">
-      {/** biome-ignore lint/a11y/noSvgWithoutTitle: <Does not need a title> */}
+    <div className="relative w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center bg-linear-to-br from-gold-400 to-gold-600 shadow-lg shadow-gold-500/20">
       <svg
         viewBox="0 0 32 32"
         className="w-5 h-5"
         fill="none"
-        stroke="white"
+        stroke="#0A0A0A"
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
+        <title>MazelProtocol</title>
         <circle cx="16" cy="16" r="10" />
         <path d="M16 6v20" />
         <path d="M6 16h20" />
-        <circle
-          cx="16"
-          cy="16"
-          r="4"
-          fill="white"
-          fillOpacity="0.3"
-          stroke="none"
-        />
+        <circle cx="16" cy="16" r="4" fill="#0A0A0A" fillOpacity="0.25" stroke="none" />
       </svg>
       <div className="absolute inset-0 bg-linear-to-tr from-transparent via-white/10 to-white/20 pointer-events-none" />
     </div>
@@ -155,7 +147,7 @@ function DesktopDropdown({ label, icon: Icon, items }: DropdownProps) {
     >
       <button
         type="button"
-        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/5"
+        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-surface-2"
         onClick={() => setOpen(!open)}
       >
         <Icon size={16} className="opacity-70" />
@@ -168,21 +160,22 @@ function DesktopDropdown({ label, icon: Icon, items }: DropdownProps) {
 
       {open && (
         <div className="absolute top-full left-0 pt-2 z-50">
-          <div className="w-72 rounded-xl glass-strong p-2 shadow-2xl shadow-black/20 dark:shadow-black/40 animate-slide-down">
+          <div className="w-72 rounded-xl glass-strong p-2 shadow-2xl shadow-black/40 border border-gold-500/10 animate-slide-down">
             {items.map((child) => {
               const ChildIcon = child.icon;
+              const isExternal = !!child.href;
 
-              if (child.href) {
+              if (isExternal) {
                 return (
                   <a
                     key={child.label}
                     href={child.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-foreground/5 transition-colors group"
+                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-gold-500/5 transition-colors group"
                     onClick={() => setOpen(false)}
                   >
-                    <div className="mt-0.5 p-1.5 rounded-md bg-emerald/10 text-emerald group-hover:bg-emerald/20 transition-colors">
+                    <div className="mt-0.5 p-1.5 rounded-md bg-gold-500/10 text-gold-400 group-hover:bg-gold-500/20 transition-colors">
                       <ChildIcon size={16} />
                     </div>
                     <div>
@@ -191,9 +184,7 @@ function DesktopDropdown({ label, icon: Icon, items }: DropdownProps) {
                         <ExternalLink size={11} className="opacity-40" />
                       </div>
                       {child.description && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {child.description}
-                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{child.description}</div>
                       )}
                     </div>
                   </a>
@@ -203,22 +194,17 @@ function DesktopDropdown({ label, icon: Icon, items }: DropdownProps) {
               return (
                 <Link
                   key={child.label}
-                  // biome-ignore lint/style/noNonNullAssertion: <demo>
-                  to={child.to!}
-                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-foreground/5 transition-colors group"
+                  to={child.to as string}
+                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-gold-500/5 transition-colors group"
                   onClick={() => setOpen(false)}
                 >
-                  <div className="mt-0.5 p-1.5 rounded-md bg-emerald/10 text-emerald group-hover:bg-emerald/20 transition-colors">
+                  <div className="mt-0.5 p-1.5 rounded-md bg-gold-500/10 text-gold-400 group-hover:bg-gold-500/20 transition-colors">
                     <ChildIcon size={16} />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-foreground">
-                      {child.label}
-                    </div>
+                    <div className="text-sm font-medium text-foreground">{child.label}</div>
                     {child.description && (
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {child.description}
-                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{child.description}</div>
                     )}
                   </div>
                 </Link>
@@ -263,15 +249,12 @@ function WalletButton() {
         <button
           type="button"
           onClick={() => {
-            console.log(
-              "[WalletButton] Toggling dropdown, current:",
-              showDropdown,
-            );
+            console.log("[WalletButton] Toggling dropdown, current:", showDropdown);
             setShowDropdown((p) => !p);
           }}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-foreground bg-emerald/10 border border-emerald/20 hover:border-emerald/40 rounded-lg transition-all duration-200"
+          className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-gold-400 bg-gold-500/8 border border-gold-500/15 hover:border-gold-500/30 rounded-lg transition-all duration-200"
         >
-          <div className="w-2 h-2 rounded-full bg-emerald animate-pulse" />
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="font-mono text-xs">{truncatedAddress}</span>
           <ChevronDown
             size={14}
@@ -286,31 +269,22 @@ function WalletButton() {
               className="fixed inset-0 z-40 bg-transparent border-none cursor-default"
               tabIndex={-1}
               onClick={() => setShowDropdown(false)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setShowDropdown(false);
-              }}
+              onKeyDown={(e) => { if (e.key === "Escape") setShowDropdown(false); }}
               aria-label="Close dropdown"
             />
-            <div className="absolute right-0 mt-2 w-56 z-50 rounded-xl bg-card/95 backdrop-blur-xl border border-border shadow-xl shadow-black/10 dark:shadow-black/30 p-2 space-y-1">
+            <div className="absolute right-0 mt-2 w-56 z-50 rounded-xl glass-strong border border-gold-500/10 shadow-xl shadow-black/40 p-2 space-y-1">
               <button
                 type="button"
                 onClick={handleCopy}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"
               >
-                {copied ? (
-                  <Check size={14} className="text-emerald" />
-                ) : (
-                  <Copy size={14} className="opacity-60" />
-                )}
+                {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} className="opacity-60" />}
                 <span>{copied ? "Copied!" : "Copy Address"}</span>
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  open({ view: "Account" });
-                  setShowDropdown(false);
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                onClick={() => { open({ view: "Account" }); setShowDropdown(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"
               >
                 <Wallet size={14} className="opacity-60" />
                 <span>Wallet Details</span>
@@ -318,10 +292,7 @@ function WalletButton() {
               <div className="h-px bg-border my-1" />
               <button
                 type="button"
-                onClick={() => {
-                  disconnect();
-                  setShowDropdown(false);
-                }}
+                onClick={() => { disconnect(); setShowDropdown(false); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/5 rounded-lg transition-colors"
               >
                 <LogOut size={14} />
@@ -341,7 +312,7 @@ function WalletButton() {
         console.log("[WalletButton] Connect button clicked, calling open");
         open({ view: "Connect", namespace: "solana" });
       }}
-      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-lg transition-all duration-300 shadow-lg shadow-emerald/20 hover:shadow-emerald/30 hover:scale-[1.02] active:scale-[0.98]"
+      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-black bg-linear-to-b from-gold-400 to-gold-600 hover:from-gold-300 hover:to-gold-500 rounded-lg transition-all duration-300 shadow-lg shadow-gold-500/20 hover:shadow-gold-500/30 hover:scale-[1.02] active:scale-[0.98]"
     >
       <Wallet size={16} />
       <span>Connect Wallet</span>
@@ -361,17 +332,15 @@ function MobileWalletButton() {
   if (isConnected && address) {
     return (
       <div className="space-y-2">
-        <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald/10 border border-emerald/20">
-          <div className="w-2 h-2 rounded-full bg-emerald animate-pulse" />
-          <span className="font-mono text-xs text-emerald-light">
-            {truncatedAddress}
-          </span>
+        <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gold-500/8 border border-gold-500/15">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="font-mono text-xs text-gold-400">{truncatedAddress}</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => open({ view: "Account" })}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-foreground bg-foreground/5 hover:bg-foreground/10 rounded-lg transition-colors"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-foreground bg-surface-2 hover:bg-surface-2/80 rounded-lg transition-colors"
           >
             <Wallet size={13} />
             <span>Details</span>
@@ -393,7 +362,7 @@ function MobileWalletButton() {
     <button
       type="button"
       onClick={() => open({ view: "Connect", namespace: "solana" })}
-      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-linear-to-r from-emerald to-emerald-dark rounded-lg shadow-lg shadow-emerald/20"
+      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-black bg-linear-to-b from-gold-400 to-gold-600 rounded-lg shadow-lg shadow-gold-500/20"
     >
       <Wallet size={16} />
       <span>Connect Wallet</span>
@@ -438,15 +407,17 @@ export default function Header() {
           }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-16 md:h-18">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 group">
+            <Link to="/" className="flex items-center gap-2.5 group shrink-0">
               <LogoMark />
               <div className="flex flex-col">
-                <span className="text-base font-bold text-foreground tracking-tight leading-none group-hover:text-emerald-light transition-colors">
+                <span
+                  className="text-base font-bold text-foreground tracking-tight leading-none font-display group-hover:text-gold-400 transition-colors"
+                >
                   Mazel
                 </span>
-                <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase leading-none mt-0.5">
+                <span className="text-[10px] text-muted-foreground font-semibold tracking-[0.15em] uppercase leading-none mt-0.5">
                   Protocol
                 </span>
               </div>
@@ -472,8 +443,8 @@ export default function Header() {
                     to={(link as { to: string }).to}
                     className={({ isActive }) =>
                       isActive
-                        ? "flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg"
-                        : "flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/5"
+                        ? "flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-gold-400 bg-gold-500/10 rounded-lg"
+                        : "flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-surface-2"
                     }
                   >
                     <link.icon size={16} className="opacity-70" />
@@ -485,15 +456,10 @@ export default function Header() {
 
             {/* Right side: Wallet + Mobile menu */}
             <div className="flex items-center gap-3">
-              {/* Theme Toggle */}
-              <div className="hidden sm:block">
-                <ThemeToggleCompact />
-              </div>
-
-              {/* Live Jackpot Badge (Desktop only) */}
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold/10 border border-gold/20">
-                <div className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
-                <span className="text-xs font-semibold text-gold">
+              {/* Live Jackpot Badge (Desktop) */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold-500/8 border border-gold-500/15">
+                <div className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse" />
+                <span className="text-xs font-semibold text-gold-400 tracking-wide">
                   Jackpot: $1.2M
                 </span>
               </div>
@@ -507,7 +473,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="lg:hidden p-2 text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                className="lg:hidden p-2 text-muted-foreground hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"
                 aria-label={mobileOpen ? "Close menu" : "Open menu"}
               >
                 {mobileOpen ? <X size={22} /> : <Menu size={22} />}
@@ -536,27 +502,23 @@ export default function Header() {
 
       {/* Mobile Menu Panel */}
       <aside
-        className={`fixed top-0 right-0 h-full w-80 max-w-[85vw] z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${mobileOpen ? "translate-x-0" : "translate-x-full"
-          }`}
+        className={`fixed top-0 right-0 h-full w-80 max-w-[85vw] z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${mobileOpen ? "translate-x-0" : "translate-x-full"}`}
       >
-        <div className="h-full flex flex-col bg-card/95 dark:bg-navy-deep/95 backdrop-blur-xl border-l border-border">
+        <div className="h-full flex flex-col bg-surface-0/98 backdrop-blur-xl border-l border-border">
           {/* Mobile header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center gap-2.5">
               <LogoMark />
-              <span className="font-bold text-foreground">MazelProtocol</span>
+              <span className="font-bold text-foreground font-display">MazelProtocol</span>
             </div>
-            <div className="flex items-center gap-2">
-              <ThemeToggleCompact />
-              <button
-                type="button"
-                onClick={() => setMobileOpen(false)}
-                className="p-2 text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
-                aria-label="Close menu"
-              >
-                <X size={20} />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              className="p-2 text-muted-foreground hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"
+              aria-label="Close menu"
+            >
+              <X size={20} />
+            </button>
           </div>
 
           {/* Mobile wallet connect */}
@@ -565,9 +527,9 @@ export default function Header() {
           </div>
 
           {/* Jackpot badge mobile */}
-          <div className="mx-4 mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gold/10 border border-gold/20">
-            <div className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
-            <span className="text-xs font-semibold text-gold">
+          <div className="mx-4 mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gold-500/8 border border-gold-500/15">
+            <div className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse" />
+            <span className="text-xs font-semibold text-gold-400">
               Live Jackpot: $1,247,832
             </span>
           </div>
@@ -579,8 +541,8 @@ export default function Header() {
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
                 isActive
-                  ? "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg"
-                  : "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                  ? "flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-gold-400 bg-gold-500/10 rounded-lg"
+                  : "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"
               }
             >
               <Trophy size={18} className="opacity-70" />
@@ -600,7 +562,7 @@ export default function Header() {
                           [link.label]: !prev[link.label],
                         }))
                       }
-                      className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <link.icon size={18} className="opacity-70" />
@@ -608,8 +570,7 @@ export default function Header() {
                       </div>
                       <ChevronDown
                         size={16}
-                        className={`opacity-50 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""
-                          }`}
+                        className={`opacity-50 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
                       />
                     </button>
                     {isExpanded && (
@@ -621,18 +582,15 @@ export default function Header() {
                             return (
                               <a
                                 key={child.label}
-                                href={child.href as string}
+                                href={child.href}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={() => setMobileOpen(false)}
-                                className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                                className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"
                               >
                                 <ChildIcon size={15} className="opacity-60" />
                                 <span>{child.label}</span>
-                                <ExternalLink
-                                  size={11}
-                                  className="ml-auto opacity-30"
-                                />
+                                <ExternalLink size={11} className="ml-auto opacity-30" />
                               </a>
                             );
                           }
@@ -640,13 +598,12 @@ export default function Header() {
                           return (
                             <NavLink
                               key={child.label}
-                              // biome-ignore lint/style/noNonNullAssertion: child.to is guaranteed when href is absent
-                              to={child.to!}
+                              to={child.to as string}
                               onClick={() => setMobileOpen(false)}
                               className={({ isActive }) =>
                                 isActive
-                                  ? "flex items-center gap-2.5 px-3 py-2 text-sm text-emerald-light bg-emerald/10 rounded-lg"
-                                  : "flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                                  ? "flex items-center gap-2.5 px-3 py-2 text-sm text-gold-400 bg-gold-500/10 rounded-lg"
+                                  : "flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"
                               }
                             >
                               <ChildIcon size={15} className="opacity-60" />
@@ -667,8 +624,8 @@ export default function Header() {
                   onClick={() => setMobileOpen(false)}
                   className={({ isActive }) =>
                     isActive
-                      ? "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-emerald-light bg-emerald/10 rounded-lg"
-                      : "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+                      ? "flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-gold-400 bg-gold-500/10 rounded-lg"
+                      : "flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"
                   }
                 >
                   <link.icon size={18} className="opacity-70" />

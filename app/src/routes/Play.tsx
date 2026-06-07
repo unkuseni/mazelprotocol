@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   Check,
@@ -18,16 +17,16 @@ import {
   Zap,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { CountdownTimer } from "@/components/CountdownTimer";
-import Footer from "@/components/Footer";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { FloatingBalls, LotteryBallRow } from "@/components/LotteryBalls";
 import { Button } from "@/components/ui/button";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
-import { useLotteryState, SOFT_CAP_USDC } from "@/hooks/use-lottery-state";
+import { SOFT_CAP_USDC, useLotteryState } from "@/hooks/use-lottery-state";
+import { useLotteryQueryClient } from "@/lib/anchor/hooks";
 import { useAnchorProvider } from "@/lib/anchor/provider";
 import { buyMainTicket, ensureUsdcTokenAccount } from "@/lib/anchor/transactions";
-import { useLotteryQueryClient } from "@/lib/anchor/hooks";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                 */
@@ -86,10 +85,10 @@ function NumberGrid({ selected, onToggle, disabled }: NumberGridProps) {
               text-sm sm:text-base font-bold transition-all duration-200
               select-none cursor-pointer
               ${isSelected
-                ? "bg-linear-to-br from-emerald-light to-emerald text-white shadow-lg shadow-emerald/30 scale-105 ring-2 ring-emerald-light/50"
+                ? "bg-linear-to-b from-gold-400 to-gold-600 text-black shadow-lg shadow-gold-500/30 scale-105 ring-2 ring-gold-400/50"
                 : isFull
-                  ? "bg-foreground/2 text-muted-foreground/60 cursor-not-allowed border border-foreground/3"
-                  : "bg-foreground/4 text-muted-foreground border border-foreground/6 hover:bg-foreground/8 hover:border-emerald/30 hover:text-foreground hover:scale-105 active:scale-95"
+                  ? "bg-surface-2 text-muted-foreground/40 cursor-not-allowed border border-border"
+                  : "bg-surface-1 text-muted-foreground border border-border hover:bg-surface-2 hover:border-gold-500/30 hover:text-foreground hover:scale-105 active:scale-95"
               }
             `}
           >
@@ -120,14 +119,14 @@ function TicketCard({
   isQuickPick,
 }: TicketCardProps) {
   return (
-    <div className="group relative glass rounded-xl p-3 sm:p-4 transition-all hover:border-emerald/20">
+    <div className="group relative glass rounded-xl p-3 sm:p-4 transition-all hover:border-gold-500/20">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
             Ticket #{index + 1}
           </span>
           {isQuickPick && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald/10 border border-emerald/20 text-[9px] font-semibold text-emerald-light uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gold-500/10 border border-gold-500/20 text-[9px] font-semibold text-gold-400 uppercase tracking-wider">
               <Zap size={8} />
               Quick Pick
             </span>
@@ -146,7 +145,7 @@ function TicketCard({
         {numbers.map((num) => (
           <div
             key={num}
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold bg-linear-to-br from-emerald-light/20 to-emerald/10 border border-emerald/20 text-emerald-light"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold bg-gold-500/10 border border-gold-500/20 text-gold-400"
           >
             {num}
           </div>
@@ -176,9 +175,9 @@ function CartSummary({
   purchaseTx = null,
 }: CartSummaryProps) {
   return (
-    <div className="glass-strong rounded-2xl p-5 sm:p-6 border-gradient-emerald">
+    <div className="glass-strong rounded-2xl p-5 sm:p-6 border-gradient-gold">
       <h3 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-        <ShoppingCart size={16} className="text-emerald" />
+        <ShoppingCart size={16} className="text-gold-400" />
         Your Cart
       </h3>
 
@@ -193,7 +192,7 @@ function CartSummary({
             ${TICKET_PRICE.toFixed(2)} USDC
           </span>
         </div>
-        <div className="h-px bg-foreground/5" />
+        <div className="h-px bg-border" />
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-foreground">Total</span>
           <span className="text-lg font-black text-gradient-gold">
@@ -541,14 +540,8 @@ export default function PlayMainLottery() {
                 {/* Selection progress bar */}
                 <div className="h-1 bg-foreground/5 rounded-full mb-5 overflow-hidden">
                   <div
-                    className="h-full rounded-full transition-all duration-300 ease-out"
-                    style={{
-                      width: `${(selectedNumbers.size / PICK_COUNT) * 100}%`,
-                      background:
-                        selectedNumbers.size === PICK_COUNT
-                          ? "linear-gradient(90deg, oklch(0.55 0.17 160), oklch(0.72 0.19 160))"
-                          : "linear-gradient(90deg, oklch(0.6 0.15 85), oklch(0.75 0.15 85))",
-                    }}
+                    className={`h-full rounded-full transition-all duration-300 ease-out ${selectedNumbers.size === PICK_COUNT ? "bg-linear-to-r from-emerald-500 to-emerald-400" : "bg-linear-to-r from-gold-500 to-gold-400"}`}
+                    style={{ width: `${(selectedNumbers.size / PICK_COUNT) * 100}%` }}
                   />
                 </div>
 

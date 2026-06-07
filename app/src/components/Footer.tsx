@@ -1,16 +1,16 @@
-import { Link } from "react-router-dom";
 import {
-  Trophy,
-  Zap,
-  Users,
   BookOpen,
+  Check,
   ExternalLink,
   Github,
-  Twitter,
-  MessageCircle,
-  Check,
   Globe,
+  MessageCircle,
+  Trophy,
+  Twitter,
+  Users,
+  Zap,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const footerSections = [
   {
@@ -61,28 +61,13 @@ const footerSections = [
 
 function FooterLogoMark() {
   return (
-    <div className="relative w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-linear-to-br from-emerald to-emerald-dark">
-      {/** biome-ignore lint/a11y/noSvgWithoutTitle: <Does not have a title> */}
-      <svg
-        viewBox="0 0 32 32"
-        className="w-6 h-6"
-        fill="none"
-        stroke="white"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+    <div className="relative w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-linear-to-br from-gold-400 to-gold-600 shadow-lg shadow-gold-500/20">
+      <svg viewBox="0 0 32 32" className="w-6 h-6" fill="none" stroke="#0A0A0A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <title>MazelProtocol</title>
         <circle cx="16" cy="16" r="10" />
         <path d="M16 6v20" />
         <path d="M6 16h20" />
-        <circle
-          cx="16"
-          cy="16"
-          r="4"
-          fill="white"
-          fillOpacity="0.3"
-          stroke="none"
-        />
+        <circle cx="16" cy="16" r="4" fill="#0A0A0A" fillOpacity="0.25" stroke="none" />
       </svg>
       <div className="absolute inset-0 bg-linear-to-tr from-transparent via-white/10 to-white/20 pointer-events-none" />
     </div>
@@ -93,7 +78,7 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="relative bg-card dark:bg-navy-deep border-t border-border">
+    <footer className="relative bg-surface-0 border-t border-border">
       {/* Top gradient line */}
       <div className="section-divider" />
 
@@ -105,10 +90,13 @@ export default function Footer() {
             <Link to="/" className="flex items-center gap-3 group mb-4">
               <FooterLogoMark />
               <div className="flex flex-col">
-                <span className="text-lg font-bold text-foreground tracking-tight leading-none group-hover:text-emerald-light transition-colors">
+                <span
+                  className="text-lg font-bold text-foreground tracking-tight leading-none group-hover:text-gold-400 transition-colors"
+
+                >
                   MazelProtocol
                 </span>
-                <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase leading-none mt-1">
+                <span className="text-[10px] text-muted-foreground font-semibold tracking-[0.15em] uppercase leading-none mt-1">
                   Protocol
                 </span>
               </div>
@@ -124,7 +112,7 @@ export default function Footer() {
                 href="https://twitter.com/mazelprotocol"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                className="p-2 rounded-lg text-muted-foreground hover:text-gold-400 hover:bg-gold-500/10 transition-colors"
                 aria-label="Twitter"
               >
                 <Twitter size={18} />
@@ -133,7 +121,7 @@ export default function Footer() {
                 href="https://discord.gg/mazelprotocol"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                className="p-2 rounded-lg text-muted-foreground hover:text-gold-400 hover:bg-gold-500/10 transition-colors"
                 aria-label="Discord"
               >
                 <MessageCircle size={18} />
@@ -142,7 +130,7 @@ export default function Footer() {
                 href="https://github.com/mazelprotocol"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                className="p-2 rounded-lg text-muted-foreground hover:text-gold-400 hover:bg-gold-500/10 transition-colors"
                 aria-label="GitHub"
               >
                 <Github size={18} />
