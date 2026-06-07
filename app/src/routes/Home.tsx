@@ -1,27 +1,27 @@
-import { Link } from "react-router-dom";
 import {
-  TrendingUp,
-  Shield,
-  Users,
-  Sparkles,
-  Trophy,
-  Zap,
   ArrowRight,
-  CheckCircle,
   BarChart3,
-  Wallet,
+  CheckCircle,
   Eye,
   Lock,
   type LucideIcon,
+  Shield,
+  Sparkles,
+  TrendingUp,
+  Trophy,
+  Users,
+  Wallet,
+  Zap,
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CountdownTimer } from "@/components/CountdownTimer";
+import { EVBadge, EVCalculator } from "@/components/EVCalculator";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { FloatingBalls, LotteryBallRow } from "@/components/LotteryBalls";
-import { CountdownTimer } from "@/components/CountdownTimer";
-import { RolldownGauge } from "@/components/RolldownGauge";
-import { EVCalculator, EVBadge } from "@/components/EVCalculator";
 import { ProbabilityTimeline } from "@/components/ProbabilityTimeline";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
+import { RolldownGauge } from "@/components/RolldownGauge";
 import { useLotteryState } from "@/hooks/use-lottery-state";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                  */
@@ -105,15 +105,15 @@ function FeatureCard({
 }) {
   return (
     <div
-      className={`group relative rounded-2xl p-6 transition-all duration-300 hover:-translate-y-0.5 ${highlight
-        ? "bg-linear-to-br from-emerald/10 via-emerald/5 to-transparent border border-emerald/20 glow-emerald hover:border-emerald/40"
-        : "bg-foreground/2 border border-foreground/6 hover:border-foreground/12 hover:bg-foreground/4"
+      className={`group relative rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 ${highlight
+        ? "bg-linear-to-br from-gold-500/8 via-gold-500/3 to-transparent border border-gold-500/15 glow-gold hover:border-gold-500/30"
+        : "bg-surface-1/50 border border-border hover:border-gold-500/15 hover:bg-surface-2/50"
         }`}
     >
       <div
         className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors ${highlight
-          ? "bg-emerald/15 text-emerald-light"
-          : "bg-foreground/4 text-muted-foreground group-hover:text-foreground"
+          ? "bg-gold-500/15 text-gold-400"
+          : "bg-surface-2 text-muted-foreground group-hover:text-gold-400 group-hover:bg-gold-500/10"
           }`}
       >
         <Icon size={20} />
@@ -124,7 +124,7 @@ function FeatureCard({
       </p>
       {highlight && (
         <div className="absolute top-4 right-4">
-          <Sparkles size={16} className="text-gold animate-pulse" />
+          <Sparkles size={16} className="text-gold-400 animate-pulse" />
         </div>
       )}
     </div>
@@ -146,26 +146,30 @@ function HeroSection({
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
       {/* Background effects */}
-      <div className="absolute inset-0 bg-linear-to-b from-background via-navy/30 to-background pointer-events-none" />
-      <FloatingBalls count={12} className="opacity-50" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald/5 rounded-full blur-[128px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gold/5 rounded-full blur-[128px] pointer-events-none" />
+      <div className="absolute inset-0 bg-linear-to-b from-background via-transparent to-background pointer-events-none" />
+      <FloatingBalls count={12} className="opacity-30" />
+      <div className="absolute top-1/4 left-1/4 w-125 h-125 bg-gold-500/3 rounded-full blur-[150px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-125 h-125 bg-emerald-500/3 rounded-full blur-[150px] pointer-events-none" />
+      {/* Hero grid pattern */}
+      <div className="absolute inset-0 hero-grid opacity-50 pointer-events-none" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
         {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald/10 border border-emerald/20 mb-8 animate-pulse">
-          <div className="w-2 h-2 rounded-full bg-emerald" />
-          <span className="text-xs font-semibold text-emerald-light uppercase tracking-wider">
+        <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gold-500/8 border border-gold-500/15 mb-8 animate-pulse-glow">
+          <div className="w-2 h-2 rounded-full bg-gold-400" />
+          <span className="text-xs font-bold text-gold-400 uppercase tracking-[0.2em]">
             Live on Solana
           </span>
         </div>
 
         {/* Main heading */}
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-foreground leading-none mb-6">
+        <h1
+          className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-foreground leading-none mb-6 font-display"
+        >
           The First{" "}
           <span className="text-gradient-gold">+EV Lottery</span>
           <br />
-          <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-muted-foreground">
+          <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-medium text-muted-foreground">
             Built on Solana
           </span>
         </h1>
@@ -206,7 +210,7 @@ function HeroSection({
           <button
             type="button"
             onClick={() => (isConnected ? null : open?.())}
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-linear-to-r from-emerald to-emerald-dark text-white font-bold text-lg shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all hover:-translate-y-0.5 active:translate-y-0"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-linear-to-b from-gold-400 to-gold-600 text-black font-bold text-lg shadow-lg shadow-gold-500/25 hover:shadow-gold-500/40 transition-all hover:-translate-y-0.5 active:translate-y-0"
           >
             {isConnected ? (
               <Link to="/play" className="flex items-center gap-2">
@@ -223,7 +227,7 @@ function HeroSection({
 
           <Link
             to="/learn/rolldown"
-            className="inline-flex items-center gap-2 px-6 py-4 rounded-xl border border-border hover:border-foreground/20 text-muted-foreground hover:text-foreground font-semibold transition-all"
+            className="inline-flex items-center gap-2 px-6 py-4 rounded-xl border border-gold-500/20 hover:border-gold-500/40 text-muted-foreground hover:text-foreground font-semibold transition-all"
           >
             How It Works
             <ArrowRight size={18} />
@@ -243,7 +247,7 @@ function PrizeTiersSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground mb-4">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground mb-4 font-display">
               Prize Structure
             </h2>
             <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto">
@@ -256,7 +260,7 @@ function PrizeTiersSection() {
             {prizeTiers.map((tier) => (
               <div
                 key={tier.match}
-                className="relative rounded-2xl p-6 bg-card/50 border border-border/50 text-center hover:border-border transition-colors"
+                className="relative rounded-2xl p-6 card-premium text-center hover:border-gold-500/15 transition-colors"
               >
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   {tier.match}
@@ -278,7 +282,7 @@ function PrizeTiersSection() {
                     {tier.prize}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    Rolldown: <span className="text-gold font-semibold">{tier.rolldown}</span>
+                    Rolldown: <span className="text-gold-400 font-semibold">{tier.rolldown}</span>
                   </p>
                   <p className="text-[10px] text-muted-foreground/60">
                     {tier.odds}
@@ -303,7 +307,7 @@ function HowItWorksSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground mb-4">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground mb-4 font-display">
               How Rolldown Works
             </h2>
             <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto">
@@ -315,9 +319,9 @@ function HowItWorksSection() {
             {rolldownSteps.map((step, i) => (
               <div
                 key={step.step}
-                className="relative rounded-2xl p-6 bg-card/50 border border-border/50"
+                className="relative rounded-2xl p-6 card-premium"
               >
-                <div className="text-2xl font-black text-emerald/30 mb-3">
+                <div className="text-2xl font-black text-gold-400/20 mb-3">
                   {step.step}
                 </div>
                 <h3 className="text-sm font-bold text-foreground mb-2">
@@ -327,7 +331,7 @@ function HowItWorksSection() {
                   {step.description}
                 </p>
                 {i < rolldownSteps.length - 1 && (
-                  <div className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 text-muted-foreground/30">
+                  <div className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 text-gold-400/20">
                     <ArrowRight size={20} />
                   </div>
                 )}
@@ -449,10 +453,10 @@ function TrustSection() {
             return (
               <div
                 key={badge.title}
-                className="flex gap-4 p-5 rounded-2xl bg-card/50 border border-border/50"
+                className="flex gap-4 p-5 rounded-2xl card-premium"
               >
-                <div className="w-10 h-10 rounded-xl bg-emerald/10 flex items-center justify-center shrink-0">
-                  <Icon size={20} className="text-emerald-light" />
+                <div className="w-10 h-10 rounded-xl bg-gold-500/10 flex items-center justify-center shrink-0">
+                  <Icon size={20} className="text-gold-400" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-foreground mb-1">
@@ -500,9 +504,9 @@ function CtaSection({ rolldownActive }: { rolldownActive: boolean }) {
     <section className="py-16 sm:py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto text-center">
-          <div className="rounded-3xl p-6 sm:p-10 lg:p-14 bg-linear-to-br from-emerald/10 via-card/50 to-gold/5 border border-emerald/20">
-            <Trophy size={32} className="mx-auto mb-4 text-gold sm:size-10 lg:size-12" />
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground mb-4">
+          <div className="rounded-3xl p-6 sm:p-10 lg:p-14 bg-linear-to-br from-gold-500/8 via-surface-1/50 to-emerald-500/5 border border-gold-500/15 glow-gold">
+            <Trophy size={32} className="mx-auto mb-4 text-gold-400 sm:size-10 lg:size-12" />
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground mb-4 font-display">
               {rolldownActive
                 ? "The +EV Window Is Open"
                 : "Ready to Play?"}
@@ -516,7 +520,7 @@ function CtaSection({ rolldownActive }: { rolldownActive: boolean }) {
               {isConnected ? (
                 <Link
                   to="/play"
-                  className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-linear-to-r from-emerald to-emerald-dark text-white font-bold text-lg shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all hover:-translate-y-0.5"
+                  className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-linear-to-b from-gold-400 to-gold-600 text-black font-bold text-lg shadow-lg shadow-gold-500/25 hover:shadow-gold-500/40 transition-all hover:-translate-y-0.5"
                 >
                   <Trophy size={20} />
                   Buy Tickets
@@ -526,7 +530,7 @@ function CtaSection({ rolldownActive }: { rolldownActive: boolean }) {
                 <button
                   type="button"
                   onClick={() => open?.()}
-                  className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-linear-to-r from-emerald to-emerald-dark text-white font-bold text-lg shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all hover:-translate-y-0.5"
+                  className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-linear-to-b from-gold-400 to-gold-600 text-black font-bold text-lg shadow-lg shadow-gold-500/25 hover:shadow-gold-500/40 transition-all hover:-translate-y-0.5"
                 >
                   <Wallet size={20} />
                   Connect Wallet
@@ -535,7 +539,7 @@ function CtaSection({ rolldownActive }: { rolldownActive: boolean }) {
               )}
               <Link
                 to="/learn/whitepaper"
-                className="inline-flex items-center gap-2 px-6 py-4 rounded-xl border border-border hover:border-foreground/20 text-muted-foreground hover:text-foreground font-semibold transition-all"
+                className="inline-flex items-center gap-2 px-6 py-4 rounded-xl border border-gold-500/20 hover:border-gold-500/40 text-muted-foreground hover:text-foreground font-semibold transition-all"
               >
                 Read the Whitepaper
                 <ArrowRight size={18} />
