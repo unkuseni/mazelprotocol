@@ -108,6 +108,12 @@ impl LpPool {
 
     /// Add rewards to the pool. Called during ticket purchases when a portion
     /// of the house fee is routed to LPs.
+    ///
+    /// NOTE: When total_shares == 0 (no LPs yet), reward_per_share is NOT
+    /// updated (would be division by zero). accumulated_rewards IS incremented.
+    /// The orphaned USDC becomes a "bootstrap bonus" — it inflates the pool's
+    /// per-share value for all future LPs proportionally. No exploit possible;
+    /// rewards attributed before any LP exists are shared equally by all who join.
     pub fn add_rewards(&mut self, amount: u64) -> Result<()> {
         if amount == 0 {
             return Ok(());

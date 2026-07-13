@@ -3,13 +3,14 @@
 //! Allows ANY user to advance a stuck draw after a timeout period OR accelerate
 //! a draw when the sale target ticket count is reached.
 //!
-//! # Two Modes:
+//! # Three Scenarios:
 //! 1. **Timeout recovery** (draw in progress): Skip a stuck draw that the bot
-//!    failed to finalize. Requires DRAW_ADVANCEMENT_TIMEOUT elapsed.
+//!    committed but failed to finalize. Requires DRAW_ADVANCEMENT_TIMEOUT.
 //! 2. **Sale target acceleration** (draw NOT in progress): When enough tickets
 //!    are sold, pull the next draw forward to now so the bot commits immediately.
-//!    Requires sale_target_tickets > 0 AND current_draw_tickets >= target
-//!    AND MIN_DRAW_INTERVAL elapsed.
+//! 3. **Acceleration timeout** (Mode 2 failed): If sale target was hit and the
+//!    draw was accelerated but the bot never committed, skip this draw after
+//!    the timeout elapses (prevents infinite stall when bot is offline).
 
 use crate::constants::*;
 use crate::errors::LottoError;
@@ -37,35 +38,34 @@ pub fn handler(ctx: Context<AdvanceDraw>) -> Result<()> {
 
     let draw_in_progress = lottery_state.is_draw_in_progress;
 
-    // Calculate the start of the current draw cycle
-    let cycle_start = lottery_state.next_draw_timestamp.saturating_sub(lottery_state.draw_interval);
+    // Original scheduled time for this draw cycle
+    let next_draw = lottery_state.next_draw_timestamp;
+    let cycle_start = next_draw.saturating_sub(lottery_state.draw_interval);
 
-    // Check sale target condition (applies to both modes)
+    // Check sale target condition
     let target_hit = lottery_state.sale_target_tickets > 0
         && lottery_state.current_draw_tickets >= lottery_state.sale_target_tickets;
 
-    // Safety: minimum interval must have passed since cycle start
+    // Minimum interval since cycle start
     let min_interval_elapsed =
         clock.unix_timestamp >= cycle_start.saturating_add(MIN_DRAW_INTERVAL);
 
+    // Timeout since original scheduled draw time
+    let timeout_elapsed =
+        clock.unix_timestamp >= next_draw.saturating_add(DRAW_ADVANCEMENT_TIMEOUT);
+
     // =========================================================================
-    // MODE 1: Draw IS in progress — timeout recovery (existing behavior)
+    // MODE 1: Draw IS in progress — timeout recovery
     // =========================================================================
     if draw_in_progress {
-        // SECURITY: Cannot advance a draw that has already been executed
         require!(!lottery_state.is_awaiting_finalization, LottoError::DrawNotInProgress);
 
-        // Timeout must have elapsed (sale target alone not enough for stuck draws)
-        let timeout_elapsed = clock.unix_timestamp
-            >= lottery_state.next_draw_timestamp.saturating_add(DRAW_ADVANCEMENT_TIMEOUT);
-
         let can_advance = (timeout_elapsed || target_hit) && min_interval_elapsed;
-
         require!(can_advance, LottoError::DrawAdvancementNotReady);
 
         if target_hit && !timeout_elapsed {
             msg!(
-                "🎯 SALE TARGET HIT during stuck draw: {} tickets >= {} target",
+                "🎯 SALE TARGET HIT during stuck draw: {} >= {}",
                 lottery_state.current_draw_tickets,
                 lottery_state.sale_target_tickets
             );
@@ -73,7 +73,6 @@ pub fn handler(ctx: Context<AdvanceDraw>) -> Result<()> {
             msg!("⚠️  Draw advancement triggered by timeout");
         }
 
-        // Reset draw state to allow the next cycle
         lottery_state.reset_draw_state(true);
         lottery_state.current_draw_id =
             lottery_state.current_draw_id.checked_add(1).ok_or(LottoError::Overflow)?;
@@ -83,23 +82,44 @@ pub fn handler(ctx: Context<AdvanceDraw>) -> Result<()> {
             .ok_or(LottoError::Overflow)?;
 
         msg!("  Draw advanced to ID: {}", lottery_state.current_draw_id);
-
         return Ok(());
     }
 
     // =========================================================================
-    // MODE 2: Draw NOT in progress — sale target acceleration
+    // MODE 2: Draw NOT in progress
     // =========================================================================
+    // Two sub-cases:
+    //   a) Target hit, schedule not yet expired → accelerate
+    //   b) Target hit, schedule expired + timeout → bot is dead, skip this draw
+
     if target_hit && min_interval_elapsed {
-        // Pull the next draw forward to NOW so the bot commits immediately.
-        // The draw ID stays the same — we're just accelerating the schedule.
+        // Sub-case b: The scheduled draw time has passed AND the timeout has
+        // elapsed. This means a previous acceleration also failed (bot offline).
+        // Skip this draw entirely rather than stalling forever.
+        if timeout_elapsed {
+            msg!("🎯 SALE TARGET HIT but bot never committed after timeout");
+            msg!("  Skipping draw {} — advancing to next cycle", lottery_state.current_draw_id);
+
+            lottery_state.current_draw_id =
+                lottery_state.current_draw_id.checked_add(1).ok_or(LottoError::Overflow)?;
+            lottery_state.next_draw_timestamp = clock
+                .unix_timestamp
+                .checked_add(lottery_state.draw_interval)
+                .ok_or(LottoError::Overflow)?;
+
+            msg!("  Draw advanced to ID: {}", lottery_state.current_draw_id);
+            return Ok(());
+        }
+
+        // Sub-case a: First-time acceleration — pull the draw forward to NOW.
+        // The bot will see next_draw_timestamp <= now and commit immediately.
         msg!(
-            "🎯 SALE TARGET HIT: {} tickets >= {} target",
+            "🎯 SALE TARGET HIT: {} >= {}",
             lottery_state.current_draw_tickets,
             lottery_state.sale_target_tickets
         );
         msg!("  Accelerating draw — next draw set to NOW");
-        msg!("  Previous scheduled time: {}", lottery_state.next_draw_timestamp);
+        msg!("  Previous scheduled time: {}", next_draw);
 
         lottery_state.next_draw_timestamp = clock.unix_timestamp;
 
@@ -107,6 +127,5 @@ pub fn handler(ctx: Context<AdvanceDraw>) -> Result<()> {
         return Ok(());
     }
 
-    // Neither mode satisfied
     Err(LottoError::DrawAdvancementNotReady.into())
 }

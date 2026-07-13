@@ -21,7 +21,8 @@ use crate::errors::LottoError;
 use crate::events::{
     ConfigUpdated, DrawCancelled, DrawForceFinalized, EmergencyFundTransferred, EmergencyPause,
     EmergencyUnpause, ExpiredPrizesReclaimed, HouseFeesWithdrawn, InsurancePoolFunded,
-    LpPoolPaused, LpPoolUnpaused, LpRewardBpsUpdated, LpRewardsClaimed, SolvencyCheckPerformed,
+    LpPoolPaused, LpPoolUnpaused, LpRewardBpsProposed, LpRewardBpsUpdated, LpRewardsClaimed,
+    SolvencyCheckPerformed,
 };
 use crate::state::{DrawResult, LotteryState, LpPool, LpPosition, WinnerCounts};
 
@@ -1942,12 +1943,14 @@ pub fn handler_set_lp_config(ctx: Context<SetLpConfig>, lp_reward_bps: u16) -> R
 
     let old_bps = ctx.accounts.lp_pool.lp_reward_bps;
     ctx.accounts.lp_pool.pending_lp_reward_bps = lp_reward_bps;
-    ctx.accounts.lp_pool.lp_config_timelock_end =
+    let timelock_end =
         clock.unix_timestamp.checked_add(CONFIG_TIMELOCK_DELAY).ok_or(LottoError::Overflow)?;
+    ctx.accounts.lp_pool.lp_config_timelock_end = timelock_end;
 
-    emit!(LpRewardBpsUpdated {
+    emit!(LpRewardBpsProposed {
         old_bps,
-        new_bps: lp_reward_bps,
+        proposed_bps: lp_reward_bps,
+        executable_at: timelock_end,
         authority: ctx.accounts.authority.key(),
         timestamp: clock.unix_timestamp,
     });
@@ -1978,6 +1981,13 @@ pub fn handler_execute_lp_config(ctx: Context<SetLpConfig>) -> Result<()> {
     ctx.accounts.lp_pool.lp_reward_bps = new_bps;
     ctx.accounts.lp_pool.pending_lp_reward_bps = 0;
     ctx.accounts.lp_pool.lp_config_timelock_end = 0;
+
+    emit!(LpRewardBpsUpdated {
+        old_bps,
+        new_bps,
+        authority: ctx.accounts.authority.key(),
+        timestamp: clock.unix_timestamp,
+    });
 
     msg!("LP reward bps EXECUTED: {} -> {}", old_bps, new_bps);
     Ok(())
@@ -2092,7 +2102,7 @@ pub fn handler_close_lp_position(ctx: Context<CloseLpPosition>) -> Result<()> {
     let lp_pool = &mut ctx.accounts.lp_pool;
     let lp_position = &ctx.accounts.lp_position;
 
-    // Auto-claim pending rewards
+    // Calculate pending rewards and total to transfer
     let pending = lp_position.pending_rewards(lp_pool.reward_per_share).unwrap_or(0);
     let total_to_transfer = lp_position.deposit_amount.saturating_add(pending);
 
@@ -2101,6 +2111,14 @@ pub fn handler_close_lp_position(ctx: Context<CloseLpPosition>) -> Result<()> {
         ctx.accounts.lp_pool_usdc.amount >= total_to_transfer,
         LottoError::LpInsufficientLiquidity
     );
+
+    // Deduct rewards and deposits from accounting BEFORE transfer
+    if pending > 0 {
+        lp_pool.deduct_rewards(pending)?;
+    }
+    if lp_position.deposit_amount > 0 {
+        lp_pool.deduct_seed(lp_position.deposit_amount)?;
+    }
 
     // Transfer all remaining funds to owner
     let lp_bump = lp_pool.bump;
@@ -2116,11 +2134,13 @@ pub fn handler_close_lp_position(ctx: Context<CloseLpPosition>) -> Result<()> {
     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
     token::transfer(cpi_ctx, total_to_transfer)?;
 
-    // Reset pool state (position account will be closed by Anchor's `close = owner`)
+    // Full reset of pool state (position account closed by Anchor's `close = owner`)
     lp_pool.total_shares = 0;
     lp_pool.total_deposits = 0;
     lp_pool.accumulated_rewards = 0;
     lp_pool.reward_per_share = 0;
+    lp_pool.lp_config_timelock_end = 0;
+    lp_pool.pending_lp_reward_bps = 0;
 
     emit!(LpRewardsClaimed {
         claimer: ctx.accounts.owner.key(),
@@ -2130,7 +2150,7 @@ pub fn handler_close_lp_position(ctx: Context<CloseLpPosition>) -> Result<()> {
     });
 
     msg!("LP position closed. Transferred {} USDC lamports to owner.", total_to_transfer);
-    msg!("LP pool is now empty and can be safely ignored.");
+    msg!("LP pool fully reset and can be safely re-initialized.");
 
     Ok(())
 }
