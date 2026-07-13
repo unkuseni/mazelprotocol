@@ -9,9 +9,10 @@
 1. [Dynamic House Fee System](#1-dynamic-house-fee-system)
 2. [Soft/Hard Rolldown Caps](#2-softhard-rolldown-caps)
 3. [MEV Protection](#3-mev-protection)
-4. [Quick Pick Express (5/35)](#4-quick-pick-express-535)
-5. [Syndicate Wars Competition](#5-syndicate-wars-competition)
-6. [Implementation Priority](#6-implementation-priority)
+5. [Quick Pick Express (5/35)](#4-quick-pick-express-535)
+6. [Syndicate Wars Competition](#5-syndicate-wars-competition)
+7. [Jackpot LP Pool — Revenue Sharing](#7-jackpot-lp-pool--revenue-sharing)
+8. [Implementation Priority](#6-implementation-priority)
 
 ---
 
@@ -1669,6 +1670,142 @@ pub struct SyndicateWarsConcluded {
 
 ---
 
-*Advanced Features Specification v1.0.0*
+*Advanced Features Specification v3.1.0*
 *MazelProtocol*
 *Last Updated: 2025*
+---
+
+## 7. Jackpot LP Pool — Revenue Sharing
+
+### 7.1 Overview
+
+The Jackpot LP Pool transforms protocol funding from a centralized model (authority-only seed deposits) into a decentralized, yield-generating system. Any user can deposit USDC to help seed the jackpot after rolldowns and wins, earning a proportional share of house fees in return.
+
+**Core Innovation:** Instead of the protocol operator alone funding the $500,000 jackpot seed, a community of Liquidity Providers (LPs) collectively provides the capital and earns passive yield from every ticket sold.
+
+### 7.2 Economic Model
+
+```
+TICKET SALE ($2.50)
+├── House Fee (28-40%, dynamic)  →  e.g., $0.85
+│   ├── LP Rewards (60% default)  →  $0.51 goes to LP pool
+│   └── Operator (40%)            →  $0.34 goes to treasury
+│
+└── Prize Pool (60-72%)          →  $1.65
+    ├── 55.6% Jackpot
+    ├── 39.4% Fixed Prizes
+    ├──  3.0% Reserve
+    └──  2.0% Insurance
+```
+
+**LP reward share** is configurable via admin (default 60%, max 80% of house fees).
+
+### 7.3 Revenue Projections
+
+| Scenario | Tickets/Day | Avg House Fee | LP Reward Share | Daily LP Revenue | Annual LP Revenue |
+|----------|-------------|---------------|-----------------|------------------|-------------------|
+| Conservative | 5,000 | 32% | 60% | $1,200 | $438,000 |
+| Base | 10,000 | 34% | 60% | $5,100 | $1,860,000 |
+| Optimistic | 25,000 | 36% | 60% | $13,500 | $4,930,000 |
+| Rolldown Spike | 200,000 | 28% | 60% | $84,000 | N/A (one-time) |
+
+**APY Example:** With $5M total LP deposits at 10,000 tickets/day → ~37% APY (before compounding).
+
+### 7.4 How It Works
+
+#### 7.4.1 Depositing
+
+Users deposit USDC into the LP pool PDA (`lp_pool_usdc`) and receive LP shares:
+
+- **First deposit:** 1 USDC lamport = 1 share (initializes the pool)
+- **Subsequent deposits:** `shares = (deposit × total_shares) / total_deposits`
+
+Shares represent proportional ownership of the pool's deposits and reward stream.
+
+#### 7.4.2 Earning Rewards
+
+Rewards accumulate passively using the **Masterchef pattern**:
+
+1. Every ticket purchase routes `lp_reward_bps` % of the house fee to the LP pool
+2. `LpPool.reward_per_share` is incremented proportional to the reward amount
+3. Each LP's pending rewards = `(shares × reward_per_share / 1e12) - reward_debt`
+4. Rewards can be claimed at any time via `claim_lp_rewards` without affecting the position
+
+#### 7.4.3 Jackpot Seeding
+
+When a rolldown or jackpot win occurs (`finalize_draw`):
+
+1. The required `seed_amount` is drawn from the LP pool's `total_deposits` (first priority)
+2. Any shortfall is covered by the reserve fund (fallback, existing behavior)
+3. LP shares are NOT diluted — `total_deposits` decreases but share count stays the same, increasing per-share value
+
+This replaces the centralized `fund_seed` instruction with decentralized community funding.
+
+#### 7.4.4 Withdrawing
+
+LPs can withdraw at any time (instant, no cooldown), with one restriction:
+
+- **Withdrawal Gate:** Withdrawals are BLOCKED while a draw is in progress (`is_draw_in_progress = true` or `is_awaiting_finalization = true`). This ensures LP funds remain available for jackpot re-seeding at finalization time.
+- Once `finalize_draw` completes, the gate opens and withdrawals resume.
+- Unclaimed rewards are automatically claimed as part of the withdrawal.
+- Full pool drainage is prevented (at least one position must remain).
+
+**Withdrawal formula:** `amount = (shares_burned × total_deposits) / total_shares`
+
+### 7.5 Instructions
+
+| Instruction | Who | Description |
+|-------------|-----|-------------|
+| `deposit_lp(amount)` | Anyone | Deposit USDC, receive LP shares |
+| `withdraw_lp(shares)` | LP | Burn shares, receive USDC (auto-claims rewards) |
+| `claim_lp_rewards()` | LP | Claim accumulated rewards without affecting position |
+| `set_lp_config(reward_bps)` | Authority | Set LP reward % of house fees (max 80%) |
+
+### 7.6 Accounts
+
+| Account | PDA Seed | Purpose |
+|---------|----------|---------|
+| `LpPool` | `["lp_pool"]` | Global pool: total_shares, total_deposits, accumulated_rewards, reward_per_share, lp_reward_bps |
+| `LpPosition` | `["lp_position", owner]` | Per-user: shares, deposit_amount, reward_debt, total_rewards_claimed |
+| `LpPoolUsdc` | `["lp_pool_usdc"]` | Token account holding LP deposits and accumulated rewards |
+
+### 7.7 Constants
+
+```rust
+pub const DEFAULT_LP_REWARD_BPS: u16 = 6000;   // 60% of house fees
+pub const MAX_LP_REWARD_BPS: u16 = 8000;       // 80% max
+pub const LP_POOL_SEED: &[u8] = b"lp_pool";
+pub const LP_POOL_USDC_SEED: &[u8] = b"lp_pool_usdc";
+pub const LP_POSITION_SEED: &[u8] = b"lp_position";
+```
+
+### 7.8 Security Considerations
+
+| Concern | Mitigation |
+|---------|------------|
+| LPs withdraw before rolldown (starving seed) | Withdrawals gated during active draw cycle |
+| LP pool runs dry | Reserve fund (3% of tickets) is the ultimate fallback |
+| Reward manipulation | Rewards accumulate atomically with ticket purchases; no external oracle |
+| Dilution attack | Masterchef `reward_debt` tracking prevents this |
+| Complete pool drainage | At least one position must remain (`LpCannotDrainPool` error) |
+| Re-initialization attack | `init_if_needed` with PDA seeds prevents duplicate init |
+
+### 7.9 Integration with Existing Systems
+
+**Modified Instructions:**
+
+- `buy_ticket`: LP pool and LP pool USDC accounts added as optional accounts. When present and active, splits house fee into LP rewards + operator portion.
+- `finalize_draw`: LP pool added as optional account. Seeds new jackpot from LP pool first, falls back to reserve.
+
+**New Admin Instruction:**
+
+- `set_lp_config`: Updates `lp_reward_bps` on the LpPool account.
+
+**Events:** `LpDeposited`, `LpWithdrawn`, `LpRewardsAdded`, `LpRewardsClaimed`, `LpPoolSeeded`, `LpRewardBpsUpdated`
+
+**Error Codes:** `LpPoolPaused`, `LpPoolNotInitialized`, `LpPositionNotFound`, `LpPositionAlreadyExists`, `LpInvalidDepositAmount`, `LpInsufficientShares`, `LpInsufficientLiquidity`, `LpNoRewardsToClaim`, `LpRewardOverflow`, `LpShareOverflow`, `LpInvalidRewardBps`, `LpCannotDrainPool`
+
+---
+
+*Advanced Features Specification v3.1.0*
+*MazelProtocol*

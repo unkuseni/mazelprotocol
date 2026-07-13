@@ -3,6 +3,7 @@
 //! Stores results of a completed draw including winning numbers and prize amounts.
 
 use crate::constants::*;
+use anchor_lang::prelude::*;
 
 /// Draw result account - stores results of a completed draw
 #[account]

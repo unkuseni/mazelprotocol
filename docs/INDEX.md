@@ -81,6 +81,7 @@
 | Draw Recovery (cancel_draw, force_finalize_draw) | — | TECHNICAL_SPEC.md | ✅ Complete |
 | Verification Hash (tamper-resistant winner counts) | — | TECHNICAL_SPEC.md | ✅ Complete |
 | Statistical Plausibility Checks | — | TECHNICAL_SPEC.md | ✅ Complete |
+| **Jackpot LP Pool** | **ADVANCED_FEATURES.md §7** | **TECHNICAL_SPEC.md §6.1.14** | **✅ Complete** |
 
 ### ✅ Advanced Features (Implemented On-Chain)
 
@@ -91,6 +92,7 @@
 | Soft/Hard Caps | ADVANCED_FEATURES.md §2 | TECHNICAL_SPEC.md | ✅ Complete |
 | Quick Pick Express (separate program) | ADVANCED_FEATURES.md §5 | TECHNICAL_SPEC.md | ✅ Complete |
 | Syndicate Wars (init, register, stats, finalize, prizes) | ADVANCED_FEATURES.md §6 | TECHNICAL_SPEC.md | ✅ Complete |
+| **Jackpot LP Pool** (deposit, withdraw, claim rewards, seeding) | **ADVANCED_FEATURES.md §7** | **TECHNICAL_SPEC.md §6.1.14** | **✅ Complete** |
 
 ### ⚠️ Partially Implemented
 
@@ -190,6 +192,19 @@
 
 ---
 
+### Jackpot LP Pool — Revenue Sharing
+
+| Parameter | Value | Location |
+|-----------|-------|----------|
+| LP Reward Share | 60% of house fees (default) | ADVANCED_FEATURES.md §7 |
+| Max LP Reward Share | 80% of house fees | ADVANCED_FEATURES.md §7 |
+| Withdrawal Gate | Blocked during active draw cycle | ADVANCED_FEATURES.md §7 |
+| Reward Tracking | Masterchef pattern (per-share) | TECHNICAL_SPEC.md §6.1.14 |
+| Instructions | deposit_lp, withdraw_lp, claim_lp_rewards, set_lp_config | TECHNICAL_SPEC.md §6.1.14 |
+
+> 💰 PASSIVE YIELD: LPs earn a share of every ticket sold. At ~10,000 tickets/day with 60% LP share: ~$5,100/day distributed to LPs. With $5M in LP deposits, that's ~37% APY.
+
+
 ## 🔗 Cross-Reference Matrix
 
 ### Where to Find Specific Topics
@@ -205,6 +220,7 @@
 | **Smart Contracts** | - | WHITEPAPER.md §6 | TECHNICAL_SPEC §4-6 |
 | **Security** | SOLANA_LOTTO §Security | WHITEPAPER §7 | ADVANCED_FEATURES §4 |
 | **MEV Protection** | - | ADVANCED_FEATURES §4 | TECHNICAL_SPEC |
+| **Jackpot LP** | - | ADVANCED_FEATURES §7 | TECHNICAL_SPEC §6.1.14 |
 | **SDK/API** | SOLANA_LOTTO §API | - | TECHNICAL_SPEC §9 |
 
 ---
@@ -224,11 +240,11 @@
 - Two-step authority transfer ✅
 - Config timelock (propose/execute) ✅
 - On-chain solvency verification ✅
+- **Jackpot LP Pool** (deposit, withdraw, claim rewards, set config, draw-cycle-gated withdrawals) ✅
 
 ### 🔜 Next Priority
 - Apply streak bonus to prize calculations (logic exists, just not wired up)
 - Jito MEV protection integration
-- Apply streak bonus to prize calculations
 - Client SDK package (`@mazelprotocol/sdk`)
 
 ### 🔮 Future

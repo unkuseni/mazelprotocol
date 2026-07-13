@@ -51,9 +51,9 @@ pub use {constants::*, errors::*, events::*, state::*};
 // Grouped to avoid repetitive allow attributes.
 #[allow(ambiguous_glob_reexports)]
 pub use instructions::{
-    admin::*, advance_draw::*, buy_bulk::*, buy_ticket::*, claim_bulk_prize::*, claim_prize::*,
-    commit_randomness::*, execute_draw::*, finalize_draw::*, initialize::*, syndicate::*,
-    syndicate_wars::*,
+    admin::*, advance_draw::*, buy_bulk::*, buy_ticket::*, claim_bulk_prize::*,
+    claim_lp_rewards::*, claim_prize::*, commit_randomness::*, deposit_lp::*, execute_draw::*,
+    finalize_draw::*, initialize::*, syndicate::*, syndicate_wars::*, withdraw_lp::*,
 };
 
 // Program ID - Update this after deployment
@@ -218,6 +218,41 @@ pub mod mazelprotocol {
     /// * `amount` - Amount to withdraw in USDC lamports
     pub fn withdraw_house_fees(ctx: Context<WithdrawHouseFees>, amount: u64) -> Result<()> {
         instructions::admin::handler_withdraw_house_fees(ctx, amount)
+    }
+
+    /// Set LP pool configuration
+    ///
+    /// Proposes a new LP reward percentage. The change takes effect after
+    /// the CONFIG_TIMELOCK_DELAY (24 hours). Call `execute_lp_config` to
+    /// apply after the timelock expires.
+    pub fn set_lp_config(ctx: Context<SetLpConfig>, lp_reward_bps: u16) -> Result<()> {
+        instructions::admin::handler_set_lp_config(ctx, lp_reward_bps)
+    }
+
+    /// Execute a pending LP reward bps change (after timelock).
+    pub fn execute_lp_config(ctx: Context<SetLpConfig>) -> Result<()> {
+        instructions::admin::handler_execute_lp_config(ctx)
+    }
+
+    /// Cancel a pending LP reward bps change.
+    pub fn cancel_lp_config(ctx: Context<SetLpConfig>) -> Result<()> {
+        instructions::admin::handler_cancel_lp_config(ctx)
+    }
+
+    /// Pause LP pool (emergency stop for deposits)
+    pub fn pause_lp_pool(ctx: Context<SetLpConfig>) -> Result<()> {
+        instructions::admin::handler_pause_lp_pool(ctx)
+    }
+
+    /// Unpause LP pool
+    pub fn unpause_lp_pool(ctx: Context<SetLpConfig>) -> Result<()> {
+        instructions::admin::handler_unpause_lp_pool(ctx)
+    }
+
+    /// Close LP position — only when caller is the last remaining LP.
+    /// Transfers all deposits + rewards and closes the position account.
+    pub fn close_lp_position(ctx: Context<CloseLpPosition>) -> Result<()> {
+        instructions::admin::handler_close_lp_position(ctx)
     }
 
     /// Propose authority transfer (Step 1 of 2)
@@ -786,5 +821,44 @@ pub mod mazelprotocol {
         params: ClaimSyndicateWarsPrizeParams,
     ) -> Result<()> {
         instructions::syndicate_wars::handler_claim_syndicate_wars_prize(ctx, params)
+    }
+
+    // =========================================================================
+    // LP (LIQUIDITY PROVIDER) INSTRUCTIONS
+    // =========================================================================
+
+    /// Deposit USDC into the LP pool
+    ///
+    /// Become a liquidity provider by depositing USDC. You'll receive LP shares
+    /// that entitle you to a proportional share of house fee rewards.
+    ///
+    /// # Arguments
+    /// * `ctx` - DepositLp accounts context
+    /// * `amount` - Amount of USDC lamports to deposit
+    pub fn deposit_lp(ctx: Context<DepositLp>, amount: u64) -> Result<()> {
+        instructions::deposit_lp::handler(ctx, amount)
+    }
+
+    /// Withdraw USDC from the LP pool
+    ///
+    /// Burn LP shares to withdraw your USDC. Unclaimed rewards are
+    /// automatically claimed as part of the withdrawal.
+    ///
+    /// # Arguments
+    /// * `ctx` - WithdrawLp accounts context
+    /// * `shares` - Number of LP shares to burn
+    pub fn withdraw_lp(ctx: Context<WithdrawLp>, shares: u64) -> Result<()> {
+        instructions::withdraw_lp::handler(ctx, shares)
+    }
+
+    /// Claim accumulated LP rewards
+    ///
+    /// Transfer your share of accumulated house fee rewards to your wallet.
+    /// Does not affect your underlying LP position (shares/deposit).
+    ///
+    /// # Arguments
+    /// * `ctx` - ClaimLpRewards accounts context
+    pub fn claim_lp_rewards(ctx: Context<ClaimLpRewards>) -> Result<()> {
+        instructions::claim_lp_rewards::handler(ctx)
     }
 }

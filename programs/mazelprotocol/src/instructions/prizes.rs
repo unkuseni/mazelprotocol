@@ -12,6 +12,7 @@
 
 use crate::constants::*;
 use crate::state::WinnerCounts;
+use anchor_lang::prelude::*;
 
 /// Result of prize calculation
 pub struct PrizeCalculation {

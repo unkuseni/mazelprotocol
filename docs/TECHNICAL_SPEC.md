@@ -573,14 +573,15 @@ pub const SYNDICATE_MEMBER_SIZE: usize = 48;
 
 | Module | Instructions | Count |
 |--------|-------------|-------|
-| **Admin** | `pause`, `unpause`, `update_config`, `propose_config`, `execute_config`, `cancel_config_proposal`, `check_solvency`, `withdraw_house_fees`, `propose_authority`, `accept_authority`, `cancel_authority_transfer`, `cancel_draw`, `force_finalize_draw`, `emergency_fund_transfer`, `reclaim_expired_prizes` | 15 |
+| **Admin** | `pause`, `unpause`, `update_config`, `propose_config`, `execute_config`, `cancel_config_proposal`, `check_solvency`, `withdraw_house_fees`, `propose_authority`, `accept_authority`, `cancel_authority_transfer`, `cancel_draw`, `force_finalize_draw`, `emergency_fund_transfer`, `reclaim_expired_prizes`, `set_lp_config` | 16 |
 | **Initialize** | `initialize`, `fund_seed`, `init_user_stats`, `add_reserve_funds` | 4 |
 | **Ticket Ops** | `buy_ticket`, `buy_bulk` | 2 |
 | **Draw Lifecycle** | `commit_randomness`, `execute_draw`, `finalize_draw`, `advance_draw` | 4 |
 | **Claims** | `claim_prize`, `claim_bulk_prize`, `claim_all_bulk_prizes` | 3 |
 | **Syndicate** | `create`, `join`, `leave`, `close`, `withdraw_creator_contribution`, `buy_syndicate_tickets`, `create_syndicate_ticket`, `distribute_syndicate_prize`, `claim_syndicate_member_prize`, `update_syndicate_config`, `remove_syndicate_member`, `transfer_syndicate_creator` | 12 |
 | **Syndicate Wars** | `initialize_syndicate_wars`, `register_for_syndicate_wars`, `update_syndicate_wars_stats`, `finalize_syndicate_wars`, `distribute_syndicate_wars_prizes`, `claim_syndicate_wars_prize` | 6 |
-| **Total** | | **38** |
+| **LP Pool** | `deposit_lp`, `withdraw_lp`, `claim_lp_rewards` | 3 |
+| **Total** | | **50** |
 
 **Quick Pick Express (`quickpick` program — 5/35) — 12 instructions:**
 
@@ -1194,6 +1195,46 @@ pub struct TicketPurchaseParams {
     pub syndicate: Option<Pubkey>,
 }
 ```
+
+
+### 5.3 LP Pool Structures
+
+#### LpPool
+
+Global LP pool account. PDA seed: `["lp_pool"]`.
+
+```rust
+#[account]
+pub struct LpPool {
+    pub bump: u8,
+    pub total_shares: u64,
+    pub total_deposits: u64,
+    pub accumulated_rewards: u64,
+    pub reward_per_share: u128,
+    pub lp_reward_bps: u16,
+    pub is_paused: bool,
+    pub total_rewards_paid: u64,
+    pub last_seed_draw_id: u64,
+}
+```
+
+#### LpPosition
+
+Per-user LP position. PDA seed: `["lp_position", owner]`.
+
+```rust
+#[account]
+pub struct LpPosition {
+    pub owner: Pubkey,
+    pub shares: u64,
+    pub deposit_amount: u64,
+    pub reward_debt: u128,
+    pub total_rewards_claimed: u64,
+    pub bump: u8,
+}
+```
+
+**Reward formula:** `pending = (shares × reward_per_share / 1e12) - reward_debt`
 
 ---
 
@@ -2075,6 +2116,49 @@ pub struct JoinSyndicateParams {
     pub contribution: u64,
 }
 ```
+
+---
+
+### 6.6 LP Pool Instructions
+
+#### `deposit_lp`
+
+Deposit USDC into the LP pool to receive shares and earn house fee rewards.
+
+**Accounts:** `depositor` (signer), `lp_pool` (init_if_needed), `lp_position` (init_if_needed), `depositor_usdc`, `lp_pool_usdc` (init_if_needed), `usdc_mint`, `token_program`, `system_program`
+
+**Parameters:** `amount: u64` — USDC lamports to deposit
+
+**Logic:**
+1. First deposit initializes pool with 1:1 lamports-to-shares ratio
+2. Subsequent deposits: `shares = (amount × total_shares) / total_deposits`
+3. Auto-claims any pending rewards from previous position
+4. Updates `reward_debt` via masterchef pattern
+
+#### `withdraw_lp`
+
+Burn LP shares to withdraw USDC. Auto-claims pending rewards.
+
+**Accounts:** `withdrawer` (signer), `lp_pool`, `lp_position`, `lottery_state` (read-only, for cycle gate), `lp_pool_usdc`, `destination_usdc`, `token_program`
+
+**Parameters:** `shares: u64` — Number of shares to burn
+
+**Constraints:**
+- `lottery_state.is_draw_in_progress == false` (withdrawal gate)
+- `lottery_state.is_awaiting_finalization == false` (withdrawal gate)
+- Cannot drain entire pool (`LpCannotDrainPool`)
+
+#### `claim_lp_rewards`
+
+Claim accumulated house fee rewards without affecting LP position.
+
+**Accounts:** `claimer` (signer), `lp_pool`, `lp_position`, `lp_pool_usdc`, `destination_usdc`, `token_program`
+
+**Logic:**
+1. Computes `pending = (shares × reward_per_share / 1e12) - reward_debt`
+2. Deducts from `accumulated_rewards`, credits to `total_rewards_claimed`
+3. Transfers USDC from LP pool to claimer
+4. Updates `reward_debt`
 
 ---
 

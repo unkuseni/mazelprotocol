@@ -138,10 +138,7 @@ pub fn handler(ctx: Context<InitializeQuickPick>, params: InitializeQuickPickPar
     let clock = Clock::get()?;
 
     // Validate USDC mint has 6 decimals
-    require!(
-        ctx.accounts.usdc_mint.decimals == 6,
-        QuickPickError::InvalidUsdcMint
-    );
+    require!(ctx.accounts.usdc_mint.decimals == 6, QuickPickError::InvalidUsdcMint);
 
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;
 
@@ -153,9 +150,8 @@ pub fn handler(ctx: Context<InitializeQuickPick>, params: InitializeQuickPickPar
     quick_pick_state.draw_interval = QUICK_PICK_INTERVAL;
 
     // Set first draw timestamp
-    quick_pick_state.next_draw_timestamp = params
-        .first_draw_timestamp
-        .unwrap_or(clock.unix_timestamp + QUICK_PICK_INTERVAL);
+    quick_pick_state.next_draw_timestamp =
+        params.first_draw_timestamp.unwrap_or(clock.unix_timestamp + QUICK_PICK_INTERVAL);
 
     // Set jackpot parameters
     quick_pick_state.jackpot_balance = 0; // Will be funded separately
@@ -189,6 +185,7 @@ pub fn handler(ctx: Context<InitializeQuickPick>, params: InitializeQuickPickPar
     quick_pick_state.is_rolldown_pending = false;
     quick_pick_state.is_paused = true; // Start paused, must be funded and unpaused
     quick_pick_state.is_funded = false; // Will be set true after fund_seed
+    quick_pick_state.sale_target_tickets = QUICK_PICK_DEFAULT_SALE_TARGET_TICKETS;
 
     // Store bump
     quick_pick_state.bump = ctx.bumps.quick_pick_state;
@@ -225,10 +222,7 @@ pub fn handler(ctx: Context<InitializeQuickPick>, params: InitializeQuickPickPar
     );
     msg!("  Prize pool USDC: {}", ctx.accounts.prize_pool_usdc.key());
     msg!("  House fee USDC: {}", ctx.accounts.house_fee_usdc.key());
-    msg!(
-        "  Insurance pool USDC: {}",
-        ctx.accounts.insurance_pool_usdc.key()
-    );
+    msg!("  Insurance pool USDC: {}", ctx.accounts.insurance_pool_usdc.key());
     msg!("  Status: PAUSED (must fund seed and unpause)");
 
     Ok(())
@@ -294,10 +288,7 @@ pub fn handler_fund_seed(ctx: Context<FundQuickPickSeed>) -> Result<()> {
     let seed_amount = quick_pick_state.seed_amount;
 
     // Verify not already funded
-    require!(
-        !quick_pick_state.is_funded,
-        QuickPickError::AlreadyInitialized
-    );
+    require!(!quick_pick_state.is_funded, QuickPickError::AlreadyInitialized);
 
     // Transfer seed amount from authority to prize pool
     let cpi_accounts = Transfer {
@@ -325,11 +316,7 @@ pub fn handler_fund_seed(ctx: Context<FundQuickPickSeed>) -> Result<()> {
     });
 
     msg!("Quick Pick Express funded and unpaused!");
-    msg!(
-        "  Seed amount: {} USDC lamports (${:.0})",
-        seed_amount,
-        seed_amount as f64 / 1_000_000.0
-    );
+    msg!("  Seed amount: {} USDC lamports (${:.0})", seed_amount, seed_amount as f64 / 1_000_000.0);
     msg!("  Status: ACTIVE");
 
     Ok(())
@@ -388,15 +375,9 @@ pub fn handler_unpause(ctx: Context<PauseQuickPick>) -> Result<()> {
     // SECURITY (M-3 fix): Verify the lottery was properly funded before unpausing.
     // The is_funded flag is set during fund_seed and never cleared, providing a
     // clear semantic check that funding was completed.
-    require!(
-        ctx.accounts.quick_pick_state.is_funded,
-        QuickPickError::NotInitialized
-    );
+    require!(ctx.accounts.quick_pick_state.is_funded, QuickPickError::NotInitialized);
 
-    require!(
-        ctx.accounts.quick_pick_state.jackpot_balance > 0,
-        QuickPickError::NotInitialized
-    );
+    require!(ctx.accounts.quick_pick_state.jackpot_balance > 0, QuickPickError::NotInitialized);
 
     // SECURITY (C3 fix): Verify solvency before unpausing.
     // The prize pool must have enough funds to cover the seed amount.

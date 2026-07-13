@@ -33,6 +33,13 @@ pub const HOUSE_FEE_USDC_SEED: &[u8] = b"house_fee_usdc";
 /// PDA seed for insurance pool USDC token account
 pub const INSURANCE_POOL_USDC_SEED: &[u8] = b"insurance_pool_usdc";
 
+/// PDA seed for LP pool state account
+pub const LP_POOL_SEED: &[u8] = b"lp_pool";
+/// PDA seed for LP pool USDC token account
+pub const LP_POOL_USDC_SEED: &[u8] = b"lp_pool_usdc";
+/// PDA seed for per-user LP position accounts
+pub const LP_POSITION_SEED: &[u8] = b"lp_position";
+
 // ============================================================================
 // GAME PARAMETERS (Main 6/46 Lottery)
 // ============================================================================
@@ -132,6 +139,21 @@ pub const FIXED_PRIZE_ALLOCATION_BPS: u16 = 3940;
 pub const RESERVE_ALLOCATION_BPS: u16 = 300;
 /// Insurance pool allocation: 2%
 pub const INSURANCE_ALLOCATION_BPS: u16 = 200;
+
+// ============================================================================
+// LP (LIQUIDITY PROVIDER) PARAMETERS
+// ============================================================================
+
+/// Default LP reward share of house fees: 60%
+/// When house_fee_bps is 2800 (28%), LPs earn 2800 * 60% = 1680 bps of ticket price
+/// That's $2.50 * 16.80% = $0.42 per ticket
+pub const DEFAULT_LP_REWARD_BPS: u16 = 6000;
+
+/// Maximum LP reward share: 80% of house fees
+pub const MAX_LP_REWARD_BPS: u16 = 8000;
+
+/// Minimum LP deposit: 1 USDC (1,000,000 lamports with 6 decimals)
+pub const MIN_LP_DEPOSIT: u64 = 1_000_000;
 
 // ============================================================================
 // FIXED PRIZES (Normal Mode)
@@ -276,6 +298,7 @@ pub const LOTTERY_STATE_SIZE: usize = 8 + // discriminator
     8 +  // emergency_transfer_total (rolling window aggregate)
     8 +  // emergency_transfer_window_start (window start timestamp)
     8 +  // max_rolldown_tickets (circuit breaker for extreme volume events)
+    8 +  // sale_target_tickets (0 = disabled, triggers advance_draw when reached)
     0; // no padding remaining
 
 /// Minimum timelock delay for config changes: 24 hours (in seconds)
@@ -286,6 +309,15 @@ pub const CONFIG_TIMELOCK_DELAY: i64 = 86400;
 /// via governance. A value of 2,000,000 means ticket sales stop during
 /// rolldown once 2M tickets have been sold for the current draw.
 pub const DEFAULT_MAX_ROLLDOWN_TICKETS: u64 = 0; // 0 = unlimited (backward compatible)
+
+/// Minimum interval between draws in seconds (1 hour).
+/// Prevents sale-target-triggered draws from firing too rapidly.
+pub const MIN_DRAW_INTERVAL: i64 = 3600;
+
+/// Default sale target tickets (0 = disabled, time-only mode).
+/// When > 0, advance_draw can trigger when current_draw_tickets reaches this target
+/// AND MIN_DRAW_INTERVAL has elapsed since the start of the current draw cycle.
+pub const DEFAULT_SALE_TARGET_TICKETS: u64 = 0;
 
 /// DrawResult account size
 pub const DRAW_RESULT_SIZE: usize = 8 + // discriminator

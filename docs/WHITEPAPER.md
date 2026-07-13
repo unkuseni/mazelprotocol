@@ -517,6 +517,55 @@ If daily volume drops below 35,000:
 - Fixed costs strain margins
 - **Impact:** Requires marketing intervention
 
+
+### 4.5 Jackpot LP Pool — Decentralized Revenue Sharing
+
+#### Overview
+
+The Jackpot LP Pool replaces centralized jackpot seeding with community-provided liquidity. LPs deposit USDC to fund jackpot seeds and earn a proportional share of house fees from every ticket sold. This transforms the protocol's capital structure from operator-funded to community-funded while creating a yield-bearing asset for depositors.
+
+#### Revenue Flow
+
+```
+Each $2.50 ticket:
+  House Fee (28-40%):           $0.70 - $1.00
+    ├── LP Rewards (60%):        $0.42 - $0.60  →  LP pool
+    └── Operator (40%):          $0.28 - $0.40  →  Treasury
+
+  Prize Pool (60-72%):           $1.50 - $1.80
+```
+
+#### APY Model
+
+LP yield depends on ticket volume and total deposits:
+
+| Total LP Deposits | Tickets/Day | Daily LP Revenue | APY |
+|-------------------|-------------|------------------|-----|
+| $1,000,000 | 10,000 | $5,100 | 186% |
+| $5,000,000 | 10,000 | $5,100 | 37% |
+| $10,000,000 | 10,000 | $5,100 | 19% |
+| $5,000,000 | 25,000 | $13,500 | 99% |
+
+**Equilibrium:** As APY rises, more LPs deposit → APY falls to market equilibrium.
+
+#### Jackpot Seeding Cost
+
+Each rolldown/jackpot win draws $500,000 (seed_amount) from the LP pool. With 14-day cycles:
+
+- LP pool loses $500,000 every ~14 days
+- Annualized seed cost: ~$13,000,000
+- Annual LP revenue at 10k tickets/day: ~$1,860,000
+- **Net return:** At $5M deposits, the seed draw is ~10% of pool per cycle with ~2 cycles/month → ~20% annual draw. Revenue at 37% APY outpaces seed draws.
+
+#### Risk Analysis
+
+| Risk | Severity | Mitigation |
+|------|----------|------------|
+| LP pool drained by consecutive rolldowns | Medium | Reserve fund (3%) is fallback; seed can be reduced via config |
+| Low ticket volume → low LP revenue | Medium | LP reward % is adjustable; operator can boost incentives |
+| Whale LP exit causes seed shortage | Low | Withdrawal gate blocks exits during active draw cycles |
+| LP revenue < seed cost over time | Low | Configurable seed_amount and lp_reward_bps allow tuning |
+
 ---
 
 ## 5. Game Theory Analysis
@@ -1663,7 +1712,7 @@ MazelProtocol invites participation from:
 
 ---
 
-*Document Version: 1.0*
+*Document Version: 3.1*
 *Last Updated: 2025*
 *Authors: MazelProtocol Team*
 

@@ -5,6 +5,7 @@
 
 use anchor_lang::prelude::*;
 
+use super::enums_types::WinnerCounts;
 use crate::constants::*;
 
 /// Main lottery state account - stores all global lottery configuration and state
@@ -144,6 +145,10 @@ pub struct LotteryState {
     /// Prevents per-winner prizes from becoming microscopic during extreme
     /// volume events. Default 0 (no limit) preserves backward compatibility.
     pub max_rolldown_tickets: u64,
+
+    /// Sale target: advance_draw triggers when current_draw_tickets >= this value
+    /// AND MIN_DRAW_INTERVAL has elapsed. 0 = disabled (time-only mode).
+    pub sale_target_tickets: u64,
 }
 
 impl LotteryState {
