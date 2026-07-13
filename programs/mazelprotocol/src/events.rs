@@ -687,7 +687,17 @@ pub struct LpPoolSeeded {
     pub timestamp: i64,
 }
 
-/// Emitted when LP reward bps configuration changes
+/// Emitted when LP reward bps change is PROPOSED (starts timelock)
+#[event]
+pub struct LpRewardBpsProposed {
+    pub old_bps: u16,
+    pub proposed_bps: u16,
+    pub executable_at: i64,
+    pub authority: Pubkey,
+    pub timestamp: i64,
+}
+
+/// Emitted when LP reward bps configuration changes (after timelock)
 #[event]
 pub struct LpRewardBpsUpdated {
     pub old_bps: u16,

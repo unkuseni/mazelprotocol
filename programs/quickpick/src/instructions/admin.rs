@@ -567,29 +567,28 @@ pub fn handler_advance_draw(ctx: Context<AdvanceQuickPickDraw>) -> Result<()> {
 
     let draw_id = quick_pick_state.current_draw;
     let draw_in_progress = quick_pick_state.is_draw_in_progress;
+    let next_draw = quick_pick_state.next_draw_timestamp;
 
     // Calculate start of current draw cycle
-    let cycle_start =
-        quick_pick_state.next_draw_timestamp.saturating_sub(quick_pick_state.draw_interval);
+    let cycle_start = next_draw.saturating_sub(quick_pick_state.draw_interval);
 
     // Check sale target condition
     let target_hit = quick_pick_state.sale_target_tickets > 0
         && quick_pick_state.current_draw_tickets >= quick_pick_state.sale_target_tickets;
 
-    // Safety: minimum interval must have passed
+    // Minimum interval since cycle start
     let min_interval_elapsed =
         clock.unix_timestamp >= cycle_start.saturating_add(QUICK_PICK_MIN_DRAW_INTERVAL);
+
+    // Timeout since original scheduled draw time
+    let timeout_elapsed =
+        clock.unix_timestamp >= next_draw.saturating_add(QUICK_PICK_DRAW_ADVANCEMENT_TIMEOUT);
 
     // =========================================================================
     // MODE 1: Draw IS in progress — timeout recovery
     // =========================================================================
     if draw_in_progress {
         require!(!quick_pick_state.is_awaiting_finalization, QuickPickError::DrawNotInProgress);
-
-        let timeout_elapsed = clock.unix_timestamp
-            >= quick_pick_state
-                .next_draw_timestamp
-                .saturating_add(QUICK_PICK_DRAW_ADVANCEMENT_TIMEOUT);
 
         let can_advance = (timeout_elapsed || target_hit) && min_interval_elapsed;
         require!(can_advance, QuickPickError::DrawNotReady);
@@ -623,6 +622,24 @@ pub fn handler_advance_draw(ctx: Context<AdvanceQuickPickDraw>) -> Result<()> {
     // MODE 2: Draw NOT in progress — sale target acceleration
     // =========================================================================
     if target_hit && min_interval_elapsed {
+        // Sub-case: Acceleration already happened but bot never committed.
+        // Timeout has elapsed → skip this draw entirely.
+        if timeout_elapsed {
+            msg!("🎯 Quick Pick SALE TARGET HIT but bot never committed after timeout");
+            msg!("  Skipping draw {} — advancing to next cycle", draw_id);
+
+            quick_pick_state.transition_draw(DrawTransition::Cancel, clock.unix_timestamp);
+
+            emit!(QuickPickDrawCancelled {
+                draw_id,
+                tickets_affected: quick_pick_state.current_draw_tickets,
+                reason: format!("acceleration_timeout: bot offline after sale target hit"),
+                timestamp: clock.unix_timestamp,
+            });
+            return Ok(());
+        }
+
+        // First-time acceleration: pull the draw forward to NOW.
         msg!(
             "🎯 Quick Pick SALE TARGET HIT: {} >= {}",
             quick_pick_state.current_draw_tickets,
