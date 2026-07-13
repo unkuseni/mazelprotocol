@@ -646,6 +646,57 @@ pub enum LottoError {
     /// Draw advancement timeout has not elapsed yet. Wait for the bot or timeout.
     #[msg("Draw advancement not ready. Timeout period has not elapsed.")]
     DrawAdvancementNotReady,
+
+    // ========================================================================
+    // LP (Liquidity Provider) ERRORS
+    // ========================================================================
+    /// LP pool is paused — deposits and withdrawals are temporarily disabled
+    #[msg("LP pool is paused.")]
+    LpPoolPaused,
+
+    /// LP pool has not been initialized yet
+    #[msg("LP pool is not initialized.")]
+    LpPoolNotInitialized,
+
+    /// LP position account does not exist for this user
+    #[msg("LP position not found. Deposit first.")]
+    LpPositionNotFound,
+
+    /// LP position already exists for this user
+    #[msg("LP position already exists for this user.")]
+    LpPositionAlreadyExists,
+
+    /// Deposit amount is zero or below the minimum
+    #[msg("Deposit amount must be greater than zero.")]
+    LpInvalidDepositAmount,
+
+    /// Insufficient LP shares for the requested withdrawal
+    #[msg("Insufficient LP shares for requested withdrawal.")]
+    LpInsufficientShares,
+
+    /// LP pool has insufficient liquidity for the withdrawal
+    #[msg("LP pool has insufficient liquidity. Try a smaller amount.")]
+    LpInsufficientLiquidity,
+
+    /// No pending rewards to claim
+    #[msg("No pending LP rewards to claim.")]
+    LpNoRewardsToClaim,
+
+    /// LP reward calculation overflow
+    #[msg("LP reward calculation overflow.")]
+    LpRewardOverflow,
+
+    /// LP share calculation overflow
+    #[msg("LP share calculation overflow.")]
+    LpShareOverflow,
+
+    /// Invalid LP reward bps (must be <= MAX_LP_REWARD_BPS)
+    #[msg("LP reward bps exceeds maximum allowed.")]
+    LpInvalidRewardBps,
+
+    /// Cant withdraw all shares — pool would have zero liquidity with pending seed obligations
+    #[msg("Cannot withdraw all shares while the pool may be needed for jackpot seeding.")]
+    LpCannotDrainPool,
 }
 
 impl From<LottoError> for ProgramError {

@@ -41,12 +41,17 @@ pub mod syndicate_wars;
 // Permissionless draw advancement (timeout fallback)
 pub mod advance_draw;
 
+// LP (Liquidity Provider) instructions
+pub mod claim_lp_rewards;
+pub mod deposit_lp;
+pub mod withdraw_lp;
+
 // Re-export account structs and params from admin
 pub use admin::{
     AcceptAuthority, CancelAuthorityTransfer, CancelDraw, ChallengeDraw, CheckSolvency,
-    EmergencyFundTransfer, ForceFinalizeDraw, FundSource, Pause, ProposeAuthority,
-    ReclaimExpiredPrizes, ReclaimExpiredPrizesParams, TransferAuthority, Unpause, UpdateConfig,
-    UpdateConfigParams, WithdrawHouseFees,
+    CloseLpPosition, EmergencyFundTransfer, ForceFinalizeDraw, FundSource, Pause, ProposeAuthority,
+    ReclaimExpiredPrizes, ReclaimExpiredPrizesParams, SetLpConfig, TransferAuthority, Unpause,
+    UpdateConfig, UpdateConfigParams, WithdrawHouseFees,
 };
 
 // Re-export account structs and params from initialize
@@ -80,3 +85,8 @@ pub use syndicate_wars::{
     InitializeSyndicateWarsParams, RegisterForSyndicateWars, UpdateSyndicateWarsStats,
     UpdateSyndicateWarsStatsParams,
 };
+
+// Re-export LP account structs
+pub use claim_lp_rewards::ClaimLpRewards;
+pub use deposit_lp::DepositLp;
+pub use withdraw_lp::WithdrawLp;

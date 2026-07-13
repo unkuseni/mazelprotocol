@@ -21,9 +21,9 @@ use crate::errors::LottoError;
 use crate::events::{
     ConfigUpdated, DrawCancelled, DrawForceFinalized, EmergencyFundTransferred, EmergencyPause,
     EmergencyUnpause, ExpiredPrizesReclaimed, HouseFeesWithdrawn, InsurancePoolFunded,
-    SolvencyCheckPerformed,
+    LpPoolPaused, LpPoolUnpaused, LpRewardBpsUpdated, LpRewardsClaimed, SolvencyCheckPerformed,
 };
-use crate::state::{DrawResult, LotteryState, WinnerCounts};
+use crate::state::{DrawResult, LotteryState, LpPool, LpPosition, WinnerCounts};
 
 // ============================================================================
 // PAUSE INSTRUCTION
@@ -173,6 +173,10 @@ pub struct UpdateConfigParams {
     pub switchboard_queue: Option<Pubkey>,
     /// New draw interval (None to keep current)
     pub draw_interval: Option<i64>,
+    /// New LP reward bps as % of house fee (None to keep current)
+    pub lp_reward_bps: Option<u16>,
+    /// New sale target tickets (None to keep current, 0 = disabled)
+    pub sale_target_tickets: Option<u64>,
 }
 
 impl UpdateConfigParams {
@@ -246,6 +250,24 @@ impl UpdateConfigParams {
             }
         }
         match self.draw_interval {
+            Some(v) => {
+                hasher.update([1u8]);
+                hasher.update(v.to_le_bytes());
+            }
+            None => {
+                hasher.update([0u8]);
+            }
+        }
+        match self.lp_reward_bps {
+            Some(v) => {
+                hasher.update([1u8]);
+                hasher.update(v.to_le_bytes());
+            }
+            None => {
+                hasher.update([0u8]);
+            }
+        }
+        match self.sale_target_tickets {
             Some(v) => {
                 hasher.update([1u8]);
                 hasher.update(v.to_le_bytes());
@@ -328,6 +350,9 @@ pub fn handler_propose_config(
     }
     if let Some(draw_interval) = params.draw_interval {
         require!(draw_interval >= 3600 && draw_interval <= 604800, LottoError::InvalidDrawInterval);
+    }
+    if let Some(lp_reward_bps) = params.lp_reward_bps {
+        require!(lp_reward_bps <= MAX_LP_REWARD_BPS, LottoError::LpInvalidRewardBps);
     }
 
     // Simulate the final state to validate relationships
@@ -552,6 +577,39 @@ pub fn handler_execute_config(
         );
     }
 
+    if let Some(lp_reward_bps) = params.lp_reward_bps {
+        require!(lp_reward_bps <= MAX_LP_REWARD_BPS, LottoError::LpInvalidRewardBps);
+
+        emit!(LpRewardBpsUpdated {
+            old_bps: lottery_state.house_fee_bps,
+            new_bps: lp_reward_bps,
+            authority: ctx.accounts.authority.key(),
+            timestamp: clock.unix_timestamp,
+        });
+
+        // NOTE: The actual lp_reward_bps lives on the LpPool account, not LotteryState.
+        // The authority must call a separate admin instruction to apply this to the LP pool.
+        msg!("LP reward bps change approved. Apply to LP pool separately.");
+    }
+
+    if let Some(sale_target) = params.sale_target_tickets {
+        emit!(ConfigUpdated {
+            parameter: "sale_target_tickets".to_string(),
+            old_value: lottery_state.sale_target_tickets,
+            new_value: sale_target,
+            authority: ctx.accounts.authority.key(),
+            timestamp: clock.unix_timestamp,
+        });
+
+        lottery_state.sale_target_tickets = sale_target;
+        msg!("Updated sale_target_tickets: {}", sale_target);
+        if sale_target == 0 {
+            msg!("  Sale target DISABLED (time-only mode)");
+        } else {
+            msg!("  Sale target ENABLED: draw triggers at {} tickets OR time", sale_target);
+        }
+    }
+
     // Validate relationships after updates
     require!(lottery_state.soft_cap > 0, LottoError::InvalidCapConfig);
     require!(lottery_state.hard_cap > 0, LottoError::InvalidCapConfig);
@@ -611,6 +669,7 @@ pub fn handler_update_config(ctx: Context<UpdateConfig>, params: UpdateConfigPar
     require!(params.soft_cap.is_none(), LottoError::ConfigValidationFailed);
     require!(params.hard_cap.is_none(), LottoError::ConfigValidationFailed);
     require!(params.draw_interval.is_none(), LottoError::ConfigValidationFailed);
+    require!(params.sale_target_tickets.is_none(), LottoError::ConfigValidationFailed);
 
     // Only switchboard_queue can be updated immediately (operational, non-financial)
     if let Some(switchboard_queue) = params.switchboard_queue {
@@ -1838,6 +1897,240 @@ pub fn handler_challenge_draw(
         alternative_winner_counts.match_2,
     );
     msg!("  Lottery PAUSED for admin review.");
+
+    Ok(())
+}
+
+// ============================================================================
+// LP CONFIG INSTRUCTION
+// ============================================================================
+
+/// Accounts required for setting LP pool configuration
+#[derive(Accounts)]
+pub struct SetLpConfig<'info> {
+    /// The authority
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    /// The lottery state (for authority check)
+    #[account(
+        seeds = [LOTTERY_SEED],
+        bump = lottery_state.bump,
+        constraint = lottery_state.authority == authority.key() @ LottoError::Unauthorized
+    )]
+    pub lottery_state: Account<'info, LotteryState>,
+
+    /// The LP pool state account
+    #[account(
+        mut,
+        seeds = [LP_POOL_SEED],
+        bump = lp_pool.bump,
+    )]
+    pub lp_pool: Account<'info, LpPool>,
+}
+
+/// Propose a new LP reward bps (starts timelock).
+///
+/// The change will only take effect after CONFIG_TIMELOCK_DELAY seconds.
+/// During the delay, anyone can observe the pending change on-chain.
+/// To apply the change, call `execute_lp_config` after the timelock expires.
+pub fn handler_set_lp_config(ctx: Context<SetLpConfig>, lp_reward_bps: u16) -> Result<()> {
+    let clock = Clock::get()?;
+
+    require!(lp_reward_bps <= MAX_LP_REWARD_BPS, LottoError::LpInvalidRewardBps);
+    require!(ctx.accounts.lp_pool.lp_config_timelock_end == 0, LottoError::InvalidDrawState);
+
+    let old_bps = ctx.accounts.lp_pool.lp_reward_bps;
+    ctx.accounts.lp_pool.pending_lp_reward_bps = lp_reward_bps;
+    ctx.accounts.lp_pool.lp_config_timelock_end =
+        clock.unix_timestamp.checked_add(CONFIG_TIMELOCK_DELAY).ok_or(LottoError::Overflow)?;
+
+    emit!(LpRewardBpsUpdated {
+        old_bps,
+        new_bps: lp_reward_bps,
+        authority: ctx.accounts.authority.key(),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!(
+        "LP reward bps PROPOSED: {} -> {} (executable after {})",
+        old_bps,
+        lp_reward_bps,
+        ctx.accounts.lp_pool.lp_config_timelock_end
+    );
+    Ok(())
+}
+
+/// Execute a pending LP reward bps change (after timelock).
+pub fn handler_execute_lp_config(ctx: Context<SetLpConfig>) -> Result<()> {
+    let clock = Clock::get()?;
+
+    require!(ctx.accounts.lp_pool.lp_config_timelock_end != 0, LottoError::InvalidDrawState);
+    require!(
+        clock.unix_timestamp >= ctx.accounts.lp_pool.lp_config_timelock_end,
+        LottoError::InvalidTimestamp
+    );
+
+    let new_bps = ctx.accounts.lp_pool.pending_lp_reward_bps;
+    require!(new_bps <= MAX_LP_REWARD_BPS, LottoError::LpInvalidRewardBps);
+
+    let old_bps = ctx.accounts.lp_pool.lp_reward_bps;
+    ctx.accounts.lp_pool.lp_reward_bps = new_bps;
+    ctx.accounts.lp_pool.pending_lp_reward_bps = 0;
+    ctx.accounts.lp_pool.lp_config_timelock_end = 0;
+
+    msg!("LP reward bps EXECUTED: {} -> {}", old_bps, new_bps);
+    Ok(())
+}
+
+/// Cancel a pending LP reward bps change.
+pub fn handler_cancel_lp_config(ctx: Context<SetLpConfig>) -> Result<()> {
+    require!(ctx.accounts.lp_pool.lp_config_timelock_end != 0, LottoError::InvalidDrawState);
+
+    ctx.accounts.lp_pool.pending_lp_reward_bps = 0;
+    ctx.accounts.lp_pool.lp_config_timelock_end = 0;
+
+    msg!("LP reward bps proposal CANCELLED");
+    Ok(())
+}
+
+// ============================================================================
+// LP POOL PAUSE / UNPAUSE
+// ============================================================================
+
+/// Pause LP pool operations (emergency stop for deposits)
+pub fn handler_pause_lp_pool(ctx: Context<SetLpConfig>) -> Result<()> {
+    let clock = Clock::get()?;
+    ctx.accounts.lp_pool.is_paused = true;
+
+    emit!(LpPoolPaused {
+        authority: ctx.accounts.authority.key(),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!("LP pool PAUSED. Deposits are now blocked.");
+    Ok(())
+}
+
+/// Unpause LP pool operations
+pub fn handler_unpause_lp_pool(ctx: Context<SetLpConfig>) -> Result<()> {
+    let clock = Clock::get()?;
+    ctx.accounts.lp_pool.is_paused = false;
+
+    emit!(LpPoolUnpaused {
+        authority: ctx.accounts.authority.key(),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!("LP pool UNPAUSED. Deposits are now accepted.");
+    Ok(())
+}
+
+// ============================================================================
+// LP POSITION CLOSE
+// ============================================================================
+
+/// Accounts required for closing an LP position
+#[derive(Accounts)]
+pub struct CloseLpPosition<'info> {
+    /// The LP closing their position (must be the last LP)
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    /// The lottery state (for cycle gating)
+    #[account(
+        seeds = [LOTTERY_SEED],
+        bump = lottery_state.bump,
+        constraint = !lottery_state.is_draw_in_progress @ LottoError::DrawInProgress,
+        constraint = !lottery_state.is_awaiting_finalization @ LottoError::DrawInProgress,
+    )]
+    pub lottery_state: Account<'info, LotteryState>,
+
+    /// The global LP pool state account
+    #[account(
+        mut,
+        seeds = [LP_POOL_SEED],
+        bump = lp_pool.bump,
+    )]
+    pub lp_pool: Account<'info, LpPool>,
+
+    /// The LP's position account (will be closed)
+    #[account(
+        mut,
+        close = owner,
+        seeds = [LP_POSITION_SEED, owner.key().as_ref()],
+        bump = lp_position.bump,
+        constraint = lp_position.owner == owner.key() @ LottoError::NotTicketOwner,
+        constraint = lp_position.shares == lp_pool.total_shares @ LottoError::LpCannotDrainPool,
+    )]
+    pub lp_position: Account<'info, LpPosition>,
+
+    /// LP pool USDC token account
+    #[account(
+        mut,
+        seeds = [LP_POOL_USDC_SEED],
+        bump
+    )]
+    pub lp_pool_usdc: Account<'info, TokenAccount>,
+
+    /// Destination USDC token account for remaining funds
+    #[account(
+        mut,
+        constraint = destination_usdc.owner == owner.key() @ LottoError::InvalidTokenAccount
+    )]
+    pub destination_usdc: Account<'info, TokenAccount>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+}
+
+/// Close LP position — only allowed when the caller is the LAST remaining LP.
+/// Transfers all remaining deposits and accumulated rewards to the owner,
+/// then closes the position account (reclaiming rent).
+pub fn handler_close_lp_position(ctx: Context<CloseLpPosition>) -> Result<()> {
+    let clock = Clock::get()?;
+    let lp_pool = &mut ctx.accounts.lp_pool;
+    let lp_position = &ctx.accounts.lp_position;
+
+    // Auto-claim pending rewards
+    let pending = lp_position.pending_rewards(lp_pool.reward_per_share).unwrap_or(0);
+    let total_to_transfer = lp_position.deposit_amount.saturating_add(pending);
+
+    require!(total_to_transfer > 0, LottoError::LpInsufficientLiquidity);
+    require!(
+        ctx.accounts.lp_pool_usdc.amount >= total_to_transfer,
+        LottoError::LpInsufficientLiquidity
+    );
+
+    // Transfer all remaining funds to owner
+    let lp_bump = lp_pool.bump;
+    let seeds: &[&[u8]] = &[LP_POOL_SEED, &[lp_bump]];
+    let signer_seeds = &[&seeds[..]];
+
+    let cpi_accounts = Transfer {
+        from: ctx.accounts.lp_pool_usdc.to_account_info(),
+        to: ctx.accounts.destination_usdc.to_account_info(),
+        authority: lp_pool.to_account_info(),
+    };
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+    token::transfer(cpi_ctx, total_to_transfer)?;
+
+    // Reset pool state (position account will be closed by Anchor's `close = owner`)
+    lp_pool.total_shares = 0;
+    lp_pool.total_deposits = 0;
+    lp_pool.accumulated_rewards = 0;
+    lp_pool.reward_per_share = 0;
+
+    emit!(LpRewardsClaimed {
+        claimer: ctx.accounts.owner.key(),
+        amount: pending,
+        total_claimed_by_user: lp_position.total_rewards_claimed.saturating_add(pending),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!("LP position closed. Transferred {} USDC lamports to owner.", total_to_transfer);
+    msg!("LP pool is now empty and can be safely ignored.");
 
     Ok(())
 }

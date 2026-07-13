@@ -4,6 +4,7 @@
 
 use anchor_lang::prelude::*;
 
+use super::enums_types::SyndicateStats;
 use crate::constants::*;
 use crate::errors::LottoError;
 

@@ -631,3 +631,81 @@ pub struct SoloAuthorityWarning {
     pub authority: Pubkey,
     pub message: String,
 }
+
+// ============================================================================
+// LP (LIQUIDITY PROVIDER) EVENTS
+// ============================================================================
+
+/// Emitted when a user deposits USDC into the LP pool
+#[event]
+pub struct LpDeposited {
+    pub depositor: Pubkey,
+    pub amount: u64,
+    pub shares_received: u64,
+    pub total_shares: u64,
+    pub total_deposits: u64,
+    pub timestamp: i64,
+}
+
+/// Emitted when a user withdraws USDC from the LP pool
+#[event]
+pub struct LpWithdrawn {
+    pub withdrawer: Pubkey,
+    pub amount: u64,
+    pub shares_burned: u64,
+    pub total_shares: u64,
+    pub total_deposits: u64,
+    pub timestamp: i64,
+}
+
+/// Emitted when LP rewards are added to the pool (during ticket purchases)
+#[event]
+pub struct LpRewardsAdded {
+    pub amount: u64,
+    pub total_accumulated_rewards: u64,
+    pub reward_per_share: u128,
+    pub draw_id: u64,
+    pub timestamp: i64,
+}
+
+/// Emitted when a user claims LP rewards
+#[event]
+pub struct LpRewardsClaimed {
+    pub claimer: Pubkey,
+    pub amount: u64,
+    pub total_claimed_by_user: u64,
+    pub timestamp: i64,
+}
+
+/// Emitted when LP pool funds are used to seed the jackpot
+#[event]
+pub struct LpPoolSeeded {
+    pub draw_id: u64,
+    pub seed_amount: u64,
+    pub remaining_deposits: u64,
+    pub total_shares: u64,
+    pub timestamp: i64,
+}
+
+/// Emitted when LP reward bps configuration changes
+#[event]
+pub struct LpRewardBpsUpdated {
+    pub old_bps: u16,
+    pub new_bps: u16,
+    pub authority: Pubkey,
+    pub timestamp: i64,
+}
+
+/// Emitted when the LP pool is paused (emergency)
+#[event]
+pub struct LpPoolPaused {
+    pub authority: Pubkey,
+    pub timestamp: i64,
+}
+
+/// Emitted when the LP pool is unpaused
+#[event]
+pub struct LpPoolUnpaused {
+    pub authority: Pubkey,
+    pub timestamp: i64,
+}

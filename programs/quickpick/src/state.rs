@@ -117,6 +117,10 @@ pub struct QuickPickState {
 
     /// Unix timestamp when the current emergency transfer window started (QP-3 fix).
     pub emergency_transfer_window_start: i64,
+
+    /// Sale target: advance_draw triggers when current_draw_tickets >= this value
+    /// AND QUICK_PICK_MIN_DRAW_INTERVAL has elapsed. 0 = disabled (time-only mode).
+    pub sale_target_tickets: u64,
 }
 
 /// Type of draw state transition (QP-2: unified state machine).
@@ -168,6 +172,7 @@ impl QuickPickState {
         32 +   // pending_config_hash (H-2)
         8 +    // emergency_transfer_total (QP-3)
         8 +    // emergency_transfer_window_start (QP-3)
+        8 +    // sale_target_tickets
         8; // padding for future use
 
     /// Get current house fee based on jackpot level

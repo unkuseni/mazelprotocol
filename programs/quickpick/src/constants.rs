@@ -160,6 +160,13 @@ pub const QP_EMERGENCY_TRANSFER_DAILY_CAP_BPS: u64 = 2000;
 /// before the fallback kicks in (QP-4 fix).
 pub const QUICK_PICK_DRAW_ADVANCEMENT_TIMEOUT: i64 = 1800; // 30 minutes
 
+/// Minimum interval between Quick Pick draws (15 minutes).
+/// Prevents sale-target-triggered draws from firing too rapidly.
+pub const QUICK_PICK_MIN_DRAW_INTERVAL: i64 = 900; // 15 minutes
+
+/// Default sale target tickets for Quick Pick (0 = disabled, time-only).
+pub const QUICK_PICK_DEFAULT_SALE_TARGET_TICKETS: u64 = 0;
+
 // ============================================================================
 // ACCOUNT SIZES
 // ============================================================================
@@ -201,6 +208,7 @@ pub const QUICK_PICK_STATE_SIZE: usize = 8 +   // discriminator
     32 +   // pending_config_hash
     8 +    // emergency_transfer_total (QP-3)
     8 +    // emergency_transfer_window_start (QP-3)
+    8 +    // sale_target_tickets (0 = disabled, triggers advance_draw when reached)
     8; // padding for future use
 
 /// Quick Pick Ticket account size
@@ -338,47 +346,23 @@ mod tests {
     fn test_calculate_quick_pick_house_fee_bps() {
         // Rolldown should always return 28%
         assert_eq!(calculate_quick_pick_house_fee_bps(0, true), 2800);
-        assert_eq!(
-            calculate_quick_pick_house_fee_bps(50_000_000_000, true),
-            2800
-        );
+        assert_eq!(calculate_quick_pick_house_fee_bps(50_000_000_000, true), 2800);
 
         // Tier 1: < $10k = 30%
         assert_eq!(calculate_quick_pick_house_fee_bps(0, false), 3000);
-        assert_eq!(
-            calculate_quick_pick_house_fee_bps(9_999_999_999, false),
-            3000
-        );
+        assert_eq!(calculate_quick_pick_house_fee_bps(9_999_999_999, false), 3000);
 
         // Tier 2: $10k-$20k = 33%
-        assert_eq!(
-            calculate_quick_pick_house_fee_bps(10_000_000_000, false),
-            3300
-        );
-        assert_eq!(
-            calculate_quick_pick_house_fee_bps(19_999_999_999, false),
-            3300
-        );
+        assert_eq!(calculate_quick_pick_house_fee_bps(10_000_000_000, false), 3300);
+        assert_eq!(calculate_quick_pick_house_fee_bps(19_999_999_999, false), 3300);
 
         // Tier 3: $20k-$30k = 36%
-        assert_eq!(
-            calculate_quick_pick_house_fee_bps(20_000_000_000, false),
-            3600
-        );
-        assert_eq!(
-            calculate_quick_pick_house_fee_bps(29_999_999_999, false),
-            3600
-        );
+        assert_eq!(calculate_quick_pick_house_fee_bps(20_000_000_000, false), 3600);
+        assert_eq!(calculate_quick_pick_house_fee_bps(29_999_999_999, false), 3600);
 
         // Tier 4: >= $30k = 38%
-        assert_eq!(
-            calculate_quick_pick_house_fee_bps(30_000_000_000, false),
-            3800
-        );
-        assert_eq!(
-            calculate_quick_pick_house_fee_bps(50_000_000_000, false),
-            3800
-        );
+        assert_eq!(calculate_quick_pick_house_fee_bps(30_000_000_000, false), 3800);
+        assert_eq!(calculate_quick_pick_house_fee_bps(50_000_000_000, false), 3800);
     }
 
     #[test]

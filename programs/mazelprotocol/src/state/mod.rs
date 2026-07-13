@@ -7,6 +7,7 @@
 pub mod draw_result;
 pub mod enums_types;
 pub mod lottery_state;
+pub mod lp_pool;
 pub mod quickpick;
 pub mod syndicate;
 pub mod syndicate_wars;
@@ -16,6 +17,7 @@ pub mod tickets;
 pub use draw_result::*;
 pub use enums_types::*;
 pub use lottery_state::*;
+pub use lp_pool::*;
 pub use quickpick::*;
 pub use syndicate::*;
 pub use syndicate_wars::*;

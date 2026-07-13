@@ -15,8 +15,8 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::*;
 use crate::errors::LottoError;
-use crate::events::TicketPurchased;
-use crate::state::{LotteryState, TicketData, UserStats};
+use crate::events::{LpRewardsAdded, TicketPurchased};
+use crate::state::{LotteryState, LpPool, TicketData, UserStats};
 
 /// Parameters for buying a ticket
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -94,6 +94,22 @@ pub struct BuyTicket<'info> {
         bump
     )]
     pub insurance_pool_usdc: Account<'info, TokenAccount>,
+
+    /// LP pool state account (for routing LP rewards)
+    #[account(
+        mut,
+        seeds = [LP_POOL_SEED],
+        bump = lp_pool.bump,
+    )]
+    pub lp_pool: Option<Account<'info, LpPool>>,
+
+    /// LP pool USDC token account (for LP reward deposits)
+    #[account(
+        mut,
+        seeds = [LP_POOL_USDC_SEED],
+        bump
+    )]
+    pub lp_pool_usdc: Option<Account<'info, TokenAccount>>,
 
     /// USDC mint (must be 6 decimals)
     #[account(
@@ -320,33 +336,71 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
     };
 
     // Only perform USDC transfers if not using free ticket
+    // LP reward tracking (declared here so it's accessible in state updates below)
+    let mut lp_reward: Option<u64> = None;
+
     if !using_free_ticket {
         // Verify player has sufficient balance for TOTAL amount
         // Total = house_fee + prize_pool_transfer + insurance_contribution = ticket_price
-        require!(
-            ctx.accounts.player_usdc.amount >= ticket_price,
-            LottoError::InsufficientFunds
-        );
+        require!(ctx.accounts.player_usdc.amount >= ticket_price, LottoError::InsufficientFunds);
 
         // Transfer to prize pool (excludes insurance - that goes to separate account)
         ctx.accounts.transfer_to_prize_pool(prize_pool_transfer)?;
 
-        // Transfer to house fee account
-        ctx.accounts.transfer_to_house_fee(house_fee)?;
+        // --- LP Reward Routing ---
+        // Split house_fee: if LP pool exists and is active, route lp_reward_bps %
+        // of the house fee to the LP pool as rewards. The remainder goes to the
+        // operator's house_fee_usdc account.
+        lp_reward = if let (Some(ref lp_pool), Some(ref lp_pool_usdc)) =
+            (ctx.accounts.lp_pool.as_ref(), ctx.accounts.lp_pool_usdc.as_ref())
+        {
+            if lp_pool.lp_reward_bps > 0 && !lp_pool.is_paused && lp_pool.total_shares > 0 {
+                let reward = (house_fee as u128 * lp_pool.lp_reward_bps as u128
+                    / BPS_DENOMINATOR as u128) as u64;
+                if reward > 0 && reward <= house_fee {
+                    // Transfer LP reward from player to LP pool
+                    let lp_transfer_accounts = Transfer {
+                        from: ctx.accounts.player_usdc.to_account_info(),
+                        to: lp_pool_usdc.to_account_info(),
+                        authority: ctx.accounts.player.to_account_info(),
+                    };
+                    let lp_cpi_ctx = CpiContext::new(
+                        ctx.accounts.token_program.to_account_info(),
+                        lp_transfer_accounts,
+                    );
+                    token::transfer(lp_cpi_ctx, reward)?;
+
+                    msg!("LP rewards routed: {} USDC lamports", reward);
+                    Some(reward)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Transfer remaining house fee to operator's house_fee_usdc
+        let operator_house_fee = house_fee.saturating_sub(lp_reward.unwrap_or(0));
+        if operator_house_fee > 0 {
+            ctx.accounts.transfer_to_house_fee(operator_house_fee)?;
+        }
 
         // Transfer insurance contribution to separate insurance pool
         if insurance_contribution > 0 {
-            ctx.accounts
-                .transfer_to_insurance_pool(insurance_contribution)?;
+            ctx.accounts.transfer_to_insurance_pool(insurance_contribution)?;
         }
 
         // SECURITY FIX (Issue #8): Replace debug_assert with runtime require!
         // debug_assert is stripped in release builds, leaving this critical
         // invariant unchecked in production. Use require! to enforce it always.
-        require!(
-            house_fee + prize_pool_transfer + insurance_contribution == ticket_price,
-            LottoError::SafetyCheckFailed
-        );
+        let total_transferred = prize_pool_transfer
+            .saturating_add(operator_house_fee)
+            .saturating_add(lp_reward.unwrap_or(0))
+            .saturating_add(insurance_contribution);
+        require!(total_transferred == ticket_price, LottoError::SafetyCheckFailed);
     }
 
     // Update lottery state with internal accounting
@@ -371,6 +425,25 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
             .checked_add(insurance_contribution)
             .ok_or(LottoError::Overflow)?;
     }
+
+    // --- LP Reward Accumulation ---
+    // Route LP rewards from house fee to the LP pool's accumulated rewards.
+    if let Some(reward) = lp_reward {
+        if reward > 0 {
+            if let Some(ref mut lp_pool) = ctx.accounts.lp_pool.as_mut() {
+                lp_pool.add_rewards(reward)?;
+
+                emit!(LpRewardsAdded {
+                    amount: reward,
+                    total_accumulated_rewards: lp_pool.accumulated_rewards,
+                    reward_per_share: lp_pool.reward_per_share,
+                    draw_id: current_draw_id,
+                    timestamp: clock.unix_timestamp,
+                });
+            }
+        }
+    }
+
     // SECURITY FIX (Issue #4): Track dedicated fixed prize pool balance.
     // This 39.4% allocation is now explicitly tracked instead of being implicit,
     // preventing fixed prize payouts from eroding the advertised jackpot.
@@ -380,14 +453,10 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
             .checked_add(fixed_prize_contribution)
             .ok_or(LottoError::Overflow)?;
     }
-    lottery_state.current_draw_tickets = lottery_state
-        .current_draw_tickets
-        .checked_add(1)
-        .ok_or(LottoError::Overflow)?;
-    lottery_state.total_tickets_sold = lottery_state
-        .total_tickets_sold
-        .checked_add(1)
-        .ok_or(LottoError::Overflow)?;
+    lottery_state.current_draw_tickets =
+        lottery_state.current_draw_tickets.checked_add(1).ok_or(LottoError::Overflow)?;
+    lottery_state.total_tickets_sold =
+        lottery_state.total_tickets_sold.checked_add(1).ok_or(LottoError::Overflow)?;
 
     // Update house fee based on new jackpot level (dynamic fee system)
     let new_house_fee_bps = lottery_state.get_current_house_fee_bps();
@@ -395,11 +464,7 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
 
     // Log if dynamic fee tier changed
     if old_house_fee_bps != new_house_fee_bps {
-        msg!(
-            "📈 Dynamic fee tier changed: {}bps -> {}bps",
-            old_house_fee_bps,
-            new_house_fee_bps
-        );
+        msg!("📈 Dynamic fee tier changed: {}bps -> {}bps", old_house_fee_bps, new_house_fee_bps);
     }
 
     // Check if rolldown should be pending based on soft cap
@@ -446,20 +511,14 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
         user_stats.last_draw_participated = current_draw_id;
     } else {
         // Same draw, increment counter
-        user_stats.tickets_this_draw = user_stats
-            .tickets_this_draw
-            .checked_add(1)
-            .ok_or(LottoError::Overflow)?;
+        user_stats.tickets_this_draw =
+            user_stats.tickets_this_draw.checked_add(1).ok_or(LottoError::Overflow)?;
     }
 
-    user_stats.total_tickets = user_stats
-        .total_tickets
-        .checked_add(1)
-        .ok_or(LottoError::Overflow)?;
-    user_stats.total_spent = user_stats
-        .total_spent
-        .checked_add(actual_price)
-        .ok_or(LottoError::Overflow)?;
+    user_stats.total_tickets =
+        user_stats.total_tickets.checked_add(1).ok_or(LottoError::Overflow)?;
+    user_stats.total_spent =
+        user_stats.total_spent.checked_add(actual_price).ok_or(LottoError::Overflow)?;
     user_stats.update_streak(current_draw_id);
 
     // FIXED: Decrement free tickets if one was used
@@ -485,54 +544,23 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
 
     // Log jackpot funding status
     let minimum_jackpot = ctx.accounts.lottery_state.seed_amount;
-    msg!(
-        "  Minimum jackpot required: {} USDC lamports",
-        minimum_jackpot
-    );
+    msg!("  Minimum jackpot required: {} USDC lamports", minimum_jackpot);
     msg!("  Current jackpot: {} USDC lamports", new_jackpot_balance);
 
     if using_free_ticket {
         msg!("  FREE TICKET USED!");
-        msg!(
-            "  Remaining free tickets: {}",
-            user_stats.free_tickets_available
-        );
+        msg!("  Remaining free tickets: {}", user_stats.free_tickets_available);
     } else {
         msg!("  Price: {} USDC lamports", ticket_price);
-        msg!(
-            "  House fee ({}bps): {} USDC lamports",
-            house_fee_bps,
-            house_fee
-        );
-        msg!(
-            "  Prize pool transfer: {} USDC lamports",
-            prize_pool_transfer
-        );
-        msg!(
-            "  -> Jackpot contribution: {} USDC lamports",
-            jackpot_contribution
-        );
-        msg!(
-            "  -> Reserve contribution: {} USDC lamports",
-            reserve_contribution
-        );
-        msg!(
-            "  -> Fixed prize contribution: {} USDC lamports",
-            fixed_prize_contribution
-        );
-        msg!(
-            "  Insurance contribution: {} USDC lamports",
-            insurance_contribution
-        );
+        msg!("  House fee ({}bps): {} USDC lamports", house_fee_bps, house_fee);
+        msg!("  Prize pool transfer: {} USDC lamports", prize_pool_transfer);
+        msg!("  -> Jackpot contribution: {} USDC lamports", jackpot_contribution);
+        msg!("  -> Reserve contribution: {} USDC lamports", reserve_contribution);
+        msg!("  -> Fixed prize contribution: {} USDC lamports", fixed_prize_contribution);
+        msg!("  Insurance contribution: {} USDC lamports", insurance_contribution);
     }
-    msg!(
-        "  Insurance pool: {} USDC lamports",
-        ctx.accounts.lottery_state.insurance_balance
-    );
-    msg!(
-        "  Rolldown active: {}",
-        ctx.accounts.lottery_state.is_rolldown_active
-    );
+    msg!("  Insurance pool: {} USDC lamports", ctx.accounts.lottery_state.insurance_balance);
+    msg!("  Rolldown active: {}", ctx.accounts.lottery_state.is_rolldown_active);
     msg!(
         "  User tickets this draw: {}/{}",
         user_stats.tickets_this_draw,
@@ -546,10 +574,7 @@ pub fn handler(ctx: Context<BuyTicket>, params: BuyTicketParams) -> Result<()> {
 fn validate_numbers(numbers: &[u8; 6]) -> Result<()> {
     // Check range for each number
     for &num in numbers.iter() {
-        require!(
-            num >= MIN_NUMBER && num <= MAX_NUMBER,
-            LottoError::NumbersOutOfRange
-        );
+        require!(num >= MIN_NUMBER && num <= MAX_NUMBER, LottoError::NumbersOutOfRange);
     }
 
     // Check for duplicates by sorting and comparing adjacent
@@ -574,10 +599,7 @@ mod tests {
 
     #[test]
     fn test_buy_ticket_params_with_free_ticket() {
-        let params = BuyTicketParams {
-            numbers: [1, 2, 3, 4, 5, 6],
-            use_free_ticket: true,
-        };
+        let params = BuyTicketParams { numbers: [1, 2, 3, 4, 5, 6], use_free_ticket: true };
         assert!(params.use_free_ticket);
     }
 
@@ -678,9 +700,7 @@ mod tests {
                 / BPS_DENOMINATOR as u128) as u64;
             let fixed = (prize_pool_transfer as u128 * FIXED_PRIZE_ALLOCATION_BPS as u128
                 / BPS_DENOMINATOR as u128) as u64;
-            let reserve = prize_pool_transfer
-                .saturating_sub(jackpot)
-                .saturating_sub(fixed);
+            let reserve = prize_pool_transfer.saturating_sub(jackpot).saturating_sub(fixed);
 
             assert_eq!(
                 jackpot + fixed + reserve,
@@ -714,14 +734,9 @@ mod tests {
         );
 
         // New approach: remainder captures everything
-        let new_reserve = prize_pool_transfer
-            .saturating_sub(jackpot)
-            .saturating_sub(fixed);
+        let new_reserve = prize_pool_transfer.saturating_sub(jackpot).saturating_sub(fixed);
         let new_total = jackpot + new_reserve + fixed;
-        assert_eq!(
-            new_total, prize_pool_transfer,
-            "New remainder-based allocation must not leak"
-        );
+        assert_eq!(new_total, prize_pool_transfer, "New remainder-based allocation must not leak");
 
         // The difference is the dust that was previously leaked
         let leaked = prize_pool_transfer - old_total;

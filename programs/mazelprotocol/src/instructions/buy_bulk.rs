@@ -16,8 +16,8 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::*;
 use crate::errors::LottoError;
-use crate::events::BulkTicketsPurchased;
-use crate::state::{LotteryState, UnifiedTicket, UserStats};
+use crate::events::{BulkTicketsPurchased, LpRewardsAdded};
+use crate::state::{LotteryState, LpPool, UnifiedTicket, UserStats};
 
 /// Parameters for buying multiple tickets
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -98,6 +98,22 @@ pub struct BuyBulk<'info> {
         bump
     )]
     pub insurance_pool_usdc: Account<'info, TokenAccount>,
+
+    /// LP pool state account (optional — for routing LP rewards)
+    #[account(
+        mut,
+        seeds = [LP_POOL_SEED],
+        bump = lp_pool.bump,
+    )]
+    pub lp_pool: Option<Account<'info, LpPool>>,
+
+    /// LP pool USDC token account (optional — for LP reward deposits)
+    #[account(
+        mut,
+        seeds = [LP_POOL_USDC_SEED],
+        bump
+    )]
+    pub lp_pool_usdc: Option<Account<'info, TokenAccount>>,
 
     /// USDC mint (must be 6 decimals)
     #[account(
@@ -193,10 +209,7 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
 
     // Validate ticket count
     require!(ticket_count > 0, LottoError::EmptyTicketArray);
-    require!(
-        ticket_count <= MAX_BULK_TICKETS,
-        LottoError::BulkPurchaseLimitExceeded
-    );
+    require!(ticket_count <= MAX_BULK_TICKETS, LottoError::BulkPurchaseLimitExceeded);
 
     // Validate all ticket numbers and sort them
     let mut sorted_tickets: Vec<[u8; 6]> = Vec::with_capacity(ticket_count);
@@ -238,9 +251,8 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
 
     // Enforce per-user ticket limit
     let user_tickets_this_draw = ctx.accounts.get_user_tickets_this_draw(current_draw_id);
-    let new_total_tickets = user_tickets_this_draw
-        .checked_add(ticket_count as u64)
-        .ok_or(LottoError::Overflow)?;
+    let new_total_tickets =
+        user_tickets_this_draw.checked_add(ticket_count as u64).ok_or(LottoError::Overflow)?;
     require!(
         new_total_tickets <= MAX_TICKETS_PER_DRAW_PER_USER,
         LottoError::MaxTicketsPerDrawExceeded
@@ -251,10 +263,7 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     // once the current draw has reached the cap. This prevents per-winner
     // prizes from becoming microscopic during extreme volume events.
     if is_rolldown_active && max_rolldown_tickets > 0 {
-        require!(
-            current_draw_tickets < max_rolldown_tickets,
-            LottoError::RolldownTicketCapReached
-        );
+        require!(current_draw_tickets < max_rolldown_tickets, LottoError::RolldownTicketCapReached);
     }
 
     // Calculate total price and fees
@@ -274,19 +283,12 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     let free_tickets_to_use = params.free_tickets_to_use as u64;
     let paid_ticket_count = ticket_count.saturating_sub(free_tickets_to_use as usize);
     if free_tickets_to_use > 0 {
-        require!(
-            free_tickets_to_use <= ticket_count as u64,
-            LottoError::InvalidTicketArraySize
-        );
-        require!(
-            free_tickets_to_use <= MAX_FREE_TICKETS,
-            LottoError::MaxFreeTicketsReached
-        );
+        require!(free_tickets_to_use <= ticket_count as u64, LottoError::InvalidTicketArraySize);
+        require!(free_tickets_to_use <= MAX_FREE_TICKETS, LottoError::MaxFreeTicketsReached);
     }
 
-    let total_price = ticket_price
-        .checked_mul(paid_ticket_count as u64)
-        .ok_or(LottoError::Overflow)?;
+    let total_price =
+        ticket_price.checked_mul(paid_ticket_count as u64).ok_or(LottoError::Overflow)?;
 
     // Calculate dynamic house fee based on current jackpot level
     let total_house_fee =
@@ -323,31 +325,67 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
 
     // Verify player has sufficient balance for TOTAL amount
     // Total = total_house_fee + total_prize_pool_transfer + total_insurance_contribution = total_price
-    require!(
-        ctx.accounts.player_usdc.amount >= total_price,
-        LottoError::InsufficientFunds
-    );
+    require!(ctx.accounts.player_usdc.amount >= total_price, LottoError::InsufficientFunds);
 
     // Transfer to prize pool (excludes insurance - that goes to separate account)
-    ctx.accounts
-        .transfer_to_prize_pool(total_prize_pool_transfer)?;
+    ctx.accounts.transfer_to_prize_pool(total_prize_pool_transfer)?;
 
-    // Transfer to house fee account
-    ctx.accounts.transfer_to_house_fee(total_house_fee)?;
+    // --- LP Reward Routing ---
+    // Split house_fee: if LP pool exists and is active, route lp_reward_bps %
+    // of the house fee to the LP pool as rewards. The remainder goes to the
+    // operator's house_fee_usdc account.
+    let mut lp_reward: Option<u64> = None;
+
+    let lp_reward_calc = if let (Some(ref lp_pool), Some(ref lp_pool_usdc)) =
+        (ctx.accounts.lp_pool.as_ref(), ctx.accounts.lp_pool_usdc.as_ref())
+    {
+        if lp_pool.lp_reward_bps > 0 && !lp_pool.is_paused && lp_pool.total_shares > 0 {
+            let reward = (total_house_fee as u128 * lp_pool.lp_reward_bps as u128
+                / BPS_DENOMINATOR as u128) as u64;
+            if reward > 0 && reward <= total_house_fee {
+                Some(reward)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    lp_reward = lp_reward_calc;
+
+    // Transfer LP reward from player to LP pool
+    if let (Some(reward), Some(ref lp_pool_usdc)) = (lp_reward, ctx.accounts.lp_pool_usdc.as_ref())
+    {
+        let lp_transfer_accounts = Transfer {
+            from: ctx.accounts.player_usdc.to_account_info(),
+            to: lp_pool_usdc.to_account_info(),
+            authority: ctx.accounts.player.to_account_info(),
+        };
+        let lp_cpi_ctx =
+            CpiContext::new(ctx.accounts.token_program.to_account_info(), lp_transfer_accounts);
+        token::transfer(lp_cpi_ctx, reward)?;
+        msg!("LP rewards routed: {} USDC lamports", reward);
+    }
+
+    // Transfer remaining house fee to operator's house_fee_usdc
+    let operator_house_fee = total_house_fee.saturating_sub(lp_reward.unwrap_or(0));
+    if operator_house_fee > 0 {
+        ctx.accounts.transfer_to_house_fee(operator_house_fee)?;
+    }
 
     // Transfer insurance contribution to separate insurance pool
     if total_insurance_contribution > 0 {
-        ctx.accounts
-            .transfer_to_insurance_pool(total_insurance_contribution)?;
+        ctx.accounts.transfer_to_insurance_pool(total_insurance_contribution)?;
     }
 
     // SECURITY FIX (Issue #8): Replace debug_assert with runtime require!
-    // debug_assert is stripped in release builds, leaving this critical
-    // invariant unchecked in production. Use require! to enforce it always.
-    require!(
-        total_house_fee + total_prize_pool_transfer + total_insurance_contribution == total_price,
-        LottoError::SafetyCheckFailed
-    );
+    let total_transferred = total_prize_pool_transfer
+        .saturating_add(operator_house_fee)
+        .saturating_add(lp_reward.unwrap_or(0))
+        .saturating_add(total_insurance_contribution);
+    require!(total_transferred == total_price, LottoError::SafetyCheckFailed);
 
     // Update lottery state with internal accounting
     let lottery_state = &mut ctx.accounts.lottery_state;
@@ -365,6 +403,23 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
         .insurance_balance
         .checked_add(total_insurance_contribution)
         .ok_or(LottoError::Overflow)?;
+
+    // --- LP Reward Accumulation ---
+    if let Some(reward) = lp_reward {
+        if reward > 0 {
+            if let Some(ref mut lp_pool) = ctx.accounts.lp_pool.as_mut() {
+                lp_pool.add_rewards(reward)?;
+                emit!(LpRewardsAdded {
+                    amount: reward,
+                    total_accumulated_rewards: lp_pool.accumulated_rewards,
+                    reward_per_share: lp_pool.reward_per_share,
+                    draw_id: current_draw_id,
+                    timestamp: clock.unix_timestamp,
+                });
+            }
+        }
+    }
+
     // SECURITY FIX (Issue #4): Track dedicated fixed prize pool balance.
     // This 39.4% allocation is now explicitly tracked instead of being implicit,
     // preventing fixed prize payouts from eroding the advertised jackpot.
@@ -389,11 +444,7 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
 
     // Log if dynamic fee tier changed
     if old_house_fee_bps != new_house_fee_bps {
-        msg!(
-            "📈 Dynamic fee tier changed: {}bps -> {}bps",
-            old_house_fee_bps,
-            new_house_fee_bps
-        );
+        msg!("📈 Dynamic fee tier changed: {}bps -> {}bps", old_house_fee_bps, new_house_fee_bps);
     }
 
     // Check if rolldown should be pending based on soft cap
@@ -436,13 +487,9 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     // M8: Validate and consume free tickets
     if free_tickets_to_use > 0 {
         let available = user_stats.free_tickets_available as u64;
-        require!(
-            available >= free_tickets_to_use,
-            LottoError::NoFreeTicketsAvailable
-        );
-        user_stats.free_tickets_available = user_stats
-            .free_tickets_available
-            .saturating_sub(free_tickets_to_use as u32);
+        require!(available >= free_tickets_to_use, LottoError::NoFreeTicketsAvailable);
+        user_stats.free_tickets_available =
+            user_stats.free_tickets_available.saturating_sub(free_tickets_to_use as u32);
         msg!(
             "Redeemed {} free ticket(s). {} remaining.",
             free_tickets_to_use,
@@ -464,14 +511,10 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
             .ok_or(LottoError::Overflow)?;
     }
 
-    user_stats.total_tickets = user_stats
-        .total_tickets
-        .checked_add(ticket_count as u64)
-        .ok_or(LottoError::Overflow)?;
-    user_stats.total_spent = user_stats
-        .total_spent
-        .checked_add(total_price)
-        .ok_or(LottoError::Overflow)?;
+    user_stats.total_tickets =
+        user_stats.total_tickets.checked_add(ticket_count as u64).ok_or(LottoError::Overflow)?;
+    user_stats.total_spent =
+        user_stats.total_spent.checked_add(total_price).ok_or(LottoError::Overflow)?;
     user_stats.update_streak(current_draw_id);
 
     // Emit event
@@ -489,42 +532,20 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     msg!("  Draw ID: {}", current_draw_id);
     msg!("  Ticket count: {}", ticket_count);
     msg!("  Total price: {} USDC lamports", total_price);
-    msg!(
-        "  House fee ({}bps): {} USDC lamports",
-        house_fee_bps,
-        total_house_fee
-    );
-    msg!(
-        "  Prize pool transfer: {} USDC lamports",
-        total_prize_pool_transfer
-    );
-    msg!(
-        "  -> Jackpot contribution: {} USDC lamports",
-        total_jackpot_contribution
-    );
-    msg!(
-        "  -> Reserve contribution: {} USDC lamports",
-        total_reserve_contribution
-    );
-    msg!(
-        "  Insurance contribution: {} USDC lamports",
-        total_insurance_contribution
-    );
+    msg!("  House fee ({}bps): {} USDC lamports", house_fee_bps, total_house_fee);
+    msg!("  Prize pool transfer: {} USDC lamports", total_prize_pool_transfer);
+    msg!("  -> Jackpot contribution: {} USDC lamports", total_jackpot_contribution);
+    msg!("  -> Reserve contribution: {} USDC lamports", total_reserve_contribution);
+    msg!("  Insurance contribution: {} USDC lamports", total_insurance_contribution);
     msg!("  Current jackpot: {} USDC lamports", new_jackpot_balance);
-    msg!(
-        "  Insurance pool: {} USDC lamports",
-        lottery_state.insurance_balance
-    );
+    msg!("  Insurance pool: {} USDC lamports", lottery_state.insurance_balance);
     msg!("  Rolldown active: {}", lottery_state.is_rolldown_active);
     msg!(
         "  User tickets this draw: {}/{}",
         user_stats.tickets_this_draw,
         MAX_TICKETS_PER_DRAW_PER_USER
     );
-    msg!(
-        "  Last draw participated: {}",
-        user_stats.last_draw_participated
-    );
+    msg!("  Last draw participated: {}", user_stats.last_draw_participated);
 
     Ok(())
 }
@@ -533,10 +554,7 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
 fn validate_numbers(numbers: &[u8; 6]) -> Result<()> {
     // Check range for each number
     for &num in numbers.iter() {
-        require!(
-            num >= MIN_NUMBER && num <= MAX_NUMBER,
-            LottoError::NumbersOutOfRange
-        );
+        require!(num >= MIN_NUMBER && num <= MAX_NUMBER, LottoError::NumbersOutOfRange);
     }
 
     // Check for duplicates by sorting and comparing adjacent

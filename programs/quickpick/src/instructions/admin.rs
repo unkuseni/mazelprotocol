@@ -40,6 +40,8 @@ pub struct UpdateQuickPickConfigParams {
     pub match_4_prize: Option<u64>,
     /// New Match 3 prize (optional)
     pub match_3_prize: Option<u64>,
+    /// New sale target tickets (optional, 0 = disabled)
+    pub sale_target_tickets: Option<u64>,
 }
 
 impl UpdateQuickPickConfigParams {
@@ -57,6 +59,7 @@ impl UpdateQuickPickConfigParams {
             self.draw_interval.map(|v| v.to_le_bytes().to_vec()),
             self.match_4_prize.map(|v| v.to_le_bytes().to_vec()),
             self.match_3_prize.map(|v| v.to_le_bytes().to_vec()),
+            self.sale_target_tickets.map(|v| v.to_le_bytes().to_vec()),
         ]
         .iter()
         {
@@ -93,18 +96,12 @@ impl UpdateQuickPickConfigParams {
 
         // Seed amount must be > 0 and < soft_cap
         require!(simulated_seed_amount > 0, QuickPickError::InvalidConfig);
-        require!(
-            simulated_seed_amount < simulated_soft_cap,
-            QuickPickError::InvalidConfig
-        );
+        require!(simulated_seed_amount < simulated_soft_cap, QuickPickError::InvalidConfig);
 
         // Soft cap must be < hard cap
         require!(simulated_soft_cap > 0, QuickPickError::InvalidConfig);
         require!(simulated_hard_cap > 0, QuickPickError::InvalidConfig);
-        require!(
-            simulated_soft_cap < simulated_hard_cap,
-            QuickPickError::InvalidConfig
-        );
+        require!(simulated_soft_cap < simulated_hard_cap, QuickPickError::InvalidConfig);
 
         // Draw interval: minimum 1 hour, maximum 24 hours
         require!(
@@ -117,10 +114,7 @@ impl UpdateQuickPickConfigParams {
         require!(simulated_match_3 > 0, QuickPickError::InvalidConfig);
 
         // Prize ordering: Match 4 prize > Match 3 prize
-        require!(
-            simulated_match_4 > simulated_match_3,
-            QuickPickError::InvalidConfig
-        );
+        require!(simulated_match_4 > simulated_match_3, QuickPickError::InvalidConfig);
 
         Ok(())
     }
@@ -176,10 +170,7 @@ pub fn handler_update_config(
 
     // SECURITY (H-2 fix): Reject immediate updates if a timelock proposal is pending.
     // This prevents bypassing the two-phase config change process.
-    require!(
-        quick_pick_state.config_timelock_end == 0,
-        QuickPickError::InvalidDrawState
-    );
+    require!(quick_pick_state.config_timelock_end == 0, QuickPickError::InvalidDrawState);
 
     // SECURITY (L-3 fix): Validate all invariants against the simulated final state
     // before applying any changes. This catches ordering issues like soft_cap >= hard_cap.
@@ -190,51 +181,31 @@ pub fn handler_update_config(
 
     // Update ticket price
     if let Some(ticket_price) = params.ticket_price {
-        msg!(
-            "  Ticket price: {} -> {} USDC lamports",
-            quick_pick_state.ticket_price,
-            ticket_price
-        );
+        msg!("  Ticket price: {} -> {} USDC lamports", quick_pick_state.ticket_price, ticket_price);
         quick_pick_state.ticket_price = ticket_price;
     }
 
     // Update soft cap
     if let Some(soft_cap) = params.soft_cap {
-        msg!(
-            "  Soft cap: {} -> {} USDC lamports",
-            quick_pick_state.soft_cap,
-            soft_cap
-        );
+        msg!("  Soft cap: {} -> {} USDC lamports", quick_pick_state.soft_cap, soft_cap);
         quick_pick_state.soft_cap = soft_cap;
     }
 
     // Update hard cap
     if let Some(hard_cap) = params.hard_cap {
-        msg!(
-            "  Hard cap: {} -> {} USDC lamports",
-            quick_pick_state.hard_cap,
-            hard_cap
-        );
+        msg!("  Hard cap: {} -> {} USDC lamports", quick_pick_state.hard_cap, hard_cap);
         quick_pick_state.hard_cap = hard_cap;
     }
 
     // Update seed amount
     if let Some(seed_amount) = params.seed_amount {
-        msg!(
-            "  Seed amount: {} -> {} USDC lamports",
-            quick_pick_state.seed_amount,
-            seed_amount
-        );
+        msg!("  Seed amount: {} -> {} USDC lamports", quick_pick_state.seed_amount, seed_amount);
         quick_pick_state.seed_amount = seed_amount;
     }
 
     // Update draw interval
     if let Some(draw_interval) = params.draw_interval {
-        msg!(
-            "  Draw interval: {} -> {} seconds",
-            quick_pick_state.draw_interval,
-            draw_interval
-        );
+        msg!("  Draw interval: {} -> {} seconds", quick_pick_state.draw_interval, draw_interval);
         quick_pick_state.draw_interval = draw_interval;
         // SECURITY (M6 fix): Recalculate next draw timestamp so the new
         // interval takes effect immediately rather than one draw later.
@@ -310,10 +281,7 @@ pub fn handler_propose_quick_pick_config(
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;
 
     // Reject if there's already a pending proposal
-    require!(
-        quick_pick_state.config_timelock_end == 0,
-        QuickPickError::InvalidDrawState
-    );
+    require!(quick_pick_state.config_timelock_end == 0, QuickPickError::InvalidDrawState);
 
     // Pre-validate params so we catch errors early (before waiting 24h)
     params.validate_against(quick_pick_state)?;
@@ -327,14 +295,8 @@ pub fn handler_propose_quick_pick_config(
         .ok_or(QuickPickError::Overflow)?;
 
     msg!("Quick Pick config change PROPOSED (timelock started)");
-    msg!(
-        "  Config hash: {:?}",
-        &quick_pick_state.pending_config_hash[..8]
-    );
-    msg!(
-        "  Executable after: {} (unix timestamp)",
-        quick_pick_state.config_timelock_end
-    );
+    msg!("  Config hash: {:?}", &quick_pick_state.pending_config_hash[..8]);
+    msg!("  Executable after: {} (unix timestamp)", quick_pick_state.config_timelock_end);
     msg!(
         "  Delay: {} seconds ({} hours)",
         QUICK_PICK_CONFIG_TIMELOCK_DELAY,
@@ -361,10 +323,7 @@ pub fn handler_execute_quick_pick_config(
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;
 
     // Verify a proposal exists
-    require!(
-        quick_pick_state.config_timelock_end != 0,
-        QuickPickError::InvalidDrawState
-    );
+    require!(quick_pick_state.config_timelock_end != 0, QuickPickError::InvalidDrawState);
 
     // Verify timelock has expired
     require!(
@@ -374,10 +333,7 @@ pub fn handler_execute_quick_pick_config(
 
     // Verify params hash matches the proposal (prevents bait-and-switch)
     let config_hash = params.compute_hash();
-    require!(
-        config_hash == quick_pick_state.pending_config_hash,
-        QuickPickError::InvalidConfig
-    );
+    require!(config_hash == quick_pick_state.pending_config_hash, QuickPickError::InvalidConfig);
 
     // Clear the proposal before applying (re-entrancy protection)
     quick_pick_state.config_timelock_end = 0;
@@ -410,6 +366,9 @@ pub fn handler_execute_quick_pick_config(
     if let Some(match_3_prize) = params.match_3_prize {
         quick_pick_state.match_3_prize = match_3_prize;
     }
+    if let Some(sale_target) = params.sale_target_tickets {
+        quick_pick_state.sale_target_tickets = sale_target;
+    }
 
     let new_fee_bps = quick_pick_state.get_current_house_fee_bps();
     if new_fee_bps != old_fee_bps {
@@ -437,10 +396,7 @@ pub fn handler_execute_quick_pick_config(
 pub fn handler_cancel_quick_pick_config(ctx: Context<UpdateQuickPickConfig>) -> Result<()> {
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;
 
-    require!(
-        quick_pick_state.config_timelock_end != 0,
-        QuickPickError::InvalidDrawState
-    );
+    require!(quick_pick_state.config_timelock_end != 0, QuickPickError::InvalidDrawState);
 
     quick_pick_state.pending_config_hash = [0u8; 32];
     quick_pick_state.config_timelock_end = 0;
@@ -610,37 +566,75 @@ pub fn handler_advance_draw(ctx: Context<AdvanceQuickPickDraw>) -> Result<()> {
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;
 
     let draw_id = quick_pick_state.current_draw;
+    let draw_in_progress = quick_pick_state.is_draw_in_progress;
 
-    // Verify the draw window has passed with margin for timeout
-    let eligible_time = quick_pick_state
-        .next_draw_timestamp
-        .saturating_add(QUICK_PICK_DRAW_ADVANCEMENT_TIMEOUT);
-    require!(
-        clock.unix_timestamp >= eligible_time,
-        QuickPickError::DrawNotReady
-    );
+    // Calculate start of current draw cycle
+    let cycle_start =
+        quick_pick_state.next_draw_timestamp.saturating_sub(quick_pick_state.draw_interval);
 
-    // Use unified transition to reschedule without advancing draw number
-    quick_pick_state.transition_draw(DrawTransition::Cancel, clock.unix_timestamp);
+    // Check sale target condition
+    let target_hit = quick_pick_state.sale_target_tickets > 0
+        && quick_pick_state.current_draw_tickets >= quick_pick_state.sale_target_tickets;
 
-    emit!(QuickPickDrawCancelled {
-        draw_id,
-        tickets_affected: quick_pick_state.current_draw_tickets,
-        reason: format!(
-            "permissionless_advance_timeout: draw {} was {}s past scheduled time",
+    // Safety: minimum interval must have passed
+    let min_interval_elapsed =
+        clock.unix_timestamp >= cycle_start.saturating_add(QUICK_PICK_MIN_DRAW_INTERVAL);
+
+    // =========================================================================
+    // MODE 1: Draw IS in progress — timeout recovery
+    // =========================================================================
+    if draw_in_progress {
+        require!(!quick_pick_state.is_awaiting_finalization, QuickPickError::DrawNotInProgress);
+
+        let timeout_elapsed = clock.unix_timestamp
+            >= quick_pick_state
+                .next_draw_timestamp
+                .saturating_add(QUICK_PICK_DRAW_ADVANCEMENT_TIMEOUT);
+
+        let can_advance = (timeout_elapsed || target_hit) && min_interval_elapsed;
+        require!(can_advance, QuickPickError::DrawNotReady);
+
+        quick_pick_state.transition_draw(DrawTransition::Cancel, clock.unix_timestamp);
+
+        let reason_text = if target_hit && !timeout_elapsed {
+            format!(
+                "sale_target: {} tickets >= {}",
+                quick_pick_state.current_draw_tickets, quick_pick_state.sale_target_tickets
+            )
+        } else {
+            format!("timeout: draw {} past scheduled", draw_id)
+        };
+
+        emit!(QuickPickDrawCancelled {
             draw_id,
-            clock.unix_timestamp - quick_pick_state.next_draw_timestamp
-        ),
-        timestamp: clock.unix_timestamp,
-    });
+            tickets_affected: quick_pick_state.current_draw_tickets,
+            reason: reason_text,
+            timestamp: clock.unix_timestamp,
+        });
 
-    msg!(
-        "Quick Pick draw #{} advanced by permissionless timeout!",
-        draw_id
-    );
-    msg!("  Caller: {}", ctx.accounts.caller.key());
+        if target_hit && !timeout_elapsed {
+            msg!("🎯 Quick Pick SALE TARGET HIT during stuck draw");
+        }
+        msg!("Quick Pick draw #{} advanced!", draw_id);
+        return Ok(());
+    }
 
-    Ok(())
+    // =========================================================================
+    // MODE 2: Draw NOT in progress — sale target acceleration
+    // =========================================================================
+    if target_hit && min_interval_elapsed {
+        msg!(
+            "🎯 Quick Pick SALE TARGET HIT: {} >= {}",
+            quick_pick_state.current_draw_tickets,
+            quick_pick_state.sale_target_tickets
+        );
+        msg!("  Accelerating draw — next draw set to NOW");
+        quick_pick_state.next_draw_timestamp = clock.unix_timestamp;
+        msg!("  Called by: {}", ctx.accounts.caller.key());
+        return Ok(());
+    }
+
+    Err(QuickPickError::DrawNotReady.into())
 }
 
 // ============================================================================
@@ -697,10 +691,7 @@ pub fn handler_cancel_draw(ctx: Context<CancelQuickPickDraw>, reason: String) ->
     let tickets_affected = quick_pick_state.current_draw_tickets;
 
     // SECURITY: Cannot cancel a draw that has been executed.
-    require!(
-        !quick_pick_state.is_awaiting_finalization,
-        QuickPickError::DrawNotInProgress
-    );
+    require!(!quick_pick_state.is_awaiting_finalization, QuickPickError::DrawNotInProgress);
 
     // QP-2 fix: Use unified transition_draw(Cancel) instead of manual reset.
     // Cancel preserves tickets (current_draw_tickets) and reschedules timestamp.
@@ -718,10 +709,7 @@ pub fn handler_cancel_draw(ctx: Context<CancelQuickPickDraw>, reason: String) ->
     msg!("  Reason: {}", reason);
     msg!("  Tickets affected: {}", tickets_affected);
     msg!("  Next draw time: {}", quick_pick_state.next_draw_timestamp);
-    msg!(
-        "Tickets for draw #{} remain valid: the draw is rescheduled under the",
-        draw_id
-    );
+    msg!("Tickets for draw #{} remain valid: the draw is rescheduled under the", draw_id);
     msg!("  SAME draw ID with a new timestamp. No refunds are issued on-chain.");
     msg!("  Admin may process off-chain refunds if the draw is permanently cancelled.");
 
@@ -805,18 +793,12 @@ pub fn handler_force_finalize_draw(
     // cannot be used to skip draws before winning numbers are revealed.
     // Previously the guard was INVERTED, allowing pre-execution abuse and
     // rejecting the legitimate post-execution recovery case.
-    require!(
-        quick_pick_state.is_awaiting_finalization,
-        QuickPickError::DrawNotInProgress
-    );
+    require!(quick_pick_state.is_awaiting_finalization, QuickPickError::DrawNotInProgress);
 
     // SECURITY: Only allow force-finalize if the commit has timed out (1 hour),
     // to prevent an operator from immediately force-finalizing after execute
     // and bypassing the indexer's finalization window.
-    require!(
-        quick_pick_state.is_commit_timed_out(clock.unix_timestamp),
-        QuickPickError::Timeout
-    );
+    require!(quick_pick_state.is_commit_timed_out(clock.unix_timestamp), QuickPickError::Timeout);
 
     // QP-2 fix: Use unified transition_draw(ForceFinalize) instead of manual reset.
     // ForceFinalize resets tickets and advances draw number/timestamp.
@@ -837,10 +819,7 @@ pub fn handler_force_finalize_draw(
     msg!("Quick Pick draw #{} force finalized!", draw_id);
     msg!("  Reason: {}", reason);
     msg!("  Tickets affected: {}", tickets_affected);
-    msg!(
-        "  Jackpot carries over: {} USDC",
-        quick_pick_state.jackpot_balance
-    );
+    msg!("  Jackpot carries over: {} USDC", quick_pick_state.jackpot_balance);
     msg!("  Next draw: #{}", quick_pick_state.current_draw);
 
     Ok(())
@@ -948,10 +927,7 @@ pub fn handler_emergency_fund_transfer(
     let clock = Clock::get()?;
 
     require!(amount > 0, QuickPickError::InvalidConfig);
-    require!(
-        ctx.accounts.source_usdc.amount >= amount,
-        QuickPickError::InsufficientFunds
-    );
+    require!(ctx.accounts.source_usdc.amount >= amount, QuickPickError::InsufficientFunds);
 
     // Validate USDC mint
     require!(
@@ -1008,9 +984,7 @@ pub fn handler_emergency_fund_transfer(
         // Reset the window if it's a new day
         if quick_pick_state.emergency_transfer_window_start == 0
             || clock.unix_timestamp
-                > quick_pick_state
-                    .emergency_transfer_window_start
-                    .saturating_add(window_duration)
+                > quick_pick_state.emergency_transfer_window_start.saturating_add(window_duration)
         {
             quick_pick_state.emergency_transfer_total = 0;
             quick_pick_state.emergency_transfer_window_start = clock.unix_timestamp;
@@ -1018,17 +992,11 @@ pub fn handler_emergency_fund_transfer(
 
         let daily_cap =
             (hard_cap as u128 * QP_EMERGENCY_TRANSFER_DAILY_CAP_BPS as u128 / 10000u128) as u64;
-        let new_total = quick_pick_state
-            .emergency_transfer_total
-            .saturating_add(amount);
+        let new_total = quick_pick_state.emergency_transfer_total.saturating_add(amount);
         require!(new_total <= daily_cap, QuickPickError::InvalidConfig);
         quick_pick_state.emergency_transfer_total = new_total;
 
-        msg!(
-            "  Emergency transfer daily cap: {} / {} USDC lamports",
-            new_total,
-            daily_cap
-        );
+        msg!("  Emergency transfer daily cap: {} / {} USDC lamports", new_total, daily_cap);
 
         // SECURITY FIX (Issue #5): For PrizePool external transfers, validate that
         // the source is actually the prize pool PDA and the destination is not the
@@ -1164,10 +1132,7 @@ pub fn handler_add_reserve_funds(
     amount: u64,
 ) -> Result<()> {
     require!(amount > 0, QuickPickError::InvalidConfig);
-    require!(
-        ctx.accounts.authority_usdc.amount >= amount,
-        QuickPickError::InsufficientFunds
-    );
+    require!(ctx.accounts.authority_usdc.amount >= amount, QuickPickError::InsufficientFunds);
 
     // Transfer USDC from authority to prize pool
     let cpi_accounts = Transfer {
@@ -1181,17 +1146,12 @@ pub fn handler_add_reserve_funds(
 
     // Update reserve balance
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;
-    quick_pick_state.reserve_balance = quick_pick_state
-        .reserve_balance
-        .checked_add(amount)
-        .ok_or(QuickPickError::Overflow)?;
+    quick_pick_state.reserve_balance =
+        quick_pick_state.reserve_balance.checked_add(amount).ok_or(QuickPickError::Overflow)?;
 
     msg!("Quick Pick reserve funds added!");
     msg!("  Amount added: {} USDC lamports", amount);
-    msg!(
-        "  New reserve balance: {} USDC lamports",
-        quick_pick_state.reserve_balance
-    );
+    msg!("  New reserve balance: {} USDC lamports", quick_pick_state.reserve_balance);
 
     Ok(())
 }
@@ -1215,10 +1175,7 @@ mod tests {
     #[test]
     fn test_fund_source_variants() {
         assert_ne!(QuickPickFundSource::Reserve, QuickPickFundSource::Insurance);
-        assert_ne!(
-            QuickPickFundSource::Insurance,
-            QuickPickFundSource::PrizePool
-        );
+        assert_ne!(QuickPickFundSource::Insurance, QuickPickFundSource::PrizePool);
         assert_ne!(QuickPickFundSource::Reserve, QuickPickFundSource::PrizePool);
     }
 }

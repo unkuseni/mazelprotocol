@@ -92,6 +92,7 @@ mazelprotocol/
 - **Two-Step Authority Transfer** - Propose→accept prevents accidental loss
 - **Solvency Verification** - Anyone can verify, auto-pauses on mismatch
 - **Expired Prize Reclaim** - Unclaimed prizes sweep after 90 days
+- **Jackpot LP Pool** - Users deposit USDC to seed jackpot, earn share of house fees
 
 ### 🚧 Partially Implemented
 - **Streak Tracking** - Streaks tracked but bonuses not yet applied
@@ -251,7 +252,10 @@ src/
     ├── finalize_draw.rs        # Winner counts + prize calculation
     ├── syndicate.rs            # Full syndicate lifecycle
     ├── syndicate_wars.rs       # Monthly competition lifecycle
-    └── advance_draw.rs         # Permissionless draw advancement
+    ├── advance_draw.rs         # Permissionless draw advancement
+    ├── deposit_lp.rs           # LP pool deposits (jackpot seeding)
+    ├── withdraw_lp.rs          # LP pool withdrawals
+    └── claim_lp_rewards.rs     # LP reward claims
 ```
 
 ### Key Accounts
@@ -261,6 +265,8 @@ src/
 - **`TicketData`** - Individual ticket with numbers (PDA: `["ticket", user, ticket_id]`)
 - **`UserStats`** - Player statistics (PDA: `["user_stats", user]`)
 - **`Syndicate`** - Group buying pool (PDA: `["syndicate", creator]`)
+- **`LpPool`** - Global LP pool state (PDA: `["lp_pool"]`)
+- **`LpPosition`** - Per-user LP shares & reward debt (PDA: `["lp_position", owner]`)
 
 ## 📊 Expected Value Analysis
 

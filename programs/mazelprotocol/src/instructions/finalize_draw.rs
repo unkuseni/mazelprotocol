@@ -15,15 +15,16 @@
 //! 9. Updates dynamic house fee based on new jackpot level
 
 use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
 use super::prizes::{calculate_fixed_prizes, calculate_rolldown_prizes, PrizeCalculation};
 use crate::constants::*;
 use crate::errors::LottoError;
 use crate::events::{
-    DrawFinalized, DynamicFeeTierChanged, EmergencyPause, InsurancePoolUsed, RolldownExecuted,
-    SoftCapReached, SolvencyCheckPerformed,
+    DrawFinalized, DynamicFeeTierChanged, EmergencyPause, InsurancePoolUsed, LpPoolSeeded,
+    RolldownExecuted, SoftCapReached, SolvencyCheckPerformed,
 };
-use crate::state::{DrawResult, LotteryState, WinnerCounts};
+use crate::state::{DrawResult, LotteryState, LpPool, WinnerCounts};
 
 /// Parameters for finalizing the draw
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -70,6 +71,53 @@ pub struct FinalizeDraw<'info> {
         constraint = !draw_result.is_finalized() @ LottoError::DrawAlreadyCompleted
     )]
     pub draw_result: Account<'info, DrawResult>,
+
+    /// LP pool state (optional — included when LP liquidity exists for seeding)
+    #[account(
+        mut,
+        seeds = [LP_POOL_SEED],
+        bump = lp_pool.bump,
+    )]
+    pub lp_pool: Option<Account<'info, LpPool>>,
+
+    /// LP pool USDC token account.
+    /// MUST be provided when lp_pool is Some, otherwise seed transfer is skipped.
+    #[account(
+        mut,
+        seeds = [LP_POOL_USDC_SEED],
+        bump
+    )]
+    pub lp_pool_usdc: Option<Account<'info, TokenAccount>>,
+
+    /// Prize pool USDC token account.
+    /// MUST be provided when lp_pool is Some.
+    #[account(
+        mut,
+        seeds = [PRIZE_POOL_USDC_SEED],
+        bump
+    )]
+    pub prize_pool_usdc: Option<Account<'info, TokenAccount>>,
+
+    /// Token program.
+    /// MUST be provided when lp_pool is Some.
+    pub token_program: Option<Program<'info, Token>>,
+}
+
+impl<'info> FinalizeDraw<'info> {
+    /// Validate that LP accounts are all-or-none.
+    fn validate_lp_accounts(&self) -> Result<()> {
+        let has_lp = self.lp_pool.is_some();
+        let has_lp_usdc = self.lp_pool_usdc.is_some();
+        let has_prize = self.prize_pool_usdc.is_some();
+        let has_token = self.token_program.is_some();
+
+        if has_lp {
+            require!(has_lp_usdc, LottoError::LpPoolNotInitialized);
+            require!(has_prize, LottoError::LpPoolNotInitialized);
+            require!(has_token, LottoError::LpPoolNotInitialized);
+        }
+        Ok(())
+    }
 }
 
 // Prize calculation logic extracted to super::prizes module.
@@ -95,6 +143,10 @@ pub struct FinalizeDraw<'info> {
 /// * `Result<()>` - Success or error
 pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result<()> {
     let clock = Clock::get()?;
+
+    // Validate LP accounts are all-or-none
+    ctx.accounts.validate_lp_accounts()?;
+
     let lottery_state = &mut ctx.accounts.lottery_state;
     let draw_result = &mut ctx.accounts.draw_result;
 
@@ -396,11 +448,69 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
             || params.winner_counts.match_3 > 0;
 
         if had_rolldown_winners {
-            // Rolldown occurred with winners - jackpot was distributed, seed new jackpot from reserve
-            let seed_from_reserve = lottery_state.seed_amount.min(lottery_state.reserve_balance);
-            lottery_state.jackpot_balance = seed_from_reserve;
-            lottery_state.reserve_balance =
-                lottery_state.reserve_balance.saturating_sub(seed_from_reserve);
+            // Rolldown occurred with winners - jackpot was distributed
+            // Seed new jackpot: prefer LP pool, fall back to reserve
+            let seed_amount = lottery_state.seed_amount;
+            let mut seed_from_lp: u64 = 0;
+            let mut seed_from_reserve: u64 = 0;
+
+            // Try LP pool first
+            if let Some(ref mut lp_pool) = ctx.accounts.lp_pool.as_mut() {
+                if lp_pool.total_deposits > 0 {
+                    let lp_seed = seed_amount.min(lp_pool.total_deposits);
+
+                    // Transfer USDC from LP pool to prize pool FIRST
+                    let lp_bump = lp_pool.bump;
+                    let seeds: &[&[u8]] = &[LP_POOL_SEED, &[lp_bump]];
+                    let signer_seeds = &[&seeds[..]];
+
+                    // SAFETY: validate_lp_accounts() ensures these are all Some
+                    let lp_pool_usdc = ctx.accounts.lp_pool_usdc.as_ref().unwrap();
+                    let prize_pool_usdc = ctx.accounts.prize_pool_usdc.as_ref().unwrap();
+                    let token_program = ctx.accounts.token_program.as_ref().unwrap();
+
+                    let cpi_accounts = Transfer {
+                        from: lp_pool_usdc.to_account_info(),
+                        to: prize_pool_usdc.to_account_info(),
+                        authority: lp_pool.to_account_info(),
+                    };
+                    let cpi_ctx = CpiContext::new_with_signer(
+                        token_program.to_account_info(),
+                        cpi_accounts,
+                        signer_seeds,
+                    );
+                    token::transfer(cpi_ctx, lp_seed)?;
+
+                    // Only deduct AFTER successful transfer
+                    lp_pool.deduct_seed(lp_seed)?;
+                    lp_pool.last_seed_draw_id = lottery_state.current_draw_id;
+                    seed_from_lp = lp_seed;
+
+                    msg!("Transferred {} USDC from LP pool to prize pool", lp_seed);
+
+                    emit!(LpPoolSeeded {
+                        draw_id: lottery_state.current_draw_id,
+                        seed_amount: seed_from_lp,
+                        remaining_deposits: lp_pool.total_deposits,
+                        total_shares: lp_pool.total_shares,
+                        timestamp: clock.unix_timestamp,
+                    });
+
+                    msg!("LP pool seeded: {} USDC lamports", seed_from_lp);
+                    msg!("  LP pool remaining: {} USDC lamports", lp_pool.total_deposits);
+                }
+            }
+
+            // Fall back to reserve for any shortfall
+            let remaining_needed = seed_amount.saturating_sub(seed_from_lp);
+            if remaining_needed > 0 {
+                seed_from_reserve = remaining_needed.min(lottery_state.reserve_balance);
+                lottery_state.reserve_balance =
+                    lottery_state.reserve_balance.saturating_sub(seed_from_reserve);
+                msg!("Reserve seeded: {} USDC lamports", seed_from_reserve);
+            }
+
+            lottery_state.jackpot_balance = seed_from_lp.saturating_add(seed_from_reserve);
 
             // Emit rolldown event
             emit!(RolldownExecuted {
@@ -428,11 +538,67 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
             lottery_state.is_rolldown_active = false;
         }
     } else if params.winner_counts.match_6 > 0 {
-        // Jackpot won - reset jackpot, seed from reserve
-        let seed_from_reserve = lottery_state.seed_amount.min(lottery_state.reserve_balance);
-        lottery_state.jackpot_balance = seed_from_reserve;
-        lottery_state.reserve_balance =
-            lottery_state.reserve_balance.saturating_sub(seed_from_reserve);
+        // Jackpot won - reset jackpot
+        // Seed new jackpot: prefer LP pool, fall back to reserve
+        let seed_amount = lottery_state.seed_amount;
+        let mut seed_from_lp: u64 = 0;
+        let mut seed_from_reserve: u64 = 0;
+
+        if let Some(ref mut lp_pool) = ctx.accounts.lp_pool.as_mut() {
+            if lp_pool.total_deposits > 0 {
+                let lp_seed = seed_amount.min(lp_pool.total_deposits);
+
+                // Transfer USDC from LP pool to prize pool FIRST
+                let lp_bump = lp_pool.bump;
+                let seeds: &[&[u8]] = &[LP_POOL_SEED, &[lp_bump]];
+                let signer_seeds = &[&seeds[..]];
+
+                // SAFETY: validate_lp_accounts() ensures these are all Some
+                let lp_pool_usdc = ctx.accounts.lp_pool_usdc.as_ref().unwrap();
+                let prize_pool_usdc = ctx.accounts.prize_pool_usdc.as_ref().unwrap();
+                let token_program = ctx.accounts.token_program.as_ref().unwrap();
+
+                let cpi_accounts = Transfer {
+                    from: lp_pool_usdc.to_account_info(),
+                    to: prize_pool_usdc.to_account_info(),
+                    authority: lp_pool.to_account_info(),
+                };
+                let cpi_ctx = CpiContext::new_with_signer(
+                    token_program.to_account_info(),
+                    cpi_accounts,
+                    signer_seeds,
+                );
+                token::transfer(cpi_ctx, lp_seed)?;
+
+                // Only deduct AFTER successful transfer
+                lp_pool.deduct_seed(lp_seed)?;
+                lp_pool.last_seed_draw_id = lottery_state.current_draw_id;
+                seed_from_lp = lp_seed;
+
+                msg!("Transferred {} USDC from LP pool to prize pool", lp_seed);
+
+                emit!(LpPoolSeeded {
+                    draw_id: lottery_state.current_draw_id,
+                    seed_amount: seed_from_lp,
+                    remaining_deposits: lp_pool.total_deposits,
+                    total_shares: lp_pool.total_shares,
+                    timestamp: clock.unix_timestamp,
+                });
+
+                msg!("LP pool seeded: {} USDC lamports", seed_from_lp);
+                msg!("  LP pool remaining: {} USDC lamports", lp_pool.total_deposits);
+            }
+        }
+
+        let remaining_needed = seed_amount.saturating_sub(seed_from_lp);
+        if remaining_needed > 0 {
+            seed_from_reserve = remaining_needed.min(lottery_state.reserve_balance);
+            lottery_state.reserve_balance =
+                lottery_state.reserve_balance.saturating_sub(seed_from_reserve);
+            msg!("Reserve seeded: {} USDC lamports", seed_from_reserve);
+        }
+
+        lottery_state.jackpot_balance = seed_from_lp.saturating_add(seed_from_reserve);
 
         msg!("Jackpot won by {} winners!", params.winner_counts.match_6);
         msg!("  Prize per winner: {} USDC lamports", prize_calc.match_6_prize);

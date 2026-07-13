@@ -9,6 +9,14 @@
 //! added, these structs MUST be kept in sync with the QuickPick program's
 //! definitions, or deserialization will fail with silent data corruption.
 //!
+//! **CURRENTLY MISSING FIELDS (v3.1):**
+//!   - reserve_balance, total_tickets_sold, total_prizes_paid
+//!   - current_randomness_account, commit_slot, commit_timestamp
+//!   - is_draw_in_progress, is_awaiting_finalization, is_funded
+//!   - config_timelock_end, pending_config_hash
+//!   - emergency_transfer_total, emergency_transfer_window_start
+//!   - sale_target_tickets
+//!
 //! Sync checklist when modifying QuickPick state:
 //!   1. Update the canonical struct in programs/quickpick/src/state.rs
 //!   2. Update this duplicate below
@@ -16,6 +24,7 @@
 //!   4. Run all tests to catch mismatches
 
 use crate::constants::*;
+use anchor_lang::prelude::*;
 
 /// Quick Pick Express game state (5/35 Matrix with Rolldown Exploit)
 #[account]

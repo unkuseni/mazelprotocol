@@ -110,10 +110,7 @@ impl<'info> Initialize<'info> {
         // Validate caps (soft cap < hard cap)
         require!(params.soft_cap > 0, LottoError::InvalidCapConfig);
         require!(params.hard_cap > 0, LottoError::InvalidCapConfig);
-        require!(
-            params.soft_cap < params.hard_cap,
-            LottoError::InvalidCapConfig
-        );
+        require!(params.soft_cap < params.hard_cap, LottoError::InvalidCapConfig);
 
         // Validate jackpot cap is reasonable
         require!(
@@ -123,18 +120,12 @@ impl<'info> Initialize<'info> {
 
         // Validate seed amount (should be less than soft cap)
         require!(params.seed_amount > 0, LottoError::InvalidSeedAmount);
-        require!(
-            params.seed_amount < params.soft_cap,
-            LottoError::InvalidSeedAmount
-        );
+        require!(params.seed_amount < params.soft_cap, LottoError::InvalidSeedAmount);
 
         // Validate seed amount meets absolute minimum requirement ($50,000)
         // This ensures the lottery starts with sufficient funding
         let absolute_minimum_seed = 50_000_000_000; // $50,000 in USDC lamports
-        require!(
-            params.seed_amount >= absolute_minimum_seed,
-            LottoError::InvalidSeedAmount
-        );
+        require!(params.seed_amount >= absolute_minimum_seed, LottoError::InvalidSeedAmount);
 
         // Validate draw interval (minimum 1 hour, maximum 7 days)
         require!(
@@ -225,6 +216,7 @@ pub fn handler(ctx: Context<Initialize>, params: InitializeParams) -> Result<()>
     lottery_state.is_paused = true; // FIXED: Start paused until funded
     lottery_state.is_funded = false; // FIXED: Track funding status
     lottery_state.max_rolldown_tickets = DEFAULT_MAX_ROLLDOWN_TICKETS;
+    lottery_state.sale_target_tickets = DEFAULT_SALE_TARGET_TICKETS;
     lottery_state.pending_authority = None; // For two-step authority transfer
     lottery_state.version = 1;
     lottery_state.bump = ctx.bumps.lottery_state;
@@ -243,10 +235,7 @@ pub fn handler(ctx: Context<Initialize>, params: InitializeParams) -> Result<()>
     msg!("Lottery initialized successfully!");
     msg!("  Authority: {}", ctx.accounts.authority.key());
     msg!("  Ticket price: {} USDC lamports", params.ticket_price);
-    msg!(
-        "  Required seed amount: {} USDC lamports",
-        params.seed_amount
-    );
+    msg!("  Required seed amount: {} USDC lamports", params.seed_amount);
     msg!("  Soft cap: {} USDC lamports", params.soft_cap);
     msg!("  Hard cap: {} USDC lamports", params.hard_cap);
     msg!("  First draw at: {}", lottery_state.next_draw_timestamp);
@@ -348,10 +337,7 @@ pub fn handler_fund_seed(ctx: Context<FundSeed>) -> Result<()> {
 
     msg!("Lottery funded successfully!");
     msg!("  Seed amount deposited: {} USDC lamports", seed_amount);
-    msg!(
-        "  Jackpot balance: {} USDC lamports",
-        lottery_state.jackpot_balance
-    );
+    msg!("  Jackpot balance: {} USDC lamports", lottery_state.jackpot_balance);
     msg!("  Lottery is now ACTIVE");
 
     Ok(())
@@ -413,10 +399,7 @@ pub struct AddReserveFunds<'info> {
 /// * `Result<()>` - Success or error
 pub fn handler_add_reserve_funds(ctx: Context<AddReserveFunds>, amount: u64) -> Result<()> {
     require!(amount > 0, LottoError::InvalidSeedAmount);
-    require!(
-        ctx.accounts.authority_usdc.amount >= amount,
-        LottoError::InsufficientFunds
-    );
+    require!(ctx.accounts.authority_usdc.amount >= amount, LottoError::InsufficientFunds);
 
     // Transfer USDC from authority to prize pool
     let cpi_accounts = Transfer {
@@ -430,17 +413,12 @@ pub fn handler_add_reserve_funds(ctx: Context<AddReserveFunds>, amount: u64) -> 
 
     // Update reserve balance
     let lottery_state = &mut ctx.accounts.lottery_state;
-    lottery_state.reserve_balance = lottery_state
-        .reserve_balance
-        .checked_add(amount)
-        .ok_or(LottoError::Overflow)?;
+    lottery_state.reserve_balance =
+        lottery_state.reserve_balance.checked_add(amount).ok_or(LottoError::Overflow)?;
 
     msg!("Reserve funds added successfully!");
     msg!("  Amount added: {} USDC lamports", amount);
-    msg!(
-        "  New reserve balance: {} USDC lamports",
-        lottery_state.reserve_balance
-    );
+    msg!("  New reserve balance: {} USDC lamports", lottery_state.reserve_balance);
 
     Ok(())
 }
