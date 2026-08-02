@@ -258,6 +258,11 @@ pub enum LottoError {
     #[msg("Insufficient prize pool balance.")]
     InsufficientPrizePool,
 
+    /// Insurance pool token account has insufficient USDC to back the
+    /// accounting balance (or the insurance account was not provided).
+    #[msg("Insufficient insurance pool funds.")]
+    InsufficientInsuranceFunds,
+
     /// Prize pool solvency check failed with details
     #[msg("Prize pool solvency check failed.")]
     PrizePoolSolvencyFailed,

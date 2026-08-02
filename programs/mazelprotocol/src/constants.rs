@@ -384,7 +384,9 @@ pub const SYNDICATE_BASE_SIZE: usize = 8 + // discriminator
     32 + // usdc_account
     4 +  // members vec length
     1 +  // bump
-    16; // padding
+    8 +  // pending_tickets (SECURITY: prevents free ticket minting)
+    8 +  // pending_tickets_draw
+    0; // padding (was 16 — now used by pending_tickets fields)
 
 /// Size per syndicate member
 pub const SYNDICATE_MEMBER_SIZE: usize = 32 + // wallet
