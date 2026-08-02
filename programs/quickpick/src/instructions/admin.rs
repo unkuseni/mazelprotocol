@@ -981,47 +981,65 @@ pub fn handler_emergency_fund_transfer(
         }
     }
 
-    // SECURITY FIX (Issue #5): Cap per-call transfer amount for PrizePool source
-    // to limit damage from a compromised authority. Reserve and Insurance transfers
-    // stay within the protocol (pool-to-pool), but PrizePool transfers can go to
-    // an external destination and need strict limits.
-    if matches!(source, QuickPickFundSource::PrizePool) {
-        let hard_cap = ctx.accounts.quick_pick_state.hard_cap;
-        let max_transfer =
-            (hard_cap as u128 * QP_EMERGENCY_TRANSFER_MAX_BPS as u128 / 10000u128) as u64;
-        require!(amount <= max_transfer, QuickPickError::InvalidConfig);
+    // SECURITY FIX (Issue #5 + security review H2): Apply per-call and daily
+    // caps to ALL sources, not just PrizePool. The caps exist to limit damage
+    // from a compromised authority regardless of which pool is the source.
+    // Previously, Reserve/Insurance transfers bypassed every cap, and the
+    // Reserve source could drain the entire prize-pool token balance while
+    // only decrementing the tiny reserve_balance (saturating) — leaving
+    // jackpot accounting overstated and the protocol insolvent.
+    let hard_cap = ctx.accounts.quick_pick_state.hard_cap;
+    let max_transfer =
+        (hard_cap as u128 * QP_EMERGENCY_TRANSFER_MAX_BPS as u128 / 10000u128) as u64;
+    require!(amount <= max_transfer, QuickPickError::InvalidConfig);
 
-        // SECURITY (QP-3 fix): Track cumulative daily transfers to prevent
-        // a compromised authority from draining large amounts via repeated
-        // per-call-capped transfers. The daily cap is EMERGENCY_TRANSFER_DAILY_CAP_BPS
-        // of the hard cap, and the window resets every 24 hours.
-        let quick_pick_state = &mut ctx.accounts.quick_pick_state;
-        let window_duration: i64 = 86400; // 24 hours
+    // SECURITY (QP-3 fix): Track cumulative daily transfers to prevent
+    // a compromised authority from draining large amounts via repeated
+    // per-call-capped transfers. The daily cap is EMERGENCY_TRANSFER_DAILY_CAP_BPS
+    // of the hard cap, and the window resets every 24 hours.
+    let quick_pick_state = &mut ctx.accounts.quick_pick_state;
+    let window_duration: i64 = 86400; // 24 hours
 
-        // Reset the window if it's a new day
-        if quick_pick_state.emergency_transfer_window_start == 0
-            || clock.unix_timestamp
-                > quick_pick_state.emergency_transfer_window_start.saturating_add(window_duration)
-        {
-            quick_pick_state.emergency_transfer_total = 0;
-            quick_pick_state.emergency_transfer_window_start = clock.unix_timestamp;
+    // Reset the window if it's a new day
+    if quick_pick_state.emergency_transfer_window_start == 0
+        || clock.unix_timestamp
+            > quick_pick_state.emergency_transfer_window_start.saturating_add(window_duration)
+    {
+        quick_pick_state.emergency_transfer_total = 0;
+        quick_pick_state.emergency_transfer_window_start = clock.unix_timestamp;
+    }
+
+    let daily_cap =
+        (hard_cap as u128 * QP_EMERGENCY_TRANSFER_DAILY_CAP_BPS as u128 / 10000u128) as u64;
+    let new_total = quick_pick_state.emergency_transfer_total.saturating_add(amount);
+    require!(new_total <= daily_cap, QuickPickError::InvalidConfig);
+    quick_pick_state.emergency_transfer_total = new_total;
+
+    msg!("  Emergency transfer daily cap: {} / {} USDC lamports", new_total, daily_cap);
+
+    // SECURITY: Prevent no-op transfers (source == destination) for event-spam abuse.
+    require!(
+        ctx.accounts.source_usdc.key() != ctx.accounts.destination_usdc.key(),
+        QuickPickError::InvalidTokenAccount
+    );
+
+    // SECURITY (review H2): Reserve/Insurance sources are "pool-to-pool" by
+    // design — restrict their destinations to protocol PDAs (prize pool or
+    // insurance pool). Only PrizePool (external emergency payout) may target
+    // an arbitrary wallet, and it is bounded by the caps above.
+    match source {
+        QuickPickFundSource::PrizePool => {}
+        QuickPickFundSource::Reserve | QuickPickFundSource::Insurance => {
+            let (expected_prize_pool, _) =
+                Pubkey::find_program_address(&[PRIZE_POOL_USDC_SEED], ctx.program_id);
+            let (expected_insurance, _) =
+                Pubkey::find_program_address(&[INSURANCE_POOL_USDC_SEED], ctx.program_id);
+            require!(
+                ctx.accounts.destination_usdc.key() == expected_prize_pool
+                    || ctx.accounts.destination_usdc.key() == expected_insurance,
+                QuickPickError::InvalidTokenAccount
+            );
         }
-
-        let daily_cap =
-            (hard_cap as u128 * QP_EMERGENCY_TRANSFER_DAILY_CAP_BPS as u128 / 10000u128) as u64;
-        let new_total = quick_pick_state.emergency_transfer_total.saturating_add(amount);
-        require!(new_total <= daily_cap, QuickPickError::InvalidConfig);
-        quick_pick_state.emergency_transfer_total = new_total;
-
-        msg!("  Emergency transfer daily cap: {} / {} USDC lamports", new_total, daily_cap);
-
-        // SECURITY FIX (Issue #5): For PrizePool external transfers, validate that
-        // the source is actually the prize pool PDA and the destination is not the
-        // same as the source (prevent no-op abuse for event spam).
-        require!(
-            ctx.accounts.source_usdc.key() != ctx.accounts.destination_usdc.key(),
-            QuickPickError::InvalidTokenAccount
-        );
     }
 
     let source_name = match source {
@@ -1044,20 +1062,36 @@ pub fn handler_emergency_fund_transfer(
 
     token::transfer(cpi_ctx, amount)?;
 
-    // Update internal balance tracking
+    // Update internal balance tracking — FAIL LOUDLY (require!) instead of
+    // saturating_sub. Saturating arithmetic here silently hides accounting
+    // divergence between internal balances and the actual token account,
+    // which is exactly how a drained Reserve left the protocol insolvent
+    // with jackpot_balance overstated (security review H2).
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;
     match source {
         QuickPickFundSource::Reserve => {
+            require!(
+                quick_pick_state.reserve_balance >= amount,
+                QuickPickError::InsufficientFunds
+            );
             quick_pick_state.reserve_balance =
-                quick_pick_state.reserve_balance.saturating_sub(amount);
+                quick_pick_state.reserve_balance.checked_sub(amount).ok_or(QuickPickError::Underflow)?;
         }
         QuickPickFundSource::Insurance => {
+            require!(
+                quick_pick_state.insurance_balance >= amount,
+                QuickPickError::InsufficientFunds
+            );
             quick_pick_state.insurance_balance =
-                quick_pick_state.insurance_balance.saturating_sub(amount);
+                quick_pick_state.insurance_balance.checked_sub(amount).ok_or(QuickPickError::Underflow)?;
         }
         QuickPickFundSource::PrizePool => {
+            require!(
+                quick_pick_state.prize_pool_balance >= amount,
+                QuickPickError::InsufficientFunds
+            );
             quick_pick_state.prize_pool_balance =
-                quick_pick_state.prize_pool_balance.saturating_sub(amount);
+                quick_pick_state.prize_pool_balance.checked_sub(amount).ok_or(QuickPickError::Underflow)?;
         }
     }
 

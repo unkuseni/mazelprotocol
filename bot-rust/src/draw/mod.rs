@@ -281,7 +281,10 @@ pub struct LotteryStateData {
     pub current_draw_tickets: u64,
     _pad15: u64,
     pub is_draw_in_progress: bool,
-    _pad16: bool,
+    // SECURITY (review H1): expose this flag so recovery can distinguish
+    // "committed but never executed" (numbers not public → advance_draw)
+    // from "executed but not finalized" (numbers public → re-index + finalize).
+    pub is_awaiting_finalization: bool,
     _pad17: bool,
     pub is_paused: bool,
     _pad18: bool,
@@ -316,7 +319,9 @@ pub struct QpStateData {
     _pad18: u64,
     _pad19: i64,
     pub is_draw_in_progress: bool,
-    _pad20: bool,
+    // SECURITY (review H1): same as LotteryStateData — distinguishes
+    // "committed but never executed" from "executed but not finalized".
+    pub is_awaiting_finalization: bool,
     _pad21: bool,
     pub is_paused: bool,
     _pad22: bool,

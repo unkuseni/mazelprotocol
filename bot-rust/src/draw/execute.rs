@@ -49,7 +49,7 @@ pub async fn execute_main_draw(
     let sig = rpc.send_and_confirm_transaction(&tx)?;
 
     let account = rpc.get_account(&draw_result)?;
-    let dr: DrawResultData = deser(&account.data);
+    let dr: DrawResultData = deser_checked(&account.data)?;
     Ok(ExecuteResult {
         signature: sig,
         winning_numbers: dr.winning_numbers[..6].to_vec(),
@@ -94,7 +94,7 @@ pub async fn execute_qp_draw(
     let sig = rpc.send_and_confirm_transaction(&tx)?;
 
     let account = rpc.get_account(&draw_result)?;
-    let dr: QpDrawResultData = deser(&account.data);
+    let dr: QpDrawResultData = deser_checked(&account.data)?;
     Ok(ExecuteResult {
         signature: sig,
         winning_numbers: dr.winning_numbers[..5].to_vec(),
@@ -120,13 +120,18 @@ fn meta(
     solana_sdk::instruction::AccountMeta { pubkey, is_signer, is_writable }
 }
 
-fn deser<T: anchor_lang::AnchorDeserialize>(data: &[u8]) -> T {
+/// Deserialize an Anchor account payload, returning a typed error instead of
+/// panicking. SECURITY (review M4): the previous version called `.unwrap()` on
+/// RPC-derived account data; a missing/short/malformed account (RPC error,
+/// bad node) panicked inside the cron task and killed the entire bot.
+pub fn deser_checked<T: anchor_lang::AnchorDeserialize>(data: &[u8]) -> Result<T> {
     let mut slice: &[u8] = data;
-    T::deserialize(&mut slice).unwrap()
+    T::deserialize(&mut slice)
+        .map_err(|e| crate::error::BotError::Draw(format!("deserialize account data: {e}")))
 }
 
 #[derive(anchor_lang::AnchorDeserialize)]
-struct DrawResultData {
+pub struct DrawResultData {
     // 8-byte Anchor account discriminator
     _pad0: u64,
     pub winning_numbers: [u8; 6],
@@ -137,7 +142,7 @@ struct DrawResultData {
 }
 
 #[derive(anchor_lang::AnchorDeserialize)]
-struct QpDrawResultData {
+pub struct QpDrawResultData {
     // 8-byte Anchor account discriminator
     _pad0: u64,
     pub winning_numbers: [u8; 5],

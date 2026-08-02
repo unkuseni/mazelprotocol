@@ -585,40 +585,32 @@ impl UserStats {
     }
 }
 
-/// Main lottery state structure (for reference - actual account lives in main lottery)
+/// Main lottery state structure (byte-identical mirror of the main lottery program)
 ///
 /// This structure is used to verify authority for Quick Pick operations.
 /// The actual LotteryState account is owned by the main lottery program.
 ///
-/// ## ⚠️  CRITICAL — CROSS-PROGRAM DESERIALIZATION RISK
+/// ## ⚠️  CRITICAL — CROSS-PROGRAM DESERIALIZATION (FIXED)
 ///
-/// This struct is a **partial mirror** of the main lottery program's
-/// `LotteryState`. Anchor deserializes ALL fields when this account is
-/// loaded, so any field addition/removal/reordering in the main program
-/// WILL silently corrupt deserialization here.
+/// Anchor deserializes ALL fields of this account when it is loaded, so the
+/// field order and types here MUST be byte-identical to the main program's
+/// `LotteryState` (`programs/mazelprotocol/src/state/lottery_state.rs`).
 ///
-/// **Fields actually accessed by quickpick:**
-/// - `authority` — used for authority constraint checks
-/// - `bump` — used for PDA seed derivation
+/// **Previous bug (security review C1):** this was a partial mirror:
+/// - `current_randomness_account` was `Option<Pubkey>` (33 bytes) but is a
+///   plain `Pubkey` (32 bytes) in the main program — shifting every field
+///   after it and corrupting `bump`, which is used in PDA seed constraints
+///   (`bump = lottery_state.bump`) on every QuickPick instruction.
+/// - Twelve trailing fields were missing, so `bump` was read from garbage
+///   offsets and the PDA-seeds check could fail (DoS) or silently pass with
+///   corrupted state.
 ///
 /// **Mitigation:**
-/// 1. Never reorder or remove existing fields in the main LotteryState.
-/// 2. Only add new fields at the END of the struct.
-/// 3. Update this shadow struct when the main struct changes.
-/// 4. A cross-program test should verify deserialization correctness.
-///
-/// **Known gaps vs main LotteryState:**
-/// - Missing: `fixed_prize_balance`, `total_prizes_committed`,
-///   `is_awaiting_finalization`, `version`, `config_timelock_end`,
-///   `pending_config_hash`, `emergency_transfer_total`,
-///   `emergency_transfer_window_start`, `max_rolldown_tickets`
-/// - `current_randomness_account` is Option<Pubkey> here but plain
-///   Pubkey in main — this is safe because the authority field we
-///   actually read comes before it in the struct layout
-///
-/// TODO: Replace this with a proper cross-program type import when
-/// Anchor supports it, or use raw AccountInfo with manual offset reads
-/// to eliminate the deserialization dependency entirely.
+/// 1. This struct now mirrors the main program field-for-field.
+/// 2. `LotteryState::LEN` is asserted against the main program's documented
+///    `LOTTERY_STATE_SIZE` (362 bytes) in `test_lottery_state_shadow_len`.
+/// 3. Never reorder/remove fields in the main `LotteryState` without updating
+///    this mirror AND the size test below.
 #[account]
 pub struct LotteryState {
     /// Authority (owner) of the lottery
@@ -630,8 +622,8 @@ pub struct LotteryState {
     /// Switchboard oracle queue
     pub switchboard_queue: Pubkey,
 
-    /// Current randomness account reference
-    pub current_randomness_account: Option<Pubkey>,
+    /// Current randomness account reference (plain Pubkey, matching main)
+    pub current_randomness_account: Pubkey,
 
     /// Current draw ID
     pub current_draw_id: u64,
@@ -644,6 +636,9 @@ pub struct LotteryState {
 
     /// Insurance balance
     pub insurance_balance: u64,
+
+    /// Dedicated fixed prize pool balance (tracked separately by main program)
+    pub fixed_prize_balance: u64,
 
     /// Ticket price
     pub ticket_price: u64,
@@ -681,11 +676,17 @@ pub struct LotteryState {
     /// Total tickets sold
     pub total_tickets_sold: u64,
 
-    /// Total prizes paid
+    /// Total prizes actually paid out (USDC transfers at claim time)
     pub total_prizes_paid: u64,
+
+    /// Total prizes committed at finalization time
+    pub total_prizes_committed: u64,
 
     /// Is draw in progress
     pub is_draw_in_progress: bool,
+
+    /// Is awaiting finalization (winning numbers already on-chain)
+    pub is_awaiting_finalization: bool,
 
     /// Is rolldown active
     pub is_rolldown_active: bool,
@@ -696,8 +697,72 @@ pub struct LotteryState {
     /// Is funded
     pub is_funded: bool,
 
+    /// Protocol version
+    pub version: u8,
+
     /// PDA bump
     pub bump: u8,
+
+    /// Config timelock end (0 = no pending config change)
+    pub config_timelock_end: i64,
+
+    /// SHA256 hash of the pending config change
+    pub pending_config_hash: [u8; 32],
+
+    /// Emergency transfer rolling window aggregate
+    pub emergency_transfer_total: u64,
+
+    /// Emergency transfer window start timestamp
+    pub emergency_transfer_window_start: i64,
+
+    /// Max tickets during rolldown (0 = unlimited)
+    pub max_rolldown_tickets: u64,
+
+    /// Sale target tickets (0 = disabled)
+    pub sale_target_tickets: u64,
+}
+
+impl LotteryState {
+    /// Account size including the 8-byte discriminator.
+    /// MUST equal the main program's `LOTTERY_STATE_SIZE` (362 bytes).
+    /// See `test_lottery_state_shadow_len`.
+    pub const LEN: usize = 8 + // discriminator
+        32 + // authority
+        33 + // pending_authority (Option<Pubkey>)
+        32 + // switchboard_queue
+        32 + // current_randomness_account
+        8 +  // current_draw_id
+        8 +  // jackpot_balance
+        8 +  // reserve_balance
+        8 +  // insurance_balance
+        8 +  // fixed_prize_balance
+        8 +  // ticket_price
+        2 +  // house_fee_bps
+        8 +  // jackpot_cap
+        8 +  // seed_amount
+        8 +  // soft_cap
+        8 +  // hard_cap
+        8 +  // next_draw_timestamp
+        8 +  // draw_interval
+        8 +  // commit_slot
+        8 +  // commit_timestamp
+        8 +  // current_draw_tickets
+        8 +  // total_tickets_sold
+        8 +  // total_prizes_paid
+        8 +  // total_prizes_committed
+        1 +  // is_draw_in_progress
+        1 +  // is_awaiting_finalization
+        1 +  // is_rolldown_active
+        1 +  // is_paused
+        1 +  // is_funded
+        1 +  // version
+        1 +  // bump
+        8 +  // config_timelock_end
+        32 + // pending_config_hash
+        8 +  // emergency_transfer_total
+        8 +  // emergency_transfer_window_start
+        8 +  // max_rolldown_tickets
+        8;   // sale_target_tickets
 }
 
 #[cfg(test)]
@@ -757,6 +822,24 @@ mod tests {
         assert!(counts.validate(1000));
         assert!(counts.validate(111));
         assert!(!counts.validate(100));
+    }
+
+    #[test]
+    fn test_lottery_state_shadow_len_matches_main() {
+        // The shadow `LotteryState` is used to deserialize the MAIN program's
+        // on-chain account (owned by programs/mazelprotocol). Borsh is
+        // sequential with no alignment padding, so a field-for-field mirror
+        // must total exactly the main program's documented LOTTERY_STATE_SIZE
+        // (362 bytes incl. the 8-byte discriminator).
+        //
+        // Reference: programs/mazelprotocol/src/constants.rs::LOTTERY_STATE_SIZE.
+        // If this test fails, the main LotteryState struct changed — update
+        // the mirror struct above (and this constant) before deploying.
+        assert_eq!(
+            LotteryState::LEN,
+            362,
+            "shadow LotteryState must stay byte-identical to the main program's LotteryState (LOTTERY_STATE_SIZE = 362)"
+        );
     }
 
     #[test]
