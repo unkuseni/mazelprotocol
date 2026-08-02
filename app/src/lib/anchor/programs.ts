@@ -288,7 +288,7 @@ export async function fetchUserMainTicketsForDraw(
   user: PublicKey,
   drawId: number | BN,
   connection?: Connection,
-): Promise<Record<string, unknown>[]> {
+): Promise<Array<{ publicKey: PublicKey; account: Record<string, unknown> }>> {
   if (!isClient) return [];
   try {
     const program = await createMainLotteryProgram(connection);
@@ -305,7 +305,10 @@ export async function fetchUserMainTicketsForDraw(
     ];
 
     const tickets = await fetchAllAccounts(program, "ticket", filters);
-    return tickets.map((t) => t.account);
+    // SECURITY (review H5): preserve the on-chain ticket pubkey. Claims must
+    // target the real ticket PDA (seeded by the draw-time ticket counter), not
+    // a re-derived index from an array position.
+    return tickets.map((t) => ({ publicKey: t.publicKey, account: t.account }));
   } catch (error) {
     console.warn(`Failed to fetch user tickets for draw ${drawId}:`, error);
     return [];
@@ -357,7 +360,7 @@ export async function fetchUserQuickPickTicketsForDraw(
   user: PublicKey,
   drawId: number | BN,
   connection?: Connection,
-): Promise<Record<string, unknown>[]> {
+): Promise<Array<{ publicKey: PublicKey; account: Record<string, unknown> }>> {
   if (!isClient) return [];
   try {
     const program = await createQuickPickProgram(connection);
@@ -374,7 +377,9 @@ export async function fetchUserQuickPickTicketsForDraw(
     ];
 
     const tickets = await fetchAllAccounts(program, "ticket", filters);
-    return tickets.map((t) => t.account);
+    // SECURITY (review H5): preserve the on-chain ticket pubkey (see
+    // fetchUserMainTicketsForDraw).
+    return tickets.map((t) => ({ publicKey: t.publicKey, account: t.account }));
   } catch (error) {
     console.warn(`Failed to fetch user Quick Pick tickets for draw ${drawId}:`, error);
     return [];

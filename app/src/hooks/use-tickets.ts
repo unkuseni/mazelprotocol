@@ -30,6 +30,8 @@ const STALE_TIME = 30_000;
 export interface UserTicket {
   /** Unique ID: drawId-ticketIndex */
   id: string;
+  /** On-chain ticket account address (base58). Used for claiming. */
+  ticketAddress: string;
   /** Sorted ticket numbers */
   numbers: number[];
   /** Draw ID this ticket belongs to */
@@ -83,6 +85,7 @@ function mapRawMainTicketToUserTicket(
   raw: Record<string, unknown>,
   index: number,
   winningNumbers: number[],
+  ticketAddress: string,
 ): UserTicket {
   const get = (snake: string, camel: string): unknown =>
     raw[snake] !== undefined ? raw[snake] : raw[camel];
@@ -97,6 +100,7 @@ function mapRawMainTicketToUserTicket(
 
   return {
     id: `${drawId}-main-${index}`,
+    ticketAddress,
     numbers,
     drawId,
     isQuickPick: false,
@@ -127,6 +131,7 @@ function mapRawQuickPickTicketToUserTicket(
   raw: Record<string, unknown>,
   index: number,
   winningNumbers: number[],
+  ticketAddress: string,
 ): UserTicket {
   const get = (snake: string, camel: string): unknown =>
     raw[snake] !== undefined ? raw[snake] : raw[camel];
@@ -140,6 +145,7 @@ function mapRawQuickPickTicketToUserTicket(
 
   return {
     id: `${drawId}-qp-${index}`,
+    ticketAddress,
     numbers,
     drawId,
     isQuickPick: true,
@@ -300,7 +306,9 @@ export function useTickets(): UseTicketsReturn {
       queryFn: () =>
         address
           ? fetchUserMainTicketsForDraw(new PublicKey(address), drawId)
-          : Promise.resolve([] as Record<string, unknown>[]),
+          : Promise.resolve(
+            [] as Array<{ publicKey: PublicKey; account: Record<string, unknown> }>,
+          ),
       staleTime: STALE_TIME,
       enabled: !!address && drawIds.length > 0,
     })),
@@ -313,7 +321,9 @@ export function useTickets(): UseTicketsReturn {
       queryFn: () =>
         address
           ? fetchUserQuickPickTicketsForDraw(new PublicKey(address), drawId)
-          : Promise.resolve([] as Record<string, unknown>[]),
+          : Promise.resolve(
+            [] as Array<{ publicKey: PublicKey; account: Record<string, unknown> }>,
+          ),
       staleTime: STALE_TIME,
       enabled: !!address && drawIds.length > 0,
     })),
@@ -333,9 +343,10 @@ export function useTickets(): UseTicketsReturn {
         query.data.forEach((raw, j) => {
           result.push(
             mapRawMainTicketToUserTicket(
-              raw as Record<string, unknown>,
+              raw.account as Record<string, unknown>,
               j,
               winningNumbers,
+              raw.publicKey.toBase58(),
             ),
           );
         });
@@ -350,9 +361,10 @@ export function useTickets(): UseTicketsReturn {
         query.data.forEach((raw, j) => {
           result.push(
             mapRawQuickPickTicketToUserTicket(
-              raw as Record<string, unknown>,
+              raw.account as Record<string, unknown>,
               j,
               winningNumbers,
+              raw.publicKey.toBase58(),
             ),
           );
         });

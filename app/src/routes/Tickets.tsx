@@ -22,7 +22,8 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { PublicKey } from "@solana/web3.js";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import Footer from "@/components/Footer";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
@@ -30,6 +31,13 @@ import { FloatingBalls, WinningNumbers } from "@/components/LotteryBalls";
 import { Button } from "@/components/ui/button";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 import { useTickets, type UserTicket } from "@/hooks/use-tickets";
+import { useAnchorProvider } from "@/lib/anchor/provider";
+import {
+  claimAllMainPrizes,
+  claimMainPrize,
+  claimQuickPickPrize,
+  usdcTokenAccountAddress,
+} from "@/lib/anchor/transactions";
 
 
 
@@ -45,6 +53,8 @@ type SortDir = "asc" | "desc";
 
 interface TicketData {
   id: string;
+  /** On-chain ticket account address (base58), used for claiming. */
+  ticketAddress?: string;
   numbers: number[];
   drawId: number;
   drawDate: string;
@@ -683,10 +693,13 @@ function UnclaimedBanner({
   total,
   count,
   onClaimAll,
+  busy = false,
 }: {
   total: number;
   count: number;
   onClaimAll: () => void;
+  /** Disable the button while a batch claim is in flight. */
+  busy?: boolean;
 }) {
   if (total <= 0) return null;
 
@@ -717,10 +730,11 @@ function UnclaimedBanner({
 
         <Button
           onClick={onClaimAll}
-          className="w-full sm:w-auto h-11 px-6 bg-linear-to-r from-gold-dark to-gold-light hover:from-gold hover:to-gold-light text-navy font-bold rounded-xl shadow-lg shadow-gold/25 hover:shadow-gold/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+          disabled={busy}
+          className="w-full sm:w-auto h-11 px-6 bg-linear-to-r from-gold-dark to-gold-light hover:from-gold hover:to-gold-light text-navy font-bold rounded-xl shadow-lg shadow-gold/25 hover:shadow-gold/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0 disabled:opacity-60 disabled:pointer-events-none"
         >
           <Gift size={16} />
-          Claim All (${total.toFixed(2)})
+          {busy ? "Claiming…" : `Claim All ($${total.toFixed(2)})`}
         </Button>
       </div>
     </div>
@@ -925,6 +939,7 @@ function mapUserTicketToTicketData(t: UserTicket): TicketData {
 
   return {
     id: t.id,
+    ticketAddress: t.ticketAddress,
     numbers: t.numbers,
     drawId: t.drawId,
     drawDate: winningNumbers
@@ -1036,10 +1051,15 @@ export default function MyTicketsPage() {
       open({ view: "Connect", namespace: "solana" });
       return;
     }
-    // In a real app, this would trigger the on-chain claim transaction
-    alert(
-      `Claiming prize for ticket ${id}. Sign the transaction to receive your USDC.`,
-    );
+    // SECURITY (review H5): this previously only showed an alert — users
+    // could never actually claim winnings (and lost them to expiry). Now it
+    // submits the real on-chain claim against the ticket's actual PDA.
+    const ticket =
+      rawTickets.find((t) => t.id === id) ??
+      rawUnclaimed.find((t) => t.id === id);
+    if (!ticket) return;
+    setClaimingId(id);
+    void runClaim(ticket).finally(() => setClaimingId(null));
   };
 
   const handleClaimAll = () => {
@@ -1047,10 +1067,53 @@ export default function MyTicketsPage() {
       open({ view: "Connect", namespace: "solana" });
       return;
     }
-    // In a real app, this would batch-claim all prizes in a single transaction
-    alert(
-      `Claiming all ${unclaimedTickets.length} prizes ($${lamportsToDollars(unclaimedPrizeTotal).toFixed(2)} USDC total). Sign the transaction to batch-claim.`,
-    );
+    if (!connectedProvider || unclaimedTickets.length === 0) return;
+    setClaimingAll(true);
+    setClaimMessage(null);
+    void (async () => {
+      try {
+        const playerUsdc = usdcTokenAccountAddress(
+          connectedProvider.wallet.publicKey,
+        );
+        const mainTickets = unclaimedTickets.filter(
+          (t) => t.gameType === "main",
+        );
+        const qpTickets = unclaimedTickets.filter(
+          (t) => t.gameType === "quickpick",
+        );
+        if (mainTickets.length > 0) {
+          await claimAllMainPrizes(
+            connectedProvider,
+            mainTickets.map((t) => ({
+              drawId: t.drawId,
+              ticketIndex: 0, // unused when ticketAddress is provided
+              ticketAddress: t.ticketAddress,
+            })),
+            playerUsdc,
+          );
+        }
+        for (const t of qpTickets) {
+          await claimQuickPickPrize(
+            connectedProvider,
+            t.drawId,
+            0,
+            playerUsdc,
+            {},
+            new PublicKey(t.ticketAddress),
+          );
+        }
+        setClaimMessage({
+          kind: "success",
+          text: `Claimed ${unclaimedTickets.length} prize(s)!`,
+        });
+        refetch();
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        setClaimMessage({ kind: "error", text: `Batch claim failed: ${msg}` });
+      } finally {
+        setClaimingAll(false);
+      }
+    })();
   };
 
   const handleSort = (field: SortField) => {
@@ -1061,6 +1124,61 @@ export default function MyTicketsPage() {
       setSortDir("desc");
     }
   };
+
+  // ---- on-chain claiming state (review H5) -------------------------------
+  const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [claimingAll, setClaimingAll] = useState(false);
+  const [claimMessage, setClaimMessage] = useState<{
+    kind: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  const { connectedProvider } = useAnchorProvider();
+
+  const runClaim = useCallback(
+    async (t: UserTicket): Promise<void> => {
+      if (!connectedProvider) return;
+      const playerUsdc = usdcTokenAccountAddress(
+        connectedProvider.wallet.publicKey,
+      );
+      setClaimMessage(null);
+      try {
+        const ticketPubkey = new PublicKey(t.ticketAddress);
+        if (t.gameType === "main") {
+          // ticketIndex is unused when an explicit ticket pubkey is provided
+          await claimMainPrize(
+            connectedProvider,
+            t.drawId,
+            0,
+            playerUsdc,
+            {},
+            ticketPubkey,
+          );
+        } else {
+          await claimQuickPickPrize(
+            connectedProvider,
+            t.drawId,
+            0,
+            playerUsdc,
+            {},
+            ticketPubkey,
+          );
+        }
+        setClaimMessage({
+          kind: "success",
+          text: `Prize claimed for ticket ${t.id}!`,
+        });
+        refetch();
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        setClaimMessage({
+          kind: "error",
+          text: `Claim failed for ticket ${t.id}: ${msg}`,
+        });
+      }
+    },
+    [connectedProvider, refetch],
+  );
 
   const filterCounts = useMemo(() => {
     const gameFiltered =
@@ -1238,7 +1356,21 @@ export default function MyTicketsPage() {
             total={lamportsToDollars(unclaimedPrizeTotal)}
             count={unclaimedTickets.length}
             onClaimAll={handleClaimAll}
+            busy={claimingAll}
           />
+
+          {/* Claim status message (review H5) */}
+          {claimMessage && (
+            <div
+              className={`rounded-xl px-4 py-3 text-sm font-semibold border ${claimMessage.kind === "success"
+                  ? "bg-emerald/10 border-emerald/30 text-emerald-light"
+                  : "bg-red-500/10 border-red-500/30 text-red-400"
+                }`}
+            >
+              {claimingAll || claimingId ? "⏳ " : ""}
+              {claimMessage.text}
+            </div>
+          )}
 
           {/* Filters & Controls */}
           <div className="glass rounded-2xl p-4 sm:p-5 space-y-3">
