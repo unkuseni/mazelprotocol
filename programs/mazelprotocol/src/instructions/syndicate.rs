@@ -154,6 +154,8 @@ pub fn handler_create_syndicate(
     syndicate.manager_fee_bps = params.manager_fee_bps;
     syndicate.usdc_account = ctx.accounts.syndicate_usdc.key();
     syndicate.bump = ctx.bumps.syndicate;
+    syndicate.pending_tickets = 0;
+    syndicate.pending_tickets_draw = 0;
 
     // Add creator as first member with 0 contribution
     // (They can contribute later via join_syndicate)
@@ -1060,7 +1062,7 @@ pub fn handler_buy_syndicate_tickets(
     let current_draw_id = ctx.accounts.lottery_state.current_draw_id;
     let house_fee_bps = ctx.accounts.lottery_state.get_current_house_fee_bps();
 
-    // Check if ticket sales are open
+    // Check if ticket sales are open (same window as buy_ticket)
     require!(
         clock.unix_timestamp
             < next_draw_timestamp
@@ -1154,6 +1156,20 @@ pub fn handler_buy_syndicate_tickets(
     let syndicate = &mut ctx.accounts.syndicate;
     syndicate.total_contribution = syndicate.total_contribution.saturating_sub(total_cost);
 
+    // SECURITY: Credit the syndicate with paid-but-unmaterialized tickets.
+    // create_syndicate_ticket consumes one credit per ticket account created,
+    // so the number of ticket accounts can never exceed what was paid for.
+    // Credits are scoped to the current draw to prevent carry-over abuse.
+    if syndicate.pending_tickets_draw != current_draw_id {
+        // New draw — reset stale credits (should not normally exist)
+        syndicate.pending_tickets_draw = current_draw_id;
+        syndicate.pending_tickets = 0;
+    }
+    syndicate.pending_tickets = syndicate
+        .pending_tickets
+        .checked_add(ticket_count as u64)
+        .ok_or(LottoError::Overflow)?;
+
     // M2 FIX: Decrement each member's contribution proportionally by their
     // share of the total ticket cost. Without this, members could leave and
     // claim their full original contribution even though funds were spent.
@@ -1184,10 +1200,11 @@ pub fn handler_buy_syndicate_tickets(
             .checked_add(fixed_prize_contribution)
             .ok_or(LottoError::Overflow)?;
     }
-    lottery_state.current_draw_tickets = lottery_state
-        .current_draw_tickets
-        .checked_add(ticket_count as u64)
-        .ok_or(LottoError::Overflow)?;
+    // NOTE: current_draw_tickets is NOT incremented here. Ticket accounts are
+    // only counted when materialized via create_syndicate_ticket (which
+    // increments it per account). This keeps the counter consistent with the
+    // actual number of on-chain ticket accounts. total_tickets_sold is a
+    // lifetime money-metric and IS updated here (funds were collected).
     lottery_state.total_tickets_sold = lottery_state
         .total_tickets_sold
         .checked_add(ticket_count as u64)
@@ -1247,15 +1264,24 @@ pub struct CreateSyndicateTicket<'info> {
 
     /// The syndicate that owns the ticket
     #[account(
+        mut,
         constraint = syndicate.creator == payer.key() @ LottoError::Unauthorized
     )]
     pub syndicate: Account<'info, Syndicate>,
 
     /// The lottery state account
+    /// SECURITY: create_syndicate_ticket must only be callable while ticket
+    /// sales are open. Without these constraints, a creator could mint a
+    /// ticket with the WINNING numbers after execute_draw has revealed them
+    /// on-chain, then distribute the prize to themselves for free.
     #[account(
         mut,
         seeds = [LOTTERY_SEED],
-        bump = lottery_state.bump
+        bump = lottery_state.bump,
+        constraint = !lottery_state.is_paused @ LottoError::Paused,
+        constraint = lottery_state.is_funded @ LottoError::LotteryNotInitialized,
+        constraint = !lottery_state.is_draw_in_progress @ LottoError::DrawInProgress,
+        constraint = !lottery_state.is_awaiting_finalization @ LottoError::DrawInProgress
     )]
     pub lottery_state: Account<'info, LotteryState>,
 
@@ -1294,6 +1320,17 @@ pub fn handler_create_syndicate_ticket(
 ) -> Result<()> {
     let clock = Clock::get()?;
 
+    // SECURITY: Only create tickets the syndicate has actually PAID for.
+    // buy_syndicate_tickets increments pending_tickets; each create consumes
+    // one credit. This prevents minting free tickets with arbitrary numbers
+    // (especially winning numbers after a draw has executed).
+    let current_draw_id = ctx.accounts.lottery_state.current_draw_id;
+    require!(
+        ctx.accounts.syndicate.pending_tickets_draw == current_draw_id
+            && ctx.accounts.syndicate.pending_tickets > 0,
+        LottoError::NoWinningTicketsInBatch
+    );
+
     // Validate numbers
     validate_ticket_numbers(&numbers)?;
 
@@ -1301,8 +1338,11 @@ pub fn handler_create_syndicate_ticket(
     let mut sorted_numbers = numbers;
     sorted_numbers.sort();
 
-    let current_draw_id = ctx.accounts.lottery_state.current_draw_id;
     let syndicate_key = ctx.accounts.syndicate.key();
+
+    // Consume one paid-ticket credit
+    let syndicate = &mut ctx.accounts.syndicate;
+    syndicate.pending_tickets = syndicate.pending_tickets.saturating_sub(1);
 
     // Create ticket
     let ticket = &mut ctx.accounts.ticket;
@@ -1316,14 +1356,18 @@ pub fn handler_create_syndicate_ticket(
     ticket.syndicate = Some(syndicate_key);
     ticket.bump = ctx.bumps.ticket;
 
-    // Note: lottery_state.current_draw_tickets is NOT incremented here
-    // because it was already incremented in buy_syndicate_tickets
-    // This instruction only creates the account record
+    // Increment lottery state ticket counter for this created account
+    let lottery_state = &mut ctx.accounts.lottery_state;
+    lottery_state.current_draw_tickets = lottery_state
+        .current_draw_tickets
+        .checked_add(1)
+        .ok_or(LottoError::Overflow)?;
 
     msg!("Syndicate ticket created!");
     msg!("  Ticket: {}", ctx.accounts.ticket.key());
     msg!("  Syndicate: {}", syndicate_key);
     msg!("  Numbers: {:?}", sorted_numbers);
+    msg!("  Pending tickets remaining: {}", syndicate.pending_tickets);
 
     Ok(())
 }

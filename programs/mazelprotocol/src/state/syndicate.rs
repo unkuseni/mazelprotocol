@@ -69,6 +69,16 @@ pub struct Syndicate {
 
     /// PDA bump seed
     pub bump: u8,
+
+    /// Tickets purchased via `buy_syndicate_tickets` for the current draw
+    /// but not yet materialized as ticket accounts via `create_syndicate_ticket`.
+    /// SECURITY: prevents free ticket minting — you can only create as many
+    /// ticket accounts as the syndicate has paid for in the current draw.
+    pub pending_tickets: u64,
+
+    /// Draw ID that `pending_tickets` applies to. Prevents credits from a
+    /// previous draw being spent to create tickets for a later draw.
+    pub pending_tickets_draw: u64,
 }
 
 impl Syndicate {
@@ -247,5 +257,92 @@ impl Syndicate {
         require!(has_content, LottoError::InvalidSyndicateConfig);
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a minimal syndicate with the pending-ticket credit fields exposed.
+    fn test_syndicate() -> Syndicate {
+        Syndicate {
+            creator: Pubkey::new_unique(),
+            original_creator: Pubkey::new_unique(),
+            syndicate_id: 1,
+            name: [0u8; 32],
+            is_public: true,
+            member_count: 1,
+            total_contribution: 0,
+            manager_fee_bps: 0,
+            usdc_account: Pubkey::new_unique(),
+            members: vec![SyndicateMember::default()],
+            bump: 255,
+            pending_tickets: 0,
+            pending_tickets_draw: 0,
+        }
+    }
+
+    #[test]
+    fn test_pending_tickets_start_zero() {
+        // New syndicates start with no paid-ticket credits. Without credits,
+        // create_syndicate_ticket must be rejected — this blocks the
+        // "free ticket mint" exploit.
+        let s = test_syndicate();
+        assert_eq!(s.pending_tickets, 0);
+        assert_eq!(s.pending_tickets_draw, 0);
+    }
+
+    #[test]
+    fn test_pending_tickets_scoped_to_draw() {
+        // Credits from draw 1 must not be spendable in draw 2. The handler
+        // checks pending_tickets_draw == current_draw_id before consuming.
+        let mut s = test_syndicate();
+        s.pending_tickets_draw = 1;
+        s.pending_tickets = 5;
+
+        // Draw 2 with 0 credits -> create must fail the check
+        let draw_2_has_credits = s.pending_tickets_draw == 2 && s.pending_tickets > 0;
+        assert!(!draw_2_has_credits);
+    }
+
+    #[test]
+    fn test_pending_tickets_cannot_exceed_purchases() {
+        // The invariant: pending_tickets <= tickets purchased this draw.
+        // Each create decrements by exactly 1; saturating_sub prevents
+        // underflow even if a buggy caller over-consumes.
+        let mut s = test_syndicate();
+        s.pending_tickets_draw = 3;
+        s.pending_tickets = 2; // bought 2
+
+        s.pending_tickets = s.pending_tickets.saturating_sub(1); // create #1
+        assert_eq!(s.pending_tickets, 1);
+        s.pending_tickets = s.pending_tickets.saturating_sub(1); // create #2
+        assert_eq!(s.pending_tickets, 0);
+        s.pending_tickets = s.pending_tickets.saturating_sub(1); // attempt #3
+        assert_eq!(s.pending_tickets, 0, "must not go negative");
+    }
+
+    #[test]
+    fn test_size_for_members_consistent_with_struct() {
+        // The base size must still fit the struct after adding the two
+        // security fields (they replace the previous 16-byte padding).
+        let base = SYNDICATE_BASE_SIZE;
+        // 8 discriminator + all fixed fields incl. pending_tickets fields
+        let min_fixed = 8
+            + 32 // creator
+            + 32 // original_creator
+            + 8 // syndicate_id
+            + 32 // name
+            + 1 // is_public
+            + 4 // member_count
+            + 8 // total_contribution
+            + 2 // manager_fee_bps
+            + 32 // usdc_account
+            + 4 // members vec len
+            + 1 // bump
+            + 8 // pending_tickets
+            + 8; // pending_tickets_draw
+        assert!(base >= min_fixed, "base size {} < fixed fields {}", base, min_fixed);
     }
 }

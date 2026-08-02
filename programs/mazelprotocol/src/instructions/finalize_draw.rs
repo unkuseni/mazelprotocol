@@ -98,6 +98,17 @@ pub struct FinalizeDraw<'info> {
     )]
     pub prize_pool_usdc: Option<Account<'info, TokenAccount>>,
 
+    /// Insurance pool USDC token account.
+    /// MUST be provided when insurance is used to cover a prize shortfall
+    /// (insurance_used > 0), so the USDC is actually moved to the prize pool
+    /// instead of only being deducted from the accounting balance.
+    #[account(
+        mut,
+        seeds = [INSURANCE_POOL_USDC_SEED],
+        bump
+    )]
+    pub insurance_pool_usdc: Option<Account<'info, TokenAccount>>,
+
     /// Token program.
     /// MUST be provided when lp_pool is Some.
     pub token_program: Option<Program<'info, Token>>,
@@ -118,6 +129,53 @@ impl<'info> FinalizeDraw<'info> {
         }
         Ok(())
     }
+}
+
+/// Transfer USDC from the insurance pool to the prize pool.
+///
+/// SECURITY (L-4 fix): Previously `insurance_balance` was decremented as
+/// accounting but the USDC was never moved out of `insurance_pool_usdc`.
+/// Claims only pull from the prize pool token account, so any prize that
+/// relied on insurance would fail at claim time even though the protocol
+/// held the funds. This closes that gap by funding the prize pool with
+/// the actual insurance USDC at finalization.
+///
+/// Takes explicit account references so it can be called while
+/// `lottery_state` is mutably borrowed in the handler.
+///
+/// # Arguments
+/// * `amount` - Amount of USDC lamports to move (must be > 0)
+/// * `lottery_bump` - PDA bump for the lottery_state signer
+fn transfer_insurance_to_prize_pool<'info>(
+    insurance_pool_usdc: &Account<'info, TokenAccount>,
+    prize_pool_usdc: &Account<'info, TokenAccount>,
+    lottery_state: &Account<'info, LotteryState>,
+    token_program: &Program<'info, Token>,
+    amount: u64,
+    lottery_bump: u8,
+) -> Result<()> {
+    if amount == 0 {
+        return Ok(());
+    }
+
+    // The insurance token account must actually hold the funds we claim
+    // to move. If it doesn't, the accounting is wrong and we must fail
+    // closed rather than promise prizes we cannot pay.
+    require!(
+        insurance_pool_usdc.amount >= amount,
+        LottoError::InsufficientInsuranceFunds
+    );
+
+    let seeds = &[LOTTERY_SEED, &[lottery_bump]];
+    let signer_seeds = &[&seeds[..]];
+
+    let cpi_accounts = Transfer {
+        from: insurance_pool_usdc.to_account_info(),
+        to: prize_pool_usdc.to_account_info(),
+        authority: lottery_state.to_account_info(),
+    };
+    let cpi_ctx = CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, signer_seeds);
+    token::transfer(cpi_ctx, amount)
 }
 
 // Prize calculation logic extracted to super::prizes module.
@@ -376,6 +434,30 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
             msg!("⚠️  INSURANCE POOL ACTIVATED!");
             msg!("  Amount used: {} USDC lamports", insurance_used);
             msg!("  Remaining insurance: {} USDC lamports", lottery_state.insurance_balance);
+
+            // SECURITY (L-4 fix): Move the ACTUAL USDC from the insurance
+            // token account into the prize pool. Previously only the
+            // accounting balance was decremented; the USDC stayed parked in
+            // insurance_pool_usdc, so claims (which pull from the prize pool
+            // token account) would fail despite the protocol holding funds.
+            // This must happen before any claim can be made on this draw.
+            // The caller must supply the insurance pool token account when
+            // insurance is used; failing to do so rejects the finalization.
+            let insurance_pool_usdc =
+                ctx.accounts.insurance_pool_usdc.as_ref().ok_or(LottoError::InsufficientInsuranceFunds)?;
+            let prize_pool_usdc =
+                ctx.accounts.prize_pool_usdc.as_ref().ok_or(LottoError::LpPoolNotInitialized)?;
+            let token_program =
+                ctx.accounts.token_program.as_ref().ok_or(LottoError::LpPoolNotInitialized)?;
+
+            transfer_insurance_to_prize_pool(
+                insurance_pool_usdc,
+                prize_pool_usdc,
+                lottery_state,
+                token_program,
+                insurance_used,
+                lottery_state.bump,
+            )?;
 
             // Emit insurance pool usage event
             emit!(InsurancePoolUsed {
