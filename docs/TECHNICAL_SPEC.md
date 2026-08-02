@@ -567,32 +567,32 @@ pub const SYNDICATE_MEMBER_SIZE: usize = 48;
 
 ### 4.3 Instruction Counts
 
-> **v3.0:** 40 on-chain instructions across both programs.
+> **v3.0:** 75 on-chain instructions across both programs (56 main + 19 Quick Pick).
 
-**Main Lottery (`mazelprotocol` program — 6/46) — 38 instructions:**
+**Main Lottery (`mazelprotocol` program — 6/46) — 56 instructions:**
 
 | Module | Instructions | Count |
 |--------|-------------|-------|
-| **Admin** | `pause`, `unpause`, `update_config`, `propose_config`, `execute_config`, `cancel_config_proposal`, `check_solvency`, `withdraw_house_fees`, `propose_authority`, `accept_authority`, `cancel_authority_transfer`, `cancel_draw`, `force_finalize_draw`, `emergency_fund_transfer`, `reclaim_expired_prizes`, `set_lp_config` | 16 |
+| **Admin** | `pause`, `unpause`, `update_config`, `propose_config`, `execute_config`, `cancel_config_proposal`, `check_solvency`, `withdraw_house_fees`, `propose_authority`, `accept_authority`, `cancel_authority_transfer`, `cancel_draw`, `force_finalize_draw`, `challenge_draw`, `emergency_fund_transfer`, `reclaim_expired_prizes` | 16 |
 | **Initialize** | `initialize`, `fund_seed`, `init_user_stats`, `add_reserve_funds` | 4 |
 | **Ticket Ops** | `buy_ticket`, `buy_bulk` | 2 |
 | **Draw Lifecycle** | `commit_randomness`, `execute_draw`, `finalize_draw`, `advance_draw` | 4 |
 | **Claims** | `claim_prize`, `claim_bulk_prize`, `claim_all_bulk_prizes` | 3 |
 | **Syndicate** | `create`, `join`, `leave`, `close`, `withdraw_creator_contribution`, `buy_syndicate_tickets`, `create_syndicate_ticket`, `distribute_syndicate_prize`, `claim_syndicate_member_prize`, `update_syndicate_config`, `remove_syndicate_member`, `transfer_syndicate_creator` | 12 |
 | **Syndicate Wars** | `initialize_syndicate_wars`, `register_for_syndicate_wars`, `update_syndicate_wars_stats`, `finalize_syndicate_wars`, `distribute_syndicate_wars_prizes`, `claim_syndicate_wars_prize` | 6 |
-| **LP Pool** | `deposit_lp`, `withdraw_lp`, `claim_lp_rewards` | 3 |
-| **Total** | | **50** |
+| **LP Pool** | `deposit_lp`, `withdraw_lp`, `claim_lp_rewards`, `set_lp_config`, `execute_lp_config`, `cancel_lp_config`, `pause_lp_pool`, `unpause_lp_pool`, `close_lp_position` | 9 |
+| **Total** | | **56** |
 
-**Quick Pick Express (`quickpick` program — 5/35) — 12 instructions:**
+**Quick Pick Express (`quickpick` program — 5/35) — 19 instructions:**
 
 | Module | Instructions | Count |
 |--------|-------------|-------|
-| **Admin** | `update_config`, `withdraw_house_fees`, `add_reserve_funds`, `cancel_draw`, `force_finalize_draw`, `pause`, `unpause` | 7 |
+| **Admin** | `update_config`, `propose_config`, `execute_config`, `cancel_config_proposal`, `withdraw_house_fees`, `add_reserve_funds`, `pause`, `unpause`, `cancel_draw`, `force_finalize_draw`, `emergency_fund_transfer` | 11 |
 | **Initialize** | `initialize`, `fund_seed` | 2 |
 | **Ticket Ops** | `buy_ticket` | 1 |
-| **Draw Lifecycle** | `commit_randomness`, `execute_draw`, `finalize_draw` | 3 |
+| **Draw Lifecycle** | `commit_randomness`, `execute_draw`, `finalize_draw`, `advance_draw` | 4 |
 | **Claims** | `claim_prize` | 1 |
-| **Total** | | **12** |
+| **Total** | | **19** |
 
 ---
 

@@ -66,6 +66,23 @@ pub struct WinnerCounts {
     pub match_2: u32,
 }
 
+impl WinnerCounts {
+    /// Total number of winners across all tiers (saturating to avoid overflow).
+    pub fn total(&self) -> u32 {
+        self.match_6
+            .saturating_add(self.match_5)
+            .saturating_add(self.match_4)
+            .saturating_add(self.match_3)
+            .saturating_add(self.match_2)
+    }
+
+    /// Sanity check that the reported winner counts are plausible for a draw
+    /// with `total_tickets` tickets (winners can never exceed tickets sold).
+    pub fn validate(&self, total_tickets: u32) -> bool {
+        self.total() <= total_tickets
+    }
+}
+
 /// Prize mode - determines how prizes are calculated
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default)]
 #[non_exhaustive]

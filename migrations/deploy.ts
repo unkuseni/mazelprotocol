@@ -1,10 +1,13 @@
 /**
  * MazelProtocol – Deployment Migration Script
  *
- * ⚠️ CANONICAL SOURCE: Constants and PDA derivation functions live in
- *    bot/shared/src/constants.ts and bot/shared/src/pdas.ts.
- *    When updating on-chain constants, update those files FIRST,
- *    then sync changes here.
+ * ⚠️ CANONICAL SOURCE: The single source of truth for on-chain constants
+ *    (seeds, ticket price, caps, fees) is the Rust program constants:
+ *      - programs/mazelprotocol/src/constants.rs
+ *      - programs/quickpick/src/constants.rs
+ *    This script mirrors those values for off-chain use. When updating
+ *    on-chain constants, update the program FIRST, then sync the
+ *    constants below and re-run `anchor build` to refresh the IDL.
  *
  * This script performs the complete on-chain initialization sequence for both
  * the main lottery (MazelProtocol) and Quick Pick Express programs.

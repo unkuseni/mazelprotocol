@@ -32,6 +32,9 @@ const PRIZE_POOL_USDC_SEED = Buffer.from("prize_pool_usdc");
 const HOUSE_FEE_USDC_SEED = Buffer.from("house_fee_usdc");
 const INSURANCE_POOL_USDC_SEED = Buffer.from("insurance_pool_usdc");
 const SYNDICATE_WARS_SEED = Buffer.from("syndicate_wars");
+const LP_POOL_SEED = Buffer.from("lp_pool");
+const LP_POOL_USDC_SEED = Buffer.from("lp_pool_usdc");
+const LP_POSITION_SEED = Buffer.from("lp_position");
 
 const TICKET_PRICE = new BN(2_500_000); // $2.50
 const SEED_AMOUNT = new BN(500_000_000_000); // $500,000
@@ -97,6 +100,22 @@ function deriveUserStatsPDA(programId: PublicKey, wallet: PublicKey) {
     [USER_SEED, wallet.toBuffer()],
     programId,
   );
+}
+
+function deriveLpPDAs(programId: PublicKey, owner: PublicKey) {
+  const [lpPool] = PublicKey.findProgramAddressSync(
+    [LP_POOL_SEED],
+    programId,
+  );
+  const [lpPoolUsdc] = PublicKey.findProgramAddressSync(
+    [LP_POOL_USDC_SEED],
+    programId,
+  );
+  const [lpPosition] = PublicKey.findProgramAddressSync(
+    [LP_POSITION_SEED, owner.toBuffer()],
+    programId,
+  );
+  return { lpPool, lpPoolUsdc, lpPosition };
 }
 
 function deriveUnifiedTicketPDA(
@@ -3454,7 +3473,488 @@ describe("mazelprotocol", () => {
   });
 
   // ========================================================================
-  // 28. CROSS-PROGRAM STATE CONSISTENCY
+  // 28. LP POOL
+  // ========================================================================
+  describe("LP Pool", () => {
+    // MIN_LP_DEPOSIT from program constants = 1_000_000 lamports ($1)
+    const MIN_LP_DEPOSIT = 1_000_000;
+    // DEFAULT_LP_REWARD_BPS = 6000 (60% of house fee routed to LPs)
+    const LP_REWARD_BPS = 6000;
+
+    let lpPlayer: Keypair;
+    let lpPlayerUsdc: PublicKey;
+    let lpPDAs: ReturnType<typeof deriveLpPDAs>;
+    let lpPlayer2Usdc: PublicKey;
+    let lpPlayer2: Keypair;
+    let lpPlayer2PDAs: ReturnType<typeof deriveLpPDAs>;
+
+    before(async () => {
+      lpPlayer = Keypair.generate();
+      lpPlayer2 = Keypair.generate();
+      await Promise.all([
+        airdrop(provider, lpPlayer.publicKey),
+        airdrop(provider, lpPlayer2.publicKey),
+      ]);
+      lpPlayerUsdc = await createAndFundUsdcAccount(
+        provider,
+        usdcMint,
+        lpPlayer.publicKey,
+        authority,
+        BigInt(10_000_000_000), // $10,000
+      );
+      lpPlayer2Usdc = await createAndFundUsdcAccount(
+        provider,
+        usdcMint,
+        lpPlayer2.publicKey,
+        authority,
+        BigInt(10_000_000_000), // $10,000
+      );
+      lpPDAs = deriveLpPDAs(programId, lpPlayer.publicKey);
+      lpPlayer2PDAs = deriveLpPDAs(programId, lpPlayer2.publicKey);
+    });
+
+    it("rejects deposits below the minimum", async () => {
+      try {
+        await program.methods
+          .depositLp(new BN(MIN_LP_DEPOSIT - 1))
+          .accountsPartial({
+            depositor: lpPlayer.publicKey,
+            lpPool: lpPDAs.lpPool,
+            lpPosition: lpPDAs.lpPosition,
+            lotteryState: pdas.lotteryState,
+            depositorUsdc: lpPlayerUsdc,
+            lpPoolUsdc: lpPDAs.lpPoolUsdc,
+            usdcMint: usdcMint,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([lpPlayer])
+          .rpc();
+        expect.fail("Should have thrown — deposit below MIN_LP_DEPOSIT");
+      } catch (err: unknown) {
+        expect(err).to.exist;
+        if (err instanceof AnchorError) {
+          expect(err.error.errorCode.code).to.equal("LpInvalidDepositAmount");
+        }
+      }
+    });
+
+    it("rejects zero deposits", async () => {
+      try {
+        await program.methods
+          .depositLp(new BN(0))
+          .accountsPartial({
+            depositor: lpPlayer.publicKey,
+            lpPool: lpPDAs.lpPool,
+            lpPosition: lpPDAs.lpPosition,
+            lotteryState: pdas.lotteryState,
+            depositorUsdc: lpPlayerUsdc,
+            lpPoolUsdc: lpPDAs.lpPoolUsdc,
+            usdcMint: usdcMint,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([lpPlayer])
+          .rpc();
+        expect.fail("Should have thrown — zero deposit");
+      } catch (err: unknown) {
+        expect(err).to.exist;
+        if (err instanceof AnchorError) {
+          expect(err.error.errorCode.code).to.equal("LpInvalidDepositAmount");
+        }
+      }
+    });
+
+    it("accepts the first LP deposit with 1:1 shares", async () => {
+      const deposit = new BN(10_000_000); // $10
+
+      await program.methods
+        .depositLp(deposit)
+        .accountsPartial({
+          depositor: lpPlayer.publicKey,
+          lpPool: lpPDAs.lpPool,
+          lpPosition: lpPDAs.lpPosition,
+          lotteryState: pdas.lotteryState,
+          depositorUsdc: lpPlayerUsdc,
+          lpPoolUsdc: lpPDAs.lpPoolUsdc,
+          usdcMint: usdcMint,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([lpPlayer])
+        .rpc();
+
+      const lpPool = await programAccounts.lpPool.fetch(lpPDAs.lpPool);
+      expect(lpPool.totalShares.toNumber()).to.equal(deposit.toNumber());
+      expect(lpPool.totalDeposits.toNumber()).to.equal(deposit.toNumber());
+      expect(lpPool.accumulatedRewards.toNumber()).to.equal(0);
+      expect(lpPool.lpRewardBps).to.equal(LP_REWARD_BPS);
+      expect(lpPool.isPaused).to.be.false;
+
+      const lpPosition = await programAccounts.lpPosition.fetch(
+        lpPDAs.lpPosition,
+      );
+      expect(lpPosition.owner.toString()).to.equal(
+        lpPlayer.publicKey.toString(),
+      );
+      expect(lpPosition.shares.toNumber()).to.equal(deposit.toNumber());
+      expect(lpPosition.depositAmount.toNumber()).to.equal(deposit.toNumber());
+
+      // USDC actually moved into the pool token account
+      const poolUsdc = await getAccount(provider.connection, lpPDAs.lpPoolUsdc);
+      expect(Number(poolUsdc.amount)).to.equal(deposit.toNumber());
+    });
+
+    it("accepts a second deposit with proportional shares", async () => {
+      const deposit = new BN(5_000_000); // $5 (half of existing pool)
+
+      await program.methods
+        .depositLp(deposit)
+        .accountsPartial({
+          depositor: lpPlayer2.publicKey,
+          lpPool: lpPDAs.lpPool,
+          lpPosition: lpPlayer2PDAs.lpPosition,
+          lotteryState: pdas.lotteryState,
+          depositorUsdc: lpPlayer2Usdc,
+          lpPoolUsdc: lpPDAs.lpPoolUsdc,
+          usdcMint: usdcMint,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([lpPlayer2])
+        .rpc();
+
+      const lpPosition = await programAccounts.lpPosition.fetch(
+        lpPlayer2PDAs.lpPosition,
+      );
+      // Pool was 1:1 (shares == deposits), so a $5 deposit yields 5M shares
+      expect(lpPosition.shares.toNumber()).to.equal(deposit.toNumber());
+
+      const lpPool = await programAccounts.lpPool.fetch(lpPDAs.lpPool);
+      expect(lpPool.totalShares.toNumber()).to.equal(15_000_000);
+      expect(lpPool.totalDeposits.toNumber()).to.equal(15_000_000);
+    });
+
+    it("rejects deposits while the LP pool is paused", async () => {
+      // Pause the pool (authority)
+      await program.methods
+        .pauseLpPool()
+        .accountsPartial({
+          authority: authority.publicKey,
+          lotteryState: pdas.lotteryState,
+          lpPool: lpPDAs.lpPool,
+        })
+        .rpc();
+
+      const lpPool = await programAccounts.lpPool.fetch(lpPDAs.lpPool);
+      expect(lpPool.isPaused).to.be.true;
+
+      try {
+        await program.methods
+          .depositLp(new BN(MIN_LP_DEPOSIT))
+          .accountsPartial({
+            depositor: lpPlayer.publicKey,
+            lpPool: lpPDAs.lpPool,
+            lpPosition: lpPDAs.lpPosition,
+            lotteryState: pdas.lotteryState,
+            depositorUsdc: lpPlayerUsdc,
+            lpPoolUsdc: lpPDAs.lpPoolUsdc,
+            usdcMint: usdcMint,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([lpPlayer])
+          .rpc();
+        expect.fail("Should have thrown — pool paused");
+      } catch (err: unknown) {
+        expect(err).to.exist;
+        if (err instanceof AnchorError) {
+          expect(err.error.errorCode.code).to.equal("LpPoolPaused");
+        }
+      }
+
+      // Unpause so the rest of the suite can proceed
+      await program.methods
+        .unpauseLpPool()
+        .accountsPartial({
+          authority: authority.publicKey,
+          lotteryState: pdas.lotteryState,
+          lpPool: lpPDAs.lpPool,
+        })
+        .rpc();
+      const unpaused = await programAccounts.lpPool.fetch(lpPDAs.lpPool);
+      expect(unpaused.isPaused).to.be.false;
+    });
+
+    it("routes LP rewards when tickets are purchased", async () => {
+      // Init user stats for lpPlayer (needed to buy a ticket)
+      const [userStatsPda] = deriveUserStatsPDA(programId, lpPlayer.publicKey);
+      await program.methods
+        .initUserStats()
+        .accountsPartial({
+          user: lpPlayer.publicKey,
+          userStats: userStatsPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([lpPlayer])
+        .rpc();
+
+      const state = await programAccounts.lotteryState.fetch(pdas.lotteryState);
+      const drawId = state.currentDrawId.toNumber();
+      const ticketIndex = state.currentDrawTickets.toNumber();
+      const [ticketPda] = deriveTicketPDA(programId, drawId, ticketIndex);
+
+      const lpPoolUsdcBefore = await getAccount(
+        provider.connection,
+        lpPDAs.lpPoolUsdc,
+      );
+
+      await program.methods
+        .buyTicket({
+          numbers: [1, 8, 15, 22, 33, 46],
+          useFreeTicket: false,
+        })
+        .accountsPartial({
+          player: lpPlayer.publicKey,
+          lotteryState: pdas.lotteryState,
+          ticket: ticketPda,
+          playerUsdc: lpPlayerUsdc,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          houseFeeUsdc: pdas.houseFeeUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
+          lpPool: lpPDAs.lpPool,
+          lpPoolUsdc: lpPDAs.lpPoolUsdc,
+          usdcMint: usdcMint,
+          userStats: userStatsPda,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([lpPlayer])
+        .rpc();
+
+      // House fee = 28% of $2.50 = 700,000 lamports
+      // LP reward = 60% of house fee = 420,000 lamports
+      const houseFee = (TICKET_PRICE.toNumber() * HOUSE_FEE_BPS) / 10000;
+      const expectedReward = Math.floor((houseFee * LP_REWARD_BPS) / 10000);
+      expect(expectedReward).to.equal(420_000);
+
+      const lpPool = await programAccounts.lpPool.fetch(lpPDAs.lpPool);
+      expect(lpPool.accumulatedRewards.toNumber()).to.equal(expectedReward);
+      // Not yet claimed by anyone
+      expect(lpPool.totalRewardsPaid.toNumber()).to.equal(0);
+      // reward_per_share > 0 (1e12 fixed-point)
+      expect(lpPool.rewardPerShare.toString()).to.not.equal("0");
+
+      const lpPoolUsdcAfter = await getAccount(
+        provider.connection,
+        lpPDAs.lpPoolUsdc,
+      );
+      expect(Number(lpPoolUsdcAfter.amount)).to.equal(
+        Number(lpPoolUsdcBefore.amount) + expectedReward,
+      );
+    });
+
+    it("claims accrued LP rewards", async () => {
+      const lpPlayerUsdcBefore = await getAccount(
+        provider.connection,
+        lpPlayerUsdc,
+      );
+      const poolBefore = await programAccounts.lpPool.fetch(lpPDAs.lpPool);
+
+      await program.methods
+        .claimLpRewards()
+        .accountsPartial({
+          claimer: lpPlayer.publicKey,
+          lpPool: lpPDAs.lpPool,
+          lpPosition: lpPDAs.lpPosition,
+          lpPoolUsdc: lpPDAs.lpPoolUsdc,
+          destinationUsdc: lpPlayerUsdc,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([lpPlayer])
+        .rpc();
+
+      const lpPosition = await programAccounts.lpPosition.fetch(
+        lpPDAs.lpPosition,
+      );
+      const claimed = lpPosition.totalRewardsClaimed.toNumber();
+      expect(claimed).to.be.greaterThan(0);
+
+      // Rewards hit the claimer's wallet
+      const lpPlayerUsdcAfter = await getAccount(
+        provider.connection,
+        lpPlayerUsdc,
+      );
+      expect(Number(lpPlayerUsdcAfter.amount)).to.equal(
+        Number(lpPlayerUsdcBefore.amount) + claimed,
+      );
+
+      // Pool bookkeeping updated
+      const poolAfter = await programAccounts.lpPool.fetch(lpPDAs.lpPool);
+      expect(poolAfter.accumulatedRewards.toNumber()).to.equal(
+        poolBefore.accumulatedRewards.toNumber() - claimed,
+      );
+      expect(poolAfter.totalRewardsPaid.toNumber()).to.equal(claimed);
+    });
+
+    it("fails to claim rewards when none are pending", async () => {
+      try {
+        await program.methods
+          .claimLpRewards()
+          .accountsPartial({
+            claimer: lpPlayer.publicKey,
+            lpPool: lpPDAs.lpPool,
+            lpPosition: lpPDAs.lpPosition,
+            lpPoolUsdc: lpPDAs.lpPoolUsdc,
+            destinationUsdc: lpPlayerUsdc,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .signers([lpPlayer])
+          .rpc();
+        expect.fail("Should have thrown — no pending rewards");
+      } catch (err: unknown) {
+        expect(err).to.exist;
+        if (err instanceof AnchorError) {
+          expect(err.error.errorCode.code).to.equal("LpNoRewardsToClaim");
+        }
+      }
+    });
+
+    it("withdraws a full LP position (auto-claiming rewards)", async () => {
+      const lpPlayer2UsdcBefore = await getAccount(
+        provider.connection,
+        lpPlayer2Usdc,
+      );
+      const poolBefore = await programAccounts.lpPool.fetch(lpPDAs.lpPool);
+
+      await program.methods
+        .withdrawLp(new BN(5_000_000)) // all of lpPlayer2's shares
+        .accountsPartial({
+          withdrawer: lpPlayer2.publicKey,
+          lpPool: lpPDAs.lpPool,
+          lpPosition: lpPlayer2PDAs.lpPosition,
+          lotteryState: pdas.lotteryState,
+          lpPoolUsdc: lpPDAs.lpPoolUsdc,
+          destinationUsdc: lpPlayer2Usdc,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([lpPlayer2])
+        .rpc();
+
+      // Position fully closed
+      const lpPosition = await programAccounts.lpPosition.fetch(
+        lpPlayer2PDAs.lpPosition,
+      );
+      expect(lpPosition.shares.toNumber()).to.equal(0);
+
+      // Pool bookkeeping reduced
+      const poolAfter = await programAccounts.lpPool.fetch(lpPDAs.lpPool);
+      expect(poolAfter.totalShares.toNumber()).to.equal(
+        poolBefore.totalShares.toNumber() - 5_000_000,
+      );
+      expect(poolAfter.totalDeposits.toNumber()).to.equal(10_000_000);
+
+      // Withdrawer received principal + any pending rewards
+      const lpPlayer2UsdcAfter = await getAccount(
+        provider.connection,
+        lpPlayer2Usdc,
+      );
+      expect(Number(lpPlayer2UsdcAfter.amount)).to.be.greaterThan(
+        Number(lpPlayer2UsdcBefore.amount) + 5_000_000,
+      );
+    });
+
+    it("fails to withdraw more shares than held", async () => {
+      try {
+        await program.methods
+          .withdrawLp(new BN(11_000_000)) // lpPlayer holds 10M
+          .accountsPartial({
+            withdrawer: lpPlayer.publicKey,
+            lpPool: lpPDAs.lpPool,
+            lpPosition: lpPDAs.lpPosition,
+            lotteryState: pdas.lotteryState,
+            lpPoolUsdc: lpPDAs.lpPoolUsdc,
+            destinationUsdc: lpPlayerUsdc,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .signers([lpPlayer])
+          .rpc();
+        expect.fail("Should have thrown — insufficient shares");
+      } catch (err: unknown) {
+        expect(err).to.exist;
+        if (err instanceof AnchorError) {
+          expect(err.error.errorCode.code).to.equal("LpInsufficientShares");
+        }
+      }
+    });
+
+    it("prevents draining the entire pool as the sole LP", async () => {
+      // lpPlayer is now the only LP (holds all 10M shares)
+      try {
+        await program.methods
+          .withdrawLp(new BN(10_000_000))
+          .accountsPartial({
+            withdrawer: lpPlayer.publicKey,
+            lpPool: lpPDAs.lpPool,
+            lpPosition: lpPDAs.lpPosition,
+            lotteryState: pdas.lotteryState,
+            lpPoolUsdc: lpPDAs.lpPoolUsdc,
+            destinationUsdc: lpPlayerUsdc,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .signers([lpPlayer])
+          .rpc();
+        expect.fail("Should have thrown — full pool drain");
+      } catch (err: unknown) {
+        expect(err).to.exist;
+        if (err instanceof AnchorError) {
+          expect(err.error.errorCode.code).to.equal("LpCannotDrainPool");
+        }
+      }
+    });
+
+    it("rejects LP config changes above the maximum", async () => {
+      try {
+        await program.methods
+          .setLpConfig(9000) // MAX_LP_REWARD_BPS = 8000
+          .accountsPartial({
+            authority: authority.publicKey,
+            lotteryState: pdas.lotteryState,
+            lpPool: lpPDAs.lpPool,
+          })
+          .rpc();
+        expect.fail("Should have thrown — reward bps too high");
+      } catch (err: unknown) {
+        expect(err).to.exist;
+        if (err instanceof AnchorError) {
+          expect(err.error.errorCode.code).to.equal("LpInvalidRewardBps");
+        }
+      }
+    });
+
+    it("rejects LP config changes from non-authority", async () => {
+      try {
+        await program.methods
+          .setLpConfig(5000)
+          .accountsPartial({
+            authority: unauthorizedUser.publicKey,
+            lotteryState: pdas.lotteryState,
+            lpPool: lpPDAs.lpPool,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have thrown — not authority");
+      } catch (err: unknown) {
+        expect(err).to.exist;
+        if (err instanceof AnchorError) {
+          expect(err.error.errorCode.code).to.equal("Unauthorized");
+        }
+      }
+    });
+  });
+
+  // ========================================================================
+  // 29. CROSS-PROGRAM STATE CONSISTENCY
   // ========================================================================
   describe("Cross-Program State Consistency", () => {
     it("all internal balances match on-chain token accounts (tolerance check)", async () => {
@@ -3524,7 +4024,7 @@ describe("mazelprotocol", () => {
   });
 
   // ========================================================================
-  // 29. FINAL STATE SNAPSHOT
+  // 30. FINAL STATE SNAPSHOT
   // ========================================================================
   describe("Final State Snapshot", () => {
     it("prints final lottery state for audit", async () => {

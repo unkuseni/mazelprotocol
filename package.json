@@ -2,7 +2,6 @@
   "name": "mazelprotocol",
   "version": "0.1.0",
   "description": "MazelProtocol - The first intentionally exploitable lottery on Solana",
-  "main": "index.js",
   "scripts": {
     "test": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
   },

@@ -332,18 +332,23 @@ pub fn calculate_rolldown_prizes(
 
     // Total distributed (excluding any remainder from integer division)
     // Match 2 is NOT included because it's a free ticket credit, not actual USDC transfer
-    let total = (match_5_prize * winner_counts.match_5 as u64)
-        + (match_4_prize * winner_counts.match_4 as u64)
-        + (match_3_prize * winner_counts.match_3 as u64);
+    // Checked/saturating arithmetic consistent with the rest of this file.
+    let total = match_5_prize
+        .saturating_mul(winner_counts.match_5 as u64)
+        .saturating_add(match_4_prize.saturating_mul(winner_counts.match_4 as u64))
+        .saturating_add(match_3_prize.saturating_mul(winner_counts.match_3 as u64));
     // Match 2 excluded - free ticket credit, not USDC
 
     // Calculate dust from integer division (goes to reserve)
     let division_remainder = if tiers_with_winners > 0 {
-        let actual_pools = match_5_pool
-            .saturating_sub(match_5_prize * winner_counts.match_5 as u64)
-            + match_4_pool.saturating_sub(match_4_prize * winner_counts.match_4 as u64)
-            + match_3_pool.saturating_sub(match_3_prize * winner_counts.match_3 as u64);
-        actual_pools
+        match_5_pool
+            .saturating_sub(match_5_prize.saturating_mul(winner_counts.match_5 as u64))
+            .saturating_add(match_4_pool.saturating_sub(
+                match_4_prize.saturating_mul(winner_counts.match_4 as u64),
+            ))
+            .saturating_add(match_3_pool.saturating_sub(
+                match_3_prize.saturating_mul(winner_counts.match_3 as u64),
+            ))
     } else {
         0
     };
