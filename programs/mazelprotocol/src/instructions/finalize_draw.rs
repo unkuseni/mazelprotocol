@@ -627,7 +627,7 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     lottery_state.current_draw_id = lottery_state.current_draw_id.saturating_add(1);
 
     // Set next draw timestamp
-    lottery_state.next_draw_timestamp = clock.unix_timestamp + lottery_state.draw_interval;
+    lottery_state.next_draw_timestamp = clock.unix_timestamp.saturating_add(lottery_state.draw_interval);
 
     // ==========================================================================
     // JACKPOT FUNDING SAFETY CHECK

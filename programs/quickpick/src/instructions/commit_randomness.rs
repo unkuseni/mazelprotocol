@@ -57,9 +57,12 @@ impl<'info> CommitQuickPickRandomness<'info> {
                 .map_err(|_| QuickPickError::RandomnessParseError)?;
 
         // SECURITY: Verify the randomness was requested recently
-        // The seed_slot should be very recent (within ~25 slots / ~10 seconds)
+        // The seed_slot should be very recent (within ~10 slots / ~4 seconds).
+        // Consistent with the main lottery program's freshness window and
+        // this program's own execute_draw validation, minimizing the
+        // MEV/abuse surface.
         require!(
-            randomness_data.seed_slot >= current_slot.saturating_sub(25),
+            randomness_data.seed_slot >= current_slot.saturating_sub(10),
             QuickPickError::RandomnessExpired
         );
 

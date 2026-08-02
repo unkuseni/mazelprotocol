@@ -209,7 +209,7 @@ pub fn handler_update_config(
         quick_pick_state.draw_interval = draw_interval;
         // SECURITY (M6 fix): Recalculate next draw timestamp so the new
         // interval takes effect immediately rather than one draw later.
-        quick_pick_state.next_draw_timestamp = clock.unix_timestamp + draw_interval;
+        quick_pick_state.next_draw_timestamp = clock.unix_timestamp.saturating_add(draw_interval);
     }
 
     // Update Match 4 prize
@@ -358,7 +358,7 @@ pub fn handler_execute_quick_pick_config(
     }
     if let Some(draw_interval) = params.draw_interval {
         quick_pick_state.draw_interval = draw_interval;
-        quick_pick_state.next_draw_timestamp = clock.unix_timestamp + draw_interval;
+        quick_pick_state.next_draw_timestamp = clock.unix_timestamp.saturating_add(draw_interval);
     }
     if let Some(match_4_prize) = params.match_4_prize {
         quick_pick_state.match_4_prize = match_4_prize;

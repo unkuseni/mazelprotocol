@@ -384,7 +384,9 @@ impl LotteryState {
 
         // Not fully solvent even with insurance
         let remaining_shortfall = shortfall.saturating_sub(self.insurance_balance);
-        (false, remaining_shortfall, true) // Insurance will be used but still short
+        // `can_cover_with_insurance` is false here: insurance is exhausted
+        // (partially used) but does not cover the full shortfall.
+        (false, remaining_shortfall, false) // Insurance will be used but still short
     }
 
     /// Calculate how much can be paid from each fund source

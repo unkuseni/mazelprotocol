@@ -37,8 +37,11 @@ mod test_lottery_constants {
 
     #[test]
     fn test_validate_lottery_numbers_unsorted() {
+        // Unsorted-but-unique numbers are valid — the program sorts at buy time
+        // (see buy_ticket.rs). The `validate_lottery_numbers` helper checks
+        // range + uniqueness only; sorting is handled by the caller.
         let numbers = [6, 5, 4, 3, 2, 1];
-        assert!(!validate_lottery_numbers(&numbers));
+        assert!(validate_lottery_numbers(&numbers));
     }
 
     #[test]
@@ -320,6 +323,7 @@ mod test_lottery_state {
             emergency_transfer_total: 0,
             emergency_transfer_window_start: 0,
             max_rolldown_tickets: 0,
+            sale_target_tickets: 0,
         }
     }
 
@@ -410,21 +414,34 @@ mod test_lottery_state {
 
     #[test]
     fn test_is_commit_timed_out_not_timed_out() {
-        let state = LotteryState { commit_timestamp: 1_000_000, ..create_test_state() };
+        let state = LotteryState {
+            is_draw_in_progress: true,
+            commit_timestamp: 1_000_000,
+            ..create_test_state()
+        };
 
         assert!(!state.is_commit_timed_out(1_000_000 + DRAW_COMMIT_TIMEOUT - 1));
     }
 
     #[test]
     fn test_is_commit_timed_out_exactly_at_timeout() {
-        let state = LotteryState { commit_timestamp: 1_000_000, ..create_test_state() };
+        let state = LotteryState {
+            is_draw_in_progress: true,
+            commit_timestamp: 1_000_000,
+            ..create_test_state()
+        };
 
+        // Strictly greater than commit + timeout => timed out
         assert!(state.is_commit_timed_out(1_000_000 + DRAW_COMMIT_TIMEOUT + 1));
     }
 
     #[test]
     fn test_is_commit_timed_out_zero_timestamp() {
-        let state = LotteryState { commit_timestamp: 0, ..create_test_state() };
+        let state = LotteryState {
+            is_draw_in_progress: true,
+            commit_timestamp: 0,
+            ..create_test_state()
+        };
 
         // No commit => not timed out
         assert!(!state.is_commit_timed_out(1_000_000));

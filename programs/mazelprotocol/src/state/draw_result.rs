@@ -89,4 +89,15 @@ impl DrawResult {
     pub fn get_reclaimable_amount(&self) -> u64 {
         self.total_committed.saturating_sub(self.total_reclaimed)
     }
+
+    /// Total prize liability for this draw (Σ winners × prize per tier).
+    /// Used for auditing and for reclaim-bounds verification.
+    pub fn get_total_prizes(&self) -> u64 {
+        (self.match_6_winners as u64)
+            .saturating_mul(self.match_6_prize_per_winner)
+            .saturating_add((self.match_5_winners as u64).saturating_mul(self.match_5_prize_per_winner))
+            .saturating_add((self.match_4_winners as u64).saturating_mul(self.match_4_prize_per_winner))
+            .saturating_add((self.match_3_winners as u64).saturating_mul(self.match_3_prize_per_winner))
+            .saturating_add((self.match_2_winners as u64).saturating_mul(self.match_2_prize_per_winner))
+    }
 }

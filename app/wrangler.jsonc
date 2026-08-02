@@ -1,26 +1,27 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "app",
-  "compatibility_date": "2025-09-02",
+  // NOTE: Keep this within the range supported by the installed wrangler
+  // version (see package.json). Bump as new compatibility flags are needed.
+  "compatibility_date": "2026-06-01",
   "compatibility_flags": [
     "nodejs_compat"
   ],
   "observability": {
     "enabled": true
   },
-  "assets": {
-    "directory": "./dist",
-    "binding": "ASSETS"
-  },
-  "site": {
-    "bucket": "./dist"
-  },
+  // Cloudflare Pages project: static assets come from the Vite build output.
+  // (`assets`/`site` are Workers-only config keys and conflict with Pages —
+  // do not re-add them here.)
+  "pages_build_output_dir": "./dist",
   "d1_databases": [
     {
       "binding": "CHAT_DB",
       "database_name": "mazel-chat",
+      // TODO: replace with the real D1 database ID from
+      // `wrangler d1 info mazel-chat` (or the Cloudflare dashboard).
+      // Deploys that touch D1 will fail while this placeholder remains.
       "database_id": "your-database-id-here"
     }
-  ],
-  "pages_build_output_dir": "./dist"
+  ]
 }

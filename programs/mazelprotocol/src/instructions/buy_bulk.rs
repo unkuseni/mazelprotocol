@@ -238,8 +238,7 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     let is_sale_open = !is_paused
         && is_funded
         && !is_draw_in_progress
-        && sale_cutoff_time.is_some()
-        && clock.unix_timestamp < sale_cutoff_time.expect("Sale cutoff time should be valid");
+        && sale_cutoff_time.is_some_and(|cutoff| clock.unix_timestamp < cutoff);
     require!(is_sale_open, LottoError::TicketSaleEnded);
 
     // Check if jackpot is properly funded (minimum 100% of seed amount)

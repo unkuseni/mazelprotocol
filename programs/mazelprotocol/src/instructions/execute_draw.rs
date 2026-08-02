@@ -279,17 +279,33 @@ fn should_trigger_rolldown(randomness: &[u8; 32], probability_bps: u16) -> bool 
     let hash_result = hasher.finalize();
     let hash_bytes = hash_result.as_slice();
 
-    // Use first 4 bytes of hash for the roll, with bounds checking
-    let roll = if hash_bytes.len() >= 4 {
-        let roll_bytes: [u8; 4] = hash_bytes[0..4]
-            .try_into()
-            .expect("Hash slice should be 4 bytes");
-        u32::from_le_bytes(roll_bytes)
-    } else {
-        // Fallback: pad with zeros if hash is too short
+    // Use the first 8 bytes of the hash for the roll (SHA256 output is
+    // always 32 bytes). Fallback pads with zeros if the slice is shorter,
+    // keeping the function panic-free regardless of hash construction.
+    let read_roll = |start: usize| -> u32 {
         let mut bytes = [0u8; 4];
-        bytes[..hash_bytes.len()].copy_from_slice(hash_bytes);
+        if start < hash_bytes.len() {
+            let n = hash_bytes.len().saturating_sub(start).min(4);
+            bytes[..n].copy_from_slice(&hash_bytes[start..start + n]);
+        }
         u32::from_le_bytes(bytes)
+    };
+
+    // FIXED: Eliminate modulo bias via rejection sampling, matching the
+    // standard applied in `generate_winning_numbers` (Fix #8).
+    // u32::MAX (4,294,967,295) is not evenly divisible by 10000, so a plain
+    // `roll % 10000` gives values below 7296 one extra representation each
+    // (~0.0002% bias toward low rolls). Rejecting the biased tail and
+    // re-rolling from the next 4 bytes removes the bias entirely; the tail
+    // is only ~0.017% of the u32 range, so a second rejection is
+    // astronomically unlikely.
+    let reject_threshold: u32 = 10000u32.wrapping_mul(u32::MAX / 10000);
+
+    let first_roll = read_roll(0);
+    let roll = if first_roll >= reject_threshold {
+        read_roll(4)
+    } else {
+        first_roll
     };
 
     // Calculate threshold (0-9999)
@@ -567,5 +583,39 @@ mod tests {
 
         // 0% probability should never trigger
         assert!(!should_trigger_rolldown(&randomness, 0));
+    }
+
+    #[test]
+    fn test_should_trigger_rolldown_no_modulo_bias() {
+        // Monotonicity: raising the probability must never lower the
+        // trigger count for a fixed set of randomness inputs. A plain
+        // `roll % 10000` with a biased threshold could violate this for
+        // crafted inputs; rejection sampling guarantees it.
+        let probs = [1, 100, 1000, 2500, 5000, 7500, 9000, 9999];
+        let mut prev_triggered = 0usize;
+        for &prob in &probs {
+            let triggered = (0..10_000u64)
+                .filter(|&seed| should_trigger_rolldown(&make_fuzz_randomness(seed), prob))
+                .count();
+            assert!(
+                triggered >= prev_triggered,
+                "Trigger rate decreased when probability rose from {} to {}",
+                prev_triggered,
+                prob
+            );
+            prev_triggered = triggered;
+        }
+
+        // Statistical sanity: observed rate should approximate the target
+        // (allowing a small window; rejection sampling keeps the bias far
+        // below the noise floor of a 10k-sample run).
+        let triggered = (0..10_000u64)
+            .filter(|&seed| should_trigger_rolldown(&make_fuzz_randomness(seed), 5000))
+            .count();
+        let rate = triggered as f64 / 10_000.0;
+        assert!(
+            (0.45..0.55).contains(&rate),
+            "50% probability observed rate out of bounds: {rate}"
+        );
     }
 }

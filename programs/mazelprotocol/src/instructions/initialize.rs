@@ -199,7 +199,7 @@ pub fn handler(ctx: Context<Initialize>, params: InitializeParams) -> Result<()>
     lottery_state.seed_amount = params.seed_amount;
     lottery_state.soft_cap = params.soft_cap;
     lottery_state.hard_cap = params.hard_cap;
-    lottery_state.next_draw_timestamp = clock.unix_timestamp + params.draw_interval;
+    lottery_state.next_draw_timestamp = clock.unix_timestamp.saturating_add(params.draw_interval);
     lottery_state.draw_interval = params.draw_interval;
     lottery_state.commit_slot = 0;
     lottery_state.commit_timestamp = 0;
