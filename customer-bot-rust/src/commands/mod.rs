@@ -3,12 +3,32 @@
 use crate::config::BotConfig;
 use crate::solana::{self, Solana};
 use crate::store::Store;
+use solana_sdk::pubkey::Pubkey;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
 /// Maximum time to wait for an RPC call before returning an error.
 /// Prevents a single slow RPC from hanging the entire bot.
 const RPC_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Safely truncate a wallet address for display.
+///
+/// SECURITY (review C3): the previous code used byte slicing
+/// (`&address[..12]`), which panics when the string contains multi-byte
+/// UTF-8. `/register` previously accepted arbitrary strings, so stored
+/// addresses could not be assumed to be valid base58. Iterating over
+/// chars is panic-free and identical to `[..12]` for valid addresses.
+fn short_wallet(address: &str) -> String {
+    format!("{}…", address.chars().take(12).collect::<String>())
+}
+
+/// Validate that a string is a well-formed Solana address (base58, 32 bytes).
+/// SECURITY (review C3): rejects non-address input that previously caused
+/// panics downstream and allowed any user to claim any address.
+fn is_valid_wallet(address: &str) -> bool {
+    Pubkey::from_str(address).is_ok()
+}
 
 /// Execute an async future with a timeout, returning a formatted error on timeout.
 async fn with_timeout<F, T>(label: &str, future: F) -> Result<T, String>
@@ -167,8 +187,11 @@ fn rolldown() -> String {
 
 async fn register(store: &Store, uid: u64, username: &str, args: &[&str]) -> String {
     let wallet = match args.first() {
-        Some(w) if w.len() >= 32 => *w,
-        _ => return "❌ Usage: /register <SOLANA_WALLET_ADDRESS>\n\nExample: /register 7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF".to_string(),
+        // SECURITY (review C3): require a structurally valid Solana address,
+        // not just "32+ characters". Invalid input previously flowed into
+        // byte-sliced formatting and panicked the bot process.
+        Some(w) if is_valid_wallet(w) => *w,
+        _ => return "❌ Usage: /register <SOLANA_WALLET_ADDRESS>\n\nThat doesn't look like a valid Solana address. Example: /register 7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF".to_string(),
     };
     match store.register_user(uid, username, wallet) {
         Ok(rec) => format!(
@@ -185,7 +208,7 @@ async fn balance(store: &Store, uid: u64, solana: &Solana) -> String {
             match solana.fetch_main_state() {
                 Ok(s) => format!(
                     "<b>💰 Your Account</b>\n\nWallet: <code>{}</code>\nCurrent Draw: #{}\nTickets this draw: {}\n\nUse /quickpick to get numbers,\nthen buy tickets on the dApp!",
-                    &u.wallet_address[..12], s.current_draw_id, s.current_draw_tickets
+                    short_wallet(&u.wallet_address), s.current_draw_id, s.current_draw_tickets
                 ),
                 Err(e) => format!("❌ Error fetching state: {e}"),
             }
@@ -203,7 +226,7 @@ async fn stats(solana: &Solana, store: &Store, uid: u64) -> String {
                 .map(|u| {
                     format!(
                         "\nWallet: <code>{}</code>\nRegistered: {}",
-                        &u.wallet_address[..12],
+                        short_wallet(&u.wallet_address),
                         &u.registered_at[..10]
                     )
                 })
