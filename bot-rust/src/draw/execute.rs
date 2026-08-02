@@ -127,8 +127,9 @@ fn deser<T: anchor_lang::AnchorDeserialize>(data: &[u8]) -> T {
 
 #[derive(anchor_lang::AnchorDeserialize)]
 struct DrawResultData {
+    // 8-byte Anchor account discriminator
     _pad0: u64,
-    pub winning_numbers: [u8; 8],
+    pub winning_numbers: [u8; 6],
     _pad1: [u8; 32],
     _pad2: i64,
     _pad3: u64,
@@ -137,8 +138,9 @@ struct DrawResultData {
 
 #[derive(anchor_lang::AnchorDeserialize)]
 struct QpDrawResultData {
+    // 8-byte Anchor account discriminator
     _pad0: u64,
-    pub winning_numbers: [u8; 8],
+    pub winning_numbers: [u8; 5],
     _pad1: [u8; 32],
     _pad2: i64,
     _pad3: u64,

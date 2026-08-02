@@ -3,6 +3,7 @@
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserRecord {
@@ -19,11 +20,15 @@ struct StoreData {
 
 pub struct Store {
     path: PathBuf,
+    // Serializes read-modify-write cycles. Required because webhook mode
+    // spawns a tokio task per update — without this, two concurrent
+    // /register calls could lose one another's writes.
+    lock: Mutex<()>,
 }
 
 impl Store {
     pub fn new(dir: PathBuf) -> Self {
-        Store { path: dir.join("users.json") }
+        Store { path: dir.join("users.json"), lock: Mutex::new(()) }
     }
 
     fn load(&self) -> StoreData {
@@ -43,6 +48,7 @@ impl Store {
     }
 
     pub fn get_user(&self, telegram_id: u64) -> Option<UserRecord> {
+        let _guard = self.lock.lock().ok()?;
         self.load().users.into_iter().find(|u| u.telegram_id == telegram_id)
     }
 
@@ -52,6 +58,12 @@ impl Store {
         username: &str,
         wallet: &str,
     ) -> Result<UserRecord> {
+        // Hold the lock across load → mutate → save so concurrent webhook
+        // handlers cannot clobber each other's registrations.
+        let _guard = self.lock.lock().map_err(|_| {
+            crate::error::Error::Store("store lock poisoned".to_string())
+        })?;
+
         let mut data = self.load();
         if let Some(existing) = data.users.iter_mut().find(|u| u.telegram_id == telegram_id) {
             existing.wallet_address = wallet.to_string();

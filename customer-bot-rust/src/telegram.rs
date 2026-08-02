@@ -119,6 +119,8 @@ pub async fn run_webhook(cfg: BotConfig) -> Result<()> {
             url: String,
             allowed_updates: Vec<String>,
             drop_pending_updates: bool,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            secret_token: Option<String>,
         }
         client
             .post(&url)
@@ -126,10 +128,19 @@ pub async fn run_webhook(cfg: BotConfig) -> Result<()> {
                 url: wh,
                 allowed_updates: vec!["message".into()],
                 drop_pending_updates: true,
+                secret_token: cfg.webhook_secret_token.clone(),
             })
             .send()
             .await?;
         tracing::info!("Webhook set");
+    }
+
+    // SECURITY: webhook mode without a secret token means anyone who learns
+    // the URL can inject fake updates (e.g. /register with an attacker wallet).
+    if cfg.webhook_secret_token.is_none() {
+        tracing::warn!(
+            "Webhook mode WITHOUT secret token — requests are unauthenticated. Set WEBHOOK_SECRET_TOKEN."
+        );
     }
 
     let addr = format!("0.0.0.0:{port}");
@@ -142,25 +153,34 @@ pub async fn run_webhook(cfg: BotConfig) -> Result<()> {
         let solana = solana.clone();
         let store = store.clone();
         let cfg = cfg.clone();
+        let expected_secret = cfg.webhook_secret_token.clone();
         tokio::spawn(async move {
-            if let Ok(body) = read_http_body(socket).await {
-                if let Ok(upd) = serde_json::from_str::<TgUpdate>(&body) {
-                    if let Some(msg) = upd.message {
-                        if let Some(text) = msg.text {
-                            let chat = msg.chat.id;
-                            let username = msg
-                                .from
-                                .as_ref()
-                                .map(|u| u.username.as_deref().unwrap_or(&u.first_name))
-                                .unwrap_or("Player")
-                                .to_string();
-                            let uid = msg.from.map(|u| u.id).unwrap_or(0);
-                            let reply = commands::handle(
-                                &text, uid, &username, chat, &solana, &store, &cfg,
-                            )
-                            .await;
-                            let _ = send_message(&token, chat, &reply).await;
-                        }
+            let Ok(Some((body, secret))) = read_http_body(socket).await else {
+                return;
+            };
+            // Reject updates without the matching secret token.
+            if let Some(expected) = expected_secret {
+                if secret.as_deref() != Some(expected.as_str()) {
+                    tracing::warn!("Webhook request rejected: missing/mismatched secret token");
+                    return;
+                }
+            }
+            if let Ok(upd) = serde_json::from_str::<TgUpdate>(&body) {
+                if let Some(msg) = upd.message {
+                    if let Some(text) = msg.text {
+                        let chat = msg.chat.id;
+                        let username = msg
+                            .from
+                            .as_ref()
+                            .map(|u| u.username.as_deref().unwrap_or(&u.first_name))
+                            .unwrap_or("Player")
+                            .to_string();
+                        let uid = msg.from.map(|u| u.id).unwrap_or(0);
+                        let reply = commands::handle(
+                            &text, uid, &username, chat, &solana, &store, &cfg,
+                        )
+                        .await;
+                        let _ = send_message(&token, chat, &reply).await;
                     }
                 }
             }
@@ -168,28 +188,43 @@ pub async fn run_webhook(cfg: BotConfig) -> Result<()> {
     }
 }
 
-async fn read_http_body(mut socket: tokio::net::TcpStream) -> Result<String> {
+/// Maximum accepted webhook body size (bytes). Telegram updates are small;
+/// anything larger is either a misconfigured client or an attack.
+const MAX_BODY_SIZE: usize = 16 * 1024;
+
+/// Read an HTTP request's headers and body.
+/// Returns `(body, x_telegram_bot_api_secret_token)` on success.
+async fn read_http_body(
+    mut socket: tokio::net::TcpStream,
+) -> Result<Option<(String, Option<String>)>> {
     use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
     let (reader, _) = socket.split();
     let mut reader = BufReader::new(reader);
-    let mut headers = Vec::new();
     let mut content_length = 0usize;
+    let mut secret_token: Option<String> = None;
     loop {
         let mut line = String::new();
-        reader.read_line(&mut line).await?;
+        if reader.read_line(&mut line).await? == 0 {
+            return Ok(None); // connection closed before headers finished
+        }
         let trimmed = line.trim();
         if trimmed.is_empty() {
             break;
         }
-        if let Some(val) = trimmed
-            .strip_prefix("content-length:")
-            .or_else(|| trimmed.strip_prefix("Content-Length:"))
-        {
+        let lower = trimmed.to_ascii_lowercase();
+        if let Some(val) = lower.strip_prefix("content-length:") {
             content_length = val.trim().parse().unwrap_or(0);
         }
-        headers.push(trimmed.to_string());
+        if let Some(val) = lower.strip_prefix("x-telegram-bot-api-secret-token:") {
+            secret_token = Some(trimmed[val.len()..].trim().to_string());
+        }
+    }
+
+    // Cap the body to prevent memory exhaustion from a hostile client.
+    if content_length == 0 || content_length > MAX_BODY_SIZE {
+        return Ok(None);
     }
     let mut body = vec![0u8; content_length];
     reader.read_exact(&mut body).await?;
-    Ok(String::from_utf8_lossy(&body).to_string())
+    Ok(Some((String::from_utf8_lossy(&body).to_string(), secret_token)))
 }

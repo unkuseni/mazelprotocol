@@ -11,31 +11,72 @@ pub const DRAW_SEED: &[u8] = b"draw";
 pub const QUICK_PICK_SEED: &[u8] = b"quick_pick";
 pub const QUICK_PICK_DRAW_SEED: &[u8] = b"quick_pick_draw";
 
+// ---------------------------------------------------------------------------
+// IMPORTANT — account layout mirrors
+//
+// These structs MUST mirror the on-chain Anchor accounts field-for-field
+// (borsh is sequential, no alignment padding). The first field of every
+// struct is the 8-byte Anchor account discriminator
+// (sha256("account:<Name>")[..8]) which is present in the stored data but
+// not part of the logical struct.
+//
+// Reference: programs/mazelprotocol/src/state/lottery_state.rs and
+// programs/quickpick/src/state.rs. If the programs ever change these
+// layouts, update the mirrors here — the program crates are the single
+// source of truth.
+// ---------------------------------------------------------------------------
+
 #[derive(AnchorDeserialize, Debug, Clone)]
 pub struct LotteryState {
+    // Anchor account discriminator (8 bytes)
+    _discriminator: [u8; 8],
     pub authority: Pubkey,
-    _p0: Pubkey,
-    _p1: Pubkey,
-    _p2: Pubkey,
+    // pending_authority: Option<Pubkey> = 1-byte tag + 32-byte pubkey
+    _pending_authority: [u8; 33],
+    _switchboard_queue: Pubkey,
+    _current_randomness_account: Pubkey,
     pub current_draw_id: u64,
-    _pads: [u8; 84],
+    _jackpot_balance: u64,
+    _reserve_balance: u64,
+    _insurance_balance: u64,
+    _fixed_prize_balance: u64,
+    _ticket_price: u64,
+    _house_fee_bps: u16,
+    _jackpot_cap: u64,
+    _seed_amount: u64,
+    _soft_cap: u64,
+    _hard_cap: u64,
+    _next_draw_timestamp: i64,
+    _draw_interval: i64,
+    _commit_slot: u64,
+    _commit_timestamp: i64,
     pub current_draw_tickets: u64,
-    _pad: u64,
+    _total_tickets_sold: u64,
+    _total_prizes_paid: u64,
+    _total_prizes_committed: u64,
     pub is_draw_in_progress: bool,
-    _pad2: bool,
-    _pad3: bool,
+    _is_awaiting_finalization: bool,
+    _is_rolldown_active: bool,
     pub is_paused: bool,
-    _pad4: bool,
-    _pad5: u8,
-    _pad6: u8,
+    _is_funded: bool,
+    _version: u8,
+    _bump: u8,
+    _config_timelock_end: i64,
+    _pending_config_hash: [u8; 32],
+    _emergency_transfer_total: u64,
+    _emergency_transfer_window_start: i64,
+    _max_rolldown_tickets: u64,
+    _sale_target_tickets: u64,
 }
 
 #[derive(AnchorDeserialize, Debug, Clone)]
 pub struct DrawResult {
+    // Anchor account discriminator (8 bytes)
+    _discriminator: [u8; 8],
     pub draw_id: u64,
-    pub winning_numbers: [u8; 8],
-    pub _proof: [u8; 32],
-    pub _ts: i64,
+    pub winning_numbers: [u8; 6],
+    _randomness_proof: [u8; 32],
+    _timestamp: i64,
     pub total_tickets: u64,
     pub was_rolldown: bool,
     pub match6_win: u32,
@@ -48,33 +89,69 @@ pub struct DrawResult {
     pub m4_prize: u64,
     pub m3_prize: u64,
     pub m2_prize: u64,
+    _is_explicitly_finalized: bool,
+    _total_committed: u64,
+    _total_reclaimed: u64,
+    _bump: u8,
 }
 
 #[derive(AnchorDeserialize, Debug, Clone)]
 pub struct QpState {
+    // Anchor account discriminator (8 bytes)
+    _discriminator: [u8; 8],
     pub current_draw: u64,
-    _pads: [u8; 88],
+    _ticket_price: u64,
+    _pick_count: u8,
+    _number_range: u8,
+    _house_fee_bps: u16,
+    _draw_interval: i64,
+    _next_draw_timestamp: i64,
+    _jackpot_balance: u64,
+    _soft_cap: u64,
+    _hard_cap: u64,
+    _seed_amount: u64,
+    _match_4_prize: u64,
+    _match_3_prize: u64,
     pub current_draw_tickets: u64,
-    _more: [u8; 48],
+    _prize_pool_balance: u64,
+    _insurance_balance: u64,
+    _reserve_balance: u64,
+    _total_tickets_sold: u64,
+    _total_prizes_paid: u64,
+    _current_randomness_account: Pubkey,
+    _commit_slot: u64,
+    _commit_timestamp: i64,
     pub is_draw_in_progress: bool,
-    _p2: bool,
-    _p3: bool,
+    _is_awaiting_finalization: bool,
+    _is_rolldown_pending: bool,
     pub is_paused: bool,
-    _p4: bool,
-    _p5: u8,
+    _is_funded: bool,
+    _bump: u8,
+    _config_timelock_end: i64,
+    _pending_config_hash: [u8; 32],
+    _emergency_transfer_total: u64,
+    _emergency_transfer_window_start: i64,
+    _sale_target_tickets: u64,
 }
 
 #[derive(AnchorDeserialize, Debug, Clone)]
 pub struct QpDrawResult {
+    // Anchor account discriminator (8 bytes)
+    _discriminator: [u8; 8],
     pub draw_id: u64,
-    pub winning_numbers: [u8; 8],
-    _pad: [u8; 40],
+    pub winning_numbers: [u8; 5],
+    _randomness_proof: [u8; 32],
+    _timestamp: i64,
+    pub total_tickets: u64,
+    pub was_rolldown: bool,
     pub match5_win: u32,
     pub match4_win: u32,
     pub match3_win: u32,
     pub m5_prize: u64,
     pub m4_prize: u64,
     pub m3_prize: u64,
+    _is_explicitly_finalized: bool,
+    _bump: u8,
 }
 
 pub struct Solana {
@@ -88,18 +165,34 @@ impl Solana {
         Solana { rpc, cfg }
     }
 
+    /// Fetch an account, verify it is owned by the expected program, and
+    /// deserialize it as `T`. Failing loudly on owner mismatch prevents
+    /// silently parsing garbage when a PDA resolves to the wrong program.
+    fn fetch_owned<T: AnchorDeserialize>(
+        &self,
+        pda: &Pubkey,
+        expected_owner: &Pubkey,
+        what: &str,
+    ) -> Result<T> {
+        let acc = self.rpc.get_account(pda)?;
+        if acc.owner != *expected_owner {
+            return Err(crate::error::Error::Anyhow(anyhow::anyhow!(
+                "Account {pda} ({what}) owned by {}, expected {expected_owner}",
+                acc.owner
+            )));
+        }
+        let mut data: &[u8] = &acc.data;
+        Ok(T::deserialize(&mut data)?)
+    }
+
     pub fn fetch_main_state(&self) -> Result<LotteryState> {
         let (pda, _) = Pubkey::find_program_address(&[LOTTERY_SEED], &self.cfg.main_program_id);
-        let acc = self.rpc.get_account(&pda)?;
-        let mut data: &[u8] = &acc.data;
-        Ok(LotteryState::deserialize(&mut data)?)
+        self.fetch_owned::<LotteryState>(&pda, &self.cfg.main_program_id, "lottery_state")
     }
 
     pub fn fetch_qp_state(&self) -> Result<QpState> {
         let (pda, _) = Pubkey::find_program_address(&[QUICK_PICK_SEED], &self.cfg.qp_program_id);
-        let acc = self.rpc.get_account(&pda)?;
-        let mut data: &[u8] = &acc.data;
-        Ok(QpState::deserialize(&mut data)?)
+        self.fetch_owned::<QpState>(&pda, &self.cfg.qp_program_id, "quick_pick_state")
     }
 
     pub fn fetch_main_draw(&self, draw_id: u64) -> Result<Option<DrawResult>> {
@@ -108,10 +201,9 @@ impl Solana {
             &self.cfg.main_program_id,
         );
         match self.rpc.get_account(&pda) {
-            Ok(acc) => {
-                let mut data: &[u8] = &acc.data;
-                Ok(Some(DrawResult::deserialize(&mut data)?))
-            }
+            Ok(_) => Ok(Some(
+                self.fetch_owned::<DrawResult>(&pda, &self.cfg.main_program_id, "main draw_result")?,
+            )),
             Err(_) => Ok(None),
         }
     }
@@ -122,10 +214,9 @@ impl Solana {
             &self.cfg.qp_program_id,
         );
         match self.rpc.get_account(&pda) {
-            Ok(acc) => {
-                let mut data: &[u8] = &acc.data;
-                Ok(Some(QpDrawResult::deserialize(&mut data)?))
-            }
+            Ok(_) => Ok(Some(
+                self.fetch_owned::<QpDrawResult>(&pda, &self.cfg.qp_program_id, "qp draw_result")?,
+            )),
             Err(_) => Ok(None),
         }
     }
