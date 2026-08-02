@@ -419,6 +419,65 @@ impl LotteryState {
         (from_jackpot, from_reserve, from_insurance, remaining)
     }
 
+    /// Record a prize payment at claim time by deducting from the internal
+    /// accounting balances to match the actual USDC transfer.
+    ///
+    /// Shared by `claim_prize` and `claim_bulk_prize` (single source of truth).
+    ///
+    /// Deduction priority depends on prize tier:
+    /// - Jackpot (match 6): deduct from `jackpot_balance` first, then reserve.
+    /// - Fixed prizes (Match 3/4/5): deduct from `fixed_prize_balance` first
+    ///   (the dedicated 39.4% allocation), then reserve, then jackpot as last
+    ///   resort. This prevents fixed prize payouts from eroding the jackpot.
+    ///
+    /// Also increments `total_prizes_paid` at actual claim time (not at
+    /// finalization) so the stat reflects real USDC transfers.
+    ///
+    /// # Arguments
+    /// * `amount` - USDC lamports actually transferred to the claimant
+    /// * `is_jackpot_prize` - true if this is a Match 6 jackpot payment
+    pub fn record_prize_payment(&mut self, amount: u64, is_jackpot_prize: bool) {
+        if amount == 0 {
+            return;
+        }
+
+        if is_jackpot_prize {
+            // Jackpot prize: deduct from jackpot_balance first, then reserve
+            if self.jackpot_balance >= amount {
+                self.jackpot_balance = self.jackpot_balance.saturating_sub(amount);
+            } else {
+                let from_jackpot = self.jackpot_balance;
+                let remainder = amount.saturating_sub(from_jackpot);
+                self.jackpot_balance = 0;
+                self.reserve_balance = self.reserve_balance.saturating_sub(remainder);
+            }
+        } else {
+            // Fixed prizes (Match 3/4/5): fixed_prize_balance → reserve → jackpot
+            let mut remaining = amount;
+
+            let from_fixed = remaining.min(self.fixed_prize_balance);
+            self.fixed_prize_balance = self.fixed_prize_balance.saturating_sub(from_fixed);
+            remaining = remaining.saturating_sub(from_fixed);
+
+            if remaining > 0 {
+                let from_reserve = remaining.min(self.reserve_balance);
+                self.reserve_balance = self.reserve_balance.saturating_sub(from_reserve);
+                remaining = remaining.saturating_sub(from_reserve);
+            }
+
+            if remaining > 0 {
+                self.jackpot_balance = self.jackpot_balance.saturating_sub(remaining);
+                msg!(
+                    "WARNING: Fixed prize payment required {} from jackpot (fixed pool exhausted)",
+                    remaining
+                );
+            }
+        }
+
+        // Increment total_prizes_paid at actual claim time for accurate tracking
+        self.total_prizes_paid = self.total_prizes_paid.saturating_add(amount);
+    }
+
     /// Calculate the insurance coverage ratio
     /// Returns the percentage of potential shortfall that insurance can cover (in BPS)
     pub fn get_insurance_coverage_ratio(&self, potential_liability: u64) -> u16 {

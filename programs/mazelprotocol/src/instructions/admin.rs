@@ -629,9 +629,9 @@ pub fn handler_execute_config(
 ///
 /// IMPORTANT: This now enforces that there must NOT be a pending timelock proposal.
 /// For production use, prefer the propose_config → execute_config flow.
-/// This handler is retained so that non-sensitive operational updates
-/// (e.g., switchboard_queue rotation) can still be done without delay,
-/// but it will refuse to run if a timelock proposal is active.
+/// This handler is retained ONLY for interface backward compatibility — it
+/// rejects EVERY parameter change. All configuration changes, including
+/// switchboard_queue rotation, must go through the 24-hour timelock flow.
 ///
 /// # Arguments
 /// * `ctx` - The context containing required accounts
@@ -639,16 +639,18 @@ pub fn handler_execute_config(
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
-/// SECURITY FIX (Issue #2): Legacy immediate config update now ONLY allows
-/// non-sensitive operational parameters (switchboard_queue rotation).
+/// SECURITY FIX (Issue #2 + H4): Legacy immediate config update now rejects
+/// ALL parameter changes. Financial params, sale_target_tickets, and even
+/// switchboard_queue MUST go through propose_config → execute_config.
 ///
-/// ALL financial parameters (ticket_price, house_fee_bps, jackpot_cap,
-/// seed_amount, soft_cap, hard_cap, draw_interval) MUST go through the
-/// propose_config → execute_config timelock flow. This prevents a
-/// compromised authority from instantly changing critical financial params.
-///
-/// If any sensitive parameter is provided, this handler will reject the call
-/// with an error directing the caller to use the timelock flow instead.
+/// Rationale:
+/// - Financial params (ticket_price, house_fee_bps, caps, seed, interval):
+///   a compromised authority must not change them instantly.
+/// - switchboard_queue: an instant change could point the lottery to a
+///   malicious randomness oracle (H4 fix) — must be visible for 24h first.
+/// - lp_reward_bps: silently accepting it here was a footgun — the actual
+///   value lives on the LpPool account and is set via set_lp_config. Reject
+///   it so callers are not misled into thinking it took effect.
 pub fn handler_update_config(ctx: Context<UpdateConfig>, params: UpdateConfigParams) -> Result<()> {
     let clock = Clock::get()?;
     let lottery_state = &mut ctx.accounts.lottery_state;
@@ -656,38 +658,28 @@ pub fn handler_update_config(ctx: Context<UpdateConfig>, params: UpdateConfigPar
     // SECURITY: Reject if there's a pending timelock proposal to prevent bypass
     require!(lottery_state.config_timelock_end == 0, LottoError::InvalidDrawState);
 
-    // SECURITY FIX (Issue #2): Block ALL sensitive financial parameter updates
-    // via this legacy immediate path. They MUST use the timelock flow.
+    // SECURITY: Reject ALL parameter changes via this legacy immediate path.
+    // They MUST use the propose_config → execute_config timelock flow.
     require!(params.ticket_price.is_none(), LottoError::ConfigValidationFailed);
     require!(params.house_fee_bps.is_none(), LottoError::ConfigValidationFailed);
     require!(params.jackpot_cap.is_none(), LottoError::ConfigValidationFailed);
-
-    // SECURITY: switchboard_queue changes must go through the timelock
-    // flow (propose_config/execute_config). An instant change could point
-    // the lottery to a malicious randomness oracle (H4 fix).
     require!(params.switchboard_queue.is_none(), LottoError::ConfigValidationFailed);
     require!(params.seed_amount.is_none(), LottoError::ConfigValidationFailed);
     require!(params.soft_cap.is_none(), LottoError::ConfigValidationFailed);
     require!(params.hard_cap.is_none(), LottoError::ConfigValidationFailed);
     require!(params.draw_interval.is_none(), LottoError::ConfigValidationFailed);
+    require!(params.lp_reward_bps.is_none(), LottoError::ConfigValidationFailed);
     require!(params.sale_target_tickets.is_none(), LottoError::ConfigValidationFailed);
 
-    // Only switchboard_queue can be updated immediately (operational, non-financial)
-    if let Some(switchboard_queue) = params.switchboard_queue {
-        emit!(ConfigUpdated {
-            parameter: "switchboard_queue".to_string(),
-            old_value: 0, // Pubkey doesn't fit in u64, use 0 as placeholder
-            new_value: 0,
-            authority: ctx.accounts.authority.key(),
-            timestamp: clock.unix_timestamp,
-        });
+    emit!(ConfigUpdated {
+        parameter: "update_config_rejected_noop".to_string(),
+        old_value: 0,
+        new_value: 0,
+        authority: ctx.accounts.authority.key(),
+        timestamp: clock.unix_timestamp,
+    });
 
-        lottery_state.switchboard_queue = switchboard_queue;
-        msg!("Updated switchboard_queue: {}", switchboard_queue);
-    }
-
-    msg!("Configuration updated (immediate mode — switchboard_queue only).");
-    msg!("NOTE: All financial parameter changes require the propose_config → execute_config timelock flow.");
+    msg!("Configuration update REJECTED (no-op). All changes require the propose_config → execute_config timelock flow.");
 
     Ok(())
 }

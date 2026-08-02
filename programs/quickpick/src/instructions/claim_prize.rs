@@ -87,25 +87,8 @@ pub struct ClaimQuickPickPrize<'info> {
 /// # Returns
 /// * `u8` - Number of matching numbers (0-5)
 fn count_quick_pick_matches(ticket_numbers: &[u8; 5], winning_numbers: &[u8; 5]) -> u8 {
-    let mut matches = 0u8;
-
-    // Both arrays are sorted, so we can use a two-pointer approach
-    let mut i = 0usize;
-    let mut j = 0usize;
-
-    while i < 5 && j < 5 {
-        if ticket_numbers[i] == winning_numbers[j] {
-            matches += 1;
-            i += 1;
-            j += 1;
-        } else if ticket_numbers[i] < winning_numbers[j] {
-            i += 1;
-        } else {
-            j += 1;
-        }
-    }
-
-    matches
+    // Delegate to the shared implementation in constants (single source of truth).
+    calculate_match_count(ticket_numbers, winning_numbers)
 }
 
 /// Transfer prize from prize pool to player

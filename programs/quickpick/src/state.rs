@@ -775,4 +775,36 @@ mod tests {
         // 1 * $10,000 + 10 * $100 + 100 * $4 = $10,000 + $1,000 + $400 = $11,400
         assert_eq!(total, 11_400_000_000);
     }
+
+    #[test]
+    fn test_quick_pick_state_len_matches_serialized_size() {
+        // Robust check against the hand-computed QUICK_PICK_STATE_SIZE:
+        // serialize a default instance and ensure the declared account size
+        // fits the actual Borsh layout (+ 8-byte discriminator). Catches
+        // silent breaks when a field is added without updating the constant.
+        use anchor_lang::AnchorSerialize;
+        let state = QuickPickState::default();
+        let bytes = state.try_to_vec().expect("serialize quick pick state");
+        let required = bytes.len() + 8; // discriminator
+        assert!(
+            QuickPickState::LEN >= required,
+            "QuickPickState::LEN ({}) too small for serialized layout ({}) — add a field without updating LEN?",
+            QuickPickState::LEN,
+            required
+        );
+    }
+
+    #[test]
+    fn test_quick_pick_draw_result_len_matches_serialized_size() {
+        use anchor_lang::AnchorSerialize;
+        let result = QuickPickDrawResult::default();
+        let bytes = result.try_to_vec().expect("serialize quick pick draw result");
+        let required = bytes.len() + 8; // discriminator
+        assert!(
+            QuickPickDrawResult::LEN >= required,
+            "QuickPickDrawResult::LEN ({}) too small for serialized layout ({})",
+            QuickPickDrawResult::LEN,
+            required
+        );
+    }
 }

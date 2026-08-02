@@ -28,6 +28,24 @@
 //! - Ticket claim expiration (90 days)
 //! - Authority verification via main lottery state
 
+// ---------------------------------------------------------------------------
+// Crate-wide lint allowances (Anchor framework idioms)
+// ---------------------------------------------------------------------------
+// - `elided_lifetimes_in_paths`: Anchor's `Context<T>` API intentionally uses
+//   elided lifetimes in every instruction handler signature. Rust 2018 idioms
+//   flags these; the framework itself generates the same pattern, so the
+//   warning is pure noise for Anchor programs.
+// - `unused_qualifications`: instruction handlers are invoked via explicit
+//   module paths (e.g. `instructions::admin::handler_pause`) for readability.
+//   The handlers are also glob-imported into the `#[program]` module, so the
+//   module qualifier is technically redundant — but the explicit path is the
+//   deliberate project convention.
+// - `missing_docs`: Anchor account structs are on-chain data layouts; the
+//   generated code and account fields are self-documenting via the IDL.
+#![allow(elided_lifetimes_in_paths)]
+#![allow(unused_qualifications)]
+#![allow(missing_docs)]
+
 use anchor_lang::prelude::*;
 
 // Module declarations
@@ -260,6 +278,24 @@ pub mod quickpick {
         reason: String,
     ) -> Result<()> {
         instructions::admin::handler_emergency_fund_transfer(ctx, source, amount, reason)
+    }
+
+    /// Sweep insurance pool USDC into the prize pool (L-4 fix)
+    ///
+    /// Moves `amount` (or all available if 0) from the insurance pool token
+    /// account into the prize pool, updating internal accounting to match.
+    /// This ensures claims can be paid when `can_pay_prizes()` counted
+    /// insurance as available but the prize pool token account was short.
+    /// Only the lottery authority can execute.
+    ///
+    /// # Arguments
+    /// * `ctx` - SweepQuickPickInsurance accounts context
+    /// * `amount` - Amount to sweep (0 = sweep all available)
+    pub fn sweep_insurance(
+        ctx: Context<SweepQuickPickInsurance>,
+        amount: u64,
+    ) -> Result<()> {
+        instructions::admin::handler_sweep_insurance(ctx, amount)
     }
 
     // =========================================================================

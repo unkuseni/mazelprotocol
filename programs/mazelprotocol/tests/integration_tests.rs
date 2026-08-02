@@ -526,6 +526,24 @@ mod test_lottery_state {
         // And at least 200 bytes for all the fields
         assert!(LotteryState::LEN >= 200);
     }
+
+    #[test]
+    fn test_lottery_state_len_matches_serialized_size() {
+        // Robust check against the hand-computed LEN constant: serialize a
+        // default instance and ensure the declared account size is large
+        // enough for the actual Borsh layout (+ 8-byte discriminator).
+        // Catches silent breaks when a field is added without updating LEN.
+        use anchor_lang::AnchorSerialize;
+        let state = LotteryState::default();
+        let bytes = state.try_to_vec().expect("serialize lottery state");
+        let required = bytes.len() + 8; // discriminator
+        assert!(
+            LotteryState::LEN >= required,
+            "LotteryState::LEN ({}) too small for serialized layout ({}) — add a field without updating LEN?",
+            LotteryState::LEN,
+            required
+        );
+    }
 }
 
 #[cfg(test)]
