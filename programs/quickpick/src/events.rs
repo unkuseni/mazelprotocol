@@ -287,3 +287,23 @@ pub struct QuickPickDrawForceFinalized {
     /// Timestamp
     pub timestamp: i64,
 }
+
+/// Emitted when the authority sweeps USDC from the insurance pool into the
+/// prize pool (L-4 fix). Closes the gap where `can_pay_prizes()` counted
+/// insurance balance but `claim_prize` could only transfer from the prize
+/// pool token account.
+#[event]
+pub struct QuickPickInsuranceSwept {
+    /// Amount swept from insurance → prize pool (USDC lamports)
+    pub amount: u64,
+    /// Insurance balance before the sweep
+    pub insurance_before: u64,
+    /// Insurance balance after the sweep
+    pub insurance_after: u64,
+    /// Prize pool balance after the sweep
+    pub prize_pool_after: u64,
+    /// Authority who executed the sweep
+    pub authority: Pubkey,
+    /// Timestamp
+    pub timestamp: i64,
+}

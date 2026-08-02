@@ -17,7 +17,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
-use super::prizes::{calculate_fixed_prizes, calculate_rolldown_prizes, PrizeCalculation};
+use super::prizes::{calculate_fixed_prizes, calculate_rolldown_prizes};
 use crate::constants::*;
 use crate::errors::LottoError;
 use crate::events::{
@@ -176,6 +176,61 @@ fn transfer_insurance_to_prize_pool<'info>(
     };
     let cpi_ctx = CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, signer_seeds);
     token::transfer(cpi_ctx, amount)
+}
+
+/// Attempt to seed the new jackpot from the LP pool.
+///
+/// Shared by the rolldown-with-winners and jackpot-won branches (previously
+/// duplicated with fragile `.unwrap()` on Option accounts). Transfers USDC
+/// from the LP pool token account into the prize pool and updates LP state.
+///
+/// # Returns
+/// The amount seeded from the LP pool (0 if the pool is empty).
+fn try_seed_from_lp_pool<'info>(
+    lp_pool: &mut Account<'info, LpPool>,
+    lp_pool_usdc: &Account<'info, TokenAccount>,
+    prize_pool_usdc: &Account<'info, TokenAccount>,
+    token_program: &Program<'info, Token>,
+    seed_amount: u64,
+    draw_id: u64,
+    timestamp: i64,
+) -> Result<u64> {
+    if lp_pool.total_deposits == 0 {
+        return Ok(0);
+    }
+    let lp_seed = seed_amount.min(lp_pool.total_deposits);
+
+    // Transfer USDC from LP pool to prize pool FIRST
+    let lp_bump = lp_pool.bump;
+    let seeds: &[&[u8]] = &[LP_POOL_SEED, &[lp_bump]];
+    let signer_seeds = &[&seeds[..]];
+
+    let cpi_accounts = Transfer {
+        from: lp_pool_usdc.to_account_info(),
+        to: prize_pool_usdc.to_account_info(),
+        authority: lp_pool.to_account_info(),
+    };
+    let cpi_ctx = CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, signer_seeds);
+    token::transfer(cpi_ctx, lp_seed)?;
+
+    // Only deduct AFTER successful transfer
+    lp_pool.deduct_seed(lp_seed)?;
+    lp_pool.last_seed_draw_id = draw_id;
+
+    msg!("Transferred {} USDC from LP pool to prize pool", lp_seed);
+
+    emit!(LpPoolSeeded {
+        draw_id,
+        seed_amount: lp_seed,
+        remaining_deposits: lp_pool.total_deposits,
+        total_shares: lp_pool.total_shares,
+        timestamp,
+    });
+
+    msg!("LP pool seeded: {} USDC lamports", lp_seed);
+    msg!("  LP pool remaining: {} USDC lamports", lp_pool.total_deposits);
+
+    Ok(lp_seed)
 }
 
 // Prize calculation logic extracted to super::prizes module.
@@ -537,50 +592,25 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
             let mut seed_from_reserve: u64 = 0;
 
             // Try LP pool first
-            if let Some(ref mut lp_pool) = ctx.accounts.lp_pool.as_mut() {
-                if lp_pool.total_deposits > 0 {
-                    let lp_seed = seed_amount.min(lp_pool.total_deposits);
-
-                    // Transfer USDC from LP pool to prize pool FIRST
-                    let lp_bump = lp_pool.bump;
-                    let seeds: &[&[u8]] = &[LP_POOL_SEED, &[lp_bump]];
-                    let signer_seeds = &[&seeds[..]];
-
-                    // SAFETY: validate_lp_accounts() ensures these are all Some
-                    let lp_pool_usdc = ctx.accounts.lp_pool_usdc.as_ref().unwrap();
-                    let prize_pool_usdc = ctx.accounts.prize_pool_usdc.as_ref().unwrap();
-                    let token_program = ctx.accounts.token_program.as_ref().unwrap();
-
-                    let cpi_accounts = Transfer {
-                        from: lp_pool_usdc.to_account_info(),
-                        to: prize_pool_usdc.to_account_info(),
-                        authority: lp_pool.to_account_info(),
-                    };
-                    let cpi_ctx = CpiContext::new_with_signer(
-                        token_program.to_account_info(),
-                        cpi_accounts,
-                        signer_seeds,
-                    );
-                    token::transfer(cpi_ctx, lp_seed)?;
-
-                    // Only deduct AFTER successful transfer
-                    lp_pool.deduct_seed(lp_seed)?;
-                    lp_pool.last_seed_draw_id = lottery_state.current_draw_id;
-                    seed_from_lp = lp_seed;
-
-                    msg!("Transferred {} USDC from LP pool to prize pool", lp_seed);
-
-                    emit!(LpPoolSeeded {
-                        draw_id: lottery_state.current_draw_id,
-                        seed_amount: seed_from_lp,
-                        remaining_deposits: lp_pool.total_deposits,
-                        total_shares: lp_pool.total_shares,
-                        timestamp: clock.unix_timestamp,
-                    });
-
-                    msg!("LP pool seeded: {} USDC lamports", seed_from_lp);
-                    msg!("  LP pool remaining: {} USDC lamports", lp_pool.total_deposits);
-                }
+            if let (Some(ref mut lp_pool), Some(lp_pool_usdc), Some(prize_pool_usdc), Some(token_program)) =
+                (
+                    ctx.accounts.lp_pool.as_mut(),
+                    ctx.accounts.lp_pool_usdc.as_ref(),
+                    ctx.accounts.prize_pool_usdc.as_ref(),
+                    ctx.accounts.token_program.as_ref(),
+                )
+            {
+                // validate_lp_accounts() guarantees the all-or-none invariant;
+                // destructuring above makes the transfer panic-free.
+                seed_from_lp = try_seed_from_lp_pool(
+                    lp_pool,
+                    lp_pool_usdc,
+                    prize_pool_usdc,
+                    token_program,
+                    seed_amount,
+                    lottery_state.current_draw_id,
+                    clock.unix_timestamp,
+                )?;
             }
 
             // Fall back to reserve for any shortfall
@@ -626,50 +656,23 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         let mut seed_from_lp: u64 = 0;
         let mut seed_from_reserve: u64 = 0;
 
-        if let Some(ref mut lp_pool) = ctx.accounts.lp_pool.as_mut() {
-            if lp_pool.total_deposits > 0 {
-                let lp_seed = seed_amount.min(lp_pool.total_deposits);
-
-                // Transfer USDC from LP pool to prize pool FIRST
-                let lp_bump = lp_pool.bump;
-                let seeds: &[&[u8]] = &[LP_POOL_SEED, &[lp_bump]];
-                let signer_seeds = &[&seeds[..]];
-
-                // SAFETY: validate_lp_accounts() ensures these are all Some
-                let lp_pool_usdc = ctx.accounts.lp_pool_usdc.as_ref().unwrap();
-                let prize_pool_usdc = ctx.accounts.prize_pool_usdc.as_ref().unwrap();
-                let token_program = ctx.accounts.token_program.as_ref().unwrap();
-
-                let cpi_accounts = Transfer {
-                    from: lp_pool_usdc.to_account_info(),
-                    to: prize_pool_usdc.to_account_info(),
-                    authority: lp_pool.to_account_info(),
-                };
-                let cpi_ctx = CpiContext::new_with_signer(
-                    token_program.to_account_info(),
-                    cpi_accounts,
-                    signer_seeds,
-                );
-                token::transfer(cpi_ctx, lp_seed)?;
-
-                // Only deduct AFTER successful transfer
-                lp_pool.deduct_seed(lp_seed)?;
-                lp_pool.last_seed_draw_id = lottery_state.current_draw_id;
-                seed_from_lp = lp_seed;
-
-                msg!("Transferred {} USDC from LP pool to prize pool", lp_seed);
-
-                emit!(LpPoolSeeded {
-                    draw_id: lottery_state.current_draw_id,
-                    seed_amount: seed_from_lp,
-                    remaining_deposits: lp_pool.total_deposits,
-                    total_shares: lp_pool.total_shares,
-                    timestamp: clock.unix_timestamp,
-                });
-
-                msg!("LP pool seeded: {} USDC lamports", seed_from_lp);
-                msg!("  LP pool remaining: {} USDC lamports", lp_pool.total_deposits);
-            }
+        if let (Some(ref mut lp_pool), Some(lp_pool_usdc), Some(prize_pool_usdc), Some(token_program)) =
+            (
+                ctx.accounts.lp_pool.as_mut(),
+                ctx.accounts.lp_pool_usdc.as_ref(),
+                ctx.accounts.prize_pool_usdc.as_ref(),
+                ctx.accounts.token_program.as_ref(),
+            )
+        {
+            seed_from_lp = try_seed_from_lp_pool(
+                lp_pool,
+                lp_pool_usdc,
+                prize_pool_usdc,
+                token_program,
+                seed_amount,
+                lottery_state.current_draw_id,
+                clock.unix_timestamp,
+            )?;
         }
 
         let remaining_needed = seed_amount.saturating_sub(seed_from_lp);

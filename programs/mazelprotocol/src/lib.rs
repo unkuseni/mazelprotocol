@@ -32,6 +32,24 @@
 //! # Related Programs
 //! - Quick Pick Express: Separate high-frequency 5/35 lottery program (quickpick)
 
+// ---------------------------------------------------------------------------
+// Crate-wide lint allowances (Anchor framework idioms)
+// ---------------------------------------------------------------------------
+// - `elided_lifetimes_in_paths`: Anchor's `Context<T>` API intentionally uses
+//   elided lifetimes in every instruction handler signature. Rust 2018 idioms
+//   flags these; the framework itself generates the same pattern, so the
+//   warning is pure noise for Anchor programs.
+// - `unused_qualifications`: instruction handlers are invoked via explicit
+//   module paths (e.g. `instructions::admin::handler_pause`) for readability.
+//   The handlers are also glob-imported into the `#[program]` module, so the
+//   module qualifier is technically redundant — but the explicit path is the
+//   deliberate project convention.
+// - `missing_docs`: Anchor account structs are on-chain data layouts; the
+//   generated code and account fields are self-documenting via the IDL.
+#![allow(elided_lifetimes_in_paths)]
+#![allow(unused_qualifications)]
+#![allow(missing_docs)]
+
 use anchor_lang::prelude::*;
 
 // Module declarations

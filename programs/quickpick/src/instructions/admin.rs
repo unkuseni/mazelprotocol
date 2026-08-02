@@ -1173,6 +1173,157 @@ pub fn handler_add_reserve_funds(
     Ok(())
 }
 
+// ============================================================================
+// SWEEP INSURANCE TO PRIZE POOL (L-4 FIX)
+// ============================================================================
+
+/// Accounts required for sweeping insurance pool USDC into the prize pool.
+///
+/// ## L-4 gap this closes
+/// `QuickPickState::can_pay_prizes()` counts `insurance_balance` as available
+/// funds, but `claim_prize` can only transfer from the `prize_pool_usdc` token
+/// account. If the prize pool is short while the insurance pool holds funds,
+/// claims would fail. This authority-only instruction moves the ACTUAL USDC
+/// (and matching accounting) from insurance → prize pool so claims succeed.
+#[derive(Accounts)]
+pub struct SweepQuickPickInsurance<'info> {
+    /// The authority (must be lottery authority)
+    #[account(
+        constraint = authority.key() == lottery_state.authority @ QuickPickError::Unauthorized
+    )]
+    pub authority: Signer<'info>,
+
+    /// The main lottery state (to verify authority)
+    #[account(
+        seeds = [LOTTERY_SEED],
+        bump = lottery_state.bump
+    )]
+    pub lottery_state: Account<'info, LotteryState>,
+
+    /// The Quick Pick state account
+    #[account(
+        mut,
+        seeds = [QUICK_PICK_SEED],
+        bump = quick_pick_state.bump
+    )]
+    pub quick_pick_state: Account<'info, QuickPickState>,
+
+    /// Insurance pool USDC token account (source)
+    #[account(
+        mut,
+        seeds = [INSURANCE_POOL_USDC_SEED],
+        bump
+    )]
+    pub insurance_pool_usdc: Account<'info, TokenAccount>,
+
+    /// Prize pool USDC token account (destination)
+    #[account(
+        mut,
+        seeds = [PRIZE_POOL_USDC_SEED],
+        bump
+    )]
+    pub prize_pool_usdc: Account<'info, TokenAccount>,
+
+    /// USDC mint
+    pub usdc_mint: Account<'info, Mint>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+}
+
+/// Sweep USDC from the insurance pool into the prize pool.
+///
+/// Moves `amount` USDC lamports (and the matching internal accounting) from
+/// `insurance_balance` to `prize_pool_balance`. This is the admin remedy for
+/// the L-4 insolvency gap: after a draw finalizes prizes that rely on
+/// insurance, the authority calls this so the prize pool token account can
+/// actually cover claims.
+///
+/// # Arguments
+/// * `ctx` - SweepQuickPickInsurance accounts context
+/// * `amount` - Amount of USDC lamports to sweep (0 = sweep all available)
+///
+/// # Returns
+/// * `Result<()>` - Success or error
+pub fn handler_sweep_insurance(
+    ctx: Context<SweepQuickPickInsurance>,
+    amount: u64,
+) -> Result<()> {
+    let clock = Clock::get()?;
+
+    // Validate USDC mint on both token accounts
+    require!(
+        ctx.accounts.insurance_pool_usdc.mint == ctx.accounts.usdc_mint.key(),
+        QuickPickError::InvalidUsdcMint
+    );
+    require!(
+        ctx.accounts.prize_pool_usdc.mint == ctx.accounts.usdc_mint.key(),
+        QuickPickError::InvalidUsdcMint
+    );
+
+    let insurance_token_balance = ctx.accounts.insurance_pool_usdc.amount;
+    let accounting_insurance = ctx.accounts.quick_pick_state.insurance_balance;
+
+    // Determine sweep amount: explicit amount, or all available (min of
+    // token balance and accounting to keep books consistent).
+    let sweep_amount = if amount == 0 {
+        insurance_token_balance.min(accounting_insurance)
+    } else {
+        amount
+    };
+
+    require!(sweep_amount > 0, QuickPickError::InsufficientFunds);
+    require!(
+        sweep_amount <= insurance_token_balance,
+        QuickPickError::InsufficientFunds
+    );
+    require!(
+        sweep_amount <= accounting_insurance,
+        QuickPickError::InsufficientFunds
+    );
+
+    let insurance_before = accounting_insurance;
+
+    // Transfer USDC from insurance pool to prize pool using Quick Pick state as signer
+    let seeds = &[QUICK_PICK_SEED, &[ctx.accounts.quick_pick_state.bump]];
+    let signer_seeds = &[&seeds[..]];
+
+    let cpi_accounts = Transfer {
+        from: ctx.accounts.insurance_pool_usdc.to_account_info(),
+        to: ctx.accounts.prize_pool_usdc.to_account_info(),
+        authority: ctx.accounts.quick_pick_state.to_account_info(),
+    };
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+    token::transfer(cpi_ctx, sweep_amount)?;
+
+    // Update internal accounting to match the token movement
+    let quick_pick_state = &mut ctx.accounts.quick_pick_state;
+    quick_pick_state.insurance_balance =
+        quick_pick_state.insurance_balance.saturating_sub(sweep_amount);
+    quick_pick_state.prize_pool_balance = quick_pick_state
+        .prize_pool_balance
+        .checked_add(sweep_amount)
+        .ok_or(QuickPickError::Overflow)?;
+
+    // Emit event
+    emit!(crate::events::QuickPickInsuranceSwept {
+        amount: sweep_amount,
+        insurance_before,
+        insurance_after: quick_pick_state.insurance_balance,
+        prize_pool_after: quick_pick_state.prize_pool_balance,
+        authority: ctx.accounts.authority.key(),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!("Quick Pick insurance swept to prize pool!");
+    msg!("  Amount: {} USDC lamports", sweep_amount);
+    msg!("  Insurance: {} -> {}", insurance_before, quick_pick_state.insurance_balance);
+    msg!("  Prize pool: {}", quick_pick_state.prize_pool_balance);
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

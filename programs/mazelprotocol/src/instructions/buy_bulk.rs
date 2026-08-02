@@ -333,9 +333,7 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     // Split house_fee: if LP pool exists and is active, route lp_reward_bps %
     // of the house fee to the LP pool as rewards. The remainder goes to the
     // operator's house_fee_usdc account.
-    let mut lp_reward: Option<u64> = None;
-
-    let lp_reward_calc = if let (Some(ref lp_pool), Some(ref lp_pool_usdc)) =
+    let lp_reward = if let (Some(ref lp_pool), Some(_)) =
         (ctx.accounts.lp_pool.as_ref(), ctx.accounts.lp_pool_usdc.as_ref())
     {
         if lp_pool.lp_reward_bps > 0 && !lp_pool.is_paused && lp_pool.total_shares > 0 {
@@ -352,7 +350,6 @@ pub fn handler(ctx: Context<BuyBulk>, params: BuyBulkParams) -> Result<()> {
     } else {
         None
     };
-    lp_reward = lp_reward_calc;
 
     // Transfer LP reward from player to LP pool
     if let (Some(reward), Some(ref lp_pool_usdc)) = (lp_reward, ctx.accounts.lp_pool_usdc.as_ref())

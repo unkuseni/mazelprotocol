@@ -308,6 +308,37 @@ pub fn calculate_quick_pick_fixed_prize(match_count: u8) -> u64 {
     }
 }
 
+/// Calculate match count between a ticket and the winning numbers.
+///
+/// Single source of truth for match counting (used by claim_prize and any
+/// future on-chain verification). Both slices must be sorted ascending.
+///
+/// # Returns
+/// Number of matching numbers (0-5 for Quick Pick).
+pub fn calculate_match_count(ticket_numbers: &[u8], winning_numbers: &[u8]) -> u8 {
+    if ticket_numbers.is_empty() || winning_numbers.is_empty() {
+        return 0;
+    }
+
+    let mut matches = 0u8;
+    let mut i = 0usize;
+    let mut j = 0usize;
+
+    while i < ticket_numbers.len() && j < winning_numbers.len() {
+        match ticket_numbers[i].cmp(&winning_numbers[j]) {
+            std::cmp::Ordering::Less => i += 1,
+            std::cmp::Ordering::Greater => j += 1,
+            std::cmp::Ordering::Equal => {
+                matches += 1;
+                i += 1;
+                j += 1;
+            }
+        }
+    }
+
+    matches
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
