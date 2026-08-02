@@ -12,6 +12,7 @@ pub struct BotConfig {
     pub qp_program_id: Pubkey,
     pub usdc_mint: Pubkey,
     pub webhook_url: Option<String>,
+    pub webhook_secret_token: Option<String>,
     pub port: u16,
 }
 
@@ -25,6 +26,7 @@ impl BotConfig {
             qp_program_id: Pubkey::from_str(&cli.qp_program_id)?,
             usdc_mint: Pubkey::from_str(&cli.usdc_mint)?,
             webhook_url: cli.webhook_url.clone(),
+            webhook_secret_token: cli.webhook_secret_token.clone(),
             port: cli.port,
         })
     }

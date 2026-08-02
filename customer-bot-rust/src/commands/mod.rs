@@ -138,11 +138,13 @@ fn quickpick(args: &[&str]) -> String {
     use rand::seq::SliceRandom;
     let count: usize = args.first().and_then(|a| a.parse().ok()).unwrap_or(1).min(10);
     let mut rng = rand::thread_rng();
-    let mut result = "<b>🎲 Quick Pick Numbers</b>\n\n".to_string();
+    let mut result = "<b>🎲 Quick Pick Numbers (5/35)</b>\n\n".to_string();
     for i in 0..count {
-        let mut pool: Vec<u8> = (1..=46).collect();
+        // Quick Pick Express is a 5/35 matrix — 5 unique numbers from 1..=35
+        // (see programs/quickpick/src/constants.rs: QUICK_PICK_NUMBERS / QUICK_PICK_RANGE).
+        let mut pool: Vec<u8> = (1..=35).collect();
         pool.shuffle(&mut rng);
-        let mut nums: Vec<u8> = pool[..6].to_vec();
+        let mut nums: Vec<u8> = pool[..5].to_vec();
         nums.sort();
         let s: Vec<String> = nums.iter().map(|n| format!("{:02}", n)).collect();
         result.push_str(&format!("Ticket {}: <code>{}</code>\n", i + 1, s.join(" ")));

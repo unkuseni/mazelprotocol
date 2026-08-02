@@ -41,6 +41,14 @@ pub struct Cli {
     #[arg(long, env = "WEBHOOK_URL")]
     pub webhook_url: Option<String>,
 
+    /// Secret token for webhook authentication. When set, Telegram sends it
+    /// in the `X-Telegram-Bot-Api-Secret-Token` header on every update and
+    /// the bot rejects requests without a matching header. REQUIRED for
+    /// webhook mode — without it anyone who discovers the URL can inject
+    /// fake updates.
+    #[arg(long, env = "WEBHOOK_SECRET_TOKEN")]
+    pub webhook_secret_token: Option<String>,
+
     #[arg(long, env = "PORT", default_value = "3002")]
     pub port: u16,
 

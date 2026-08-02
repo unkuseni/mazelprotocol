@@ -255,10 +255,14 @@ pub async fn run_qp_lifecycle(
 
 #[derive(anchor_lang::AnchorDeserialize, Debug)]
 pub struct LotteryStateData {
+    // 8-byte Anchor account discriminator (must be skipped — account data
+    // starts with sha256("account:LotteryState")[..8]).
+    _discriminator: [u8; 8],
     pub authority: solana_sdk::pubkey::Pubkey,
-    pub _pending_authority: anchor_lang::prelude::Pubkey,
-    pub _switchboard_queue: anchor_lang::prelude::Pubkey,
-    pub _current_randomness_account: anchor_lang::prelude::Pubkey,
+    // pending_authority: Option<Pubkey> = 1-byte tag + 32-byte pubkey (33 bytes)
+    _pending_authority: [u8; 33],
+    _switchboard_queue: anchor_lang::prelude::Pubkey,
+    _current_randomness_account: anchor_lang::prelude::Pubkey,
     pub current_draw_id: u64,
     _pad1: u64,
     _pad2: u64,
@@ -287,6 +291,8 @@ pub struct LotteryStateData {
 
 #[derive(anchor_lang::AnchorDeserialize, Debug)]
 pub struct QpStateData {
+    // 8-byte Anchor account discriminator (must be skipped).
+    _discriminator: [u8; 8],
     pub current_draw: u64,
     _pad0: u64,
     _pad1: u8,

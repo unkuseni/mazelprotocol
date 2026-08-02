@@ -88,7 +88,12 @@ pub async fn index_main_draw(
 
     // Generate nonce for replay protection
     let nonce = uuid::Uuid::new_v4().as_u64_pair().0;
-    let verification_hash = compute_verification_hash_main(&counts, nonce);
+    // The verification hash MUST match the on-chain formula in
+    // programs/mazelprotocol/src/instructions/finalize_draw.rs:
+    //   SHA256(draw_id || winning_numbers || match_6 || match_5 || match_4 || match_3 || match_2 || nonce)
+    // The winning numbers must be sorted ascending exactly as stored in the
+    // DrawResult account (execute_draw sorts them before persisting).
+    let verification_hash = compute_verification_hash_main(draw_id, &sorted_winning, &counts, nonce);
 
     let duration_ms = start.elapsed().as_millis() as u64;
 
@@ -140,7 +145,8 @@ pub async fn index_qp_draw(
     }
 
     let nonce = uuid::Uuid::new_v4().as_u64_pair().0;
-    let verification_hash = compute_verification_hash_qp(&counts, nonce);
+    // Must match on-chain formula: SHA256(draw_id || winning_numbers || counts || nonce)
+    let verification_hash = compute_verification_hash_qp(draw_id, &sorted_winning, &counts, nonce);
     let duration_ms = start.elapsed().as_millis() as u64;
 
     Ok(QpIndexerResult {
@@ -161,14 +167,19 @@ async fn fetch_main_tickets(
     program_id: &Pubkey,
     draw_id: u64,
 ) -> Result<Vec<Vec<u8>>> {
-    use solana_account_decoder::UiDataSliceConfig;
     use solana_client::rpc_filter::{Memcmp, RpcFilterType};
 
     let draw_id_bytes = draw_id.to_le_bytes();
 
-    // Anchor account discriminator for TicketData (8 bytes) + draw_id offset
-    // The draw_id field starts at byte 8 (after discriminator) in the TicketData struct
-    let filters = vec![RpcFilterType::Memcmp(Memcmp::new(8, draw_id_bytes.to_vec()))];
+    // TicketData layout (programs/mazelprotocol/src/state/tickets.rs):
+    //   [0..8]   anchor discriminator
+    //   [8..40]  owner (Pubkey)
+    //   [40..48] draw_id (u64 LE)
+    //   [48..54] numbers (6 × u8)
+    //   ... TICKET_SIZE = 105 bytes total
+    // The Memcmp offset must point at draw_id (40), NOT 8 — otherwise the
+    // filter matches the middle of `owner` and returns the wrong accounts.
+    let filters = vec![RpcFilterType::Memcmp(Memcmp::new(40, draw_id_bytes.to_vec()))];
 
     let accounts = rpc.get_program_accounts_with_config(
         program_id,
@@ -184,18 +195,17 @@ async fn fetch_main_tickets(
         },
     )?;
 
-    // Parse ticket data: each ticket is a list of u8 numbers
+    // Parse ticket data. Only accept exact TicketData-sized accounts (105
+    // bytes). This excludes UnifiedTicket (bulk buy) accounts, which also have
+    // draw_id at byte 40 but a completely different layout after that — reading
+    // them as single tickets would produce garbage numbers and wrong counts.
     let tickets: Vec<Vec<u8>> = accounts
         .iter()
         .filter_map(|(_pubkey, account)| {
-            if account.data.len() < 16 {
+            if account.data.len() != 105 {
                 return None;
             }
-            // TicketData layout:
-            // [0..8] anchor discriminator
-            // [8..16] draw_id (u64 LE)
-            // [16..22] numbers (6 × u8)
-            let numbers = account.data[16..22].to_vec();
+            let numbers = account.data[48..54].to_vec();
             Some(numbers)
         })
         .collect();
@@ -212,7 +222,14 @@ async fn fetch_qp_tickets(
 
     let draw_id_bytes = draw_id.to_le_bytes();
 
-    let filters = vec![RpcFilterType::Memcmp(Memcmp::new(8, draw_id_bytes.to_vec()))];
+    // QuickPickTicket layout (programs/quickpick/src/state.rs):
+    //   [0..8]   anchor discriminator
+    //   [8..40]  owner (Pubkey)
+    //   [40..48] draw_id (u64 LE)
+    //   [48..53] numbers (5 × u8)
+    //   ... QUICK_PICK_TICKET_SIZE = 72 bytes total (8 disc + 32 owner + 8 draw
+    //   + 5 numbers + 8 ts + 1 claimed + 1 match + 8 prize + 1 bump + 8 pad)
+    let filters = vec![RpcFilterType::Memcmp(Memcmp::new(40, draw_id_bytes.to_vec()))];
 
     let accounts = rpc.get_program_accounts_with_config(
         program_id,
@@ -229,11 +246,10 @@ async fn fetch_qp_tickets(
     let tickets: Vec<Vec<u8>> = accounts
         .iter()
         .filter_map(|(_pubkey, account)| {
-            if account.data.len() < 13 {
+            if account.data.len() != 72 {
                 return None;
             }
-            // QP ticket: [0..8] discriminator, [8..16] draw_id, [16..21] numbers (5 × u8)
-            let numbers = account.data[16..21].to_vec();
+            let numbers = account.data[48..53].to_vec();
             Some(numbers)
         })
         .collect();
@@ -264,9 +280,21 @@ fn ensure_sorted(numbers: &[u8]) -> Vec<u8> {
 }
 
 /// Compute SHA256 verification hash for main lottery winner counts + nonce.
-/// Hash = SHA256(match6 || match5 || match4 || match3 || match2 || nonce)
-fn compute_verification_hash_main(counts: &MainWinnerCounts, nonce: u64) -> [u8; 32] {
+///
+/// MUST match the on-chain formula in
+/// programs/mazelprotocol/src/instructions/finalize_draw.rs:
+///   SHA256(draw_id || winning_numbers || match_6 || match_5 || match_4 || match_3 || match_2 || nonce)
+/// `winning_numbers` must be the sorted numbers exactly as stored in the
+/// DrawResult account.
+fn compute_verification_hash_main(
+    draw_id: u64,
+    winning_numbers: &[u8],
+    counts: &MainWinnerCounts,
+    nonce: u64,
+) -> [u8; 32] {
     let mut hasher = Sha256::new();
+    hasher.update(draw_id.to_le_bytes());
+    hasher.update(winning_numbers);
     hasher.update(&counts.match6.to_le_bytes());
     hasher.update(&counts.match5.to_le_bytes());
     hasher.update(&counts.match4.to_le_bytes());
@@ -280,8 +308,19 @@ fn compute_verification_hash_main(counts: &MainWinnerCounts, nonce: u64) -> [u8;
 }
 
 /// Compute SHA256 verification hash for QP winner counts + nonce.
-fn compute_verification_hash_qp(counts: &QpWinnerCounts, nonce: u64) -> [u8; 32] {
+///
+/// MUST match the on-chain formula in
+/// programs/quickpick/src/instructions/finalize_draw.rs:
+///   SHA256(draw_id || winning_numbers || match_5 || match_4 || match_3 || nonce)
+fn compute_verification_hash_qp(
+    draw_id: u64,
+    winning_numbers: &[u8],
+    counts: &QpWinnerCounts,
+    nonce: u64,
+) -> [u8; 32] {
     let mut hasher = Sha256::new();
+    hasher.update(draw_id.to_le_bytes());
+    hasher.update(winning_numbers);
     hasher.update(&counts.match5.to_le_bytes());
     hasher.update(&counts.match4.to_le_bytes());
     hasher.update(&counts.match3.to_le_bytes());
@@ -327,16 +366,71 @@ mod tests {
     #[test]
     fn test_verification_hash_deterministic() {
         let counts = MainWinnerCounts { match6: 0, match5: 1, match4: 3, match3: 10, match2: 50 };
-        let h1 = compute_verification_hash_main(&counts, 42);
-        let h2 = compute_verification_hash_main(&counts, 42);
+        let h1 = compute_verification_hash_main(7, &[1, 2, 3, 4, 5, 6], &counts, 42);
+        let h2 = compute_verification_hash_main(7, &[1, 2, 3, 4, 5, 6], &counts, 42);
         assert_eq!(h1, h2);
     }
 
     #[test]
     fn test_verification_hash_different_nonce() {
         let counts = MainWinnerCounts { match6: 0, match5: 1, match4: 0, match3: 0, match2: 0 };
-        let h1 = compute_verification_hash_main(&counts, 1);
-        let h2 = compute_verification_hash_main(&counts, 2);
+        let h1 = compute_verification_hash_main(7, &[1, 2, 3, 4, 5, 6], &counts, 1);
+        let h2 = compute_verification_hash_main(7, &[1, 2, 3, 4, 5, 6], &counts, 2);
         assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn test_verification_hash_matches_onchain_formula() {
+        // The on-chain program (programs/mazelprotocol/src/instructions/
+        // finalize_draw.rs) verifies:
+        //   SHA256(draw_id || winning_numbers || match_6 || match_5 ||
+        //          match_4 || match_3 || match_2 || nonce)
+        // This test recomputes the hash independently and asserts the bot's
+        // helper produces the identical value — locking the formula so a
+        // regression here can never silently break finalization again.
+        let draw_id: u64 = 9;
+        let winning: [u8; 6] = [3, 11, 22, 33, 44, 46];
+        let counts = MainWinnerCounts { match6: 0, match5: 2, match4: 5, match3: 40, match2: 300 };
+        let nonce: u64 = 123456;
+
+        let mut hasher = Sha256::new();
+        hasher.update(draw_id.to_le_bytes());
+        hasher.update(winning);
+        hasher.update(counts.match6.to_le_bytes());
+        hasher.update(counts.match5.to_le_bytes());
+        hasher.update(counts.match4.to_le_bytes());
+        hasher.update(counts.match3.to_le_bytes());
+        hasher.update(counts.match2.to_le_bytes());
+        hasher.update(nonce.to_le_bytes());
+        let expected: [u8; 32] = hasher.finalize().into();
+
+        assert_eq!(
+            compute_verification_hash_main(draw_id, &winning, &counts, nonce),
+            expected
+        );
+    }
+
+    #[test]
+    fn test_qp_verification_hash_matches_onchain_formula() {
+        // Quick Pick on-chain formula:
+        //   SHA256(draw_id || winning_numbers || match_5 || match_4 || match_3 || nonce)
+        let draw_id: u64 = 4;
+        let winning: [u8; 5] = [5, 12, 20, 29, 35];
+        let counts = QpWinnerCounts { match5: 0, match4: 3, match3: 25 };
+        let nonce: u64 = 99;
+
+        let mut hasher = Sha256::new();
+        hasher.update(draw_id.to_le_bytes());
+        hasher.update(winning);
+        hasher.update(counts.match5.to_le_bytes());
+        hasher.update(counts.match4.to_le_bytes());
+        hasher.update(counts.match3.to_le_bytes());
+        hasher.update(nonce.to_le_bytes());
+        let expected: [u8; 32] = hasher.finalize().into();
+
+        assert_eq!(
+            compute_verification_hash_qp(draw_id, &winning, &counts, nonce),
+            expected
+        );
     }
 }
