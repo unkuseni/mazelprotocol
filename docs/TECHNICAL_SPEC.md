@@ -200,6 +200,7 @@ LotteryState (PDA: ["lottery"])
 ├── State Flags
 │   ├── is_draw_in_progress: bool
 │   ├── is_rolldown_active: bool
+│   ├── is_awaiting_finalization: bool
 │   ├── is_paused: bool
 │   └── is_funded: bool
 │
@@ -210,6 +211,10 @@ LotteryState (PDA: ["lottery"])
 ├── Emergency
 │   ├── emergency_transfer_total: u64
 │   └── emergency_transfer_window_start: i64
+│
+├── Limits
+│   ├── max_rolldown_tickets: u64   (0 = unlimited, circuit breaker)
+│   └── sale_target_tickets: u64    (0 = time-only mode)
 │
 ├── Timestamps
 │   └── next_draw_timestamp: i64
@@ -275,7 +280,7 @@ UserStats (PDA: ["user", wallet])
 
 Syndicate (PDA: ["syndicate", creator, syndicate_id.to_le_bytes()])
 ├── creator: Pubkey
-├── original_creator: Pubkey
+├── original_creator: Pubkey   (immutable — used for PDA seed derivation)
 ├── syndicate_id: u64
 ├── name: String (max 32 bytes)
 ├── is_public: bool
@@ -284,6 +289,8 @@ Syndicate (PDA: ["syndicate", creator, syndicate_id.to_le_bytes()])
 ├── manager_fee_bps: u16
 ├── usdc_account: Pubkey
 ├── members: Vec<SyndicateMember>
+├── pending_tickets: u64        (paid-but-unmaterialized tickets this draw)
+├── pending_tickets_draw: u64   (draw the pending credits apply to)
 └── bump: u8
 
 SyndicateWarsState (PDA: ["syndicate_wars", month.to_le_bytes()])
@@ -336,10 +343,16 @@ QuickPickState (PDA: ["quick_pick"], quickpick program)
 ├── commit_slot: u64
 ├── commit_timestamp: i64
 ├── is_draw_in_progress: bool
+├── is_awaiting_finalization: bool
 ├── is_rolldown_pending: bool
 ├── is_paused: bool
 ├── is_funded: bool
-└── bump: u8
+├── bump: u8
+├── config_timelock_end: i64          (H-2: config timelock)
+├── pending_config_hash: [u8; 32]     (H-2: proposal hash)
+├── emergency_transfer_total: u64     (QP-3: rolling window aggregate)
+├── emergency_transfer_window_start: i64
+└── sale_target_tickets: u64          (0 = disabled)
 
 QuickPickTicket (PDA: ["quick_pick_ticket", draw_id, ticket_index])
 ├── owner: Pubkey
@@ -546,28 +559,43 @@ pub const NUMBERS_PER_TICKET: usize = 6;
 
 ### 4.2 Account Sizes
 
+> Values below are derived from the authoritative constants in
+> `programs/mazelprotocol/src/constants.rs` and `programs/quickpick/src/constants.rs`.
+> The test suite (`test_*_len_matches_serialized_size`) verifies these against the
+> actual Borsh layout at build time.
+
 ```rust
-// LotteryState: 8 (discriminator) + 32 + 8 + 8 + 8 + 8 + 8 + 8 + 16 + 8 + 8 + 8 + 8 + 8 + 8 + 1 + 1
-pub const LOTTERY_STATE_SIZE: usize = 8 + 32 + 8*13 + 2 + 1 + 1 = 148;
+// LotteryState: 8 disc + 32 authority + 33 pending_authority + 32 queue + 32
+//   randomness + 8*20 (u64 fields) + 2 (house_fee_bps) + 7 (bools/version/bump)
+//   + 32 pending_config_hash + 8 max_rolldown_tickets + 8 sale_target_tickets
+pub const LOTTERY_STATE_SIZE: usize = 362;
 
-// DrawResult: 8 + 8 + 6 + 64 + 8 + 1 + (5*4) + (5*8) + 8
-pub const DRAW_RESULT_SIZE: usize = 8 + 8 + 6 + 64 + 8 + 1 + 20 + 40 + 8 = 163;
+// DrawResult: 8 + 8 + 6 + 32 + 8 + 8 + 1 + 20 + 40 + 1 + 8 + 8 + 1 + 16
+pub const DRAW_RESULT_SIZE: usize = 165;
 
-// Ticket: 8 + 32 + 8 + 6 + 8 + 1 + 1 + 8 + 32 (optional syndicate)
-pub const TICKET_SIZE: usize = 8 + 32 + 8 + 6 + 8 + 1 + 1 + 8 + 33 = 105;
+// Ticket: 8 + 32 + 8 + 6 + 8 + 1 + 1 + 8 + 33 (Option<Pubkey>) + 1 + 8
+pub const TICKET_SIZE: usize = 114;
 
-// UserStats: 8 + 32 + 8*4 + 4*2 + 8
-pub const USER_STATS_SIZE: usize = 8 + 32 + 8*6 + 1 = 89;
+// UserStats: 8 + 32 + 8*3 + 4*3 + 8 + 8 + 4 + 1 + 16
+pub const USER_STATS_SIZE: usize = 113;
 
-// Syndicate (base): 8 + 32 + 8 + 32 + 1 + 4 + 8 + 2 + 4 (vec length)
-// + members: N * (32 + 8 + 8) = N * 48
-pub const SYNDICATE_BASE_SIZE: usize = 99;
-pub const SYNDICATE_MEMBER_SIZE: usize = 48;
+// Syndicate base: 8 + 32 + 32 + 8 + 32 + 1 + 4 + 8 + 2 + 32 + 4 + 1
+//   + 8 (pending_tickets) + 8 (pending_tickets_draw)
+pub const SYNDICATE_BASE_SIZE: usize = 180;
+
+// Syndicate member: 32 (wallet) + 8 (contribution) + 2 (share bps) + 8 (unclaimed_prize)
+pub const SYNDICATE_MEMBER_SIZE: usize = 50;
 ```
+
+> ⚠️ **Migration note:** `SYNDICATE_BASE_SIZE` previously reserved 16 bytes of
+> padding. That padding is now used by the `pending_tickets` and
+> `pending_tickets_draw` security fields — the account size is unchanged, but
+> existing syndicate accounts must be reallocated/zeroed for the new fields to
+> read correctly.
 
 ### 4.3 Instruction Counts
 
-> **v3.0:** 75 on-chain instructions across both programs (56 main + 19 Quick Pick).
+> **v3.0:** 76 on-chain instructions across both programs (56 main + 20 Quick Pick).
 
 **Main Lottery (`mazelprotocol` program — 6/46) — 56 instructions:**
 
@@ -583,16 +611,16 @@ pub const SYNDICATE_MEMBER_SIZE: usize = 48;
 | **LP Pool** | `deposit_lp`, `withdraw_lp`, `claim_lp_rewards`, `set_lp_config`, `execute_lp_config`, `cancel_lp_config`, `pause_lp_pool`, `unpause_lp_pool`, `close_lp_position` | 9 |
 | **Total** | | **56** |
 
-**Quick Pick Express (`quickpick` program — 5/35) — 19 instructions:**
+**Quick Pick Express (`quickpick` program — 5/35) — 20 instructions:**
 
 | Module | Instructions | Count |
 |--------|-------------|-------|
-| **Admin** | `update_config`, `propose_config`, `execute_config`, `cancel_config_proposal`, `withdraw_house_fees`, `add_reserve_funds`, `pause`, `unpause`, `cancel_draw`, `force_finalize_draw`, `emergency_fund_transfer` | 11 |
+| **Admin** | `update_config`, `propose_config`, `execute_config`, `cancel_config_proposal`, `withdraw_house_fees`, `add_reserve_funds`, `pause`, `unpause`, `cancel_draw`, `force_finalize_draw`, `emergency_fund_transfer`, `sweep_insurance` | 12 |
 | **Initialize** | `initialize`, `fund_seed` | 2 |
 | **Ticket Ops** | `buy_ticket` | 1 |
 | **Draw Lifecycle** | `commit_randomness`, `execute_draw`, `finalize_draw`, `advance_draw` | 4 |
 | **Claims** | `claim_prize` | 1 |
-| **Total** | | **19** |
+| **Total** | | **20** |
 
 ---
 
@@ -851,6 +879,12 @@ pub struct UserStats {
     
     /// Last draw user participated in
     pub last_draw_participated: u64,
+
+    /// Tickets purchased in the current draw (per-draw limit enforcement)
+    pub tickets_this_draw: u64,
+
+    /// Free ticket credits (from Match 2 wins)
+    pub free_tickets_available: u32,
     
     /// PDA bump seed
     pub bump: u8,
@@ -858,9 +892,12 @@ pub struct UserStats {
 
 #[account]
 pub struct Syndicate {
-    /// Syndicate creator
+    /// Syndicate creator (mutable — can be transferred)
     pub creator: Pubkey,
-    
+
+    /// Original creator at PDA creation time (immutable — used for PDA seeds)
+    pub original_creator: Pubkey,
+
     /// Unique identifier
     pub syndicate_id: u64,
     
@@ -878,10 +915,21 @@ pub struct Syndicate {
     
     /// Manager fee (basis points, max 500 = 5%)
     pub manager_fee_bps: u16,
-    
+
+    /// Syndicate's USDC token account (PDA-controlled)
+    pub usdc_account: Pubkey,
+
     /// List of members
     pub members: Vec<SyndicateMember>,
-    
+
+    /// Tickets paid for via buy_syndicate_tickets but not yet materialized
+    /// as ticket accounts via create_syndicate_ticket (SECURITY: prevents
+    /// free ticket minting).
+    pub pending_tickets: u64,
+
+    /// Draw ID that `pending_tickets` applies to.
+    pub pending_tickets_draw: u64,
+
     /// PDA bump seed
     pub bump: u8,
 }
@@ -1215,6 +1263,8 @@ pub struct LpPool {
     pub is_paused: bool,
     pub total_rewards_paid: u64,
     pub last_seed_draw_id: u64,
+    pub lp_config_timelock_end: i64,   // LP reward bps timelock (24h)
+    pub pending_lp_reward_bps: u16,    // proposed value awaiting timelock
 }
 ```
 
@@ -1372,9 +1422,16 @@ pub struct InitUserStats<'info> {
 }
 ```
 
-#### `update_config` (legacy immediate mode)
+#### `update_config` (legacy immediate mode — DEPRECATED)
 
-Updates configuration parameters immediately. Refuses to run if a timelock proposal is active. For production use, prefer the `propose_config` → `execute_config` flow.
+> **Behavior change (v3.0):** This legacy handler now **rejects every parameter**
+> (including `switchboard_queue`) with `ConfigValidationFailed`. It exists only for
+> interface backward compatibility and emits a no-op event. All configuration
+> changes — financial parameters, `switchboard_queue` (H4: oracle rotation),
+> `sale_target_tickets`, and `lp_reward_bps` — MUST go through the
+> `propose_config` → `execute_config` timelock flow. This prevents a compromised
+> authority from instantly changing critical parameters or pointing the lottery at
+> a malicious randomness oracle.
 
 ```rust
 #[derive(Accounts)]
@@ -1402,6 +1459,8 @@ pub struct UpdateConfigParams {
     pub hard_cap: Option<u64>,
     pub switchboard_queue: Option<Pubkey>,
     pub draw_interval: Option<i64>,
+    pub lp_reward_bps: Option<u16>,
+    pub sale_target_tickets: Option<u64>,
 }
 ```
 
@@ -1515,6 +1574,22 @@ Permissionless fallback instruction that anyone can call when a draw is stuck. I
 #### `reclaim_expired_prizes`
 
 Sweeps unclaimed committed prizes back into `reserve_balance` after the 90-day claim expiration window. Prevents "zombie" committed funds from distorting solvency metrics.
+
+#### `sweep_insurance` (Quick Pick Express)
+
+> **New in v3.0 (L-4 fix).** Authority-only Quick Pick instruction that moves USDC
+> (and matching accounting) from the Quick Pick insurance pool into the prize
+> pool. `can_pay_prizes()` counts `insurance_balance` as available funds, but
+> `claim_prize` can only transfer from the prize-pool token account — so without
+> this sweep, claims would fail when the prize pool was short while insurance
+> held funds. `amount = 0` sweeps all available (min of token balance and
+> accounting).
+
+**Accounts:** `authority` (must be main-lottery authority), `lottery_state` (auth check), `quick_pick_state`, `insurance_pool_usdc` (source), `prize_pool_usdc` (destination), `usdc_mint`, `token_program`
+
+**Parameters:** `amount: u64` — USDC lamports to sweep (0 = all available)
+
+**Emits:** `QuickPickInsuranceSwept`
 
 ### 6.2 Ticket Instructions
 
@@ -1877,34 +1952,74 @@ pub struct ExecuteDraw<'info> {
 
 #### `finalize_draw`
 
-Called after winner counts are submitted by indexer.
+Called with winner counts computed off-chain by an indexer. **Permissionless** —
+anyone can finalize, but a `FINALIZATION_DELAY` (120s main / 60s QP) after
+`execute_draw` gives independent indexers time to submit honest counts, and a
+SHA256 verification hash commits the indexer to the submitted counts.
+
+**Verification hash formula (must match exactly):**
+
+```
+SHA256(draw_id || winning_numbers || match_6 || match_5 || match_4 || match_3 || match_2 || indexer_nonce)
+```
+
+The hash is computed over `draw_result.draw_id`, the **sorted** winning numbers
+stored in `draw_result.winning_numbers`, the submitted per-tier winner counts,
+and a caller-supplied nonce.
+
+**Winner-count validation:** individual tier counts and the total must not exceed
+the draw's ticket count, and statistically implausible counts (>100× expected
+rate) are rejected. A `challenge_draw` instruction lets anyone pause the lottery
+and record alternative counts if the submitted counts are wrong.
 
 ```rust
 #[derive(Accounts)]
 pub struct FinalizeDraw<'info> {
     #[account(mut)]
-    pub authority: Signer<'info>,
-    
+    pub finalizer: Signer<'info>,          // anyone (permissionless)
+
     #[account(
         mut,
         seeds = [LOTTERY_SEED],
-        bump = lottery_state.bump
+        bump = lottery_state.bump,
+        constraint = lottery_state.is_draw_in_progress
     )]
     pub lottery_state: Account<'info, LotteryState>,
-    
+
     #[account(
         mut,
-        seeds = [DRAW_SEED, &draw_result.draw_id.to_le_bytes()],
-        bump = draw_result.bump
+        seeds = [DRAW_SEED, &lottery_state.current_draw_id.to_le_bytes()],
+        bump = draw_result.bump,
+        constraint = !draw_result.is_finalized()
     )]
     pub draw_result: Account<'info, DrawResult>,
+
+    // Optional — required when LP liquidity exists for jackpot re-seeding
+    pub lp_pool: Option<Account<'info, LpPool>>,
+    pub lp_pool_usdc: Option<Account<'info, TokenAccount>>,
+    pub prize_pool_usdc: Option<Account<'info, TokenAccount>>,
+
+    // Optional — REQUIRED when insurance covers a prize shortfall, so the
+    // ACTUAL USDC is moved from insurance_pool_usdc into the prize pool
+    // (L-4 fix). Without it, finalization fails with InsufficientInsuranceFunds.
+    pub insurance_pool_usdc: Option<Account<'info, TokenAccount>>,
+
+    pub token_program: Option<Program<'info, Token>>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct FinalizeDrawParams {
     pub winner_counts: WinnerCounts,
+    pub verification_hash: [u8; 32],
+    pub indexer_nonce: u64,
 }
 ```
+
+**Insurance pool funding:** when fixed prizes exceed the primary funds
+(jackpot + reserve + fixed-prize balance), the shortfall is covered from the
+insurance pool **by actually transferring USDC** from `insurance_pool_usdc` to
+`prize_pool_usdc` during finalization — so claims can be paid from the prize
+pool token account.
 
 ### 6.4 Prize Instructions
 
@@ -2264,6 +2379,17 @@ pub struct EmergencyPause {
     pub timestamp: i64,
 }
 
+// Quick Pick insurance sweep (L-4 fix)
+#[event]
+pub struct QuickPickInsuranceSwept {
+    pub amount: u64,
+    pub insurance_before: u64,
+    pub insurance_after: u64,
+    pub prize_pool_after: u64,
+    pub authority: Pubkey,
+    pub timestamp: i64,
+}
+
 #[event]
 pub struct EmergencyUnpause {
     pub authority: Pubkey,
@@ -2448,6 +2574,13 @@ pub enum ErrorCode {
     /// Match count doesn't correspond to a valid prize tier
     #[msg("Invalid match count for prize.")]
     InvalidMatchCount,
+
+    /// Insurance pool token account lacks the USDC to back the accounting
+    /// balance (or the insurance account was not supplied where required).
+    /// New in v3.0 — raised by finalize_draw when insurance must cover a
+    /// shortfall but insurance_pool_usdc is absent/empty.
+    #[msg("Insufficient insurance pool funds.")]
+    InsufficientInsuranceFunds,
 
     /// Prize pool doesn't have enough funds to pay out prizes
     #[msg("Prize pool insufficient for distribution.")]

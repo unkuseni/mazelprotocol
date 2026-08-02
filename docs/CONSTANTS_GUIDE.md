@@ -66,12 +66,16 @@ Program Derived Address (PDA) seeds used for deterministic account derivation.
 |----------|-------|-------------|
 | `PRIZE_POOL_USDC_SEED` | `b"prize_pool_usdc"` | Prize pool USDC token account (holds all prize funds) |
 | `HOUSE_FEE_USDC_SEED` | `b"house_fee_usdc"` | House fee USDC token account (collects operator revenue) |
+| `INSURANCE_POOL_USDC_SEED` | `b"insurance_pool_usdc"` | Insurance pool USDC token account (emergency payout backstop) |
 
 ### Advanced Features
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `QUICK_PICK_SEED` | `b"quick_pick"` | Quick Pick Express game state |
 | `SYNDICATE_WARS_SEED` | `b"syndicate_wars"` | Syndicate Wars competition entries |
+| `LP_POOL_SEED` | `b"lp_pool"` | Global LP pool state account |
+| `LP_POOL_USDC_SEED` | `b"lp_pool_usdc"` | LP pool USDC token account (deposits + accrued rewards) |
+| `LP_POSITION_SEED` | `b"lp_position"` | Per-user LP position PDA (seeded with owner) |
 
 ### External Integrations
 | Constant | Value | Description |
@@ -494,3 +498,29 @@ System limits and validation parameters.
 > - **Quick Pick:** Operator liability CAPPED at $30,000-$50,000 (the jackpot)
 >
 > Regardless of ticket volume or winner count, operators pay EXACTLY the jackpot amount during rolldown. The pari-mutuel system absorbs all volume risk while preserving player +EV.
+
+---
+
+## 13. Account Sizes
+
+> Values below are derived from the authoritative constants in
+> `programs/mazelprotocol/src/constants.rs` and `programs/quickpick/src/constants.rs`.
+> The test suite (`test_*_len_matches_serialized_size`) verifies these against the
+> actual Borsh layout at build time.
+
+| Constant | Value (bytes) | Notes |
+|----------|---------------|-------|
+| `LOTTERY_STATE_SIZE` | `362` | 8 disc + 32 authority + 33 pending_authority + 32 queue + 32 randomness + 8×20 u64 fields + 2 fee + 7 bools/version/bump + 32 config hash + 8 max_rolldown + 8 sale_target |
+| `DRAW_RESULT_SIZE` | `165` | 8 disc + 8 id + 6 numbers + 32 proof + 8 ts + 8 tickets + 1 rolldown + 20 winners + 40 prizes + 1 finalized + 8 committed + 8 reclaimed + 1 bump + 16 pad |
+| `TICKET_SIZE` | `114` | 8 disc + 32 owner + 8 draw + 6 numbers + 8 ts + 1 claimed + 1 match + 8 prize + 33 syndicate + 1 bump + 8 pad |
+| `USER_STATS_SIZE` | `113` | 8 disc + 32 wallet + 8×3 + 4×3 + 8 + 8 + 4 + 1 bump + 16 pad |
+| `SYNDICATE_BASE_SIZE` | `180` | 8 disc + 32 creator + 32 original_creator + 8 id + 32 name + 1 public + 4 count + 8 total + 2 fee + 32 usdc + 4 vec + 1 bump + 8 pending_tickets + 8 pending_tickets_draw |
+| `SYNDICATE_MEMBER_SIZE` | `50` | 32 wallet + 8 contribution + 2 share bps + 8 unclaimed_prize |
+| `QUICK_PICK_STATE_SIZE` | `266` | 8 disc + 8×22 u64/i64 fields + 4 (pick/range/fee) + 32 randomness + 6 bools/bump + 32 config hash + 8 pad |
+| `QUICK_PICK_TICKET_SIZE` | `72` | 8 disc + 32 owner + 8 draw + 5 numbers + 8 ts + 1 claimed + 1 match + 8 prize + 1 bump + 8 pad |
+
+> ⚠️ **Migration note:** `SYNDICATE_BASE_SIZE` previously reserved 16 bytes of
+> padding. That padding is now used by the `pending_tickets` and
+> `pending_tickets_draw` security fields — the total size is unchanged, but
+> existing syndicate accounts must be reallocated/zeroed for the new fields to
+> read correctly.

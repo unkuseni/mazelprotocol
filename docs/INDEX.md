@@ -68,10 +68,10 @@
 |---------|----------|----------------|--------|
 | 6/46 Lottery (buy, bulk buy, claim) | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
 | Rolldown Mechanism (soft/hard cap) | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
-| Syndicate System (full CRUD + tickets + prizes) | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Syndicate System (full CRUD + tickets + prizes) | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete — **v3.0: `create_syndicate_ticket` now requires paid-ticket credits (`pending_tickets`) and is gated to the sale window (free-ticket-mint fix)** |
 | Streak Tracking | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ⚠️ Tracked only — bonus never applied to prizes |
 | Switchboard Randomness (commit-reveal) | WHITEPAPER.md | TECHNICAL_SPEC.md | ✅ Complete |
-| Insurance Pool System (2% allocation) | WHITEPAPER.md | TECHNICAL_SPEC.md | ✅ Complete |
+| Insurance Pool System (2% allocation) | WHITEPAPER.md | TECHNICAL_SPEC.md | ✅ Complete — **v3.0: insurance USDC is now actually moved into the prize pool at finalization (L-4 fix)**; Quick Pick has an explicit `sweep_insurance` instruction |
 | Emergency Fund Transfer (with daily cap) | TECHNICAL_SPEC.md | TECHNICAL_SPEC.md | ✅ Complete |
 | Free Tickets (Match 2 credit) | SOLANA_LOTTO.md | TECHNICAL_SPEC.md | ✅ Complete |
 | Two-Step Authority Transfer (propose/accept) | — | TECHNICAL_SPEC.md | ✅ Complete |
@@ -81,7 +81,7 @@
 | Draw Recovery (cancel_draw, force_finalize_draw) | — | TECHNICAL_SPEC.md | ✅ Complete |
 | Verification Hash (tamper-resistant winner counts) | — | TECHNICAL_SPEC.md | ✅ Complete |
 | Statistical Plausibility Checks | — | TECHNICAL_SPEC.md | ✅ Complete |
-| **Jackpot LP Pool** | **ADVANCED_FEATURES.md §7** | **TECHNICAL_SPEC.md §6.1.14** | **✅ Complete** |
+| **Jackpot LP Pool** | **ADVANCED_FEATURES.md §7** | **TECHNICAL_SPEC.md §6.6** | **✅ Complete** |
 
 ### ✅ Advanced Features (Implemented On-Chain)
 
@@ -92,7 +92,7 @@
 | Soft/Hard Caps | ADVANCED_FEATURES.md §2 | TECHNICAL_SPEC.md | ✅ Complete |
 | Quick Pick Express (separate program) | ADVANCED_FEATURES.md §5 | TECHNICAL_SPEC.md | ✅ Complete |
 | Syndicate Wars (init, register, stats, finalize, prizes) | ADVANCED_FEATURES.md §6 | TECHNICAL_SPEC.md | ✅ Complete |
-| **Jackpot LP Pool** (deposit, withdraw, claim rewards, seeding) | **ADVANCED_FEATURES.md §7** | **TECHNICAL_SPEC.md §6.1.14** | **✅ Complete** |
+| **Jackpot LP Pool** (deposit, withdraw, claim rewards, seeding) | **ADVANCED_FEATURES.md §7** | **TECHNICAL_SPEC.md §6.6** | **✅ Complete** |
 
 ### ⚠️ Partially Implemented
 
