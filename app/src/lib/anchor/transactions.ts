@@ -211,6 +211,18 @@ export async function buyQuickPickTicket(
 // ---------------------------------------------------------------------------
 
 /**
+ * Derive a user's USDC associated token account (ATA) address.
+ * Pure derivation — never throws. Used for claims and balance checks.
+ */
+export function usdcTokenAccountAddress(owner: PublicKey): PublicKey {
+  const [tokenAccount] = PublicKey.findProgramAddressSync(
+    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), USDC_MINT.toBuffer()],
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+  );
+  return tokenAccount;
+}
+
+/**
  * Get or create a user's USDC token account
  * Note: This is a simplified version - in production you'd want to handle
  * the creation separately or use a more robust approach
@@ -219,10 +231,7 @@ export async function ensureUsdcTokenAccount(
   provider: AnchorProvider,
   owner: PublicKey,
 ): Promise<PublicKey> {
-  const [tokenAccount] = PublicKey.findProgramAddressSync(
-    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), USDC_MINT.toBuffer()],
-    ASSOCIATED_TOKEN_PROGRAM_ID,
-  );
+  const tokenAccount = usdcTokenAccountAddress(owner);
 
   // Check if account exists
   const accountInfo = await provider.connection.getAccountInfo(tokenAccount);
@@ -615,11 +624,16 @@ export async function buildClaimMainPrizeInstruction(
   drawId: number,
   ticketIndex: number,
   playerUsdc: PublicKey,
+  ticketPubkey?: PublicKey,
 ): Promise<TransactionInstruction> {
   const program = createMainLotteryProgramWithProvider(provider);
 
   const [lotteryStatePda] = deriveLotteryState();
-  const [ticket] = deriveTicketPDA(drawId, ticketIndex);
+  // SECURITY (review H5): prefer the explicit on-chain ticket address when
+  // available. Re-deriving from a list position index is wrong — the on-chain
+  // ticket index is the `current_draw_tickets` counter at purchase time, not
+  // the position of the ticket in a fetched array.
+  const ticket = ticketPubkey ?? deriveTicketPDA(drawId, ticketIndex)[0];
   const [drawResult] = deriveDrawResultPDA(drawId);
   const [prizePoolUsdc] = derivePrizePoolUsdcPDA();
   const [userStats] = deriveUserPDA(provider.wallet.publicKey);
@@ -651,12 +665,14 @@ export async function claimMainPrize(
   ticketIndex: number,
   playerUsdc: PublicKey,
   options: BuyTicketOptions = {},
+  ticketPubkey?: PublicKey,
 ): Promise<string> {
   const instruction = await buildClaimMainPrizeInstruction(
     provider,
     drawId,
     ticketIndex,
     playerUsdc,
+    ticketPubkey,
   );
   const payer = {
     publicKey: provider.wallet.publicKey,
@@ -677,7 +693,12 @@ export async function claimMainPrize(
  */
 export async function claimAllMainPrizes(
   provider: AnchorProvider,
-  tickets: Array<{ drawId: number; ticketIndex: number }>,
+  tickets: Array<{
+    drawId: number;
+    ticketIndex: number;
+    /** Explicit on-chain ticket address (preferred over index derivation). */
+    ticketAddress?: string;
+  }>,
   playerUsdc: PublicKey,
   options: BuyTicketOptions = {},
 ): Promise<string[]> {
@@ -688,6 +709,7 @@ export async function claimAllMainPrizes(
         t.drawId,
         t.ticketIndex,
         playerUsdc,
+        t.ticketAddress ? new PublicKey(t.ticketAddress) : undefined,
       ),
     ),
   );
@@ -726,11 +748,14 @@ export async function buildClaimQuickPickPrizeInstruction(
   drawId: number,
   ticketIndex: number,
   playerUsdc: PublicKey,
+  ticketPubkey?: PublicKey,
 ): Promise<TransactionInstruction> {
   const program = createQuickPickProgramWithProvider(provider);
 
   const [quickPickStatePda] = deriveQuickPickState();
-  const [ticket] = deriveQuickPickTicketPDA(drawId, ticketIndex);
+  // SECURITY (review H5): prefer the explicit on-chain ticket address when
+  // available; see buildClaimMainPrizeInstruction.
+  const ticket = ticketPubkey ?? deriveQuickPickTicketPDA(drawId, ticketIndex)[0];
   const [drawResult] = PublicKey.findProgramAddressSync(
     [Buffer.from("quick_pick_draw"), new BN(drawId).toArrayLike(Buffer, "le", 8)],
     program.programId,
@@ -763,12 +788,14 @@ export async function claimQuickPickPrize(
   ticketIndex: number,
   playerUsdc: PublicKey,
   options: BuyTicketOptions = {},
+  ticketPubkey?: PublicKey,
 ): Promise<string> {
   const instruction = await buildClaimQuickPickPrizeInstruction(
     provider,
     drawId,
     ticketIndex,
     playerUsdc,
+    ticketPubkey,
   );
   const payer = {
     publicKey: provider.wallet.publicKey,
