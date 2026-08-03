@@ -1,4 +1,5 @@
 import {
+  ComputeBudgetProgram,
   Connection,
   type PublicKey,
   type Signer,
@@ -232,6 +233,26 @@ export async function sendAndConfirmTransaction(
 }
 
 /**
+ * Build the compute-budget instructions that set a CU limit and priority fee.
+ *
+ * SECURITY/RELIABILITY (review M3): the `PRIORITY_FEE_MICRO_LAMPORTS` and
+ * `COMPUTE_UNIT_LIMIT` constants were defined but never applied — every
+ * transaction ran with default compute units and no priority fee, so
+ * purchases/claims stalled during congestion. These instructions must be
+ * added FIRST in the transaction (before any program instructions).
+ */
+function buildComputeBudgetInstructions(): TransactionInstruction[] {
+  return [
+    ComputeBudgetProgram.setComputeUnitLimit({
+      units: COMPUTE_UNIT_LIMIT,
+    }),
+    ComputeBudgetProgram.setComputeUnitPrice({
+      microLamports: PRIORITY_FEE_MICRO_LAMPORTS,
+    }),
+  ];
+}
+
+/**
  * Build and send a transaction with a single instruction.
  *
  * @param instruction - The instruction to include in the transaction
@@ -248,6 +269,9 @@ export async function sendInstruction(
   options: SendAndConfirmTransactionOptions = {},
 ): Promise<string> {
   const transaction = new Transaction();
+  for (const i of buildComputeBudgetInstructions()) {
+    transaction.add(i);
+  }
   transaction.add(instruction);
   transaction.feePayer = payer.publicKey;
 
@@ -277,6 +301,9 @@ export async function sendInstructions(
   options: SendAndConfirmTransactionOptions = {},
 ): Promise<string> {
   const transaction = new Transaction();
+  for (const i of buildComputeBudgetInstructions()) {
+    transaction.add(i);
+  }
   for (const instruction of instructions) {
     transaction.add(instruction);
   }

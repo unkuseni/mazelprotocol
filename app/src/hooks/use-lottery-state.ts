@@ -3,10 +3,15 @@ import { useMainLotteryState } from "@/lib/anchor/hooks";
 import { type LotteryState, mapRawToLotteryState } from "@/lib/types";
 
 /**
- * Default jackpot in USDC when on-chain data is unavailable.
- * Used as a fallback so the UI never shows $0.00.
+ * Fallback jackpot when on-chain data is unavailable.
+ *
+ * SECURITY (review M5): this was previously a fabricated value ($1,247,832)
+ * that was displayed as live data whenever the on-chain fetch failed —
+ * users were misled into thinking the jackpot existed. It is now 0, and
+ * consumers should render "--" (not a fake number) when the chain is
+ * unreachable.
  */
-const FALLBACK_JACKPOT_DOLLARS = 1_247_832;
+const FALLBACK_JACKPOT_DOLLARS = 0;
 
 /**
  * Soft cap for the rolldown progress bar, in USDC.
@@ -21,31 +26,39 @@ export const USDC_DECIMALS = 6;
 
 /** Convert a bigint base-unit value to a dollar number */
 function baseUnitsToDollars(baseUnits: bigint): number {
-  return Number(baseUnits) / 10 ** USDC_DECIMALS;
+	return Number(baseUnits) / 10 ** USDC_DECIMALS;
 }
 
 export interface UseLotteryStateReturn {
-  /** Typed lottery state from on-chain, or null if not yet fetched */
-  state: LotteryState | null;
-  /** Whether the initial fetch is in progress */
-  loading: boolean;
-  /** Error message if the fetch failed */
-  error: string | null;
-  /** Manually refetch the lottery state */
-  refetch: () => void;
-  /* ---------------------------------------------------------------------- */
-  /*  Derived convenience values (computed from state)                      */
-  /* ---------------------------------------------------------------------- */
-  /** Jackpot balance in USDC dollars (number for display) */
-  jackpotDollars: number;
-  /** Whether rolldown mode is active */
-  rolldownActive: boolean;
-  /** Current draw ID, or null if unknown */
-  drawId: number | null;
-  /** Tickets sold in the current draw */
-  ticketsSold: number | null;
-  /** Whether the lottery is paused */
-  isPaused: boolean;
+	/** Typed lottery state from on-chain, or null if not yet fetched */
+	state: LotteryState | null;
+	/** Whether the initial fetch is in progress */
+	loading: boolean;
+	/** Error message if the fetch failed */
+	error: string | null;
+	/** Manually refetch the lottery state */
+	refetch: () => void;
+	/* ---------------------------------------------------------------------- */
+	/*  Derived convenience values (computed from state)                      */
+	/* ---------------------------------------------------------------------- */
+	/** Jackpot balance in USDC dollars (number for display) */
+	jackpotDollars: number;
+	/** Whether rolldown mode is active */
+	rolldownActive: boolean;
+	/** Current draw ID, or null if unknown */
+	drawId: number | null;
+	/** Tickets sold in the current draw */
+	ticketsSold: number | null;
+	/** Whether the lottery is paused */
+	isPaused: boolean;
+	/**
+	 * On-chain next draw time in milliseconds (epoch ms) for countdown clocks.
+	 * null when the chain is unreachable — callers should fall back to a
+	 * "schedule unknown" state rather than a fabricated time (review L3).
+	 */
+	nextDrawTimeMs: number | null;
+	/** Whether ticket sales are open for the current draw (advisory, from state) */
+	isSaleOpen: boolean;
 }
 
 /**
@@ -67,48 +80,64 @@ export interface UseLotteryStateReturn {
  * ```
  */
 export function useLotteryState(): UseLotteryStateReturn {
-  const {
-    data: rawState,
-    isLoading,
-    isError,
-    error: queryError,
-    refetch,
-  } = useMainLotteryState({
-    // Poll every 30 seconds (default from hooks.ts is already 30s)
-  });
+	const {
+		data: rawState,
+		isLoading,
+		isError,
+		error: queryError,
+		refetch,
+	} = useMainLotteryState({
+		// Poll every 30 seconds (default from hooks.ts is already 30s)
+	});
 
-  // Map raw Anchor data to a typed LotteryState
-  const state = useMemo<LotteryState | null>(() => {
-    if (!rawState) return null;
-    return mapRawToLotteryState(rawState as Record<string, unknown>);
-  }, [rawState]);
+	// Map raw Anchor data to a typed LotteryState
+	const state = useMemo<LotteryState | null>(() => {
+		if (!rawState) return null;
+		return mapRawToLotteryState(rawState as Record<string, unknown>);
+	}, [rawState]);
 
-  // Derive convenience values
-  const jackpotBalance = state?.jackpotBalance;
-  const jackpotDollars = jackpotBalance
-    ? baseUnitsToDollars(jackpotBalance)
-    : FALLBACK_JACKPOT_DOLLARS;
+	// Derive convenience values
+	const jackpotBalance = state?.jackpotBalance;
+	const jackpotDollars = jackpotBalance
+		? baseUnitsToDollars(jackpotBalance)
+		: FALLBACK_JACKPOT_DOLLARS;
 
-  const rolldownActive = state?.isRolldownActive ?? false;
-  const drawId = state?.currentDrawId ?? null;
-  const ticketsSold = state?.currentDrawTickets ?? null;
-  const isPaused = state?.isPaused ?? false;
+	const rolldownActive = state?.isRolldownActive ?? false;
+	const drawId = state?.currentDrawId ?? null;
+	const ticketsSold = state?.currentDrawTickets ?? null;
+	const isPaused = state?.isPaused ?? false;
 
-  const error = isError
-    ? queryError instanceof Error
-      ? queryError.message
-      : "Failed to fetch lottery state"
-    : null;
+	// On-chain next draw timestamp is a bigint in Unix seconds. Convert to
+	// epoch ms for CountdownTimer; never fabricate a value when unknown (L3).
+	const nextDrawTimeMs =
+		state && state.nextDrawTimestamp > 0n
+			? Number(state.nextDrawTimestamp) * 1000
+			: null;
 
-  return {
-    state,
-    loading: isLoading,
-    error,
-    refetch: refetch as () => void,
-    jackpotDollars,
-    rolldownActive,
-    drawId,
-    ticketsSold,
-    isPaused,
-  };
+	// Sales are open when funded, unpaused, and no draw in progress.
+	const isSaleOpen =
+		state !== null &&
+		!state.isPaused &&
+		state.isFunded &&
+		!state.isDrawInProgress;
+
+	const error = isError
+		? queryError instanceof Error
+			? queryError.message
+			: "Failed to fetch lottery state"
+		: null;
+
+	return {
+		state,
+		loading: isLoading,
+		error,
+		refetch: refetch as () => void,
+		jackpotDollars,
+		rolldownActive,
+		drawId,
+		ticketsSold,
+		isPaused,
+		nextDrawTimeMs,
+		isSaleOpen,
+	};
 }

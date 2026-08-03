@@ -1227,6 +1227,30 @@ pub fn handler_force_finalize_draw(ctx: Context<ForceFinalizeDraw>, reason: Stri
     let clock = Clock::get()?;
 
     // =========================================================================
+    // SECURITY (review H4): raise the bar for force-finalizing a draw.
+    //
+    // Previously the authority could void a draw after winning numbers became
+    // public, denying every legitimate winner. Two hard guards now apply:
+    //   1. The draw must be awaiting finalization (winning numbers already
+    //      revealed on-chain) — force-finalize cannot skip an un-executed draw.
+    //   2. The commit timeout (DRAW_COMMIT_TIMEOUT, 1 hour) must have elapsed —
+    //      this gives independent indexers and the permissionless finalize
+    //      path a full hour to submit honest winner counts before the
+    //      authority can void the draw. Combined with the visible `reason`
+    //      parameter and the DrawForceFinalized event, this makes the
+    //      void-the-draw vector detectable and time-bounded.
+    // =========================================================================
+    let lottery_state = &ctx.accounts.lottery_state;
+    require!(
+        lottery_state.is_awaiting_finalization,
+        LottoError::DrawNotInProgress
+    );
+    require!(
+        lottery_state.is_commit_timed_out(clock.unix_timestamp),
+        LottoError::Timeout
+    );
+
+    // =========================================================================
     // SECURITY FIX (Audit Issue #3): Mark DrawResult as explicitly finalized
     // with zero prizes. This ensures claim_prize can find the DrawResult,
     // see that all prize amounts are 0, and handle the ticket gracefully

@@ -38,7 +38,7 @@ export function initAppKit(): Promise<void> {
         ],
       );
 
-      const { solana, solanaTestnet, solanaDevnet } = networks;
+      const { solana } = networks;
 
       const solanaWeb3JsAdapter = new SolanaAdapter();
       solanaAdapter = solanaWeb3JsAdapter;
@@ -74,7 +74,11 @@ export function initAppKit(): Promise<void> {
 
       createAppKit({
         adapters: [solanaWeb3JsAdapter],
-        networks: [solana, solanaTestnet, solanaDevnet],
+        // SECURITY (review M4): only mainnet is exposed. The app's program IDs,
+        // USDC mint, and RPC are mainnet-only. Previously testnet/devnet were
+        // listed too, letting users build mainnet PDAs against a devnet
+        // connection (or vice-versa) — a fund-loss class of footgun.
+        networks: [solana],
         metadata,
         projectId,
         features: {

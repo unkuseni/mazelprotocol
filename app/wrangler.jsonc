@@ -18,9 +18,11 @@
     {
       "binding": "CHAT_DB",
       "database_name": "mazel-chat",
-      // TODO: replace with the real D1 database ID from
-      // `wrangler d1 info mazel-chat` (or the Cloudflare dashboard).
-      // Deploys that touch D1 will fail while this placeholder remains.
+      // TODO (deploy blocker): replace with the real D1 database ID from
+      // `wrangler d1 info mazel-chat` (or the Cloudflare dashboard) before
+      // any production deploy. Deploys that bind CHAT_DB will fail while
+      // this placeholder remains — this is intentional, so a half-configured
+      // chat feature can never silently ship against a missing database.
       "database_id": "your-database-id-here"
     }
   ]

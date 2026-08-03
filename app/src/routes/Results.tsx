@@ -1,36 +1,34 @@
-import { Link } from "react-router-dom";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Award,
-  BarChart3,
-  ChevronDown,
-  ChevronRight,
-  ExternalLink,
-  Eye,
-  Filter,
-  Hash,
-  type LucideIcon,
-  Search,
-  Sparkles,
-  Star,
-  Ticket,
-  TrendingUp,
-  Trophy,
-  Wallet,
-  Zap,
+	ArrowLeft,
+	ArrowRight,
+	Award,
+	BarChart3,
+	ChevronDown,
+	ChevronRight,
+	ExternalLink,
+	Eye,
+	Filter,
+	Hash,
+	type LucideIcon,
+	Search,
+	Sparkles,
+	Star,
+	Ticket,
+	TrendingUp,
+	Trophy,
+	Wallet,
+	Zap,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { CountdownTimer } from "@/components/CountdownTimer";
-import Footer from "@/components/Footer";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { FloatingBalls, WinningNumbers } from "@/components/LotteryBalls";
 import { Button } from "@/components/ui/button";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
-import { useDraws } from "@/hooks/use-draws";
 import type { DrawResultData } from "@/hooks/use-draws";
-
-
+import { useDraws } from "@/hooks/use-draws";
+import { useLotteryState } from "@/hooks/use-lottery-state";
+import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -40,379 +38,44 @@ type GameFilter = "all" | "main" | "quickpick";
 type RolldownFilter = "all" | "rolldown" | "normal";
 
 interface DrawResult {
-  drawId: number;
-  date: string;
-  time: string;
-  gameType: "main" | "quickpick";
-  winningNumbers: number[];
-  totalTickets: number;
-  jackpotAtDraw: number;
-  prizePoolDistributed: number;
-  wasRolldown: boolean;
-  rolldownTrigger?: "soft_cap" | "hard_cap";
-  matchCounts: {
-    match6?: number;
-    match5: number;
-    match4: number;
-    match3: number;
-    match2: number;
-  };
-  prizesPerWinner: {
-    match6?: number;
-    match5: number;
-    match4: number;
-    match3: number;
-    match2: number;
-  };
-  totalPrizesPaid: number;
-  jackpotAfterDraw: number;
-  houseFeeCollected: number;
-  randomnessProof: string;
-  verificationHash: string;
+	drawId: number;
+	date: string;
+	time: string;
+	gameType: "main" | "quickpick";
+	winningNumbers: number[];
+	totalTickets: number;
+	jackpotAtDraw: number;
+	prizePoolDistributed: number;
+	wasRolldown: boolean;
+	rolldownTrigger?: "soft_cap" | "hard_cap";
+	matchCounts: {
+		match6?: number;
+		match5: number;
+		match4: number;
+		match3: number;
+		match2: number;
+	};
+	prizesPerWinner: {
+		match6?: number;
+		match5: number;
+		match4: number;
+		match3: number;
+		match2: number;
+	};
+	totalPrizesPaid: number;
+	jackpotAfterDraw: number;
+	houseFeeCollected: number;
+	randomnessProof: string;
+	verificationHash: string;
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Mock Data                                                                 */
+/*  NOTE: no mock data (review M5).                                            */
+/*  All draw history and protocol stats on this page come from live on-chain   */
+/*  data (useDraws + useLotteryState). The legacy MOCK_DRAWS /                */
+/*  MOCK_AGGREGATE_STATS arrays were removed — they presented fabricated       */
+/*  2025 records as real results.                                              */
 /* -------------------------------------------------------------------------- */
-
-const MOCK_DRAWS: DrawResult[] = [
-  {
-    drawId: 89,
-    date: "2025-06-14",
-    time: "00:00 UTC",
-    gameType: "main",
-    winningNumbers: [3, 12, 18, 27, 33, 41],
-    totalTickets: 14_200,
-    jackpotAtDraw: 1_247_832,
-    prizePoolDistributed: 24_850,
-    wasRolldown: false,
-    matchCounts: {
-      match6: 0,
-      match5: 2,
-      match4: 87,
-      match3: 1_420,
-      match2: 8_340,
-    },
-    prizesPerWinner: {
-      match6: 0,
-      match5: 1_000,
-      match4: 50,
-      match3: 5,
-      match2: 0,
-    },
-    totalPrizesPaid: 17_450,
-    jackpotAfterDraw: 1_270_382,
-    houseFeeCollected: 11_360,
-    randomnessProof: "Switchboard TEE · Slot 285,471,220",
-    verificationHash: "a3f7c1b9e2d4...8k5m",
-  },
-  {
-    drawId: 88,
-    date: "2025-06-13",
-    time: "00:00 UTC",
-    gameType: "main",
-    winningNumbers: [7, 14, 22, 31, 38, 45],
-    totalTickets: 28_400,
-    jackpotAtDraw: 1_820_000,
-    prizePoolDistributed: 1_820_000,
-    wasRolldown: true,
-    rolldownTrigger: "soft_cap",
-    matchCounts: {
-      match6: 0,
-      match5: 5,
-      match4: 210,
-      match3: 3_100,
-      match2: 17_600,
-    },
-    prizesPerWinner: {
-      match6: 0,
-      match5: 72_800,
-      match4: 1_387,
-      match3: 94,
-      match2: 0,
-    },
-    totalPrizesPaid: 949_200,
-    jackpotAfterDraw: 500_000,
-    houseFeeCollected: 22_720,
-    randomnessProof: "Switchboard TEE · Slot 285,328,810",
-    verificationHash: "f2a8d7c4e1b5...3n9p",
-  },
-  {
-    drawId: 87,
-    date: "2025-06-12",
-    time: "00:00 UTC",
-    gameType: "main",
-    winningNumbers: [1, 9, 17, 28, 35, 42],
-    totalTickets: 12_800,
-    jackpotAtDraw: 1_180_000,
-    prizePoolDistributed: 22_200,
-    wasRolldown: false,
-    matchCounts: {
-      match6: 0,
-      match5: 1,
-      match4: 62,
-      match3: 1_100,
-      match2: 6_800,
-    },
-    prizesPerWinner: {
-      match6: 0,
-      match5: 1_000,
-      match4: 50,
-      match3: 5,
-      match2: 0,
-    },
-    totalPrizesPaid: 9_600,
-    jackpotAfterDraw: 1_192_400,
-    houseFeeCollected: 10_240,
-    randomnessProof: "Switchboard TEE · Slot 285,186,400",
-    verificationHash: "b4d2f8a1c7e3...6j2q",
-  },
-  {
-    drawId: 86,
-    date: "2025-06-11",
-    time: "00:00 UTC",
-    gameType: "main",
-    winningNumbers: [5, 11, 23, 30, 37, 44],
-    totalTickets: 11_500,
-    jackpotAtDraw: 1_050_000,
-    prizePoolDistributed: 19_800,
-    wasRolldown: false,
-    matchCounts: {
-      match6: 0,
-      match5: 0,
-      match4: 55,
-      match3: 980,
-      match2: 5_900,
-    },
-    prizesPerWinner: {
-      match6: 0,
-      match5: 0,
-      match4: 50,
-      match3: 5,
-      match2: 0,
-    },
-    totalPrizesPaid: 7_650,
-    jackpotAfterDraw: 1_062_150,
-    houseFeeCollected: 9_200,
-    randomnessProof: "Switchboard TEE · Slot 285,043,990",
-    verificationHash: "e7c1a9d3f2b6...4h8r",
-  },
-  {
-    drawId: 85,
-    date: "2025-06-10",
-    time: "00:00 UTC",
-    gameType: "main",
-    winningNumbers: [2, 16, 24, 29, 36, 40],
-    totalTickets: 13_100,
-    jackpotAtDraw: 920_000,
-    prizePoolDistributed: 21_300,
-    wasRolldown: false,
-    matchCounts: {
-      match6: 0,
-      match5: 1,
-      match4: 71,
-      match3: 1_200,
-      match2: 7_100,
-    },
-    prizesPerWinner: {
-      match6: 0,
-      match5: 1_000,
-      match4: 50,
-      match3: 5,
-      match2: 0,
-    },
-    totalPrizesPaid: 10_550,
-    jackpotAfterDraw: 930_750,
-    houseFeeCollected: 10_480,
-    randomnessProof: "Switchboard TEE · Slot 284,901,580",
-    verificationHash: "c3f5b7a2d9e1...7m1s",
-  },
-  {
-    drawId: 84,
-    date: "2025-06-09",
-    time: "00:00 UTC",
-    gameType: "main",
-    winningNumbers: [8, 13, 19, 26, 34, 43],
-    totalTickets: 10_800,
-    jackpotAtDraw: 810_000,
-    prizePoolDistributed: 18_900,
-    wasRolldown: false,
-    matchCounts: {
-      match6: 0,
-      match5: 0,
-      match4: 48,
-      match3: 890,
-      match2: 5_200,
-    },
-    prizesPerWinner: {
-      match6: 0,
-      match5: 0,
-      match4: 50,
-      match3: 5,
-      match2: 0,
-    },
-    totalPrizesPaid: 6_850,
-    jackpotAfterDraw: 822_050,
-    houseFeeCollected: 8_640,
-    randomnessProof: "Switchboard TEE · Slot 284,759,170",
-    verificationHash: "d9a2e4c6f1b8...2k5t",
-  },
-  {
-    drawId: 83,
-    date: "2025-06-08",
-    time: "00:00 UTC",
-    gameType: "main",
-    winningNumbers: [4, 10, 21, 32, 39, 46],
-    totalTickets: 15_600,
-    jackpotAtDraw: 680_000,
-    prizePoolDistributed: 25_400,
-    wasRolldown: false,
-    matchCounts: {
-      match6: 0,
-      match5: 3,
-      match4: 95,
-      match3: 1_540,
-      match2: 9_200,
-    },
-    prizesPerWinner: {
-      match6: 0,
-      match5: 1_000,
-      match4: 50,
-      match3: 5,
-      match2: 0,
-    },
-    totalPrizesPaid: 15_450,
-    jackpotAfterDraw: 689_950,
-    houseFeeCollected: 12_480,
-    randomnessProof: "Switchboard TEE · Slot 284,616,760",
-    verificationHash: "a1b3c5d7e9f2...8n4u",
-  },
-  // Quick Pick Express draws
-  {
-    drawId: 539,
-    date: "2025-06-14",
-    time: "20:00 UTC",
-    gameType: "quickpick",
-    winningNumbers: [7, 15, 22, 28, 33],
-    totalTickets: 3_200,
-    jackpotAtDraw: 22_400,
-    prizePoolDistributed: 3_360,
-    wasRolldown: false,
-    matchCounts: {
-      match5: 0,
-      match4: 8,
-      match3: 142,
-      match2: 820,
-    },
-    prizesPerWinner: {
-      match5: 0,
-      match4: 100,
-      match3: 4,
-      match2: 0,
-    },
-    totalPrizesPaid: 1_368,
-    jackpotAfterDraw: 24_392,
-    houseFeeCollected: 1_344,
-    randomnessProof: "Switchboard TEE · Slot 285,442,800",
-    verificationHash: "f8e2a4b6c1d3...5p7v",
-  },
-  {
-    drawId: 538,
-    date: "2025-06-14",
-    time: "16:00 UTC",
-    gameType: "quickpick",
-    winningNumbers: [5, 14, 23, 30, 35],
-    totalTickets: 2_800,
-    jackpotAtDraw: 19_600,
-    prizePoolDistributed: 2_940,
-    wasRolldown: false,
-    matchCounts: {
-      match5: 0,
-      match4: 6,
-      match3: 118,
-      match2: 710,
-    },
-    prizesPerWinner: {
-      match5: 0,
-      match4: 100,
-      match3: 4,
-      match2: 0,
-    },
-    totalPrizesPaid: 1_072,
-    jackpotAfterDraw: 21_468,
-    houseFeeCollected: 1_176,
-    randomnessProof: "Switchboard TEE · Slot 285,414_380",
-    verificationHash: "c2d4f6a8b1e3...9q3w",
-  },
-  {
-    drawId: 537,
-    date: "2025-06-14",
-    time: "12:00 UTC",
-    gameType: "quickpick",
-    winningNumbers: [2, 11, 19, 27, 34],
-    totalTickets: 4_100,
-    jackpotAtDraw: 32_800,
-    prizePoolDistributed: 32_800,
-    wasRolldown: true,
-    rolldownTrigger: "soft_cap",
-    matchCounts: {
-      match5: 0,
-      match4: 12,
-      match3: 185,
-      match2: 1_050,
-    },
-    prizesPerWinner: {
-      match5: 0,
-      match4: 1_640,
-      match3: 70.8,
-      match2: 0,
-    },
-    totalPrizesPaid: 32_778,
-    jackpotAfterDraw: 5_000,
-    houseFeeCollected: 1_722,
-    randomnessProof: "Switchboard TEE · Slot 285,385_960",
-    verificationHash: "b7a1d3e5f9c2...6r8x",
-  },
-  {
-    drawId: 536,
-    date: "2025-06-14",
-    time: "08:00 UTC",
-    gameType: "quickpick",
-    winningNumbers: [1, 8, 16, 25, 31],
-    totalTickets: 3_500,
-    jackpotAtDraw: 26_250,
-    prizePoolDistributed: 3_675,
-    wasRolldown: false,
-    matchCounts: {
-      match5: 1,
-      match4: 9,
-      match3: 155,
-      match2: 890,
-    },
-    prizesPerWinner: {
-      match5: 26_250,
-      match4: 100,
-      match3: 4,
-      match2: 0,
-    },
-    totalPrizesPaid: 27_870,
-    jackpotAfterDraw: 5_000,
-    houseFeeCollected: 1_470,
-    randomnessProof: "Switchboard TEE · Slot 285,357_540",
-    verificationHash: "e4f6a8b2c1d5...3s9y",
-  },
-];
-
-const MOCK_AGGREGATE_STATS = {
-  totalDrawsMain: 89,
-  totalDrawsQP: 539,
-  totalTicketsSold: 1_240_000,
-  totalPrizesPaid: 18_750_000,
-  biggestJackpotWin: 2_180_000,
-  rolldownEvents: 14,
-  averageTicketsPerDraw: 13_933,
-  totalRolldownPaid: 8_420_000,
-};
 
 const PAGE_SIZE = 8;
 
@@ -421,686 +84,724 @@ const PAGE_SIZE = 8;
 /* -------------------------------------------------------------------------- */
 
 function formatCurrency(value: number, compact?: boolean): string {
-  if (compact) {
-    if (value >= 1_000_000) {
-      return `$${(value / 1_000_000).toFixed(2)}M`;
-    }
-    if (value >= 1_000) {
-      return `$${(value / 1_000).toFixed(1)}K`;
-    }
-  }
-  return `$${Math.floor(value).toLocaleString("en-US")}`;
+	if (compact) {
+		if (value >= 1_000_000) {
+			return `$${(value / 1_000_000).toFixed(2)}M`;
+		}
+		if (value >= 1_000) {
+			return `$${(value / 1_000).toFixed(1)}K`;
+		}
+	}
+	return `$${Math.floor(value).toLocaleString("en-US")}`;
 }
 
 function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+	return new Date(date).toLocaleDateString("en-US", {
+		weekday: "short",
+		month: "short",
+		day: "numeric",
+	});
 }
 
 /** Map hook DrawResultData to the UI's DrawResult interface */
 function mapHookDrawToUI(d: DrawResultData): DrawResult {
-  const totalPrizesPaid =
-    d.matchCounts.match6 * Number(d.prizesPerWinner.match6) +
-    d.matchCounts.match5 * Number(d.prizesPerWinner.match5) +
-    d.matchCounts.match4 * Number(d.prizesPerWinner.match4) +
-    d.matchCounts.match3 * Number(d.prizesPerWinner.match3) +
-    d.matchCounts.match2 * Number(d.prizesPerWinner.match2);
+	const totalPrizesPaid =
+		d.matchCounts.match6 * Number(d.prizesPerWinner.match6) +
+		d.matchCounts.match5 * Number(d.prizesPerWinner.match5) +
+		d.matchCounts.match4 * Number(d.prizesPerWinner.match4) +
+		d.matchCounts.match3 * Number(d.prizesPerWinner.match3) +
+		d.matchCounts.match2 * Number(d.prizesPerWinner.match2);
 
-  const dateObj = new Date(Number(d.timestamp) * 1000);
+	const dateObj = new Date(Number(d.timestamp) * 1000);
 
-  return {
-    drawId: d.drawId,
-    date: dateObj.toISOString(),
-    time: dateObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-    gameType: "main",
-    winningNumbers: d.winningNumbers,
-    totalTickets: d.totalTickets,
-    jackpotAtDraw: Number(d.jackpotAtDraw),
-    prizePoolDistributed: totalPrizesPaid,
-    wasRolldown: d.wasRolldown,
-    matchCounts: {
-      match6: d.matchCounts.match6,
-      match5: d.matchCounts.match5,
-      match4: d.matchCounts.match4,
-      match3: d.matchCounts.match3,
-      match2: d.matchCounts.match2,
-    },
-    prizesPerWinner: {
-      match6: Number(d.prizesPerWinner.match6),
-      match5: Number(d.prizesPerWinner.match5),
-      match4: Number(d.prizesPerWinner.match4),
-      match3: Number(d.prizesPerWinner.match3),
-      match2: Number(d.prizesPerWinner.match2),
-    },
-    totalPrizesPaid,
-    jackpotAfterDraw: 0,
-    houseFeeCollected: 0,
-    randomnessProof: "",
-    verificationHash: "",
-  };
+	return {
+		drawId: d.drawId,
+		date: dateObj.toISOString(),
+		time: dateObj.toLocaleTimeString("en-US", {
+			hour: "2-digit",
+			minute: "2-digit",
+		}),
+		gameType: "main",
+		winningNumbers: d.winningNumbers,
+		totalTickets: d.totalTickets,
+		jackpotAtDraw: Number(d.jackpotAtDraw),
+		prizePoolDistributed: totalPrizesPaid,
+		wasRolldown: d.wasRolldown,
+		matchCounts: {
+			match6: d.matchCounts.match6,
+			match5: d.matchCounts.match5,
+			match4: d.matchCounts.match4,
+			match3: d.matchCounts.match3,
+			match2: d.matchCounts.match2,
+		},
+		prizesPerWinner: {
+			match6: Number(d.prizesPerWinner.match6),
+			match5: Number(d.prizesPerWinner.match5),
+			match4: Number(d.prizesPerWinner.match4),
+			match3: Number(d.prizesPerWinner.match3),
+			match2: Number(d.prizesPerWinner.match2),
+		},
+		totalPrizesPaid,
+		jackpotAfterDraw: 0,
+		houseFeeCollected: 0,
+		randomnessProof: "",
+		verificationHash: "",
+	};
 }
 
 /* -------------------------------------------------------------------------- */
 /*  Sub-components                                                            */
 /* -------------------------------------------------------------------------- */
 
-function ProtocolStats() {
-  const stats = MOCK_AGGREGATE_STATS;
+function ProtocolStats({
+	draws,
+	loading,
+}: {
+	draws: DrawResult[];
+	loading: boolean;
+}) {
+	// SECURITY (review M5): these stats were previously the hardcoded
+	// MOCK_AGGREGATE_STATS (fake 2025 figures presented as live). Now they are
+	// computed from the actual on-chain draw results loaded by the page.
+	const mainDraws = draws.filter((d) => d.gameType === "main").length;
+	const qpDraws = draws.filter((d) => d.gameType === "quickpick").length;
+	const totalTickets = draws.reduce((s, d) => s + d.totalTickets, 0);
+	const prizesPaid = draws.reduce((s, d) => s + d.totalPrizesPaid, 0);
+	const biggestWin = draws.reduce((s, d) => Math.max(s, d.jackpotAtDraw), 0);
+	const rolldownEvents = draws.filter((d) => d.wasRolldown).length;
 
-  const items: {
-    label: string;
-    value: string;
-    icon: LucideIcon;
-    color: string;
-  }[] = [
-      {
-        label: "Main Draws",
-        value: stats.totalDrawsMain.toString(),
-        icon: Trophy,
-        color: "text-gold",
-      },
-      {
-        label: "QP Draws",
-        value: stats.totalDrawsQP.toString(),
-        icon: Zap,
-        color: "text-emerald-light",
-      },
-      {
-        label: "Total Tickets",
-        value:
-          formatCurrency(stats.totalTicketsSold, true).replace("$", "") + " ",
-        icon: Ticket,
-        color: "text-foreground",
-      },
-      {
-        label: "Prizes Paid",
-        value: formatCurrency(stats.totalPrizesPaid, true),
-        icon: Award,
-        color: "text-gold",
-      },
-      {
-        label: "Biggest Win",
-        value: formatCurrency(stats.biggestJackpotWin, true),
-        icon: Star,
-        color: "text-gold",
-      },
-      {
-        label: "Rolldown Events",
-        value: stats.rolldownEvents.toString(),
-        icon: TrendingUp,
-        color: "text-emerald-light",
-      },
-    ];
+	const fmt = (n: number) => (n > 0 ? formatCurrency(n, true) : "—");
+	const count = (n: number) => (n > 0 ? n.toString() : "—");
 
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-      {items.map((item) => {
-        const Icon = item.icon;
-        return (
-          <div
-            key={item.label}
-            className="glass rounded-xl p-3 sm:p-4 text-center"
-          >
-            <Icon
-              size={16}
-              className={`${item.color} mx-auto mb-1.5 opacity-70`}
-            />
-            <div className={`text-lg sm:text-xl font-black ${item.color}`}>
-              {item.value}
-            </div>
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
-              {item.label}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
+	const items: {
+		label: string;
+		value: string;
+		icon: LucideIcon;
+		color: string;
+	}[] = [
+		{
+			label: "Main Draws",
+			value: loading ? "…" : count(mainDraws),
+			icon: Trophy,
+			color: "text-gold",
+		},
+		{
+			label: "QP Draws",
+			value: loading ? "…" : count(qpDraws),
+			icon: Zap,
+			color: "text-emerald-light",
+		},
+		{
+			label: "Total Tickets",
+			value: loading ? "…" : fmt(totalTickets).replace("$", ""),
+			icon: Ticket,
+			color: "text-foreground",
+		},
+		{
+			label: "Prizes Paid",
+			value: loading ? "…" : fmt(prizesPaid),
+			icon: Award,
+			color: "text-gold",
+		},
+		{
+			label: "Biggest Win",
+			value: loading ? "…" : fmt(biggestWin),
+			icon: Star,
+			color: "text-gold",
+		},
+		{
+			label: "Rolldown Events",
+			value: loading ? "…" : count(rolldownEvents),
+			icon: TrendingUp,
+			color: "text-emerald-light",
+		},
+	];
+
+	return (
+		<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+			{items.map((item) => {
+				const Icon = item.icon;
+				return (
+					<div
+						key={item.label}
+						className="glass rounded-xl p-3 sm:p-4 text-center"
+					>
+						<Icon
+							size={16}
+							className={`${item.color} mx-auto mb-1.5 opacity-70`}
+						/>
+						<div className={`text-lg sm:text-xl font-black ${item.color}`}>
+							{item.value}
+						</div>
+						<div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
+							{item.label}
+						</div>
+					</div>
+				);
+			})}
+		</div>
+	);
 }
 
 function DrawCard({
-  draw,
-  expanded,
-  onToggle,
+	draw,
+	expanded,
+	onToggle,
 }: {
-  draw: DrawResult;
-  expanded: boolean;
-  onToggle: () => void;
+	draw: DrawResult;
+	expanded: boolean;
+	onToggle: () => void;
 }) {
-  const isMain = draw.gameType === "main";
-  const matchLabels = isMain
-    ? [
-      { key: "match6" as const, label: "Match 6", tier: "jackpot" },
-      { key: "match5" as const, label: "Match 5", tier: "high" },
-      { key: "match4" as const, label: "Match 4", tier: "mid" },
-      { key: "match3" as const, label: "Match 3", tier: "low" },
-      { key: "match2" as const, label: "Match 2", tier: "free" },
-    ]
-    : [
-      { key: "match5" as const, label: "Match 5", tier: "jackpot" },
-      { key: "match4" as const, label: "Match 4", tier: "high" },
-      { key: "match3" as const, label: "Match 3", tier: "mid" },
-      { key: "match2" as const, label: "Match 2", tier: "low" },
-    ];
+	const isMain = draw.gameType === "main";
+	const matchLabels = isMain
+		? [
+				{ key: "match6" as const, label: "Match 6", tier: "jackpot" },
+				{ key: "match5" as const, label: "Match 5", tier: "high" },
+				{ key: "match4" as const, label: "Match 4", tier: "mid" },
+				{ key: "match3" as const, label: "Match 3", tier: "low" },
+				{ key: "match2" as const, label: "Match 2", tier: "free" },
+			]
+		: [
+				{ key: "match5" as const, label: "Match 5", tier: "jackpot" },
+				{ key: "match4" as const, label: "Match 4", tier: "high" },
+				{ key: "match3" as const, label: "Match 3", tier: "mid" },
+				{ key: "match2" as const, label: "Match 2", tier: "low" },
+			];
 
-  const totalWinners = Object.values(draw.matchCounts).reduce(
-    (sum, v) => sum + (v || 0),
-    0,
-  );
+	const totalWinners = Object.values(draw.matchCounts).reduce(
+		(sum, v) => sum + (v || 0),
+		0,
+	);
 
-  return (
-    <div
-      className={`glass rounded-2xl transition-all duration-200 ${draw.wasRolldown ? "border-emerald/15 shadow-sm shadow-emerald/5" : ""
-        }`}
-    >
-      {/* Main row (clickable) */}
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full p-4 sm:p-5 text-left hover:bg-foreground/1 transition-colors rounded-2xl"
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          {/* Left: Draw info + Numbers */}
-          <div className="flex-1 min-w-0">
-            {/* Header badges */}
-            <div className="flex items-center gap-2 flex-wrap mb-2.5">
-              <span className="text-sm font-bold text-foreground truncate max-w-30 sm:max-w-none">
-                Draw #{draw.drawId}
-              </span>
-              <span className="text-[10px] text-muted-foreground shrink-0">
-                {formatDate(draw.date)} · {draw.time}
-              </span>
+	return (
+		<div
+			className={`glass rounded-2xl transition-all duration-200 ${
+				draw.wasRolldown ? "border-emerald/15 shadow-sm shadow-emerald/5" : ""
+			}`}
+		>
+			{/* Main row (clickable) */}
+			<button
+				type="button"
+				onClick={onToggle}
+				className="w-full p-4 sm:p-5 text-left hover:bg-foreground/1 transition-colors rounded-2xl"
+			>
+				<div className="flex flex-col sm:flex-row sm:items-center gap-4">
+					{/* Left: Draw info + Numbers */}
+					<div className="flex-1 min-w-0">
+						{/* Header badges */}
+						<div className="flex items-center gap-2 flex-wrap mb-2.5">
+							<span className="text-sm font-bold text-foreground truncate max-w-30 sm:max-w-none">
+								Draw #{draw.drawId}
+							</span>
+							<span className="text-[10px] text-muted-foreground shrink-0">
+								{formatDate(draw.date)} · {draw.time}
+							</span>
 
-              {/* Game badge */}
-              {isMain ? (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gold/10 border border-gold/20 text-[9px] font-semibold text-gold uppercase tracking-wider">
-                  <Trophy size={8} />
-                  6/46
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald/10 border border-emerald/20 text-[9px] font-semibold text-emerald-light uppercase tracking-wider">
-                  <Zap size={8} />
-                  5/35
-                </span>
-              )}
+							{/* Game badge */}
+							{isMain ? (
+								<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gold/10 border border-gold/20 text-[9px] font-semibold text-gold uppercase tracking-wider">
+									<Trophy size={8} />
+									6/46
+								</span>
+							) : (
+								<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald/10 border border-emerald/20 text-[9px] font-semibold text-emerald-light uppercase tracking-wider">
+									<Zap size={8} />
+									5/35
+								</span>
+							)}
 
-              {draw.wasRolldown && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald/15 border border-emerald/30 text-[9px] font-bold text-emerald-light uppercase tracking-wider">
-                  <TrendingUp size={8} />
-                  Rolldown
-                  {draw.rolldownTrigger === "hard_cap" ? " (Hard)" : ""}
-                </span>
-              )}
-            </div>
+							{draw.wasRolldown && (
+								<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald/15 border border-emerald/30 text-[9px] font-bold text-emerald-light uppercase tracking-wider">
+									<TrendingUp size={8} />
+									Rolldown
+									{draw.rolldownTrigger === "hard_cap" ? " (Hard)" : ""}
+								</span>
+							)}
+						</div>
 
-            {/* Winning Numbers */}
-            <WinningNumbers numbers={draw.winningNumbers} size="sm" />
-          </div>
+						{/* Winning Numbers */}
+						<WinningNumbers numbers={draw.winningNumbers} size="sm" />
+					</div>
 
-          {/* Right: Key stats */}
-          <div className="flex items-center gap-3 sm:gap-6 shrink-0">
-            {/* Jackpot */}
-            <div className="text-right">
-              <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
-                Jackpot
-              </div>
-              <div className="text-xs sm:text-sm font-black text-gradient-gold tabular-nums truncate max-w-20 sm:max-w-none">
-                {formatCurrency(draw.jackpotAtDraw, true)}
-              </div>
-            </div>
+					{/* Right: Key stats */}
+					<div className="flex items-center gap-3 sm:gap-6 shrink-0">
+						{/* Jackpot */}
+						<div className="text-right">
+							<div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
+								Jackpot
+							</div>
+							<div className="text-xs sm:text-sm font-black text-gradient-gold tabular-nums truncate max-w-20 sm:max-w-none">
+								{formatCurrency(draw.jackpotAtDraw, true)}
+							</div>
+						</div>
 
-            {/* Tickets */}
-            <div className="text-right hidden sm:block">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
-                Tickets
-              </div>
-              <div className="text-sm font-bold text-foreground tabular-nums">
-                {draw.totalTickets.toLocaleString()}
-              </div>
-            </div>
+						{/* Tickets */}
+						<div className="text-right hidden sm:block">
+							<div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
+								Tickets
+							</div>
+							<div className="text-sm font-bold text-foreground tabular-nums">
+								{draw.totalTickets.toLocaleString()}
+							</div>
+						</div>
 
-            {/* Winners */}
-            <div className="text-right hidden sm:block">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
-                Winners
-              </div>
-              <div className="text-sm font-bold text-emerald-light tabular-nums">
-                {totalWinners.toLocaleString()}
-              </div>
-            </div>
+						{/* Winners */}
+						<div className="text-right hidden sm:block">
+							<div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
+								Winners
+							</div>
+							<div className="text-sm font-bold text-emerald-light tabular-nums">
+								{totalWinners.toLocaleString()}
+							</div>
+						</div>
 
-            {/* Expand chevron */}
-            <ChevronDown
-              size={16}
-              className={`shrink-0 text-muted-foreground/60 transition-transform duration-200 ${expanded ? "rotate-180" : ""
-                }`}
-            />
-          </div>
-        </div>
-      </button>
+						{/* Expand chevron */}
+						<ChevronDown
+							size={16}
+							className={`shrink-0 text-muted-foreground/60 transition-transform duration-200 ${
+								expanded ? "rotate-180" : ""
+							}`}
+						/>
+					</div>
+				</div>
+			</button>
 
-      {/* Expanded details */}
-      {expanded && (
-        <div className="px-4 sm:px-5 pb-5 border-t border-foreground/5 pt-4 space-y-4 animate-slide-down">
-          {/* Rolldown info banner */}
-          {draw.wasRolldown && (
-            <div className="relative rounded-xl p-3 bg-emerald/4 border border-emerald/15 overflow-hidden">
-              <div className="absolute inset-0 bg-linear-to-r from-emerald/3 to-transparent" />
-              <div className="relative z-10 flex items-start gap-2">
-                <TrendingUp
-                  size={14}
-                  className="text-emerald-light mt-0.5 shrink-0"
-                />
-                <div>
-                  <p className="text-xs font-bold text-emerald-light mb-0.5">
-                    Rolldown Event — Pari-Mutuel Prizes
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    No {isMain ? "Match 6" : "Match 5"} winner was drawn. The
-                    entire jackpot of {formatCurrency(draw.jackpotAtDraw)} was
-                    distributed among lower-tier winners using pari-mutuel
-                    division. All prizes in this draw were calculated as Pool ÷
-                    Winners.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+			{/* Expanded details */}
+			{expanded && (
+				<div className="px-4 sm:px-5 pb-5 border-t border-foreground/5 pt-4 space-y-4 animate-slide-down">
+					{/* Rolldown info banner */}
+					{draw.wasRolldown && (
+						<div className="relative rounded-xl p-3 bg-emerald/4 border border-emerald/15 overflow-hidden">
+							<div className="absolute inset-0 bg-linear-to-r from-emerald/3 to-transparent" />
+							<div className="relative z-10 flex items-start gap-2">
+								<TrendingUp
+									size={14}
+									className="text-emerald-light mt-0.5 shrink-0"
+								/>
+								<div>
+									<p className="text-xs font-bold text-emerald-light mb-0.5">
+										Rolldown Event — Pari-Mutuel Prizes
+									</p>
+									<p className="text-[10px] text-muted-foreground">
+										No {isMain ? "Match 6" : "Match 5"} winner was drawn. The
+										entire jackpot of {formatCurrency(draw.jackpotAtDraw)} was
+										distributed among lower-tier winners using pari-mutuel
+										division. All prizes in this draw were calculated as Pool ÷
+										Winners.
+									</p>
+								</div>
+							</div>
+						</div>
+					)}
 
-          {/* Prize breakdown table */}
-          <div>
-            <h4 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Award size={12} className="text-gold" />
-              Prize Breakdown
-            </h4>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-foreground/5">
-                    <th className="text-left py-2 pr-2 sm:pr-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                      Tier
-                    </th>
-                    <th className="text-right py-2 px-2 sm:px-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                      Winners
-                    </th>
-                    <th className="text-right py-2 px-2 sm:px-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                      Prize
-                    </th>
-                    <th className="text-right py-2 pl-2 sm:pl-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold hidden sm:table-cell">
-                      Total Paid
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {matchLabels.map(({ key, label, tier }) => {
-                    const winners =
-                      (draw.matchCounts as Record<string, number | undefined>)[
-                      key
-                      ] ?? 0;
-                    const prizeEach =
-                      (
-                        draw.prizesPerWinner as Record<
-                          string,
-                          number | undefined
-                        >
-                      )[key] ?? 0;
-                    const totalPaid = winners * prizeEach;
+					{/* Prize breakdown table */}
+					<div>
+						<h4 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+							<Award size={12} className="text-gold" />
+							Prize Breakdown
+						</h4>
+						<div className="overflow-x-auto">
+							<table className="w-full text-xs">
+								<thead>
+									<tr className="border-b border-foreground/5">
+										<th className="text-left py-2 pr-2 sm:pr-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+											Tier
+										</th>
+										<th className="text-right py-2 px-2 sm:px-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+											Winners
+										</th>
+										<th className="text-right py-2 px-2 sm:px-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+											Prize
+										</th>
+										<th className="text-right py-2 pl-2 sm:pl-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold hidden sm:table-cell">
+											Total Paid
+										</th>
+									</tr>
+								</thead>
+								<tbody>
+									{matchLabels.map(({ key, label, tier }) => {
+										const winners =
+											(draw.matchCounts as Record<string, number | undefined>)[
+												key
+											] ?? 0;
+										const prizeEach =
+											(
+												draw.prizesPerWinner as Record<
+													string,
+													number | undefined
+												>
+											)[key] ?? 0;
+										const totalPaid = winners * prizeEach;
 
-                    return (
-                      <tr
-                        key={key}
-                        className="border-b border-foreground/3 last:border-0"
-                      >
-                        <td className="py-2.5 pr-2 sm:pr-4">
-                          <div className="flex items-center gap-1.5 sm:gap-2">
-                            <div
-                              className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${tier === "jackpot"
-                                ? "bg-gold/20 text-gold"
-                                : tier === "high"
-                                  ? "bg-emerald/20 text-emerald-light"
-                                  : tier === "mid"
-                                    ? "bg-emerald/10 text-emerald-light/70"
-                                    : tier === "free"
-                                      ? "bg-foreground/5 text-muted-foreground"
-                                      : "bg-foreground/5 text-muted-foreground"
-                                }`}
-                            >
-                              {key.replace("match", "")}
-                            </div>
-                            <span
-                              className={`font-medium ${tier === "jackpot"
-                                ? "text-gold"
-                                : tier === "high"
-                                  ? "text-emerald-light"
-                                  : "text-muted-foreground"
-                                }`}
-                            >
-                              {label}
-                            </span>
-                            {tier === "jackpot" && (
-                              <Star size={9} className="text-gold/50" />
-                            )}
-                            {tier === "free" && isMain && (
-                              <span className="text-[8px] text-muted-foreground">
-                                (Free Ticket)
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-2 sm:px-4 text-right tabular-nums">
-                          <span
-                            className={`font-semibold ${winners > 0
-                              ? "text-foreground"
-                              : "text-muted-foreground/60"
-                              }`}
-                          >
-                            {winners.toLocaleString()}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-2 sm:px-4 text-right tabular-nums">
-                          {prizeEach > 0 ? (
-                            <span
-                              className={`font-bold ${tier === "jackpot"
-                                ? "text-gold"
-                                : tier === "high"
-                                  ? "text-emerald-light"
-                                  : "text-muted-foreground"
-                                }`}
-                            >
-                              {prizeEach >= 1_000
-                                ? formatCurrency(prizeEach, true)
-                                : `$${prizeEach.toLocaleString("en-US", { minimumFractionDigits: prizeEach % 1 !== 0 ? 2 : 0 })}`}
-                              {draw.wasRolldown &&
-                                tier !== "free" &&
-                                winners > 0 && (
-                                  <span className="ml-1 text-[8px] text-emerald-light/60">
-                                    PM
-                                  </span>
-                                )}
-                            </span>
-                          ) : tier === "free" && isMain ? (
-                            <span className="text-muted-foreground">
-                              Free Tkt
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground/60">—</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 pl-2 sm:pl-4 text-right tabular-nums hidden sm:table-cell">
-                          {totalPaid > 0 ? (
-                            <span className="font-semibold text-muted-foreground">
-                              {formatCurrency(totalPaid, totalPaid >= 10_000)}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground/60">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-foreground/6">
-                    <td className="py-2.5 pr-2 sm:pr-4 text-xs font-bold text-foreground">
-                      Total
-                    </td>
-                    <td className="py-2.5 px-2 sm:px-4 text-right text-xs font-bold text-foreground tabular-nums">
-                      {totalWinners.toLocaleString()}
-                    </td>
-                    <td className="py-2.5 px-2 sm:px-4 text-right" />
-                    <td className="py-2.5 pl-2 sm:pl-4 text-right text-xs font-black text-gradient-gold tabular-nums hidden sm:table-cell">
-                      {formatCurrency(
-                        draw.totalPrizesPaid,
-                        draw.totalPrizesPaid >= 10_000,
-                      )}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
+										return (
+											<tr
+												key={key}
+												className="border-b border-foreground/3 last:border-0"
+											>
+												<td className="py-2.5 pr-2 sm:pr-4">
+													<div className="flex items-center gap-1.5 sm:gap-2">
+														<div
+															className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
+																tier === "jackpot"
+																	? "bg-gold/20 text-gold"
+																	: tier === "high"
+																		? "bg-emerald/20 text-emerald-light"
+																		: tier === "mid"
+																			? "bg-emerald/10 text-emerald-light/70"
+																			: tier === "free"
+																				? "bg-foreground/5 text-muted-foreground"
+																				: "bg-foreground/5 text-muted-foreground"
+															}`}
+														>
+															{key.replace("match", "")}
+														</div>
+														<span
+															className={`font-medium ${
+																tier === "jackpot"
+																	? "text-gold"
+																	: tier === "high"
+																		? "text-emerald-light"
+																		: "text-muted-foreground"
+															}`}
+														>
+															{label}
+														</span>
+														{tier === "jackpot" && (
+															<Star size={9} className="text-gold/50" />
+														)}
+														{tier === "free" && isMain && (
+															<span className="text-[8px] text-muted-foreground">
+																(Free Ticket)
+															</span>
+														)}
+													</div>
+												</td>
+												<td className="py-2.5 px-2 sm:px-4 text-right tabular-nums">
+													<span
+														className={`font-semibold ${
+															winners > 0
+																? "text-foreground"
+																: "text-muted-foreground/60"
+														}`}
+													>
+														{winners.toLocaleString()}
+													</span>
+												</td>
+												<td className="py-2.5 px-2 sm:px-4 text-right tabular-nums">
+													{prizeEach > 0 ? (
+														<span
+															className={`font-bold ${
+																tier === "jackpot"
+																	? "text-gold"
+																	: tier === "high"
+																		? "text-emerald-light"
+																		: "text-muted-foreground"
+															}`}
+														>
+															{prizeEach >= 1_000
+																? formatCurrency(prizeEach, true)
+																: `$${prizeEach.toLocaleString("en-US", { minimumFractionDigits: prizeEach % 1 !== 0 ? 2 : 0 })}`}
+															{draw.wasRolldown &&
+																tier !== "free" &&
+																winners > 0 && (
+																	<span className="ml-1 text-[8px] text-emerald-light/60">
+																		PM
+																	</span>
+																)}
+														</span>
+													) : tier === "free" && isMain ? (
+														<span className="text-muted-foreground">
+															Free Tkt
+														</span>
+													) : (
+														<span className="text-muted-foreground/60">—</span>
+													)}
+												</td>
+												<td className="py-2.5 pl-2 sm:pl-4 text-right tabular-nums hidden sm:table-cell">
+													{totalPaid > 0 ? (
+														<span className="font-semibold text-muted-foreground">
+															{formatCurrency(totalPaid, totalPaid >= 10_000)}
+														</span>
+													) : (
+														<span className="text-muted-foreground/60">—</span>
+													)}
+												</td>
+											</tr>
+										);
+									})}
+								</tbody>
+								<tfoot>
+									<tr className="border-t border-foreground/6">
+										<td className="py-2.5 pr-2 sm:pr-4 text-xs font-bold text-foreground">
+											Total
+										</td>
+										<td className="py-2.5 px-2 sm:px-4 text-right text-xs font-bold text-foreground tabular-nums">
+											{totalWinners.toLocaleString()}
+										</td>
+										<td className="py-2.5 px-2 sm:px-4 text-right" />
+										<td className="py-2.5 pl-2 sm:pl-4 text-right text-xs font-black text-gradient-gold tabular-nums hidden sm:table-cell">
+											{formatCurrency(
+												draw.totalPrizesPaid,
+												draw.totalPrizesPaid >= 10_000,
+											)}
+										</td>
+									</tr>
+								</tfoot>
+							</table>
+						</div>
+					</div>
 
-          {/* Draw Details Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="p-2.5 rounded-lg bg-foreground/2">
-              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">
-                Total Tickets
-              </div>
-              <div className="text-xs font-bold text-foreground mt-0.5 tabular-nums">
-                {draw.totalTickets.toLocaleString()}
-              </div>
-            </div>
-            <div className="p-2.5 rounded-lg bg-foreground/2">
-              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">
-                Revenue
-              </div>
-              <div className="text-xs font-bold text-foreground mt-0.5 tabular-nums">
-                {formatCurrency(draw.totalTickets * (isMain ? 2.5 : 1.5), true)}
-              </div>
-            </div>
-            <div className="p-2.5 rounded-lg bg-foreground/2">
-              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">
-                House Fee
-              </div>
-              <div className="text-xs font-bold text-foreground mt-0.5 tabular-nums">
-                {formatCurrency(draw.houseFeeCollected, true)}
-              </div>
-            </div>
-            <div className="p-2.5 rounded-lg bg-foreground/2">
-              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">
-                Jackpot After
-              </div>
-              <div className="text-xs font-bold text-gold mt-0.5 tabular-nums">
-                {formatCurrency(draw.jackpotAfterDraw, true)}
-              </div>
-            </div>
-          </div>
+					{/* Draw Details Grid */}
+					<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+						<div className="p-2.5 rounded-lg bg-foreground/2">
+							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+								Total Tickets
+							</div>
+							<div className="text-xs font-bold text-foreground mt-0.5 tabular-nums">
+								{draw.totalTickets.toLocaleString()}
+							</div>
+						</div>
+						<div className="p-2.5 rounded-lg bg-foreground/2">
+							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+								Revenue
+							</div>
+							<div className="text-xs font-bold text-foreground mt-0.5 tabular-nums">
+								{formatCurrency(draw.totalTickets * (isMain ? 2.5 : 1.5), true)}
+							</div>
+						</div>
+						<div className="p-2.5 rounded-lg bg-foreground/2">
+							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+								House Fee
+							</div>
+							<div className="text-xs font-bold text-foreground mt-0.5 tabular-nums">
+								{formatCurrency(draw.houseFeeCollected, true)}
+							</div>
+						</div>
+						<div className="p-2.5 rounded-lg bg-foreground/2">
+							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+								Jackpot After
+							</div>
+							<div className="text-xs font-bold text-gold mt-0.5 tabular-nums">
+								{formatCurrency(draw.jackpotAfterDraw, true)}
+							</div>
+						</div>
+					</div>
 
-          {/* Verification */}
-          <div className="p-3 rounded-xl bg-foreground/2 border border-foreground/4">
-            <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Eye size={10} className="text-emerald/60" />
-              On-Chain Verification
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <div className="text-[9px] text-muted-foreground mb-0.5">
-                  Randomness Source
-                </div>
-                <div className="text-[10px] text-muted-foreground font-mono">
-                  {draw.randomnessProof}
-                </div>
-              </div>
-              <div>
-                <div className="text-[9px] text-muted-foreground mb-0.5">
-                  Verification Hash
-                </div>
-                <div className="text-[10px] text-muted-foreground font-mono flex items-center gap-1.5">
-                  <span>{draw.verificationHash}</span>
-                  <a
-                    href={`https://solscan.io/tx/${draw.verificationHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-emerald-light/50 hover:text-emerald-light transition-colors"
-                    aria-label="View on Solscan"
-                  >
-                    <ExternalLink size={9} />
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+					{/* Verification */}
+					<div className="p-3 rounded-xl bg-foreground/2 border border-foreground/4">
+						<h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+							<Eye size={10} className="text-emerald/60" />
+							On-Chain Verification
+						</h4>
+						<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+							<div>
+								<div className="text-[9px] text-muted-foreground mb-0.5">
+									Randomness Source
+								</div>
+								<div className="text-[10px] text-muted-foreground font-mono">
+									{draw.randomnessProof}
+								</div>
+							</div>
+							<div>
+								<div className="text-[9px] text-muted-foreground mb-0.5">
+									Verification Hash
+								</div>
+								<div className="text-[10px] text-muted-foreground font-mono flex items-center gap-1.5">
+									<span>{draw.verificationHash}</span>
+									<a
+										href={`https://solscan.io/tx/${draw.verificationHash}`}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="text-emerald-light/50 hover:text-emerald-light transition-colors"
+										aria-label="View on Solscan"
+									>
+										<ExternalLink size={9} />
+									</a>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
+		</div>
+	);
 }
 
-function RolldownHistory({ draws }: { draws?: DrawResult[] }) {
-  const source = draws && draws.length > 0 ? draws : MOCK_DRAWS;
-  const rolldownDraws = source.filter((d) => d.wasRolldown);
+function RolldownHistory({
+	draws,
+	loading,
+}: {
+	draws?: DrawResult[];
+	loading?: boolean;
+}) {
+	// SECURITY (review M5): previously fell back to MOCK_DRAWS (fake history)
+	// when no live data was loaded. Now renders nothing until real on-chain
+	// rolldown draws are available — no fabricated events presented as live.
+	if (loading || !draws || draws.length === 0) return null;
+	const source = draws;
+	const rolldownDraws = source.filter((d) => d.wasRolldown);
 
-  if (rolldownDraws.length === 0) return null;
+	if (rolldownDraws.length === 0) return null;
 
-  return (
-    <div className="glass-strong rounded-2xl p-5 sm:p-6 border-gradient-emerald">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
-          <TrendingUp size={16} className="text-emerald" />
-          Recent Rolldown Events
-        </h3>
-        <span className="text-[10px] text-muted-foreground">
-          {MOCK_AGGREGATE_STATS.rolldownEvents} total rolldowns
-        </span>
-      </div>
+	return (
+		<div className="glass-strong rounded-2xl p-5 sm:p-6 border-gradient-emerald">
+			<div className="flex items-center justify-between mb-4">
+				<h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
+					<TrendingUp size={16} className="text-emerald" />
+					Recent Rolldown Events
+				</h3>
+				<span className="text-[10px] text-muted-foreground">
+					{rolldownDraws.length} total rolldowns
+				</span>
+			</div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {rolldownDraws.map((draw) => {
-          const isMain = draw.gameType === "main";
-          return (
-            <div
-              key={`rolldown-${draw.drawId}`}
-              className="p-3 rounded-xl bg-emerald/3 border border-emerald/10"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-foreground">
-                    #{draw.drawId}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {formatDate(draw.date)}
-                  </span>
-                  {isMain ? (
-                    <span className="text-[8px] px-1 py-0.5 rounded bg-gold/10 text-gold font-bold uppercase">
-                      6/46
-                    </span>
-                  ) : (
-                    <span className="text-[8px] px-1 py-0.5 rounded bg-emerald/10 text-emerald-light font-bold uppercase">
-                      5/35
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs font-black text-gradient-gold">
-                  {formatCurrency(draw.jackpotAtDraw, true)}
-                </span>
-              </div>
+			<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				{rolldownDraws.map((draw) => {
+					const isMain = draw.gameType === "main";
+					return (
+						<div
+							key={`rolldown-${draw.drawId}`}
+							className="p-3 rounded-xl bg-emerald/3 border border-emerald/10"
+						>
+							<div className="flex items-center justify-between mb-2">
+								<div className="flex items-center gap-2">
+									<span className="text-xs font-bold text-foreground">
+										#{draw.drawId}
+									</span>
+									<span className="text-[10px] text-muted-foreground">
+										{formatDate(draw.date)}
+									</span>
+									{isMain ? (
+										<span className="text-[8px] px-1 py-0.5 rounded bg-gold/10 text-gold font-bold uppercase">
+											6/46
+										</span>
+									) : (
+										<span className="text-[8px] px-1 py-0.5 rounded bg-emerald/10 text-emerald-light font-bold uppercase">
+											5/35
+										</span>
+									)}
+								</div>
+								<span className="text-xs font-black text-gradient-gold">
+									{formatCurrency(draw.jackpotAtDraw, true)}
+								</span>
+							</div>
 
-              <div className="flex items-center gap-1.5 mb-2">
-                <WinningNumbers numbers={draw.winningNumbers} size="sm" />
-              </div>
+							<div className="flex items-center gap-1.5 mb-2">
+								<WinningNumbers numbers={draw.winningNumbers} size="sm" />
+							</div>
 
-              <div className="grid grid-cols-3 gap-2 text-[10px]">
-                <div>
-                  <span className="text-muted-foreground">Tickets</span>
-                  <div className="font-bold text-foreground">
-                    {draw.totalTickets.toLocaleString()}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Distributed</span>
-                  <div className="font-bold text-emerald-light">
-                    {formatCurrency(draw.totalPrizesPaid, true)}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Trigger</span>
-                  <div className="font-bold text-foreground">
-                    {draw.rolldownTrigger === "hard_cap"
-                      ? "Hard Cap"
-                      : "Soft Cap"}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+							<div className="grid grid-cols-3 gap-2 text-[10px]">
+								<div>
+									<span className="text-muted-foreground">Tickets</span>
+									<div className="font-bold text-foreground">
+										{draw.totalTickets.toLocaleString()}
+									</div>
+								</div>
+								<div>
+									<span className="text-muted-foreground">Distributed</span>
+									<div className="font-bold text-emerald-light">
+										{formatCurrency(draw.totalPrizesPaid, true)}
+									</div>
+								</div>
+								<div>
+									<span className="text-muted-foreground">Trigger</span>
+									<div className="font-bold text-foreground">
+										{draw.rolldownTrigger === "hard_cap"
+											? "Hard Cap"
+											: "Soft Cap"}
+									</div>
+								</div>
+							</div>
+						</div>
+					);
+				})}
+			</div>
 
-      <div className="mt-4 p-3 rounded-xl bg-foreground/2 border border-foreground/4">
-        <div className="flex items-start gap-2">
-          <Sparkles size={12} className="text-gold/60 mt-0.5 shrink-0" />
-          <div className="text-[10px] text-muted-foreground">
-            <span className="font-semibold text-muted-foreground">
-              Total rolldown prizes paid:
-            </span>{" "}
-            <span className="font-bold text-gradient-gold">
-              {formatCurrency(MOCK_AGGREGATE_STATS.totalRolldownPaid, true)}
-            </span>{" "}
-            across {MOCK_AGGREGATE_STATS.rolldownEvents} events. Rolldowns occur
-            when the jackpot exceeds the soft cap and no top-tier winner is
-            drawn.{" "}
-            <Link
-              to="/learn/rolldown"
-              className="text-emerald-light hover:text-emerald font-semibold inline-flex items-center gap-0.5 transition-colors"
-            >
-              Learn more <ChevronRight size={8} />
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+			<div className="mt-4 p-3 rounded-xl bg-foreground/2 border border-foreground/4">
+				<div className="flex items-start gap-2">
+					<Sparkles size={12} className="text-gold/60 mt-0.5 shrink-0" />
+					<div className="text-[10px] text-muted-foreground">
+						<span className="font-semibold text-muted-foreground">
+							Total rolldown prizes paid:
+						</span>{" "}
+						<span className="font-bold text-gradient-gold">
+							{formatCurrency(
+								rolldownDraws.reduce((s, d) => s + d.totalPrizesPaid, 0),
+								true,
+							)}
+						</span>{" "}
+						across {rolldownDraws.length} events. Rolldowns occur when the
+						jackpot exceeds the soft cap and no top-tier winner is drawn.{" "}
+						<Link
+							to="/learn/rolldown"
+							className="text-emerald-light hover:text-emerald font-semibold inline-flex items-center gap-0.5 transition-colors"
+						>
+							Learn more <ChevronRight size={8} />
+						</Link>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
 }
 
 function Pagination({
-  currentPage,
-  totalPages,
-  onPageChange,
+	currentPage,
+	totalPages,
+	onPageChange,
 }: {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
+	currentPage: number;
+	totalPages: number;
+	onPageChange: (page: number) => void;
 }) {
-  if (totalPages <= 1) return null;
+	if (totalPages <= 1) return null;
 
-  return (
-    <div className="flex items-center justify-center gap-1 sm:gap-2">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage <= 1}
-        className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-      >
-        <ArrowLeft size={14} />
-      </Button>
+	return (
+		<div className="flex items-center justify-center gap-1 sm:gap-2">
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				onClick={() => onPageChange(currentPage - 1)}
+				disabled={currentPage <= 1}
+				className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+			>
+				<ArrowLeft size={14} />
+			</Button>
 
-      {/* Mobile: current page indicator */}
-      <span className="sm:hidden text-xs font-semibold text-emerald-light px-2">
-        {currentPage} / {totalPages}
-      </span>
+			{/* Mobile: current page indicator */}
+			<span className="sm:hidden text-xs font-semibold text-emerald-light px-2">
+				{currentPage} / {totalPages}
+			</span>
 
-      {/* Desktop: all page buttons */}
-      <div className="hidden sm:flex items-center gap-2">
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-          <button
-            key={page}
-            type="button"
-            onClick={() => onPageChange(page)}
-            className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${page === currentPage
-              ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-              : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-              }`}
-          >
-            {page}
-          </button>
-        ))}
-      </div>
+			{/* Desktop: all page buttons */}
+			<div className="hidden sm:flex items-center gap-2">
+				{Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+					<button
+						key={page}
+						type="button"
+						onClick={() => onPageChange(page)}
+						className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${
+							page === currentPage
+								? "bg-emerald/15 text-emerald-light border border-emerald/20"
+								: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+						}`}
+					>
+						{page}
+					</button>
+				))}
+			</div>
 
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage >= totalPages}
-        className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-      >
-        <ArrowRight size={14} />
-      </Button>
-    </div>
-  );
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				onClick={() => onPageChange(currentPage + 1)}
+				disabled={currentPage >= totalPages}
+				className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+			>
+				<ArrowRight size={14} />
+			</Button>
+		</div>
+	);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1108,510 +809,531 @@ function Pagination({
 /* -------------------------------------------------------------------------- */
 
 export default function ResultsPage() {
-  const { open } = useAppKit();
-  const { isConnected } = useAppKitAccount();
-  const { draws: rawDraws, loading: drawsLoading } = useDraws();
-  const [gameFilter, setGameFilter] = useState<GameFilter>("all");
-  const [rolldownFilter, setRolldownFilter] = useState<RolldownFilter>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [expandedDraw, setExpandedDraw] = useState<number | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+	const { open } = useAppKit();
+	const { isConnected } = useAppKitAccount();
+	const { draws: rawDraws, loading: drawsLoading } = useDraws();
+	const {
+		jackpotDollars,
+		state: lotteryState,
+		nextDrawTimeMs,
+	} = useLotteryState();
+	const [gameFilter, setGameFilter] = useState<GameFilter>("all");
+	const [rolldownFilter, setRolldownFilter] = useState<RolldownFilter>("all");
+	const [searchQuery, setSearchQuery] = useState("");
+	const [expandedDraw, setExpandedDraw] = useState<number | null>(null);
+	const [currentPage, setCurrentPage] = useState(1);
 
-  // Map on-chain draw data to the UI DrawResult shape
-  const liveDraws = useMemo<DrawResult[]>(
-    () => rawDraws.map(mapHookDrawToUI),
-    [rawDraws],
-  );
+	// Map on-chain draw data to the UI DrawResult shape
+	const liveDraws = useMemo<DrawResult[]>(
+		() => rawDraws.map(mapHookDrawToUI),
+		[rawDraws],
+	);
 
-  const filteredDraws = useMemo(() => {
-    // Use live data when available, fall back to mock data when no draws loaded yet
-    let result = liveDraws.length > 0 ? [...liveDraws] : [...MOCK_DRAWS];
+	const filteredDraws = useMemo(() => {
+		// SECURITY (review M5): never fall back to MOCK_DRAWS. When no live
+		// data has loaded the empty-state message below is shown instead, so
+		// users are never presented with fabricated draw history.
+		let result = [...liveDraws];
 
-    // Game filter
-    if (gameFilter === "main") {
-      result = result.filter((d) => d.gameType === "main");
-    } else if (gameFilter === "quickpick") {
-      result = result.filter((d) => d.gameType === "quickpick");
-    }
+		// Game filter
+		if (gameFilter === "main") {
+			result = result.filter((d) => d.gameType === "main");
+		} else if (gameFilter === "quickpick") {
+			result = result.filter((d) => d.gameType === "quickpick");
+		}
 
-    // Rolldown filter
-    if (rolldownFilter === "rolldown") {
-      result = result.filter((d) => d.wasRolldown);
-    } else if (rolldownFilter === "normal") {
-      result = result.filter((d) => !d.wasRolldown);
-    }
+		// Rolldown filter
+		if (rolldownFilter === "rolldown") {
+			result = result.filter((d) => d.wasRolldown);
+		} else if (rolldownFilter === "normal") {
+			result = result.filter((d) => !d.wasRolldown);
+		}
 
-    // Search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (d) =>
-          d.drawId.toString().includes(q) ||
-          d.date.includes(q) ||
-          d.winningNumbers.some((n) => n.toString() === q),
-      );
-    }
+		// Search
+		if (searchQuery.trim()) {
+			const q = searchQuery.toLowerCase();
+			result = result.filter(
+				(d) =>
+					d.drawId.toString().includes(q) ||
+					d.date.includes(q) ||
+					d.winningNumbers.some((n) => n.toString() === q),
+			);
+		}
 
-    // Sort by draw ID descending (most recent first)
-    result.sort((a, b) => {
-      // Group by game type first, then sort by draw ID
-      if (a.gameType !== b.gameType) {
-        // Main draws first, then quick pick
-        return a.date > b.date ? -1 : 1;
-      }
-      return b.drawId - a.drawId;
-    });
+		// Sort by draw ID descending (most recent first)
+		result.sort((a, b) => {
+			// Group by game type first, then sort by draw ID
+			if (a.gameType !== b.gameType) {
+				// Main draws first, then quick pick
+				return a.date > b.date ? -1 : 1;
+			}
+			return b.drawId - a.drawId;
+		});
 
-    return result;
-  }, [gameFilter, rolldownFilter, searchQuery, liveDraws]);
+		return result;
+	}, [gameFilter, rolldownFilter, searchQuery, liveDraws]);
 
-  const totalPages = Math.ceil(filteredDraws.length / PAGE_SIZE);
-  const paginatedDraws = filteredDraws.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
+	const totalPages = Math.ceil(filteredDraws.length / PAGE_SIZE);
+	const paginatedDraws = filteredDraws.slice(
+		(currentPage - 1) * PAGE_SIZE,
+		currentPage * PAGE_SIZE,
+	);
 
-  // Reset page when filters change
-  const handleGameFilter = (f: GameFilter) => {
-    setGameFilter(f);
-    setCurrentPage(1);
-    setExpandedDraw(null);
-  };
-  const handleRolldownFilter = (f: RolldownFilter) => {
-    setRolldownFilter(f);
-    setCurrentPage(1);
-    setExpandedDraw(null);
-  };
+	// Reset page when filters change
+	const handleGameFilter = (f: GameFilter) => {
+		setGameFilter(f);
+		setCurrentPage(1);
+		setExpandedDraw(null);
+	};
+	const handleRolldownFilter = (f: RolldownFilter) => {
+		setRolldownFilter(f);
+		setCurrentPage(1);
+		setExpandedDraw(null);
+	};
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* ================================================================ */}
-      {/*  HERO                                                            */}
-      {/* ================================================================ */}
-      <section className="relative pt-24 pb-8 sm:pt-28 sm:pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        <div className="absolute inset-0 hero-grid opacity-20" />
-        <div className="absolute inset-0 bg-glow-emerald opacity-15" />
-        <FloatingBalls count={4} />
+	return (
+		<div className="min-h-screen bg-background">
+			{/* ================================================================ */}
+			{/*  HERO                                                            */}
+			{/* ================================================================ */}
+			<section className="relative pt-24 pb-8 sm:pt-28 sm:pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
+				<div className="absolute inset-0 hero-grid opacity-20" />
+				<div className="absolute inset-0 bg-glow-emerald opacity-15" />
+				<FloatingBalls count={4} />
 
-        <div className="relative z-10 max-w-7xl mx-auto py-6 sm:py-8">
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
-            <Link to="/" className="hover:text-foreground transition-colors">
-              Home
-            </Link>
-            <ChevronRight size={12} />
-            <span className="text-emerald-light font-medium">Results</span>
-          </nav>
+				<div className="relative z-10 max-w-7xl mx-auto py-6 sm:py-8">
+					{/* Breadcrumb */}
+					<nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
+						<Link to="/" className="hover:text-foreground transition-colors">
+							Home
+						</Link>
+						<ChevronRight size={12} />
+						<span className="text-emerald-light font-medium">Results</span>
+					</nav>
 
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-xl bg-linear-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20">
-                  <BarChart3 size={24} className="text-emerald-light" />
-                </div>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
-                    Draw Results
-                  </h1>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Past draw results, winning numbers, and prize breakdowns
-                    &bull; Fully verifiable on-chain
-                  </p>
-                </div>
-              </div>
-            </div>
+					<div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+						<div>
+							<div className="flex items-center gap-3 mb-2">
+								<div className="p-2 rounded-xl bg-linear-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20">
+									<BarChart3 size={24} className="text-emerald-light" />
+								</div>
+								<div>
+									<h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+										Draw Results
+									</h1>
+									<p className="text-sm text-muted-foreground mt-0.5">
+										Past draw results, winning numbers, and prize breakdowns
+										&bull; Fully verifiable on-chain
+									</p>
+								</div>
+							</div>
+						</div>
 
-            {/* Current Jackpot + Countdown + Check Tickets */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6">
-              <JackpotDisplay
-                amount={1_247_832}
-                size="sm"
-                glow
-                showRolldownStatus={false}
-                softCap={1_750_000}
-              />
-              <CountdownTimer size="sm" label="Next Draw" />
-              {isConnected ? (
-                <Link
-                  to="/tickets"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
-                >
-                  <Ticket size={16} />
-                  Check My Tickets
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => open({ view: "Connect", namespace: "solana" })}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
-                >
-                  <Wallet size={16} />
-                  Connect to Check Tickets
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+						{/* Current Jackpot + Countdown + Check Tickets */}
+						<div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6">
+							{/* SECURITY (review M5): this jackpot was previously hardcoded
+                  to a fake $1,247,832. Now reads live on-chain state. */}
+							<JackpotDisplay
+								amount={jackpotDollars}
+								unknown={lotteryState === null}
+								size="sm"
+								glow
+								showRolldownStatus={false}
+								softCap={1_750_000}
+							/>
+							{nextDrawTimeMs ? (
+								<CountdownTimer
+									size="sm"
+									label="Next Draw"
+									targetTime={nextDrawTimeMs}
+								/>
+							) : (
+								<div className="text-[10px] text-muted-foreground/60">
+									Next draw schedule loading…
+								</div>
+							)}
+							{isConnected ? (
+								<Link
+									to="/tickets"
+									className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+								>
+									<Ticket size={16} />
+									Check My Tickets
+								</Link>
+							) : (
+								<button
+									type="button"
+									onClick={() => open({ view: "Connect", namespace: "solana" })}
+									className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+								>
+									<Wallet size={16} />
+									Connect to Check Tickets
+								</button>
+							)}
+						</div>
+					</div>
+				</div>
+			</section>
 
-      {/* ================================================================ */}
-      {/*  MAIN CONTENT                                                    */}
-      {/* ================================================================ */}
-      <section className="relative px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="max-w-7xl mx-auto py-6 sm:py-8 space-y-6">
-          {/* Protocol Stats */}
-          <ProtocolStats />
+			{/* ================================================================ */}
+			{/*  MAIN CONTENT                                                    */}
+			{/* ================================================================ */}
+			<section className="relative px-4 sm:px-6 lg:px-8 pb-16">
+				<div className="max-w-7xl mx-auto py-6 sm:py-8 space-y-6">
+					{/* Protocol Stats */}
+					<ProtocolStats draws={liveDraws} loading={drawsLoading} />
 
-          {/* Main content: 2/3 + 1/3 layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-            {/* Left column: Draw list */}
-            <div className="lg:col-span-2 space-y-4">
-              {/* Filters */}
-              <div className="glass rounded-2xl p-4 sm:p-5 space-y-3">
-                {/* Search + Game filter */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                  <div className="relative flex-1 w-full">
-                    <Search
-                      size={14}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      placeholder="Search by draw #, date, or winning number..."
-                      className="w-full h-9 pl-9 pr-3 rounded-xl bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
-                    />
-                  </div>
+					{/* Main content: 2/3 + 1/3 layout */}
+					<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+						{/* Left column: Draw list */}
+						<div className="lg:col-span-2 space-y-4">
+							{/* Filters */}
+							<div className="glass rounded-2xl p-4 sm:p-5 space-y-3">
+								{/* Search + Game filter */}
+								<div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+									<div className="relative flex-1 w-full">
+										<Search
+											size={14}
+											className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+										/>
+										<input
+											type="text"
+											value={searchQuery}
+											onChange={(e) => {
+												setSearchQuery(e.target.value);
+												setCurrentPage(1);
+											}}
+											placeholder="Search by draw #, date, or winning number..."
+											className="w-full h-9 pl-9 pr-3 rounded-xl bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+										/>
+									</div>
 
-                  {/* Game filter */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    {(
-                      [
-                        { key: "all" as GameFilter, label: "All Games" },
-                        { key: "main" as GameFilter, label: "6/46" },
-                        {
-                          key: "quickpick" as GameFilter,
-                          label: "5/35",
-                        },
-                      ] as const
-                    ).map(({ key, label }) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => handleGameFilter(key)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${gameFilter === key
-                          ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                          : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                          }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+									{/* Game filter */}
+									<div className="flex items-center gap-1 shrink-0">
+										{(
+											[
+												{ key: "all" as GameFilter, label: "All Games" },
+												{ key: "main" as GameFilter, label: "6/46" },
+												{
+													key: "quickpick" as GameFilter,
+													label: "5/35",
+												},
+											] as const
+										).map(({ key, label }) => (
+											<button
+												key={key}
+												type="button"
+												onClick={() => handleGameFilter(key)}
+												className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+													gameFilter === key
+														? "bg-emerald/15 text-emerald-light border border-emerald/20"
+														: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+												}`}
+											>
+												{label}
+											</button>
+										))}
+									</div>
+								</div>
 
-                {/* Rolldown filter */}
-                <div className="flex items-center gap-1">
-                  <Filter size={12} className="text-muted-foreground mr-1" />
-                  {(
-                    [
-                      { key: "all" as RolldownFilter, label: "All Draws" },
-                      {
-                        key: "rolldown" as RolldownFilter,
-                        label: "Rolldown Only",
-                      },
-                      {
-                        key: "normal" as RolldownFilter,
-                        label: "Normal Only",
-                      },
-                    ] as const
-                  ).map(({ key, label }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => handleRolldownFilter(key)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${rolldownFilter === key
-                        ? "bg-emerald/15 text-emerald-light border border-emerald/20"
-                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                        }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+								{/* Rolldown filter */}
+								<div className="flex items-center gap-1">
+									<Filter size={12} className="text-muted-foreground mr-1" />
+									{(
+										[
+											{ key: "all" as RolldownFilter, label: "All Draws" },
+											{
+												key: "rolldown" as RolldownFilter,
+												label: "Rolldown Only",
+											},
+											{
+												key: "normal" as RolldownFilter,
+												label: "Normal Only",
+											},
+										] as const
+									).map(({ key, label }) => (
+										<button
+											key={key}
+											type="button"
+											onClick={() => handleRolldownFilter(key)}
+											className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+												rolldownFilter === key
+													? "bg-emerald/15 text-emerald-light border border-emerald/20"
+													: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+											}`}
+										>
+											{label}
+										</button>
+									))}
+								</div>
+							</div>
 
-              {/* Results count */}
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  Showing{" "}
-                  <span className="font-bold text-foreground">
-                    {filteredDraws.length}
-                  </span>{" "}
-                  draw{filteredDraws.length !== 1 ? "s" : ""}
-                  {searchQuery && (
-                    <span>
-                      {" "}
-                      matching &ldquo;
-                      <span className="text-emerald-light">{searchQuery}</span>
-                      &rdquo;
-                    </span>
-                  )}
-                </p>
-                {expandedDraw !== null && (
-                  <button
-                    type="button"
-                    onClick={() => setExpandedDraw(null)}
-                    className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Collapse
-                  </button>
-                )}
-              </div>
+							{/* Results count */}
+							<div className="flex items-center justify-between">
+								<p className="text-xs text-muted-foreground">
+									Showing{" "}
+									<span className="font-bold text-foreground">
+										{filteredDraws.length}
+									</span>{" "}
+									draw{filteredDraws.length !== 1 ? "s" : ""}
+									{searchQuery && (
+										<span>
+											{" "}
+											matching &ldquo;
+											<span className="text-emerald-light">{searchQuery}</span>
+											&rdquo;
+										</span>
+									)}
+								</p>
+								{expandedDraw !== null && (
+									<button
+										type="button"
+										onClick={() => setExpandedDraw(null)}
+										className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+									>
+										Collapse
+									</button>
+								)}
+							</div>
 
-              {/* Draw Cards */}
-              {drawsLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div
-                      // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
-                      key={`skeleton-row-${i}`}
-                      className="glass rounded-2xl p-5 animate-pulse"
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="h-4 w-20 bg-foreground/10 rounded" />
-                        <div className="h-3 w-24 bg-foreground/8 rounded" />
-                        <div className="h-5 w-12 bg-foreground/8 rounded-full" />
-                      </div>
-                      <div className="flex gap-2">
-                        {Array.from({ length: 6 }).map((_, j) => (
-                          <div
-                            // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
-                            key={`skeleton-ball-${j}`}
-                            className="w-8 h-8 rounded-full bg-foreground/8"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : paginatedDraws.length === 0 ? (
-                <div className="glass rounded-2xl p-12 text-center">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground/3 border border-foreground/6 mb-4">
-                    <Search size={24} className="text-muted-foreground/60" />
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-1">
-                    No draws found
-                  </p>
-                  <p className="text-xs text-muted-foreground/60 mb-4">
-                    {rawDraws.length === 0
-                      ? "Draw results will appear here once on-chain data is available."
-                      : "Try adjusting your search or filter criteria"}
-                  </p>
-                  <Button
-                    onClick={() => {
-                      setSearchQuery("");
-                      setGameFilter("all");
-                      setRolldownFilter("all");
-                      setCurrentPage(1);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="w-full sm:w-auto text-xs border-emerald/20 text-emerald-light hover:bg-emerald/5"
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {paginatedDraws.map((draw) => (
-                    <DrawCard
-                      key={`${draw.gameType}-${draw.drawId}`}
-                      draw={draw}
-                      expanded={expandedDraw === draw.drawId}
-                      onToggle={() =>
-                        setExpandedDraw((prev) =>
-                          prev === draw.drawId ? null : draw.drawId,
-                        )
-                      }
-                    />
-                  ))}
-                </div>
-              )}
+							{/* Draw Cards */}
+							{drawsLoading ? (
+								<div className="space-y-3">
+									{Array.from({ length: 4 }).map((_, i) => (
+										<div
+											// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
+											key={`skeleton-row-${i}`}
+											className="glass rounded-2xl p-5 animate-pulse"
+										>
+											<div className="flex items-center gap-3 mb-3">
+												<div className="h-4 w-20 bg-foreground/10 rounded" />
+												<div className="h-3 w-24 bg-foreground/8 rounded" />
+												<div className="h-5 w-12 bg-foreground/8 rounded-full" />
+											</div>
+											<div className="flex gap-2">
+												{Array.from({ length: 6 }).map((_, j) => (
+													<div
+														// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
+														key={`skeleton-ball-${j}`}
+														className="w-8 h-8 rounded-full bg-foreground/8"
+													/>
+												))}
+											</div>
+										</div>
+									))}
+								</div>
+							) : paginatedDraws.length === 0 ? (
+								<div className="glass rounded-2xl p-12 text-center">
+									<div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground/3 border border-foreground/6 mb-4">
+										<Search size={24} className="text-muted-foreground/60" />
+									</div>
+									<p className="text-sm text-muted-foreground mb-1">
+										No draws found
+									</p>
+									<p className="text-xs text-muted-foreground/60 mb-4">
+										{rawDraws.length === 0
+											? "Draw results will appear here once on-chain data is available."
+											: "Try adjusting your search or filter criteria"}
+									</p>
+									<Button
+										onClick={() => {
+											setSearchQuery("");
+											setGameFilter("all");
+											setRolldownFilter("all");
+											setCurrentPage(1);
+										}}
+										variant="outline"
+										size="sm"
+										className="w-full sm:w-auto text-xs border-emerald/20 text-emerald-light hover:bg-emerald/5"
+									>
+										Clear Filters
+									</Button>
+								</div>
+							) : (
+								<div className="space-y-3">
+									{paginatedDraws.map((draw) => (
+										<DrawCard
+											key={`${draw.gameType}-${draw.drawId}`}
+											draw={draw}
+											expanded={expandedDraw === draw.drawId}
+											onToggle={() =>
+												setExpandedDraw((prev) =>
+													prev === draw.drawId ? null : draw.drawId,
+												)
+											}
+										/>
+									))}
+								</div>
+							)}
 
-              {/* Pagination */}
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            </div>
+							{/* Pagination */}
+							<Pagination
+								currentPage={currentPage}
+								totalPages={totalPages}
+								onPageChange={setCurrentPage}
+							/>
+						</div>
 
-            {/* Right column: Sidebar */}
-            <div className="space-y-6">
-              {/* Rolldown History */}
-              <RolldownHistory draws={liveDraws} />
+						{/* Right column: Sidebar */}
+						<div className="space-y-6">
+							{/* Rolldown History */}
+							<RolldownHistory draws={liveDraws} loading={drawsLoading} />
 
-              {/* How to Read Results */}
-              <div className="glass rounded-2xl p-5 sm:p-6">
-                <h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2 mb-4">
-                  <Eye size={16} className="text-emerald" />
-                  Understanding Results
-                </h3>
+							{/* How to Read Results */}
+							<div className="glass rounded-2xl p-5 sm:p-6">
+								<h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2 mb-4">
+									<Eye size={16} className="text-emerald" />
+									Understanding Results
+								</h3>
 
-                <div className="space-y-3">
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
-                      <div className="w-3 h-3 rounded-full bg-linear-to-br from-gold-light to-gold" />
-                      Matched Numbers
-                    </h4>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Numbers highlighted in gold are matches between your
-                      ticket and the winning numbers. More matches = bigger
-                      prizes.
-                    </p>
-                  </div>
+								<div className="space-y-3">
+									<div>
+										<h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
+											<div className="w-3 h-3 rounded-full bg-linear-to-br from-gold-light to-gold" />
+											Matched Numbers
+										</h4>
+										<p className="text-[10px] text-muted-foreground leading-relaxed">
+											Numbers highlighted in gold are matches between your
+											ticket and the winning numbers. More matches = bigger
+											prizes.
+										</p>
+									</div>
 
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
-                      <TrendingUp size={11} className="text-emerald" />
-                      Rolldown Draws
-                    </h4>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Draws marked with the green &quot;Rolldown&quot; badge
-                      used pari-mutuel prize distribution. The jackpot was
-                      divided among Match 3+ winners, resulting in
-                      higher-than-normal prizes.
-                    </p>
-                  </div>
+									<div>
+										<h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
+											<TrendingUp size={11} className="text-emerald" />
+											Rolldown Draws
+										</h4>
+										<p className="text-[10px] text-muted-foreground leading-relaxed">
+											Draws marked with the green &quot;Rolldown&quot; badge
+											used pari-mutuel prize distribution. The jackpot was
+											divided among Match 3+ winners, resulting in
+											higher-than-normal prizes.
+										</p>
+									</div>
 
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
-                      <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-emerald/10 text-emerald-light">
-                        PM
-                      </span>
-                      Pari-Mutuel
-                    </h4>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Prize amounts tagged with &quot;PM&quot; were calculated
-                      as Pool ÷ Winners rather than fixed amounts. This happens
-                      during rolldown events.
-                    </p>
-                  </div>
+									<div>
+										<h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
+											<span className="text-[9px] font-bold px-1 py-0.5 rounded bg-emerald/10 text-emerald-light">
+												PM
+											</span>
+											Pari-Mutuel
+										</h4>
+										<p className="text-[10px] text-muted-foreground leading-relaxed">
+											Prize amounts tagged with &quot;PM&quot; were calculated
+											as Pool ÷ Winners rather than fixed amounts. This happens
+											during rolldown events.
+										</p>
+									</div>
 
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
-                      <Hash size={11} className="text-muted-foreground" />
-                      Verification
-                    </h4>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Every draw includes a Switchboard TEE randomness proof and
-                      a tamper-resistant verification hash. Click the link icon
-                      to verify on Solana Explorer.
-                    </p>
-                  </div>
-                </div>
+									<div>
+										<h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
+											<Hash size={11} className="text-muted-foreground" />
+											Verification
+										</h4>
+										<p className="text-[10px] text-muted-foreground leading-relaxed">
+											Every draw includes a Switchboard TEE randomness proof and
+											a tamper-resistant verification hash. Click the link icon
+											to verify on Solana Explorer.
+										</p>
+									</div>
+								</div>
 
-                <div className="mt-4 pt-3 border-t border-foreground/5">
-                  <Link
-                    to="/learn/rolldown"
-                    className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-light hover:text-emerald transition-colors"
-                  >
-                    <Sparkles size={10} />
-                    Learn how rolldown mechanics work
-                    <ChevronRight size={10} />
-                  </Link>
-                </div>
-              </div>
+								<div className="mt-4 pt-3 border-t border-foreground/5">
+									<Link
+										to="/learn/rolldown"
+										className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-light hover:text-emerald transition-colors"
+									>
+										<Sparkles size={10} />
+										Learn how rolldown mechanics work
+										<ChevronRight size={10} />
+									</Link>
+								</div>
+							</div>
 
-              {/* Quick Links */}
-              <div className="glass rounded-xl p-4 space-y-2">
-                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <Zap size={12} className="text-emerald" />
-                  Quick Links
-                </h3>
-                <Link
-                  to="/play"
-                  className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/3 transition-colors group"
-                >
-                  <div className="flex items-center gap-2">
-                    <Trophy
-                      size={14}
-                      className="text-gold/60 group-hover:text-gold transition-colors"
-                    />
-                    <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                      Buy 6/46 Tickets
-                    </span>
-                  </div>
-                  <ChevronRight
-                    size={12}
-                    className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
-                  />
-                </Link>
-                <Link
-                  to="/play/quick-pick"
-                  className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/3 transition-colors group"
-                >
-                  <div className="flex items-center gap-2">
-                    <Zap
-                      size={14}
-                      className="text-emerald/60 group-hover:text-emerald-light transition-colors"
-                    />
-                    <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                      Quick Pick Express
-                    </span>
-                  </div>
-                  <ChevronRight
-                    size={12}
-                    className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
-                  />
-                </Link>
-                <Link
-                  to="/tickets"
-                  className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/3 transition-colors group"
-                >
-                  <div className="flex items-center gap-2">
-                    <Ticket
-                      size={14}
-                      className="text-muted-foreground group-hover:text-muted-foreground transition-colors"
-                    />
-                    <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                      My Tickets
-                    </span>
-                  </div>
-                  <ChevronRight
-                    size={12}
-                    className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
-                  />
-                </Link>
-                <Link
-                  to="/dashboard"
-                  className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/3 transition-colors group"
-                >
-                  <div className="flex items-center gap-2">
-                    <BarChart3
-                      size={14}
-                      className="text-muted-foreground group-hover:text-muted-foreground transition-colors"
-                    />
-                    <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                      Dashboard
-                    </span>
-                  </div>
-                  <ChevronRight
-                    size={12}
-                    className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
-                  />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-    </div>
-  );
+							{/* Quick Links */}
+							<div className="glass rounded-xl p-4 space-y-2">
+								<h3 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+									<Zap size={12} className="text-emerald" />
+									Quick Links
+								</h3>
+								<Link
+									to="/play"
+									className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/3 transition-colors group"
+								>
+									<div className="flex items-center gap-2">
+										<Trophy
+											size={14}
+											className="text-gold/60 group-hover:text-gold transition-colors"
+										/>
+										<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+											Buy 6/46 Tickets
+										</span>
+									</div>
+									<ChevronRight
+										size={12}
+										className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
+									/>
+								</Link>
+								<Link
+									to="/play/quick-pick"
+									className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/3 transition-colors group"
+								>
+									<div className="flex items-center gap-2">
+										<Zap
+											size={14}
+											className="text-emerald/60 group-hover:text-emerald-light transition-colors"
+										/>
+										<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+											Quick Pick Express
+										</span>
+									</div>
+									<ChevronRight
+										size={12}
+										className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
+									/>
+								</Link>
+								<Link
+									to="/tickets"
+									className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/3 transition-colors group"
+								>
+									<div className="flex items-center gap-2">
+										<Ticket
+											size={14}
+											className="text-muted-foreground group-hover:text-muted-foreground transition-colors"
+										/>
+										<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+											My Tickets
+										</span>
+									</div>
+									<ChevronRight
+										size={12}
+										className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
+									/>
+								</Link>
+								<Link
+									to="/dashboard"
+									className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-foreground/3 transition-colors group"
+								>
+									<div className="flex items-center gap-2">
+										<BarChart3
+											size={14}
+											className="text-muted-foreground group-hover:text-muted-foreground transition-colors"
+										/>
+										<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+											Dashboard
+										</span>
+									</div>
+									<ChevronRight
+										size={12}
+										className="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
+									/>
+								</Link>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+		</div>
+	);
 }

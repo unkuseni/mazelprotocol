@@ -46,7 +46,14 @@ pub struct InitializeSyndicateWars<'info> {
         mut,
         seeds = [LOTTERY_SEED],
         bump = lottery_state.bump,
-        constraint = lottery_state.authority == authority.key() @ LottoError::Unauthorized
+        constraint = lottery_state.authority == authority.key() @ LottoError::Unauthorized,
+        // SECURITY (review H8): Block initialization mid-draw. Without these
+        // constraints, the authority could seize 1% of the prize pool while a
+        // draw is committed/executed — reducing the pool backing already-
+        // committed prizes so legitimate claims fail with InsufficientPrizePool.
+        constraint = !lottery_state.is_draw_in_progress @ LottoError::DrawInProgress,
+        constraint = !lottery_state.is_awaiting_finalization @ LottoError::DrawInProgress,
+        constraint = !lottery_state.is_paused @ LottoError::Paused
     )]
     pub lottery_state: Account<'info, LotteryState>,
 
@@ -162,7 +169,12 @@ pub fn handler_initialize_syndicate_wars(
     // checks and can produce false assumptions about available funds.
     //
     // Deduction priority: reserve_balance first (syndicate wars is a promotional
-    // feature funded from reserves), then fixed_prize_balance, then jackpot.
+    // feature funded from reserves), then insurance_balance, then
+    // fixed_prize_balance, then jackpot.
+    //
+    // REVIEW H8: `get_available_prize_pool()` includes `insurance_balance`, so
+    // the 1% seizure must also be deducted from insurance — otherwise insurance
+    // accounting drifts upward relative to its token account over time.
     {
         let lottery_state = &mut ctx.accounts.lottery_state;
         let mut remaining = wars_prize_pool;
@@ -172,7 +184,15 @@ pub fn handler_initialize_syndicate_wars(
         lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_sub(from_reserve);
         remaining = remaining.saturating_sub(from_reserve);
 
-        // 2. Deduct from fixed_prize_balance
+        // 2. Deduct from insurance_balance
+        if remaining > 0 {
+            let from_insurance = remaining.min(lottery_state.insurance_balance);
+            lottery_state.insurance_balance =
+                lottery_state.insurance_balance.saturating_sub(from_insurance);
+            remaining = remaining.saturating_sub(from_insurance);
+        }
+
+        // 3. Deduct from fixed_prize_balance
         if remaining > 0 {
             let from_fixed = remaining.min(lottery_state.fixed_prize_balance);
             lottery_state.fixed_prize_balance =
@@ -180,7 +200,7 @@ pub fn handler_initialize_syndicate_wars(
             remaining = remaining.saturating_sub(from_fixed);
         }
 
-        // 3. Last resort: deduct from jackpot_balance
+        // 4. Last resort: deduct from jackpot_balance
         if remaining > 0 {
             lottery_state.jackpot_balance = lottery_state.jackpot_balance.saturating_sub(remaining);
             msg!(
@@ -190,9 +210,10 @@ pub fn handler_initialize_syndicate_wars(
         }
 
         msg!(
-            "  Lottery state updated: jackpot={}, reserve={}, fixed_prize={}",
+            "  Lottery state updated: jackpot={}, reserve={}, insurance={}, fixed_prize={}",
             lottery_state.jackpot_balance,
             lottery_state.reserve_balance,
+            lottery_state.insurance_balance,
             lottery_state.fixed_prize_balance
         );
     }

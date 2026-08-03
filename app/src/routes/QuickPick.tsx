@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   Zap,
   Trophy,
@@ -24,6 +24,37 @@ import { Button } from "@/components/ui/button";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { QuickPickCountdown } from "@/components/CountdownTimer";
 import { LotteryBallRow, FloatingBalls } from "@/components/LotteryBalls";
+import { useQuickPickState } from "@/lib/anchor/hooks";
+import { useAnchorProvider } from "@/lib/anchor/provider";
+import {
+  buyQuickPickTicketsBulk,
+  checkUserMeetsGateRequirement,
+  ensureUsdcTokenAccount,
+  ensureUserStatsInitialized,
+  fetchUserStats,
+} from "@/lib/anchor/transactions";
+import { deriveUserPDA } from "@/lib/anchor/pda";
+import { PublicKey } from "@solana/web3.js";
+
+/** Fetch a user's lifetime spend (USDC dollars) for the gate overlay. */
+async function fetchUserStatsForGate(
+  provider: ReturnType<typeof useAnchorProvider>["connectedProvider"],
+  wallet: PublicKey,
+): Promise<number> {
+  if (!provider) return 0;
+  const stats = await fetchUserStats(provider, wallet);
+  if (!stats) return 0;
+  const rawSpent = stats.totalSpent ?? stats.total_spent ?? 0;
+  const lamports =
+    typeof rawSpent === "bigint"
+      ? rawSpent
+      : BigInt(
+        typeof rawSpent === "string" || typeof rawSpent === "number"
+          ? rawSpent
+          : String(rawSpent),
+      );
+  return Number(lamports) / 1_000_000;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                 */
@@ -236,13 +267,81 @@ export default function PlayQuickPickExpress() {
   >([]);
   const [showPrizeInfo, setShowPrizeInfo] = useState(false);
   const [showRolldownInfo, setShowRolldownInfo] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [purchaseTx, setPurchaseTx] = useState<string | null>(null);
+  const [gateState, setGateState] = useState<
+    | { status: "loading" }
+    | { status: "unlocked" }
+    | { status: "locked"; lifetimeSpend: number }
+    | { status: "error" }
+  >({ status: "loading" });
 
   const { open } = useAppKit();
   const { isConnected: walletConnected } = useAppKitAccount();
-  const mockJackpot = 18_420;
-  const mockLifetimeSpend = 72.5; // Above the $50 gate for demo
-  const isUnlocked = mockLifetimeSpend >= LIFETIME_GATE;
-  const rolldownActive = mockJackpot >= 30_000;
+  const { data: qpState } = useQuickPickState();
+  const { connectedProvider } = useAnchorProvider();
+
+  // SECURITY (review M5): the jackpot and the $50 gate were previously
+  // hardcoded demo values (mockJackpot = 18_420, mockLifetimeSpend = 72.5)
+  // that bypassed the gate in the UI and showed a fake jackpot. Now both
+  // read live on-chain state.
+  const jackpotLamports = qpState
+    ? (qpState as Record<string, unknown>).jackpot_balance ?? 0n
+    : null;
+  const jackpotDollars =
+    jackpotLamports !== null
+      ? Number(
+        typeof jackpotLamports === "bigint"
+          ? jackpotLamports
+          : BigInt(String(jackpotLamports)),
+      ) / 1_000_000
+      : 0;
+  const jackpotUnknown = qpState === null || jackpotDollars === 0;
+  const rolldownActive = jackpotDollars >= 30_000;
+
+  // Check the $50 lifetime-spend gate against the real UserStats account.
+  const walletPublicKey = connectedProvider?.wallet.publicKey ?? null;
+  const userStatsPda = walletPublicKey
+    ? deriveUserPDA(walletPublicKey)[0]
+    : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!walletPublicKey || !connectedProvider || !userStatsPda) {
+      if (!cancelled) setGateState({ status: "loading" });
+      return;
+    }
+    setGateState({ status: "loading" });
+    void (async () => {
+      try {
+        const meets = await checkUserMeetsGateRequirement(
+          connectedProvider,
+          userStatsPda,
+        );
+        if (cancelled) return;
+        if (meets) {
+          setGateState({ status: "unlocked" });
+        } else {
+          // Fetch lifetime spend for display in the locked overlay
+          const spend = await fetchUserStatsForGate(
+            connectedProvider,
+            walletPublicKey,
+          );
+          if (cancelled) return;
+          setGateState({ status: "locked", lifetimeSpend: spend });
+        }
+      } catch {
+        if (!cancelled) setGateState({ status: "error" });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletPublicKey?.toBase58()]);
+
+  const isUnlocked = gateState.status === "unlocked";
 
   const totalCost = useMemo(
     () => tickets.length * TICKET_PRICE,
@@ -297,16 +396,47 @@ export default function PlayQuickPickExpress() {
     setTickets([]);
   }, []);
 
-  const handleCheckout = useCallback(() => {
+  const handleCheckout = useCallback(async () => {
     if (!walletConnected) {
       open({ view: "Connect", namespace: "solana" });
       return;
     }
-    // In a real app, this would trigger the on-chain transaction
-    alert(
-      `Purchasing ${tickets.length} Quick Pick Express ticket(s) for $${totalCost.toFixed(2)} USDC`,
-    );
-  }, [walletConnected, tickets.length, totalCost, open]);
+    if (!connectedProvider) {
+      setPurchaseError("Wallet not connected");
+      return;
+    }
+    if (tickets.length === 0) return;
+
+    // SECURITY (review M5): checkout previously only showed an alert() — it
+    // never executed an on-chain purchase. Now it submits the real QuickPick
+    // bulk purchase (with ATA + UserStats onboarding for new wallets).
+    setIsPurchasing(true);
+    setPurchaseError(null);
+    setPurchaseTx(null);
+    try {
+      await ensureUserStatsInitialized(connectedProvider);
+      const playerUsdc = await ensureUsdcTokenAccount(
+        connectedProvider,
+        connectedProvider.wallet.publicKey,
+      );
+      const userStats = deriveUserPDA(connectedProvider.wallet.publicKey)[0];
+      const params = tickets.map((t) => ({ numbers: t.numbers }));
+      const sig = await buyQuickPickTicketsBulk(
+        connectedProvider,
+        params,
+        userStats,
+        playerUsdc,
+      );
+      setPurchaseTx(sig);
+      setTickets([]);
+    } catch (err) {
+      setPurchaseError(
+        err instanceof Error ? err.message : "Purchase failed",
+      );
+    } finally {
+      setIsPurchasing(false);
+    }
+  }, [walletConnected, connectedProvider, tickets, open]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -402,7 +532,8 @@ export default function PlayQuickPickExpress() {
             {/* Jackpot & Countdown */}
             <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6 max-md:mx-auto">
               <JackpotDisplay
-                amount={mockJackpot}
+                amount={jackpotDollars}
+                unknown={jackpotUnknown}
                 size="sm"
                 glow
                 showRolldownStatus={false}
@@ -422,8 +553,28 @@ export default function PlayQuickPickExpress() {
       {/* ================================================================ */}
       <section className="relative px-4 sm:px-6 lg:px-8 pb-16">
         <div className="max-w-7xl mx-auto px-0 py-4 sm:py-6">
-          {!isUnlocked ? (
-            <GateLockedOverlay lifetimeSpend={mockLifetimeSpend} />
+          {gateState.status === "locked" ? (
+            <GateLockedOverlay lifetimeSpend={gateState.lifetimeSpend} />
+          ) : gateState.status === "loading" ? (
+            <div className="relative glass-strong rounded-2xl p-6 sm:p-8 text-center border border-gold/20 overflow-hidden mx-auto max-w-lg">
+              <div className="text-sm text-muted-foreground">
+                Checking Quick Pick access…
+              </div>
+            </div>
+          ) : gateState.status === "error" ? (
+            <div className="relative glass-strong rounded-2xl p-6 sm:p-8 text-center border border-gold/20 overflow-hidden mx-auto max-w-lg">
+              <p className="text-sm text-muted-foreground mb-2">
+                Could not verify your Quick Pick access right now.
+              </p>
+              <Link
+                to="/play"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] text-sm"
+              >
+                <Trophy size={16} />
+                Play 6/46 Main Lottery
+                <ArrowRight size={14} />
+              </Link>
+            </div>
           ) : (
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
               {/* ------------------------------------------------------ */}
@@ -676,18 +827,44 @@ export default function PlayQuickPickExpress() {
                       </div>
                     </div>
 
+                    {purchaseError && (
+                      <div className="mb-3 p-3 rounded-xl bg-red-500/5 border border-red-500/20">
+                        <p className="text-[11px] text-red-400 font-medium">
+                          {purchaseError}
+                        </p>
+                      </div>
+                    )}
+
+                    {purchaseTx && (
+                      <div className="mb-3 p-3 rounded-xl bg-emerald/5 border border-emerald/20">
+                        <p className="text-[11px] text-emerald-light font-medium">
+                          Purchase submitted!
+                        </p>
+                        <a
+                          href={`https://solscan.io/tx/${purchaseTx}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-emerald-light/70 hover:text-emerald-light font-mono break-all"
+                        >
+                          {purchaseTx.slice(0, 32)}…
+                        </a>
+                      </div>
+                    )}
+
                     {walletConnected ? (
                       <Button
                         onClick={handleCheckout}
-                        disabled={tickets.length === 0}
+                        disabled={tickets.length === 0 || isPurchasing}
                         className="w-full h-12 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none"
                       >
                         <ShoppingCart size={18} />
-                        {tickets.length > 1
-                          ? `Buy ${tickets.length} Tickets`
-                          : tickets.length === 1
-                            ? "Buy Ticket"
-                            : "Add Tickets First"}
+                        {isPurchasing
+                          ? "Processing…"
+                          : tickets.length > 1
+                            ? `Buy ${tickets.length} Tickets`
+                            : tickets.length === 1
+                              ? "Buy Ticket"
+                              : "Add Tickets First"}
                       </Button>
                     ) : (
                       <Button
