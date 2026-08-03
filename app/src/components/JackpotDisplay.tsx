@@ -6,6 +6,13 @@ export interface JackpotDisplayProps {
   amount: number;
   /** Label shown above the amount */
   label?: string;
+  /**
+   * When true, the on-chain jackpot is unknown (not yet loaded / chain
+   * unreachable) and "--" is shown instead of a fabricated number.
+   * SECURITY (review M5): prevents displaying a fake jackpot when the
+   * chain fetch fails.
+   */
+  unknown?: boolean;
   /** Whether to animate the count-up on mount */
   animated?: boolean;
   /** Duration of count-up animation in ms */
@@ -74,6 +81,7 @@ function formatCurrencyFull(value: number): string {
 export function JackpotDisplay({
   amount,
   label = "Current Jackpot",
+  unknown = false,
   animated = true,
   duration = 2000,
   size = "lg",
@@ -190,13 +198,13 @@ export function JackpotDisplay({
           <div
             className={`${config.amountClass} font-black tracking-tight shimmer-text leading-none`}
           >
-            {formatCurrencyFull(displayValue)}
+            {unknown ? "--" : formatCurrencyFull(displayValue)}
           </div>
 
           {/* Sub-info */}
           {size !== "sm" && (
             <div className="mt-2 text-xs text-muted-foreground">
-              {formatCurrency(amount)} USDC
+              {unknown ? "Jackpot data unavailable" : `${formatCurrency(amount)} USDC`}
             </div>
           )}
 

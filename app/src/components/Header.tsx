@@ -22,6 +22,7 @@ import {
   useAppKitAccount,
   useDisconnect,
 } from "@/lib/appkit-provider";
+import { useLotteryState } from "@/hooks/use-lottery-state";
 
 const navLinks = [
   {
@@ -377,6 +378,19 @@ export default function Header() {
     {},
   );
 
+  // SECURITY (review M5): the jackpot badges previously showed a hardcoded
+  // "$1,247,832" that never reflected reality — users were materially misled
+  // about the jackpot size. Now it reads the live on-chain lottery state.
+  const { jackpotDollars, state } = useLotteryState();
+
+  // Format for display: compact ($1.2M) on desktop, full ($1,247,832) on mobile
+  const jackpotCompact =
+    jackpotDollars >= 1_000_000
+      ? `$${(jackpotDollars / 1_000_000).toFixed(1)}M`
+      : `$${Math.round(jackpotDollars).toLocaleString()}`;
+  const jackpotFull = `$${Math.round(jackpotDollars).toLocaleString()}`;
+  const jackpotKnown = state !== null && jackpotDollars > 0;
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
@@ -457,10 +471,16 @@ export default function Header() {
             {/* Right side: Wallet + Mobile menu */}
             <div className="flex items-center gap-3">
               {/* Live Jackpot Badge (Desktop) */}
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold-500/8 border border-gold-500/15">
-                <div className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse" />
+              <div
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold-500/8 border border-gold-500/15"
+                title={jackpotKnown ? `${jackpotFull} USDC` : "Jackpot data unavailable"}
+              >
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${jackpotKnown ? "bg-gold-400 animate-pulse" : "bg-gray-500"
+                    }`}
+                />
                 <span className="text-xs font-semibold text-gold-400 tracking-wide">
-                  Jackpot: $1.2M
+                  {jackpotKnown ? `Jackpot: ${jackpotCompact}` : "Jackpot: --"}
                 </span>
               </div>
 
@@ -527,10 +547,16 @@ export default function Header() {
           </div>
 
           {/* Jackpot badge mobile */}
-          <div className="mx-4 mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gold-500/8 border border-gold-500/15">
-            <div className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse" />
+          <div
+            className="mx-4 mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gold-500/8 border border-gold-500/15"
+            title={jackpotKnown ? `${jackpotFull} USDC` : "Jackpot data unavailable"}
+          >
+            <div
+              className={`w-1.5 h-1.5 rounded-full ${jackpotKnown ? "bg-gold-400 animate-pulse" : "bg-gray-500"
+                }`}
+            />
             <span className="text-xs font-semibold text-gold-400">
-              Live Jackpot: $1,247,832
+              {jackpotKnown ? `Live Jackpot: ${jackpotFull}` : "Live Jackpot: --"}
             </span>
           </div>
 

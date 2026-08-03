@@ -1,35 +1,33 @@
-import { type AnchorProvider } from "@coral-xyz/anchor";
+import { type AnchorProvider, BN } from "@coral-xyz/anchor";
 import {
-  PublicKey,
-  type TransactionInstruction,
-  type Signer,
-  SystemProgram,
+	PublicKey,
+	type Signer,
+	SystemProgram,
+	TransactionInstruction,
 } from "@solana/web3.js";
-import { BN } from "@coral-xyz/anchor";
-
-import {
-  createQuickPickProgramWithProvider,
-  createMainLotteryProgramWithProvider,
-  fetchMainLotteryState,
-} from "./programs";
-import {
-  deriveQuickPickState,
-  deriveQuickPickTicketPDA,
-  deriveQuickPickPrizePoolUsdcPDA,
-  deriveQuickPickHouseFeeUsdcPDA,
-  deriveQuickPickInsurancePoolUsdcPDA,
-  deriveLotteryState,
-  deriveTicketPDA,
-  deriveDrawResultPDA,
-  derivePrizePoolUsdcPDA,
-  deriveHouseFeeUsdcPDA,
-  deriveInsurancePoolUsdcPDA,
-  deriveUserPDA,
-  MAIN_LOTTERY_PROGRAM_ID,
-  USDC_MINT,
-} from "./pda";
 import { sendInstruction, sendInstructions } from "./connection";
-import { fetchQuickPickState } from "./programs";
+import {
+	deriveDrawResultPDA,
+	deriveHouseFeeUsdcPDA,
+	deriveInsurancePoolUsdcPDA,
+	deriveLotteryState,
+	derivePrizePoolUsdcPDA,
+	deriveQuickPickHouseFeeUsdcPDA,
+	deriveQuickPickInsurancePoolUsdcPDA,
+	deriveQuickPickPrizePoolUsdcPDA,
+	deriveQuickPickState,
+	deriveQuickPickTicketPDA,
+	deriveTicketPDA,
+	deriveUserPDA,
+	MAIN_LOTTERY_PROGRAM_ID,
+	USDC_MINT,
+} from "./pda";
+import {
+	createMainLotteryProgramWithProvider,
+	createQuickPickProgramWithProvider,
+	fetchMainLotteryState,
+	fetchQuickPickState,
+} from "./programs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,34 +35,34 @@ import { fetchQuickPickState } from "./programs";
 
 /** Parameters for buying a Quick Pick ticket */
 export interface BuyQuickPickTicketParams {
-  /** 5 unique numbers between 1 and 35 */
-  numbers: number[];
+	/** 5 unique numbers between 1 and 35 */
+	numbers: number[];
 }
 
 /** Options for buying a ticket */
 export interface BuyTicketOptions {
-  /** Skip preflight checks (default: false) */
-  skipPreflight?: boolean;
-  /** Commitment level for confirmation (default: "confirmed") */
-  commitment?: "processed" | "confirmed" | "finalized";
-  /** Maximum number of retries (optional) */
-  maxRetries?: number;
-  /** Delay between retries in milliseconds (optional) */
-  retryDelayMs?: number;
+	/** Skip preflight checks (default: false) */
+	skipPreflight?: boolean;
+	/** Commitment level for confirmation (default: "confirmed") */
+	commitment?: "processed" | "confirmed" | "finalized";
+	/** Maximum number of retries (optional) */
+	maxRetries?: number;
+	/** Delay between retries in milliseconds (optional) */
+	retryDelayMs?: number;
 }
 
 /**
  * Convert BuyTicketOptions to SendAndConfirmTransactionOptions
  */
 function convertBuyTicketOptions(
-  options: BuyTicketOptions = {},
+	options: BuyTicketOptions = {},
 ): import("./connection").SendAndConfirmTransactionOptions {
-  return {
-    skipPreflight: options.skipPreflight,
-    confirmationCommitment: options.commitment,
-    maxRetries: options.maxRetries,
-    retryDelayMs: options.retryDelayMs,
-  };
+	return {
+		skipPreflight: options.skipPreflight,
+		confirmationCommitment: options.commitment,
+		maxRetries: options.maxRetries,
+		retryDelayMs: options.retryDelayMs,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -73,12 +71,12 @@ function convertBuyTicketOptions(
 
 /** Token program ID */
 const TOKEN_PROGRAM_ID = new PublicKey(
-  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+	"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
 );
 
 /** Associated Token Program ID */
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
-  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+	"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
 );
 
 // ---------------------------------------------------------------------------
@@ -95,71 +93,72 @@ const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
  * @returns Transaction instruction ready to send
  */
 export async function buildBuyQuickPickTicketInstruction(
-  provider: AnchorProvider,
-  params: BuyQuickPickTicketParams,
-  userStats: PublicKey,
-  playerUsdc: PublicKey,
+	provider: AnchorProvider,
+	params: BuyQuickPickTicketParams,
+	userStats: PublicKey,
+	playerUsdc: PublicKey,
 ): Promise<TransactionInstruction> {
-  // Validate input
-  if (!params.numbers || params.numbers.length !== 5) {
-    throw new Error("Exactly 5 numbers are required for Quick Pick ticket");
-  }
+	// Validate input
+	if (params.numbers?.length !== 5) {
+		throw new Error("Exactly 5 numbers are required for Quick Pick ticket");
+	}
 
-  // Validate numbers are within range 1-35 and unique
-  const seen = new Set<number>();
-  for (const num of params.numbers) {
-    if (num < 1 || num > 35) {
-      throw new Error(`Number ${num} is out of range (must be 1-35)`);
-    }
-    if (seen.has(num)) {
-      throw new Error(`Duplicate number ${num} found`);
-    }
-    seen.add(num);
-  }
+	// Validate numbers are within range 1-35 and unique
+	const seen = new Set<number>();
+	for (const num of params.numbers) {
+		if (num < 1 || num > 35) {
+			throw new Error(`Number ${num} is out of range (must be 1-35)`);
+		}
+		if (seen.has(num)) {
+			throw new Error(`Duplicate number ${num} found`);
+		}
+		seen.add(num);
+	}
 
-  // Create program client
-  const program = createQuickPickProgramWithProvider(provider);
+	// Create program client
+	const program = await createQuickPickProgramWithProvider(provider);
+	if (!program) throw new Error("Quick Pick program failed to load");
 
-  // Fetch current Quick Pick state to get draw ID and ticket count
-  const quickPickState = await fetchQuickPickState(provider.connection);
-  if (!quickPickState) {
-    throw new Error("Quick Pick state not found");
-  }
+	// Fetch current Quick Pick state to get draw ID and ticket count
+	const quickPickState = await fetchQuickPickState(provider.connection);
+	if (!quickPickState) {
+		throw new Error("Quick Pick state not found");
+	}
 
-  // Extract current draw ID and ticket count from state
-  const currentDrawId = (quickPickState.current_draw as BN).toNumber();
-  const currentDrawTickets = (
-    quickPickState.current_draw_tickets as BN
-  ).toNumber();
+	// Extract current draw ID and ticket count from state
+	const currentDrawId = (quickPickState.current_draw as BN).toNumber();
+	const currentDrawTickets = (
+		quickPickState.current_draw_tickets as BN
+	).toNumber();
 
-  // Derive PDAs
-  const [quickPickStatePda] = deriveQuickPickState();
-  const [ticket] = deriveQuickPickTicketPDA(currentDrawId, currentDrawTickets);
-  const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA();
-  const [houseFeeUsdc] = deriveQuickPickHouseFeeUsdcPDA();
-  const [insurancePoolUsdc] = deriveQuickPickInsurancePoolUsdcPDA();
+	// Derive PDAs
+	const [quickPickStatePda] = deriveQuickPickState();
+	const [ticket] = deriveQuickPickTicketPDA(currentDrawId, currentDrawTickets);
+	const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA();
+	const [houseFeeUsdc] = deriveQuickPickHouseFeeUsdcPDA();
+	const [insurancePoolUsdc] = deriveQuickPickInsurancePoolUsdcPDA();
 
-  // Build instruction using the correct account names from IDL
-  const instruction = await program.methods
-    .buyTicket({
-      numbers: params.numbers as [number, number, number, number, number],
-    })
-    .accounts({
-      player: provider.wallet.publicKey,
-      quickPickState: quickPickStatePda, // IDL uses quick_pick_state but Anchor converts to camelCase
-      ticket,
-      playerUsdc,
-      prizePoolUsdc,
-      houseFeeUsdc,
-      insurancePoolUsdc,
-      usdcMint: USDC_MINT,
-      userStats,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
-    })
-    .instruction();
+	// Build instruction using the correct account names from IDL
+	const instruction = await program.methods
+		.buyTicket({
+			numbers: params.numbers as [number, number, number, number, number],
+		})
+		.accounts({
+			player: provider.wallet.publicKey,
+			quickPickState: quickPickStatePda, // IDL uses quick_pick_state but Anchor converts to camelCase
+			ticket,
+			playerUsdc,
+			prizePoolUsdc,
+			houseFeeUsdc,
+			insurancePoolUsdc,
+			usdcMint: USDC_MINT,
+			userStats,
+			tokenProgram: TOKEN_PROGRAM_ID,
+			systemProgram: SystemProgram.programId,
+		})
+		.instruction();
 
-  return instruction;
+	return instruction;
 }
 
 /**
@@ -173,37 +172,37 @@ export async function buildBuyQuickPickTicketInstruction(
  * @returns Transaction signature
  */
 export async function buyQuickPickTicket(
-  provider: AnchorProvider,
-  params: BuyQuickPickTicketParams,
-  userStats: PublicKey,
-  playerUsdc: PublicKey,
-  options: BuyTicketOptions = {},
+	provider: AnchorProvider,
+	params: BuyQuickPickTicketParams,
+	userStats: PublicKey,
+	playerUsdc: PublicKey,
+	options: BuyTicketOptions = {},
 ): Promise<string> {
-  // Build the instruction
-  const instruction = await buildBuyQuickPickTicketInstruction(
-    provider,
-    params,
-    userStats,
-    playerUsdc,
-  );
+	// Build the instruction
+	const instruction = await buildBuyQuickPickTicketInstruction(
+		provider,
+		params,
+		userStats,
+		playerUsdc,
+	);
 
-  // Get payer from provider wallet
-  const payer = {
-    publicKey: provider.wallet.publicKey,
-    signTransaction: provider.wallet.signTransaction,
-    signAllTransactions: provider.wallet.signAllTransactions,
-  } as unknown as Signer;
+	// Get payer from provider wallet
+	const payer = {
+		publicKey: provider.wallet.publicKey,
+		signTransaction: provider.wallet.signTransaction,
+		signAllTransactions: provider.wallet.signAllTransactions,
+	} as unknown as Signer;
 
-  // Send the transaction
-  const signature = await sendInstruction(
-    instruction,
-    payer,
-    [], // No additional signers needed
-    provider.connection,
-    convertBuyTicketOptions(options),
-  );
+	// Send the transaction
+	const signature = await sendInstruction(
+		instruction,
+		payer,
+		[], // No additional signers needed
+		provider.connection,
+		convertBuyTicketOptions(options),
+	);
 
-  return signature;
+	return signature;
 }
 
 // ---------------------------------------------------------------------------
@@ -215,36 +214,72 @@ export async function buyQuickPickTicket(
  * Pure derivation — never throws. Used for claims and balance checks.
  */
 export function usdcTokenAccountAddress(owner: PublicKey): PublicKey {
-  const [tokenAccount] = PublicKey.findProgramAddressSync(
-    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), USDC_MINT.toBuffer()],
-    ASSOCIATED_TOKEN_PROGRAM_ID,
-  );
-  return tokenAccount;
+	const [tokenAccount] = PublicKey.findProgramAddressSync(
+		[owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), USDC_MINT.toBuffer()],
+		ASSOCIATED_TOKEN_PROGRAM_ID,
+	);
+	return tokenAccount;
 }
 
 /**
- * Get or create a user's USDC token account
- * Note: This is a simplified version - in production you'd want to handle
- * the creation separately or use a more robust approach
+ * Build the instruction that creates an associated token account for USDC.
+ * The ATA program instruction has an empty data payload.
+ */
+function buildCreateUsdcAtaInstruction(
+	payer: PublicKey,
+	owner: PublicKey,
+	tokenAccount: PublicKey,
+): TransactionInstruction {
+	return new TransactionInstruction({
+		keys: [
+			{ pubkey: payer, isSigner: true, isWritable: true },
+			{ pubkey: tokenAccount, isSigner: false, isWritable: true },
+			{ pubkey: owner, isSigner: false, isWritable: false },
+			{ pubkey: USDC_MINT, isSigner: false, isWritable: false },
+			{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+			{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+		],
+		programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+		data: Buffer.alloc(0),
+	});
+}
+
+/**
+ * Get or create a user's USDC associated token account (ATA).
+ *
+ * SECURITY (review M8): this previously threw when the ATA did not exist,
+ * so a new user's first ticket purchase always failed with a raw error and
+ * no onboarding path. Now it creates the ATA on-chain (payer covers the
+ * small rent) and returns the ATA address.
  */
 export async function ensureUsdcTokenAccount(
-  provider: AnchorProvider,
-  owner: PublicKey,
+	provider: AnchorProvider,
+	owner: PublicKey,
 ): Promise<PublicKey> {
-  const tokenAccount = usdcTokenAccountAddress(owner);
+	const tokenAccount = usdcTokenAccountAddress(owner);
 
-  // Check if account exists
-  const accountInfo = await provider.connection.getAccountInfo(tokenAccount);
-  if (!accountInfo) {
-    // In a real implementation, you'd create the associated token account here
-    // This would require additional logic and a separate transaction
-    throw new Error(
-      `USDC token account ${tokenAccount.toString()} does not exist. ` +
-      "Please create it first or ensure you have USDC in your wallet.",
-    );
-  }
+	// Check if account exists
+	const accountInfo = await provider.connection.getAccountInfo(tokenAccount);
+	if (accountInfo) {
+		return tokenAccount;
+	}
 
-  return tokenAccount;
+	// Create the ATA so subsequent instructions can transfer to/from it.
+	const payer = {
+		publicKey: provider.wallet.publicKey,
+		signTransaction: provider.wallet.signTransaction,
+		signAllTransactions: provider.wallet.signAllTransactions,
+	} as unknown as Signer;
+	const instruction = buildCreateUsdcAtaInstruction(
+		provider.wallet.publicKey,
+		owner,
+		tokenAccount,
+	);
+	await sendInstruction(instruction, payer, [], provider.connection, {
+		confirmationCommitment: "confirmed",
+	});
+
+	return tokenAccount;
 }
 
 // ---------------------------------------------------------------------------
@@ -262,99 +297,100 @@ export async function ensureUsdcTokenAccount(
  * @returns Transaction signature
  */
 export async function buyQuickPickTicketsBulk(
-  provider: AnchorProvider,
-  tickets: BuyQuickPickTicketParams[],
-  userStats: PublicKey,
-  playerUsdc: PublicKey,
-  options: BuyTicketOptions = {},
+	provider: AnchorProvider,
+	tickets: BuyQuickPickTicketParams[],
+	userStats: PublicKey,
+	playerUsdc: PublicKey,
+	options: BuyTicketOptions = {},
 ): Promise<string> {
-  if (tickets.length === 0) {
-    throw new Error("At least one ticket is required");
-  }
+	if (tickets.length === 0) {
+		throw new Error("At least one ticket is required");
+	}
 
-  if (tickets.length > 10) {
-    // Arbitrary limit to avoid transaction size limits
-    throw new Error("Maximum 10 tickets per transaction");
-  }
+	if (tickets.length > 10) {
+		// Arbitrary limit to avoid transaction size limits
+		throw new Error("Maximum 10 tickets per transaction");
+	}
 
-  // Fetch current state once for all tickets
-  const quickPickState = await fetchQuickPickState(provider.connection);
-  if (!quickPickState) {
-    throw new Error("Quick Pick state not found");
-  }
+	// Fetch current state once for all tickets
+	const quickPickState = await fetchQuickPickState(provider.connection);
+	if (!quickPickState) {
+		throw new Error("Quick Pick state not found");
+	}
 
-  const currentDrawId = (quickPickState.current_draw as BN).toNumber();
-  let currentTicketIndex = (
-    quickPickState.current_draw_tickets as BN
-  ).toNumber();
+	const currentDrawId = (quickPickState.current_draw as BN).toNumber();
+	let currentTicketIndex = (
+		quickPickState.current_draw_tickets as BN
+	).toNumber();
 
-  // Build all instructions
-  const instructions: TransactionInstruction[] = [];
-  const program = createQuickPickProgramWithProvider(provider);
+	// Build all instructions
+	const instructions: TransactionInstruction[] = [];
+	const program = await createQuickPickProgramWithProvider(provider);
+	if (!program) throw new Error("Quick Pick program failed to load");
 
-  // Derive common PDAs once
-  const [quickPickStatePda] = deriveQuickPickState();
-  const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA();
-  const [houseFeeUsdc] = deriveQuickPickHouseFeeUsdcPDA();
-  const [insurancePoolUsdc] = deriveQuickPickInsurancePoolUsdcPDA();
+	// Derive common PDAs once
+	const [quickPickStatePda] = deriveQuickPickState();
+	const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA();
+	const [houseFeeUsdc] = deriveQuickPickHouseFeeUsdcPDA();
+	const [insurancePoolUsdc] = deriveQuickPickInsurancePoolUsdcPDA();
 
-  for (const ticketParams of tickets) {
-    // Validate ticket numbers
-    validateQuickPickNumbers(ticketParams.numbers);
+	for (const ticketParams of tickets) {
+		// Validate ticket numbers
+		validateQuickPickNumbers(ticketParams.numbers);
 
-    // Derive ticket PDA with current index
-    const [ticket] = deriveQuickPickTicketPDA(
-      currentDrawId,
-      currentTicketIndex,
-    );
+		// Derive ticket PDA with current index
+		const [ticket] = deriveQuickPickTicketPDA(
+			currentDrawId,
+			currentTicketIndex,
+		);
 
-    // Build instruction
-    const instruction = await program.methods
-      .buyTicket({
-        numbers: ticketParams.numbers as [
-          number,
-          number,
-          number,
-          number,
-          number,
-        ],
-      })
-      .accounts({
-        player: provider.wallet.publicKey,
-        quickPickState: quickPickStatePda,
-        ticket,
-        playerUsdc,
-        prizePoolUsdc,
-        houseFeeUsdc,
-        insurancePoolUsdc,
-        usdcMint: USDC_MINT,
-        userStats,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      })
-      .instruction();
+		// Build instruction
+		const instruction = await program.methods
+			.buyTicket({
+				numbers: ticketParams.numbers as [
+					number,
+					number,
+					number,
+					number,
+					number,
+				],
+			})
+			.accounts({
+				player: provider.wallet.publicKey,
+				quickPickState: quickPickStatePda,
+				ticket,
+				playerUsdc,
+				prizePoolUsdc,
+				houseFeeUsdc,
+				insurancePoolUsdc,
+				usdcMint: USDC_MINT,
+				userStats,
+				tokenProgram: TOKEN_PROGRAM_ID,
+				systemProgram: SystemProgram.programId,
+			})
+			.instruction();
 
-    instructions.push(instruction);
-    currentTicketIndex++; // Increment for next ticket
-  }
+		instructions.push(instruction);
+		currentTicketIndex++; // Increment for next ticket
+	}
 
-  // Get payer
-  const payer = {
-    publicKey: provider.wallet.publicKey,
-    signTransaction: provider.wallet.signTransaction,
-    signAllTransactions: provider.wallet.signAllTransactions,
-  } as unknown as Signer;
+	// Get payer
+	const payer = {
+		publicKey: provider.wallet.publicKey,
+		signTransaction: provider.wallet.signTransaction,
+		signAllTransactions: provider.wallet.signAllTransactions,
+	} as unknown as Signer;
 
-  // Send all instructions in one transaction
-  const signature = await sendInstructions(
-    instructions,
-    payer,
-    [], // No additional signers
-    provider.connection,
-    convertBuyTicketOptions(options),
-  );
+	// Send all instructions in one transaction
+	const signature = await sendInstructions(
+		instructions,
+		payer,
+		[], // No additional signers
+		provider.connection,
+		convertBuyTicketOptions(options),
+	);
 
-  return signature;
+	return signature;
 }
 
 // ---------------------------------------------------------------------------
@@ -362,13 +398,13 @@ export async function buyQuickPickTicketsBulk(
 // ---------------------------------------------------------------------------
 
 export class TicketPurchaseError extends Error {
-  constructor(
-    message: string,
-    public readonly originalError?: Error,
-  ) {
-    super(message);
-    this.name = "TicketPurchaseError";
-  }
+	constructor(
+		message: string,
+		public readonly originalError?: Error,
+	) {
+		super(message);
+		this.name = "TicketPurchaseError";
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -382,25 +418,25 @@ export class TicketPurchaseError extends Error {
  * @throws Error if numbers are invalid
  */
 export function validateQuickPickNumbers(numbers: number[]): void {
-  if (!numbers || numbers.length !== 5) {
-    throw new TicketPurchaseError("Exactly 5 numbers are required");
-  }
+	if (numbers?.length !== 5) {
+		throw new TicketPurchaseError("Exactly 5 numbers are required");
+	}
 
-  const seen = new Set<number>();
-  for (const num of numbers) {
-    if (!Number.isInteger(num)) {
-      throw new TicketPurchaseError(`Number ${num} must be an integer`);
-    }
-    if (num < 1 || num > 35) {
-      throw new TicketPurchaseError(
-        `Number ${num} is out of range (must be 1-35)`,
-      );
-    }
-    if (seen.has(num)) {
-      throw new TicketPurchaseError(`Duplicate number ${num} found`);
-    }
-    seen.add(num);
-  }
+	const seen = new Set<number>();
+	for (const num of numbers) {
+		if (!Number.isInteger(num)) {
+			throw new TicketPurchaseError(`Number ${num} must be an integer`);
+		}
+		if (num < 1 || num > 35) {
+			throw new TicketPurchaseError(
+				`Number ${num} is out of range (must be 1-35)`,
+			);
+		}
+		if (seen.has(num)) {
+			throw new TicketPurchaseError(`Duplicate number ${num} found`);
+		}
+		seen.add(num);
+	}
 }
 
 /**
@@ -409,14 +445,14 @@ export function validateQuickPickNumbers(numbers: number[]): void {
  * @returns Array of 5 unique numbers between 1 and 35
  */
 export function generateRandomQuickPickNumbers(): number[] {
-  const numbers: number[] = [];
-  while (numbers.length < 5) {
-    const num = Math.floor(Math.random() * 35) + 1;
-    if (!numbers.includes(num)) {
-      numbers.push(num);
-    }
-  }
-  return numbers.sort((a, b) => a - b);
+	const numbers: number[] = [];
+	while (numbers.length < 5) {
+		const num = Math.floor(Math.random() * 35) + 1;
+		if (!numbers.includes(num)) {
+			numbers.push(num);
+		}
+	}
+	return numbers.sort((a, b) => a - b);
 }
 
 // ---------------------------------------------------------------------------
@@ -431,69 +467,91 @@ export function generateRandomQuickPickNumbers(): number[] {
  * @returns User stats account data or null if not found
  */
 export async function fetchUserStats(
-  provider: AnchorProvider,
-  user: PublicKey,
+	provider: AnchorProvider,
+	user: PublicKey,
 ): Promise<Record<string, unknown> | null> {
-  try {
-    // Import main lottery program client
-    const { createMainLotteryProgramWithProvider } = await import("./programs");
-    const program = createMainLotteryProgramWithProvider(provider);
+	try {
+		// Import main lottery program client
+		const { createMainLotteryProgramWithProvider } = await import("./programs");
+		const program = await createMainLotteryProgramWithProvider(provider);
+		if (!program) return null;
 
-    // Derive user stats PDA
-    const { deriveUserPDA } = await import("./pda");
-    const [userStatsPda] = deriveUserPDA(user);
+		// Derive user stats PDA
+		const { deriveUserPDA } = await import("./pda");
+		const [userStatsPda] = deriveUserPDA(user);
 
-    // Fetch account using dynamic access (AccountNamespace<Idl> doesn't expose typed names)
-    const ns = program.account as Record<string, { fetch: (addr: PublicKey) => Promise<unknown> } | undefined>;
-    const accessor = ns["userStats"];
-    if (!accessor) return null;
-    const account = await accessor.fetch(userStatsPda);
-    return account as Record<string, unknown>;
-  } catch (error) {
-    console.warn("Failed to fetch user stats:", error);
-    return null;
-  }
+		// Fetch account using dynamic access (AccountNamespace<Idl> doesn't expose typed names)
+		const ns = program.account as Record<
+			string,
+			{ fetch: (addr: PublicKey) => Promise<unknown> } | undefined
+		>;
+		const accessor = ns.userStats;
+		if (!accessor) return null;
+		const account = await accessor.fetch(userStatsPda);
+		return account as Record<string, unknown>;
+	} catch (error) {
+		console.warn("Failed to fetch user stats:", error);
+		return null;
+	}
 }
 
 /**
- * Check if user meets the $50 gate requirement
- * Note: This is a placeholder - you'll need to implement proper user stats fetching
- * from the main lottery program
+ * Check if user meets the $50 gate requirement.
+ *
+ * SECURITY (review L5): this previously passed a BN object to BigInt(), which
+ * throws — the catch then returned `false` for EVERY valid user, so the gate
+ * could never be satisfied through this helper. The BN is now stringified
+ * before conversion, and the check works as intended.
  *
  * @param provider - Anchor provider with connected wallet
  * @param userStats - User statistics account
  * @returns boolean indicating if user meets the requirement
  */
 export async function checkUserMeetsGateRequirement(
-  provider: AnchorProvider,
-  userStats: PublicKey,
+	provider: AnchorProvider,
+	userStats: PublicKey,
 ): Promise<boolean> {
-  try {
-    // Import main lottery program client
-    const { createMainLotteryProgramWithProvider } = await import("./programs");
-    const program = createMainLotteryProgramWithProvider(provider);
+	try {
+		// Import main lottery program client
+		const { createMainLotteryProgramWithProvider } = await import("./programs");
+		const program = await createMainLotteryProgramWithProvider(provider);
+		if (!program) return false;
 
-    // Fetch user stats account using dynamic access
-    const ns = program.account as Record<string, { fetch: (addr: PublicKey) => Promise<unknown> } | undefined>;
-    const accessor = ns["userStats"];
-    if (!accessor) return false;
-    const account = await accessor.fetch(userStats);
+		// Fetch user stats account using dynamic access
+		const ns = program.account as Record<
+			string,
+			{ fetch: (addr: PublicKey) => Promise<unknown> } | undefined
+		>;
+		const accessor = ns.userStats;
+		if (!accessor) return false;
+		const account = await accessor.fetch(userStats);
 
-    // Check if total_spent >= $50 (in USDC lamports)
-    // $50 in USDC lamports = 50 * 1,000,000 (USDC has 6 decimals) = 50,000,000
-    const FIFTY_DOLLARS_LAMPORTS = 50_000_000;
+		// Check if total_spent >= $50 (in USDC lamports)
+		// $50 in USDC lamports = 50 * 1,000,000 (USDC has 6 decimals) = 50,000,000
+		const FIFTY_DOLLARS_LAMPORTS = 50_000_000n;
 
-    // Extract total_spent from user stats
-    // The field name might be different - adjust based on actual IDL
-    const totalSpent =
-      (account as any).totalSpent || (account as any).total_spent || BigInt(0);
+		// Extract total_spent from user stats. Anchor deserializes u64 as BN,
+		// which BigInt() cannot convert directly — stringify first.
+		const rawTotalSpent =
+			(account as Record<string, unknown>).totalSpent ??
+			(account as Record<string, unknown>).total_spent ??
+			0n;
+		const totalSpentBigInt =
+			typeof rawTotalSpent === "bigint"
+				? rawTotalSpent
+				: BigInt(
+						typeof rawTotalSpent === "string" ||
+							typeof rawTotalSpent === "number"
+							? rawTotalSpent
+							: String(rawTotalSpent),
+					);
 
-    return BigInt(totalSpent) >= BigInt(FIFTY_DOLLARS_LAMPORTS);
-  } catch (error) {
-    console.warn("Failed to check $50 gate requirement:", error);
-    // If we can't fetch the stats, fail closed for security
-    return false;
-  }
+		return totalSpentBigInt >= FIFTY_DOLLARS_LAMPORTS;
+	} catch (error) {
+		console.warn("Failed to check $50 gate requirement:", error);
+		// If we can't fetch the stats, fail closed for security
+		return false;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -502,114 +560,114 @@ export async function checkUserMeetsGateRequirement(
 
 /** Parameters for buying a main lottery ticket */
 export interface BuyMainTicketParams {
-  /** 6 unique numbers between 1 and 46, sorted ascending */
-  numbers: number[];
-  /** Whether to use a free ticket credit */
-  useFreeTicket?: boolean;
+	/** 6 unique numbers between 1 and 46, sorted ascending */
+	numbers: number[];
+	/** Whether to use a free ticket credit */
+	useFreeTicket?: boolean;
 }
 
 /**
  * Build the instruction to buy a main lottery ticket (6/46)
  */
 export async function buildBuyMainTicketInstruction(
-  provider: AnchorProvider,
-  params: BuyMainTicketParams,
-  playerUsdc: PublicKey,
+	provider: AnchorProvider,
+	params: BuyMainTicketParams,
+	playerUsdc: PublicKey,
 ): Promise<TransactionInstruction> {
-  validateMainLotteryNumbers(params.numbers);
+	validateMainLotteryNumbers(params.numbers);
 
-  const program = createMainLotteryProgramWithProvider(provider);
+	const program = await createMainLotteryProgramWithProvider(provider);
+	if (!program) throw new Error("Main lottery program failed to load");
 
-  // Fetch current lottery state
-  const state = await fetchMainLotteryState(provider.connection);
-  if (!state) throw new Error("Lottery state not found");
+	// Fetch current lottery state
+	const state = await fetchMainLotteryState(provider.connection);
+	if (!state) throw new Error("Lottery state not found");
 
-  const currentDrawId =
-    (state.current_draw_id as any).toNumber?.() ??
-    Number(state.current_draw_id);
-  const currentDrawTickets =
-    (state.current_draw_tickets as any).toNumber?.() ??
-    Number(state.current_draw_tickets);
+	const currentDrawId =
+		(state.current_draw_id as any).toNumber?.() ??
+		Number(state.current_draw_id);
+	const currentDrawTickets =
+		(state.current_draw_tickets as any).toNumber?.() ??
+		Number(state.current_draw_tickets);
 
-  // Derive PDAs
-  const [lotteryStatePda] = deriveLotteryState(MAIN_LOTTERY_PROGRAM_ID);
-  const [ticket] = deriveTicketPDA(currentDrawId, currentDrawTickets);
-  const [prizePoolUsdc] = derivePrizePoolUsdcPDA();
-  const [houseFeeUsdc] = deriveHouseFeeUsdcPDA();
-  const [insurancePoolUsdc] = deriveInsurancePoolUsdcPDA();
-  const [userStats] = deriveUserPDA(provider.wallet.publicKey);
+	// Derive PDAs
+	const [lotteryStatePda] = deriveLotteryState(MAIN_LOTTERY_PROGRAM_ID);
+	const [ticket] = deriveTicketPDA(currentDrawId, currentDrawTickets);
+	const [prizePoolUsdc] = derivePrizePoolUsdcPDA();
+	const [houseFeeUsdc] = deriveHouseFeeUsdcPDA();
+	const [insurancePoolUsdc] = deriveInsurancePoolUsdcPDA();
+	const [userStats] = deriveUserPDA(provider.wallet.publicKey);
 
-  const instruction = await program.methods
-    .buyTicket({
-      numbers: params.numbers as [
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-      ],
-      useFreeTicket: params.useFreeTicket ?? false,
-    })
-    .accounts({
-      player: provider.wallet.publicKey,
-      lotteryState: lotteryStatePda,
-      ticket,
-      playerUsdc,
-      prizePoolUsdc,
-      houseFeeUsdc,
-      insurancePoolUsdc,
-      usdcMint: USDC_MINT,
-      userStats,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
-    })
-    .instruction();
+	const instruction = await program.methods
+		.buyTicket({
+			numbers: params.numbers as [
+				number,
+				number,
+				number,
+				number,
+				number,
+				number,
+			],
+			useFreeTicket: params.useFreeTicket ?? false,
+		})
+		.accounts({
+			player: provider.wallet.publicKey,
+			lotteryState: lotteryStatePda,
+			ticket,
+			playerUsdc,
+			prizePoolUsdc,
+			houseFeeUsdc,
+			insurancePoolUsdc,
+			usdcMint: USDC_MINT,
+			userStats,
+			tokenProgram: TOKEN_PROGRAM_ID,
+			systemProgram: SystemProgram.programId,
+		})
+		.instruction();
 
-  return instruction;
+	return instruction;
 }
 
 /**
  * Buy a main lottery ticket
  */
 export async function buyMainTicket(
-  provider: AnchorProvider,
-  params: BuyMainTicketParams,
-  playerUsdc: PublicKey,
-  options: BuyTicketOptions = {},
+	provider: AnchorProvider,
+	params: BuyMainTicketParams,
+	playerUsdc: PublicKey,
+	options: BuyTicketOptions = {},
 ): Promise<string> {
-  const instruction = await buildBuyMainTicketInstruction(
-    provider,
-    params,
-    playerUsdc,
-  );
+	const instruction = await buildBuyMainTicketInstruction(
+		provider,
+		params,
+		playerUsdc,
+	);
 
-  const payer = {
-    publicKey: provider.wallet.publicKey,
-    signTransaction: provider.wallet.signTransaction,
-    signAllTransactions: provider.wallet.signAllTransactions,
-  } as unknown as Signer;
+	const payer = {
+		publicKey: provider.wallet.publicKey,
+		signTransaction: provider.wallet.signTransaction,
+		signAllTransactions: provider.wallet.signAllTransactions,
+	} as unknown as Signer;
 
-  return sendInstruction(
-    instruction,
-    payer,
-    [],
-    provider.connection,
-    convertBuyTicketOptions(options),
-  );
+	return sendInstruction(
+		instruction,
+		payer,
+		[],
+		provider.connection,
+		convertBuyTicketOptions(options),
+	);
 }
 
 function validateMainLotteryNumbers(numbers: number[]): void {
-  if (!numbers || numbers.length !== 6)
-    throw new TicketPurchaseError("Exactly 6 numbers required");
-  const seen = new Set<number>();
-  for (const num of numbers) {
-    if (num < 1 || num > 46)
-      throw new TicketPurchaseError(`Number ${num} out of range (1-46)`);
-    if (seen.has(num))
-      throw new TicketPurchaseError(`Duplicate number ${num}`);
-    seen.add(num);
-  }
+	if (numbers?.length !== 6)
+		throw new TicketPurchaseError("Exactly 6 numbers required");
+	const seen = new Set<number>();
+	for (const num of numbers) {
+		if (num < 1 || num > 46)
+			throw new TicketPurchaseError(`Number ${num} out of range (1-46)`);
+		if (seen.has(num)) throw new TicketPurchaseError(`Duplicate number ${num}`);
+		seen.add(num);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -620,120 +678,121 @@ function validateMainLotteryNumbers(numbers: number[]): void {
  * Build instruction to claim a prize for a single main lottery ticket
  */
 export async function buildClaimMainPrizeInstruction(
-  provider: AnchorProvider,
-  drawId: number,
-  ticketIndex: number,
-  playerUsdc: PublicKey,
-  ticketPubkey?: PublicKey,
+	provider: AnchorProvider,
+	drawId: number,
+	ticketIndex: number,
+	playerUsdc: PublicKey,
+	ticketPubkey?: PublicKey,
 ): Promise<TransactionInstruction> {
-  const program = createMainLotteryProgramWithProvider(provider);
+	const program = await createMainLotteryProgramWithProvider(provider);
+	if (!program) throw new Error("Main lottery program failed to load");
 
-  const [lotteryStatePda] = deriveLotteryState();
-  // SECURITY (review H5): prefer the explicit on-chain ticket address when
-  // available. Re-deriving from a list position index is wrong — the on-chain
-  // ticket index is the `current_draw_tickets` counter at purchase time, not
-  // the position of the ticket in a fetched array.
-  const ticket = ticketPubkey ?? deriveTicketPDA(drawId, ticketIndex)[0];
-  const [drawResult] = deriveDrawResultPDA(drawId);
-  const [prizePoolUsdc] = derivePrizePoolUsdcPDA();
-  const [userStats] = deriveUserPDA(provider.wallet.publicKey);
+	const [lotteryStatePda] = deriveLotteryState();
+	// SECURITY (review H5): prefer the explicit on-chain ticket address when
+	// available. Re-deriving from a list position index is wrong — the on-chain
+	// ticket index is the `current_draw_tickets` counter at purchase time, not
+	// the position of the ticket in a fetched array.
+	const ticket = ticketPubkey ?? deriveTicketPDA(drawId, ticketIndex)[0];
+	const [drawResult] = deriveDrawResultPDA(drawId);
+	const [prizePoolUsdc] = derivePrizePoolUsdcPDA();
+	const [userStats] = deriveUserPDA(provider.wallet.publicKey);
 
-  const instruction = await program.methods
-    .claimPrize()
-    .accounts({
-      player: provider.wallet.publicKey,
-      lotteryState: lotteryStatePda,
-      ticket,
-      drawResult,
-      playerUsdc,
-      prizePoolUsdc,
-      usdcMint: USDC_MINT,
-      userStats,
-      tokenProgram: TOKEN_PROGRAM_ID,
-    })
-    .instruction();
+	const instruction = await program.methods
+		.claimPrize()
+		.accounts({
+			player: provider.wallet.publicKey,
+			lotteryState: lotteryStatePda,
+			ticket,
+			drawResult,
+			playerUsdc,
+			prizePoolUsdc,
+			usdcMint: USDC_MINT,
+			userStats,
+			tokenProgram: TOKEN_PROGRAM_ID,
+		})
+		.instruction();
 
-  return instruction;
+	return instruction;
 }
 
 /**
  * Claim a prize for a single main lottery ticket
  */
 export async function claimMainPrize(
-  provider: AnchorProvider,
-  drawId: number,
-  ticketIndex: number,
-  playerUsdc: PublicKey,
-  options: BuyTicketOptions = {},
-  ticketPubkey?: PublicKey,
+	provider: AnchorProvider,
+	drawId: number,
+	ticketIndex: number,
+	playerUsdc: PublicKey,
+	options: BuyTicketOptions = {},
+	ticketPubkey?: PublicKey,
 ): Promise<string> {
-  const instruction = await buildClaimMainPrizeInstruction(
-    provider,
-    drawId,
-    ticketIndex,
-    playerUsdc,
-    ticketPubkey,
-  );
-  const payer = {
-    publicKey: provider.wallet.publicKey,
-    signTransaction: provider.wallet.signTransaction,
-    signAllTransactions: provider.wallet.signAllTransactions,
-  } as unknown as Signer;
-  return sendInstruction(
-    instruction,
-    payer,
-    [],
-    provider.connection,
-    convertBuyTicketOptions(options),
-  );
+	const instruction = await buildClaimMainPrizeInstruction(
+		provider,
+		drawId,
+		ticketIndex,
+		playerUsdc,
+		ticketPubkey,
+	);
+	const payer = {
+		publicKey: provider.wallet.publicKey,
+		signTransaction: provider.wallet.signTransaction,
+		signAllTransactions: provider.wallet.signAllTransactions,
+	} as unknown as Signer;
+	return sendInstruction(
+		instruction,
+		payer,
+		[],
+		provider.connection,
+		convertBuyTicketOptions(options),
+	);
 }
 
 /**
  * Claim all unclaimed prizes for a user across multiple tickets
  */
 export async function claimAllMainPrizes(
-  provider: AnchorProvider,
-  tickets: Array<{
-    drawId: number;
-    ticketIndex: number;
-    /** Explicit on-chain ticket address (preferred over index derivation). */
-    ticketAddress?: string;
-  }>,
-  playerUsdc: PublicKey,
-  options: BuyTicketOptions = {},
+	provider: AnchorProvider,
+	tickets: Array<{
+		drawId: number;
+		ticketIndex: number;
+		/** Explicit on-chain ticket address (preferred over index derivation). */
+		ticketAddress?: string;
+	}>,
+	playerUsdc: PublicKey,
+	options: BuyTicketOptions = {},
 ): Promise<string[]> {
-  const instructions = await Promise.all(
-    tickets.map((t) =>
-      buildClaimMainPrizeInstruction(
-        provider,
-        t.drawId,
-        t.ticketIndex,
-        playerUsdc,
-        t.ticketAddress ? new PublicKey(t.ticketAddress) : undefined,
-      ),
-    ),
-  );
+	const instructions = await Promise.all(
+		tickets.map((t) =>
+			buildClaimMainPrizeInstruction(
+				provider,
+				t.drawId,
+				t.ticketIndex,
+				playerUsdc,
+				t.ticketAddress ? new PublicKey(t.ticketAddress) : undefined,
+			),
+		),
+	);
 
-  const payer = {
-    publicKey: provider.wallet.publicKey,
-    signTransaction: provider.wallet.signTransaction,
-    signAllTransactions: provider.wallet.signAllTransactions,
-  } as unknown as Signer;
+	const payer = {
+		publicKey: provider.wallet.publicKey,
+		signTransaction: provider.wallet.signTransaction,
+		signAllTransactions: provider.wallet.signAllTransactions,
+	} as unknown as Signer;
 
-  // Send in batches of 5 to avoid transaction size limits
-  const signatures: string[] = [];
-  for (let i = 0; i < instructions.length; i += 5) {
-    const batch = instructions.slice(i, i + 5);
-    const sig = await sendInstructions(
-      batch,
-      payer,
-      [],
-      provider.connection,
-      convertBuyTicketOptions(options),
-    );
-    signatures.push(sig);
-  }
-  return signatures;
+	// Send in batches of 5 to avoid transaction size limits
+	const signatures: string[] = [];
+	for (let i = 0; i < instructions.length; i += 5) {
+		const batch = instructions.slice(i, i + 5);
+		const sig = await sendInstructions(
+			batch,
+			payer,
+			[],
+			provider.connection,
+			convertBuyTicketOptions(options),
+		);
+		signatures.push(sig);
+	}
+	return signatures;
 }
 
 // ---------------------------------------------------------------------------
@@ -744,71 +803,76 @@ export async function claimAllMainPrizes(
  * Build instruction to claim a prize for a Quick Pick ticket
  */
 export async function buildClaimQuickPickPrizeInstruction(
-  provider: AnchorProvider,
-  drawId: number,
-  ticketIndex: number,
-  playerUsdc: PublicKey,
-  ticketPubkey?: PublicKey,
+	provider: AnchorProvider,
+	drawId: number,
+	ticketIndex: number,
+	playerUsdc: PublicKey,
+	ticketPubkey?: PublicKey,
 ): Promise<TransactionInstruction> {
-  const program = createQuickPickProgramWithProvider(provider);
+	const program = await createQuickPickProgramWithProvider(provider);
+	if (!program) throw new Error("Quick Pick program failed to load");
 
-  const [quickPickStatePda] = deriveQuickPickState();
-  // SECURITY (review H5): prefer the explicit on-chain ticket address when
-  // available; see buildClaimMainPrizeInstruction.
-  const ticket = ticketPubkey ?? deriveQuickPickTicketPDA(drawId, ticketIndex)[0];
-  const [drawResult] = PublicKey.findProgramAddressSync(
-    [Buffer.from("quick_pick_draw"), new BN(drawId).toArrayLike(Buffer, "le", 8)],
-    program.programId,
-  );
-  const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA();
+	const [quickPickStatePda] = deriveQuickPickState();
+	// SECURITY (review H5): prefer the explicit on-chain ticket address when
+	// available; see buildClaimMainPrizeInstruction.
+	const ticket =
+		ticketPubkey ?? deriveQuickPickTicketPDA(drawId, ticketIndex)[0];
+	const [drawResult] = PublicKey.findProgramAddressSync(
+		[
+			Buffer.from("quick_pick_draw"),
+			new BN(drawId).toArrayLike(Buffer, "le", 8),
+		],
+		program.programId,
+	);
+	const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA();
 
-  const instruction = await program.methods
-    .claimPrize()
-    .accounts({
-      player: provider.wallet.publicKey,
-      quickPickState: quickPickStatePda,
-      ticket,
-      drawResult,
-      playerUsdc,
-      prizePoolUsdc,
-      usdcMint: USDC_MINT,
-      tokenProgram: TOKEN_PROGRAM_ID,
-    })
-    .instruction();
+	const instruction = await program.methods
+		.claimPrize()
+		.accounts({
+			player: provider.wallet.publicKey,
+			quickPickState: quickPickStatePda,
+			ticket,
+			drawResult,
+			playerUsdc,
+			prizePoolUsdc,
+			usdcMint: USDC_MINT,
+			tokenProgram: TOKEN_PROGRAM_ID,
+		})
+		.instruction();
 
-  return instruction;
+	return instruction;
 }
 
 /**
  * Claim a Quick Pick prize for a single ticket
  */
 export async function claimQuickPickPrize(
-  provider: AnchorProvider,
-  drawId: number,
-  ticketIndex: number,
-  playerUsdc: PublicKey,
-  options: BuyTicketOptions = {},
-  ticketPubkey?: PublicKey,
+	provider: AnchorProvider,
+	drawId: number,
+	ticketIndex: number,
+	playerUsdc: PublicKey,
+	options: BuyTicketOptions = {},
+	ticketPubkey?: PublicKey,
 ): Promise<string> {
-  const instruction = await buildClaimQuickPickPrizeInstruction(
-    provider,
-    drawId,
-    ticketIndex,
-    playerUsdc,
-    ticketPubkey,
-  );
-  const payer = {
-    publicKey: provider.wallet.publicKey,
-    signTransaction: provider.wallet.signTransaction,
-    signAllTransactions: provider.wallet.signAllTransactions,
-  } as unknown as Signer;
-  return sendInstruction(
-    instruction,
-    payer,
-    [],
-    provider.connection,
-    convertBuyTicketOptions(options),
-  );
+	const instruction = await buildClaimQuickPickPrizeInstruction(
+		provider,
+		drawId,
+		ticketIndex,
+		playerUsdc,
+		ticketPubkey,
+	);
+	const payer = {
+		publicKey: provider.wallet.publicKey,
+		signTransaction: provider.wallet.signTransaction,
+		signAllTransactions: provider.wallet.signAllTransactions,
+	} as unknown as Signer;
+	return sendInstruction(
+		instruction,
+		payer,
+		[],
+		provider.connection,
+		convertBuyTicketOptions(options),
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -820,22 +884,23 @@ export async function claimQuickPickPrize(
  * Must be called once per wallet before buying tickets.
  */
 export async function buildInitUserStatsInstruction(
-  provider: AnchorProvider,
+	provider: AnchorProvider,
 ): Promise<TransactionInstruction> {
-  const program = createMainLotteryProgramWithProvider(provider);
+	const program = await createMainLotteryProgramWithProvider(provider);
+	if (!program) throw new Error("Main lottery program failed to load");
 
-  const [userStats] = deriveUserPDA(provider.wallet.publicKey);
+	const [userStats] = deriveUserPDA(provider.wallet.publicKey);
 
-  const instruction = await program.methods
-    .initUserStats()
-    .accounts({
-      player: provider.wallet.publicKey,
-      userStats,
-      systemProgram: SystemProgram.programId,
-    })
-    .instruction();
+	const instruction = await program.methods
+		.initUserStats()
+		.accounts({
+			player: provider.wallet.publicKey,
+			userStats,
+			systemProgram: SystemProgram.programId,
+		})
+		.instruction();
 
-  return instruction;
+	return instruction;
 }
 
 /**
@@ -843,22 +908,22 @@ export async function buildInitUserStatsInstruction(
  * This is a one-time setup required before purchasing tickets.
  */
 export async function initUserStats(
-  provider: AnchorProvider,
-  options: BuyTicketOptions = {},
+	provider: AnchorProvider,
+	options: BuyTicketOptions = {},
 ): Promise<string> {
-  const instruction = await buildInitUserStatsInstruction(provider);
-  const payer = {
-    publicKey: provider.wallet.publicKey,
-    signTransaction: provider.wallet.signTransaction,
-    signAllTransactions: provider.wallet.signAllTransactions,
-  } as unknown as Signer;
-  return sendInstruction(
-    instruction,
-    payer,
-    [],
-    provider.connection,
-    convertBuyTicketOptions(options),
-  );
+	const instruction = await buildInitUserStatsInstruction(provider);
+	const payer = {
+		publicKey: provider.wallet.publicKey,
+		signTransaction: provider.wallet.signTransaction,
+		signAllTransactions: provider.wallet.signAllTransactions,
+	} as unknown as Signer;
+	return sendInstruction(
+		instruction,
+		payer,
+		[],
+		provider.connection,
+		convertBuyTicketOptions(options),
+	);
 }
 
 /**
@@ -867,17 +932,17 @@ export async function initUserStats(
  * Returns true if the account already existed, false if it was just created.
  */
 export async function ensureUserStatsInitialized(
-  provider: AnchorProvider,
+	provider: AnchorProvider,
 ): Promise<{ existed: boolean; signature?: string }> {
-  const [userStatsPda] = deriveUserPDA(provider.wallet.publicKey);
+	const [userStatsPda] = deriveUserPDA(provider.wallet.publicKey);
 
-  // Check if account already exists
-  const accountInfo = await provider.connection.getAccountInfo(userStatsPda);
-  if (accountInfo && accountInfo.lamports > 0) {
-    return { existed: true };
-  }
+	// Check if account already exists
+	const accountInfo = await provider.connection.getAccountInfo(userStatsPda);
+	if (accountInfo && accountInfo.lamports > 0) {
+		return { existed: true };
+	}
 
-  // Initialize it
-  const signature = await initUserStats(provider);
-  return { existed: false, signature };
+	// Initialize it
+	const signature = await initUserStats(provider);
+	return { existed: false, signature };
 }

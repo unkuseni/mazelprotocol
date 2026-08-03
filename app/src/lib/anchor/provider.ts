@@ -1,17 +1,17 @@
-import React from "react";
 import { AnchorProvider, type Wallet } from "@coral-xyz/anchor";
 import { Keypair } from "@solana/web3.js";
+import React from "react";
 
 import { getConnection } from "./connection";
-import { useWallet } from "./wallet";
 import {
-  createMainLotteryProgram,
-  createQuickPickProgram,
-  createMainLotteryProgramWithProvider,
-  createQuickPickProgramWithProvider,
-  type MainLotteryProgram,
-  type QuickPickProgram,
+	createMainLotteryProgram,
+	createMainLotteryProgramWithProvider,
+	createQuickPickProgram,
+	createQuickPickProgramWithProvider,
+	type MainLotteryProgram,
+	type QuickPickProgram,
 } from "./programs";
+import { useWallet } from "./wallet";
 
 /**
  * Create a read-only wallet stub that satisfies Anchor's Wallet interface.
@@ -19,15 +19,15 @@ import {
  * but all signing methods reject immediately.
  */
 function createReadOnlyWallet(): Wallet {
-  const dummyKeypair = Keypair.generate();
-  return {
-    publicKey: dummyKeypair.publicKey,
-    payer: dummyKeypair,
-    signTransaction: () =>
-      Promise.reject(new Error("Read-only wallet cannot sign")),
-    signAllTransactions: () =>
-      Promise.reject(new Error("Read-only wallet cannot sign")),
-  } as unknown as Wallet;
+	const dummyKeypair = Keypair.generate();
+	return {
+		publicKey: dummyKeypair.publicKey,
+		payer: dummyKeypair,
+		signTransaction: () =>
+			Promise.reject(new Error("Read-only wallet cannot sign")),
+		signAllTransactions: () =>
+			Promise.reject(new Error("Read-only wallet cannot sign")),
+	} as unknown as Wallet;
 }
 
 /**
@@ -35,119 +35,125 @@ function createReadOnlyWallet(): Wallet {
  * Provides both read-only and connected providers based on wallet state
  */
 export function useAnchorProvider() {
-  const wallet = useWallet();
-  const connection = getConnection();
+	const wallet = useWallet();
+	const connection = getConnection();
 
-  // Create a dummy wallet for read-only operations
-  const readOnlyWallet = React.useMemo(() => createReadOnlyWallet(), []);
+	// Create a dummy wallet for read-only operations
+	const readOnlyWallet = React.useMemo(() => createReadOnlyWallet(), []);
 
-  // Create user wallet object for when wallet is connected
-  const userWallet = React.useMemo((): Wallet | null => {
-    if (!wallet.isConnected || !wallet.publicKey) {
-      return null;
-    }
+	// Create user wallet object for when wallet is connected
+	const userWallet = React.useMemo((): Wallet | null => {
+		if (!wallet.isConnected || !wallet.publicKey) {
+			return null;
+		}
 
-    return {
-      publicKey: wallet.publicKey,
-      payer: { publicKey: wallet.publicKey } as unknown as Keypair,
-      signTransaction: wallet.signTransaction,
-      signAllTransactions: wallet.signAllTransactions,
-    } as unknown as Wallet;
-  }, [
-    wallet.isConnected,
-    wallet.publicKey,
-    wallet.signTransaction,
-    wallet.signAllTransactions,
-  ]);
+		return {
+			publicKey: wallet.publicKey,
+			payer: { publicKey: wallet.publicKey } as unknown as Keypair,
+			signTransaction: wallet.signTransaction,
+			signAllTransactions: wallet.signAllTransactions,
+		} as unknown as Wallet;
+	}, [
+		wallet.isConnected,
+		wallet.publicKey,
+		wallet.signTransaction,
+		wallet.signAllTransactions,
+	]);
 
-  // Create read-only provider (always available)
-  const readOnlyProvider = React.useMemo(() => {
-    return new AnchorProvider(connection, readOnlyWallet, {
-      commitment: "confirmed",
-      preflightCommitment: "confirmed",
-      skipPreflight: false,
-    });
-  }, [connection, readOnlyWallet]);
+	// Create read-only provider (always available)
+	const readOnlyProvider = React.useMemo(() => {
+		return new AnchorProvider(connection, readOnlyWallet, {
+			commitment: "confirmed",
+			preflightCommitment: "confirmed",
+			skipPreflight: false,
+		});
+	}, [connection, readOnlyWallet]);
 
-  // Create connected provider (only when wallet is connected)
-  const connectedProvider = React.useMemo(() => {
-    if (!userWallet) {
-      return null;
-    }
+	// Create connected provider (only when wallet is connected)
+	const connectedProvider = React.useMemo(() => {
+		if (!userWallet) {
+			return null;
+		}
 
-    return new AnchorProvider(connection, userWallet, {
-      commitment: "confirmed",
-      preflightCommitment: "confirmed",
-      skipPreflight: false,
-    });
-  }, [connection, userWallet]);
+		return new AnchorProvider(connection, userWallet, {
+			commitment: "confirmed",
+			preflightCommitment: "confirmed",
+			skipPreflight: false,
+		});
+	}, [connection, userWallet]);
 
-  // Current provider (connected if available, otherwise read-only)
-  const currentProvider = connectedProvider || readOnlyProvider;
+	// Current provider (connected if available, otherwise read-only)
+	const currentProvider = connectedProvider || readOnlyProvider;
 
-  // Program clients using current provider (read-only)
-  const mainLotteryProgram = React.useMemo(() => {
-    return createMainLotteryProgram();
-  }, []);
+	// Program clients using current provider (read-only)
+	const mainLotteryProgram = React.useMemo(() => {
+		return createMainLotteryProgram();
+	}, []);
 
-  const quickPickProgram = React.useMemo(() => {
-    return createQuickPickProgram();
-  }, []);
+	const quickPickProgram = React.useMemo(() => {
+		return createQuickPickProgram();
+	}, []);
 
-  // Program clients using connected provider (only when wallet is connected)
-  const mainLotteryProgramWithSigner = React.useMemo(() => {
-    if (!connectedProvider) {
-      return null;
-    }
-    return createMainLotteryProgramWithProvider(connectedProvider);
-  }, [connectedProvider]);
+	// Program clients using connected provider (only when wallet is connected)
+	const mainLotteryProgramWithSigner = React.useMemo(() => {
+		if (!connectedProvider) {
+			return null;
+		}
+		return createMainLotteryProgramWithProvider(connectedProvider);
+	}, [connectedProvider]);
 
-  const quickPickProgramWithSigner = React.useMemo(() => {
-    if (!connectedProvider) {
-      return null;
-    }
-    return createQuickPickProgramWithProvider(connectedProvider);
-  }, [connectedProvider]);
+	const quickPickProgramWithSigner = React.useMemo(() => {
+		if (!connectedProvider) {
+			return null;
+		}
+		return createQuickPickProgramWithProvider(connectedProvider);
+	}, [connectedProvider]);
 
-  // Check if we can sign transactions
-  const canSign = wallet.isConnected && wallet.publicKey !== null;
+	// Check if we can sign transactions
+	const canSign = wallet.isConnected && wallet.publicKey !== null;
 
-  return {
-    // Providers
-    readOnlyProvider,
-    connectedProvider,
-    provider: currentProvider,
+	return {
+		// Providers
+		readOnlyProvider,
+		connectedProvider,
+		provider: currentProvider,
 
-    // Program clients (always available, read-only)
-    mainLotteryProgram,
-    quickPickProgram,
+		// Program clients (always available, read-only)
+		mainLotteryProgram,
+		quickPickProgram,
 
-    // Program clients with signer (only when wallet is connected)
-    mainLotteryProgramWithSigner,
-    quickPickProgramWithSigner,
+		// Program clients with signer (only when wallet is connected)
+		mainLotteryProgramWithSigner,
+		quickPickProgramWithSigner,
 
-    // Wallet state
-    wallet,
-    canSign,
-    isConnected: wallet.isConnected,
-    publicKey: wallet.publicKey,
+		// Wallet state
+		wallet,
+		canSign,
+		isConnected: wallet.isConnected,
+		publicKey: wallet.publicKey,
 
-    // Connection
-    connection,
+		// Connection
+		connection,
 
-    // Helper functions
-    withProvider: <T>(
-      callback: (
-        provider: AnchorProvider,
-        program: MainLotteryProgram | QuickPickProgram,
-      ) => Promise<T>,
-    ): Promise<T> => {
-      if (!connectedProvider) {
-        throw new Error("Wallet must be connected to perform this operation");
-      }
-      return callback(connectedProvider, mainLotteryProgram);
-    },
-  };
+		// Helper functions
+		withProvider: async <T>(
+			callback: (
+				provider: AnchorProvider,
+				program: MainLotteryProgram | QuickPickProgram,
+			) => Promise<T>,
+		): Promise<T> => {
+			if (!connectedProvider) {
+				throw new Error("Wallet must be connected to perform this operation");
+			}
+			// The program factories are async (they lazily import the IDL); resolve
+			// the program before invoking the callback (pre-existing bug fix).
+			const program = await mainLotteryProgram;
+			if (!program) {
+				throw new Error("Main lottery program failed to load");
+			}
+			return callback(connectedProvider, program);
+		},
+	};
 }
 
 /**
@@ -160,32 +166,32 @@ export type AnchorProviderHookReturn = ReturnType<typeof useAnchorProvider>;
  * Useful for querying data without requiring wallet connection
  */
 export function useReadOnlyAnchorProvider() {
-  const connection = getConnection();
+	const connection = getConnection();
 
-  const readOnlyProvider = React.useMemo(() => {
-    const readOnlyWallet = createReadOnlyWallet();
+	const readOnlyProvider = React.useMemo(() => {
+		const readOnlyWallet = createReadOnlyWallet();
 
-    return new AnchorProvider(connection, readOnlyWallet, {
-      commitment: "confirmed",
-      preflightCommitment: "confirmed",
-      skipPreflight: false,
-    });
-  }, [connection]);
+		return new AnchorProvider(connection, readOnlyWallet, {
+			commitment: "confirmed",
+			preflightCommitment: "confirmed",
+			skipPreflight: false,
+		});
+	}, [connection]);
 
-  const mainLotteryProgram = React.useMemo(() => {
-    return createMainLotteryProgram();
-  }, []);
+	const mainLotteryProgram = React.useMemo(() => {
+		return createMainLotteryProgram();
+	}, []);
 
-  const quickPickProgram = React.useMemo(() => {
-    return createQuickPickProgram();
-  }, []);
+	const quickPickProgram = React.useMemo(() => {
+		return createQuickPickProgram();
+	}, []);
 
-  return {
-    provider: readOnlyProvider,
-    mainLotteryProgram,
-    quickPickProgram,
-    connection,
-  };
+	return {
+		provider: readOnlyProvider,
+		mainLotteryProgram,
+		quickPickProgram,
+		connection,
+	};
 }
 
 /**
@@ -193,30 +199,30 @@ export function useReadOnlyAnchorProvider() {
  * Throws an error if wallet is not connected
  */
 export function useConnectedAnchorProvider() {
-  const anchorProvider = useAnchorProvider();
+	const anchorProvider = useAnchorProvider();
 
-  React.useEffect(() => {
-    if (!anchorProvider.canSign) {
-      console.warn(
-        "useConnectedAnchorProvider used without wallet connection. " +
-          "Some operations will fail. Use useAnchorProvider() for read-only operations.",
-      );
-    }
-  }, [anchorProvider.canSign]);
+	React.useEffect(() => {
+		if (!anchorProvider.canSign) {
+			console.warn(
+				"useConnectedAnchorProvider used without wallet connection. " +
+					"Some operations will fail. Use useAnchorProvider() for read-only operations.",
+			);
+		}
+	}, [anchorProvider.canSign]);
 
-  const ensureConnected = React.useCallback(() => {
-    if (!anchorProvider.canSign) {
-      throw new Error("Wallet must be connected to perform this operation");
-    }
-    if (!anchorProvider.connectedProvider) {
-      throw new Error("Connected provider not available");
-    }
-  }, [anchorProvider.canSign, anchorProvider.connectedProvider]);
+	const ensureConnected = React.useCallback(() => {
+		if (!anchorProvider.canSign) {
+			throw new Error("Wallet must be connected to perform this operation");
+		}
+		if (!anchorProvider.connectedProvider) {
+			throw new Error("Connected provider not available");
+		}
+	}, [anchorProvider.canSign, anchorProvider.connectedProvider]);
 
-  return {
-    ...anchorProvider,
-    ensureConnected,
-  };
+	return {
+		...anchorProvider,
+		ensureConnected,
+	};
 }
 
 /**
@@ -224,19 +230,19 @@ export function useConnectedAnchorProvider() {
  * Useful for testing or custom provider scenarios
  */
 export function useProgramsWithProvider(provider: AnchorProvider) {
-  const mainLotteryProgram = React.useMemo(() => {
-    return createMainLotteryProgramWithProvider(provider);
-  }, [provider]);
+	const mainLotteryProgram = React.useMemo(() => {
+		return createMainLotteryProgramWithProvider(provider);
+	}, [provider]);
 
-  const quickPickProgram = React.useMemo(() => {
-    return createQuickPickProgramWithProvider(provider);
-  }, [provider]);
+	const quickPickProgram = React.useMemo(() => {
+		return createQuickPickProgramWithProvider(provider);
+	}, [provider]);
 
-  return {
-    mainLotteryProgram,
-    quickPickProgram,
-    provider,
-  };
+	return {
+		mainLotteryProgram,
+		quickPickProgram,
+		provider,
+	};
 }
 
 /**
@@ -245,34 +251,34 @@ export function useProgramsWithProvider(provider: AnchorProvider) {
  * otherwise returns the program with signer capability
  */
 export function useSmartProgramClient() {
-  const anchorProvider = useAnchorProvider();
+	const anchorProvider = useAnchorProvider();
 
-  const mainLotteryProgram = React.useMemo(() => {
-    return (
-      anchorProvider.mainLotteryProgramWithSigner ||
-      anchorProvider.mainLotteryProgram
-    );
-  }, [
-    anchorProvider.mainLotteryProgramWithSigner,
-    anchorProvider.mainLotteryProgram,
-  ]);
+	const mainLotteryProgram = React.useMemo(() => {
+		return (
+			anchorProvider.mainLotteryProgramWithSigner ||
+			anchorProvider.mainLotteryProgram
+		);
+	}, [
+		anchorProvider.mainLotteryProgramWithSigner,
+		anchorProvider.mainLotteryProgram,
+	]);
 
-  const quickPickProgram = React.useMemo(() => {
-    return (
-      anchorProvider.quickPickProgramWithSigner ||
-      anchorProvider.quickPickProgram
-    );
-  }, [
-    anchorProvider.quickPickProgramWithSigner,
-    anchorProvider.quickPickProgram,
-  ]);
+	const quickPickProgram = React.useMemo(() => {
+		return (
+			anchorProvider.quickPickProgramWithSigner ||
+			anchorProvider.quickPickProgram
+		);
+	}, [
+		anchorProvider.quickPickProgramWithSigner,
+		anchorProvider.quickPickProgram,
+	]);
 
-  return {
-    mainLotteryProgram,
-    quickPickProgram,
-    canSign: anchorProvider.canSign,
-    isConnected: anchorProvider.isConnected,
-    provider: anchorProvider.provider,
-    connectedProvider: anchorProvider.connectedProvider,
-  };
+	return {
+		mainLotteryProgram,
+		quickPickProgram,
+		canSign: anchorProvider.canSign,
+		isConnected: anchorProvider.isConnected,
+		provider: anchorProvider.provider,
+		connectedProvider: anchorProvider.connectedProvider,
+	};
 }
