@@ -393,6 +393,56 @@ impl QuickPickTicket {
 }
 
 // ============================================================================
+// QUICK PICK USER STATS (per-wallet ticket cap — M2 fix)
+// ============================================================================
+
+/// Per-wallet Quick Pick statistics.
+///
+/// Tracks how many tickets a wallet bought in the current draw so the program
+/// can enforce `QUICK_PICK_MAX_TICKETS_PER_WALLET`. This is the on-chain
+/// anti-bot guard that replaced the removed on-chain $50 gate: any wallet can
+/// still buy (account is auto-initialized on first purchase), but no single
+/// wallet can dominate a draw window.
+///
+/// PDA: `["quick_pick_user", wallet]` under the quickpick program.
+#[account]
+#[derive(Default)]
+pub struct QuickPickUserStats {
+    /// Wallet address this stats account belongs to
+    pub wallet: Pubkey,
+
+    /// Draw ID the `tickets_this_draw` counter belongs to
+    pub draw_id: u64,
+
+    /// Tickets purchased in the current draw (reset when draw changes)
+    pub tickets_this_draw: u64,
+
+    /// Total Quick Pick tickets purchased lifetime
+    pub total_tickets: u64,
+
+    /// PDA bump seed
+    pub bump: u8,
+}
+
+impl QuickPickUserStats {
+    /// Account size including discriminator
+    pub const LEN: usize = 8 + // discriminator
+        32 +    // wallet
+        8 +     // draw_id
+        8 +     // tickets_this_draw
+        8 +     // total_tickets
+        1;      // bump
+
+    /// Reset the per-draw counter when the draw advances.
+    pub fn reset_for_draw(&mut self, draw_id: u64) {
+        if self.draw_id != draw_id {
+            self.draw_id = draw_id;
+            self.tickets_this_draw = 0;
+        }
+    }
+}
+
+// ============================================================================
 // QUICK PICK DRAW RESULT
 // ============================================================================
 
@@ -518,72 +568,8 @@ impl QuickPickWinnerCounts {
 }
 
 // ============================================================================
-// USER STATS (Reference structure for gate verification)
+// MAIN LOTTERY STATE (Authority verification mirror)
 // ============================================================================
-
-/// User statistics structure (for reference - actual account lives in main lottery)
-///
-/// This structure is used to verify the $50 spend gate for Quick Pick access.
-/// The actual UserStats account is owned by the main lottery program.
-#[account]
-#[derive(Default)]
-pub struct UserStats {
-    /// User's wallet address
-    pub wallet: Pubkey,
-
-    /// Total tickets purchased (lifetime)
-    pub total_tickets: u64,
-
-    /// Total USDC spent on tickets (lifetime)
-    pub total_spent: u64,
-
-    /// Total USDC won (lifetime)
-    pub total_won: u64,
-
-    /// Current participation streak
-    pub current_streak: u32,
-
-    /// Best participation streak
-    pub best_streak: u32,
-
-    /// Number of jackpot wins
-    pub jackpot_wins: u32,
-
-    /// Last draw participated in
-    pub last_draw_participated: u64,
-
-    /// Tickets purchased in current draw
-    pub tickets_this_draw: u64,
-
-    /// Free tickets available (u32 to match main lottery layout)
-    pub free_tickets_available: u32,
-
-    /// PDA bump seed
-    pub bump: u8,
-}
-
-impl UserStats {
-    /// Account size including discriminator
-    /// FIXED: free_tickets_available is u32 (4 bytes), matching main lottery
-    pub const LEN: usize = 8 +  // discriminator
-        32 +    // wallet
-        8 +     // total_tickets
-        8 +     // total_spent
-        8 +     // total_won
-        4 +     // current_streak
-        4 +     // best_streak
-        4 +     // jackpot_wins
-        8 +     // last_draw_participated
-        8 +     // tickets_this_draw
-        4 +     // free_tickets_available (u32)
-        1 +     // bump
-        16; // padding
-
-    /// Check if user meets the Quick Pick spend gate
-    pub fn meets_quick_pick_gate(&self) -> bool {
-        self.total_spent >= QUICK_PICK_MIN_SPEND_GATE
-    }
-}
 
 /// Main lottery state structure (byte-identical mirror of the main lottery program)
 ///

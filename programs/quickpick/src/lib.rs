@@ -6,7 +6,7 @@
 //! - Provably fair randomness via Switchboard's commit-reveal pattern
 //! - Positive-EV rolldown mechanics when jackpot reaches caps
 //! - Dynamic house fee based on jackpot level
-//! - $50 main lottery spend gate requirement
+//! - Frontend-only access gate ($50 main lottery spend, enforced in the app)
 //!
 //! # Key Features
 //! - **Ticket Price**: $1.50
@@ -27,6 +27,11 @@
 //! - Prize pool solvency verification
 //! - Ticket claim expiration (90 days)
 //! - Authority verification via main lottery state
+//!
+//! # Access Gate
+//! The $50 main-lottery spend gate is enforced **frontend-only** (in the app).
+//! The on-chain program does NOT check `UserStats` when buying tickets, so
+//! anyone can purchase Quick Pick tickets directly on-chain.
 
 // ---------------------------------------------------------------------------
 // Crate-wide lint allowances (Anchor framework idioms)
@@ -305,7 +310,10 @@ pub mod quickpick {
     /// Buy a Quick Pick Express ticket
     ///
     /// Purchases a ticket with 5 selected numbers from 1-35.
-    /// Requires $50 lifetime spend in the main lottery ($50 gate).
+    /// No on-chain access gate — the $50 main-lottery spend requirement is
+    /// enforced frontend-only (in the app UI). A per-wallet ticket cap
+    /// (`QUICK_PICK_MAX_TICKETS_PER_WALLET` per draw) is enforced on-chain
+    /// via `QuickPickUserStats` to prevent a single wallet dominating a draw.
     /// USDC is transferred from player to prize pool, house fee, and insurance accounts.
     ///
     /// # Arguments

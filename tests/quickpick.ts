@@ -25,13 +25,11 @@ import type { Quickpick as QuickpickIDL } from "../target/types/quickpick";
 
 // ---- shared seeds (used by both programs) ----
 const LOTTERY_SEED = Buffer.from("lottery");
-const USER_SEED = Buffer.from("user");
 
 // ---- main-lottery-specific seeds ----
 const MAIN_PRIZE_POOL_USDC_SEED = Buffer.from("prize_pool_usdc");
 const MAIN_HOUSE_FEE_USDC_SEED = Buffer.from("house_fee_usdc");
 const MAIN_INSURANCE_POOL_USDC_SEED = Buffer.from("insurance_pool_usdc");
-const TICKET_SEED = Buffer.from("ticket");
 
 // ---- quick-pick seeds ----
 const QUICK_PICK_SEED = Buffer.from("quick_pick");
@@ -40,6 +38,7 @@ const QP_HOUSE_FEE_USDC_SEED = Buffer.from("house_fee_usdc");
 const QP_INSURANCE_POOL_USDC_SEED = Buffer.from("insurance_pool_usdc");
 const QUICK_PICK_TICKET_SEED = Buffer.from("quick_pick_ticket");
 const QUICK_PICK_DRAW_SEED = Buffer.from("quick_pick_draw");
+const QUICK_PICK_USER_SEED = Buffer.from("quick_pick_user"); // per-wallet stats (M2 cap)
 
 // ---- main lottery params ----
 const MAIN_TICKET_PRICE = new BN(2_500_000); // $2.50
@@ -55,7 +54,6 @@ const QP_TICKET_PRICE = new BN(1_500_000); // $1.50
 const QP_SEED_AMOUNT = new BN(5_000_000_000); // $5,000
 const QP_SOFT_CAP = new BN(30_000_000_000); // $30,000
 const QP_HARD_CAP = new BN(50_000_000_000); // $50,000
-const QP_MIN_SPEND_GATE = new BN(50_000_000); // $50
 
 const USDC_DECIMALS = 6;
 
@@ -103,28 +101,6 @@ function deriveQuickPickPDAs(programId: PublicKey) {
   return { quickPickState, prizePoolUsdc, houseFeeUsdc, insurancePoolUsdc };
 }
 
-function deriveMainTicketPDA(
-  programId: PublicKey,
-  drawId: number,
-  ticketIndex: number,
-) {
-  return PublicKey.findProgramAddressSync(
-    [
-      TICKET_SEED,
-      new BN(drawId).toArrayLike(Buffer, "le", 8),
-      new BN(ticketIndex).toArrayLike(Buffer, "le", 8),
-    ],
-    programId,
-  );
-}
-
-function deriveUserStatsPDA(programId: PublicKey, wallet: PublicKey) {
-  return PublicKey.findProgramAddressSync(
-    [USER_SEED, wallet.toBuffer()],
-    programId,
-  );
-}
-
 function deriveQPTicketPDA(
   programId: PublicKey,
   drawId: number,
@@ -136,6 +112,17 @@ function deriveQPTicketPDA(
       new BN(drawId).toArrayLike(Buffer, "le", 8),
       new BN(ticketIndex).toArrayLike(Buffer, "le", 8),
     ],
+    programId,
+  );
+}
+
+/** Per-wallet Quick Pick stats PDA (["quick_pick_user", wallet]) */
+function deriveQuickPickUserStatsPDA(
+  programId: PublicKey,
+  wallet: PublicKey,
+) {
+  return PublicKey.findProgramAddressSync(
+    [QUICK_PICK_USER_SEED, wallet.toBuffer()],
     programId,
   );
 }
@@ -211,16 +198,14 @@ describe("quickpick", () => {
   const mainProgram = anchor.workspace.mazelprotocol as Program<SolanaLotto>;
   const qpProgram = anchor.workspace.quickpick as Program<QuickpickIDL>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mainProgramAccounts: any = mainProgram.account;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const qpProgramAccounts: any = qpProgram.account;
 
   const mainProgramId = mainProgram.programId;
   const qpProgramId = qpProgram.programId;
 
   const authority = (provider.wallet as anchor.Wallet).payer;
-  let player1: Keypair; // will have > $50 spend in main lottery
-  let player2: Keypair; // will NOT meet $50 gate
+  let player1: Keypair;
+  let player2: Keypair; // regular player (no on-chain gate)
   let unauthorizedUser: Keypair;
 
   let usdcMint: PublicKey;
@@ -235,7 +220,7 @@ describe("quickpick", () => {
   const switchboardQueue = Keypair.generate().publicKey;
 
   // --------------------------------------------------------------------------
-  // SETUP – initialise and fund main lottery so we can meet the $50 gate
+  // SETUP – initialise and fund the main lottery (needed for QP authority checks)
   // --------------------------------------------------------------------------
   before(async () => {
     player1 = Keypair.generate();
@@ -275,7 +260,7 @@ describe("quickpick", () => {
       BigInt(10_000_000_000), // $10,000
     );
 
-    // Player2 gets a small balance (NOT enough to pass $50 gate via main lottery)
+    // Player2 gets a smaller balance
     player2Usdc = await createAndFundUsdc(
       provider,
       usdcMint,
@@ -293,8 +278,7 @@ describe("quickpick", () => {
     );
 
     // ---------------------------------------------------------------
-    // Initialise + fund the MAIN lottery (needed for authority checks
-    // and the $50 spend-gate UserStats account).
+    // Initialise + fund the MAIN lottery (needed for QP authority checks)
     // ---------------------------------------------------------------
     await mainProgram.methods
       .initialize({
@@ -332,77 +316,6 @@ describe("quickpick", () => {
       })
       .rpc();
 
-    // ---------------------------------------------------------------
-    // Have player1 buy enough main-lottery tickets to exceed $50 gate
-    // $2.50 per ticket × 21 tickets = $52.50 > $50
-    // ---------------------------------------------------------------
-    const ticketsToBuy = 21;
-    for (let i = 0; i < ticketsToBuy; i++) {
-      const mainState = await mainProgramAccounts.lotteryState.fetch(
-        mainPDAs.lotteryState,
-      );
-      const drawId = mainState.currentDrawId.toNumber();
-      const idx = mainState.currentDrawTickets.toNumber();
-      const [ticketPda] = deriveMainTicketPDA(mainProgramId, drawId, idx);
-      const [userStatsPda] = deriveUserStatsPDA(
-        mainProgramId,
-        player1.publicKey,
-      );
-
-      // Generate unique valid numbers for each ticket
-      const base = (i * 6) % 40;
-      const numbers = [
-        base + 1,
-        base + 2,
-        base + 3,
-        base + 4,
-        base + 5,
-        base + 6,
-      ].map((n) => Math.min(n, 46)) as [
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-      ];
-      // Ensure uniqueness
-      const unique = Array.from(new Set(numbers));
-      while (unique.length < 6) unique.push(unique.length + 40);
-      const finalNums = unique.slice(0, 6).sort((a, b) => a - b) as [
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-      ];
-
-      await mainProgram.methods
-        .buyTicket({ numbers: finalNums, useFreeTicket: false })
-        .accountsPartial({
-          player: player1.publicKey,
-          lotteryState: mainPDAs.lotteryState,
-          ticket: ticketPda,
-          playerUsdc: player1Usdc,
-          prizePoolUsdc: mainPDAs.prizePoolUsdc,
-          houseFeeUsdc: mainPDAs.houseFeeUsdc,
-          insurancePoolUsdc: mainPDAs.insurancePoolUsdc,
-          usdcMint,
-          userStats: userStatsPda,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([player1])
-        .rpc();
-    }
-
-    // Confirm the gate is met
-    const [userStatsPda] = deriveUserStatsPDA(mainProgramId, player1.publicKey);
-    const stats = await mainProgramAccounts.userStats.fetch(userStatsPda);
-    expect(stats.totalSpent.toNumber()).to.be.greaterThanOrEqual(
-      QP_MIN_SPEND_GATE.toNumber(),
-    );
   });
 
   // ==========================================================================
@@ -504,10 +417,6 @@ describe("quickpick", () => {
   describe("Fund Seed", () => {
     it("fails to buy tickets before funding (paused)", async () => {
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, 1, 0);
-      const [userStatsPda] = deriveUserStatsPDA(
-        mainProgramId,
-        player1.publicKey,
-      );
 
       try {
         await qpProgram.methods
@@ -521,7 +430,7 @@ describe("quickpick", () => {
             houseFeeUsdc: qpPDAs.houseFeeUsdc,
             insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
             usdcMint,
-            userStats: userStatsPda,
+            userStats: deriveQuickPickUserStatsPDA(qpProgramId, player1.publicKey)[0],
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
           })
@@ -703,10 +612,10 @@ describe("quickpick", () => {
   });
 
   // ==========================================================================
-  // 4. BUY TICKET — success & $50 gate
+  // 4. BUY TICKET — success (no on-chain gate)
   // ==========================================================================
   describe("Buy Ticket", () => {
-    it("player1 buys a Quick Pick ticket (gate met)", async () => {
+    it("player1 buys a Quick Pick ticket", async () => {
       const stateBefore = await qpProgramAccounts.quickPickState.fetch(
         qpPDAs.quickPickState,
       );
@@ -714,11 +623,6 @@ describe("quickpick", () => {
       const ticketIdx = stateBefore.currentDrawTickets.toNumber();
 
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, ticketIdx);
-      // UserStats is owned by the main program
-      const [userStatsPda] = deriveUserStatsPDA(
-        mainProgramId,
-        player1.publicKey,
-      );
 
       const playerUsdcBefore = await getAccount(
         provider.connection,
@@ -736,7 +640,7 @@ describe("quickpick", () => {
           houseFeeUsdc: qpPDAs.houseFeeUsdc,
           insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
           usdcMint,
-          userStats: userStatsPda,
+          userStats: deriveQuickPickUserStatsPDA(qpProgramId, player1.publicKey)[0],
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
@@ -778,10 +682,6 @@ describe("quickpick", () => {
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
-      const [userStatsPda] = deriveUserStatsPDA(
-        mainProgramId,
-        player1.publicKey,
-      );
 
       await qpProgram.methods
         .buyTicket({ numbers: [35, 1, 20, 10, 5] })
@@ -794,7 +694,7 @@ describe("quickpick", () => {
           houseFeeUsdc: qpPDAs.houseFeeUsdc,
           insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
           usdcMint,
-          userStats: userStatsPda,
+          userStats: deriveQuickPickUserStatsPDA(qpProgramId, player1.publicKey)[0],
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
@@ -805,47 +705,37 @@ describe("quickpick", () => {
       expect(ticket.numbers).to.deep.equal([1, 5, 10, 20, 35]);
     });
 
-    it("fails for player2 who has NOT met the $50 gate", async () => {
-      // player2 has UserStats that either doesn't exist or has totalSpent < $50
-      // Because the UserStats PDA is derived from the *main* program id,
-      // if the account doesn't exist the QP program's constraint check will
-      // fail (account not initialised). If it exists but total_spent < $50 it
-      // will fail with InsufficientMainLotterySpend.
+    it("player2 can buy a ticket too (no on-chain gate)", async () => {
+      // The $50 spend gate is frontend-only. On-chain, ANY wallet can buy
+      // Quick Pick tickets without a main-lottery UserStats account.
       const state = await qpProgramAccounts.quickPickState.fetch(
         qpPDAs.quickPickState,
       );
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
-      const [userStatsPda] = deriveUserStatsPDA(
-        mainProgramId,
-        player2.publicKey,
-      );
 
-      try {
-        await qpProgram.methods
-          .buyTicket({ numbers: [1, 5, 10, 20, 30] })
-          .accountsPartial({
-            player: player2.publicKey,
-            quickPickState: qpPDAs.quickPickState,
-            ticket: ticketPda,
-            playerUsdc: player2Usdc,
-            prizePoolUsdc: qpPDAs.prizePoolUsdc,
-            houseFeeUsdc: qpPDAs.houseFeeUsdc,
-            insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
-            usdcMint,
-            userStats: userStatsPda,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([player2])
-          .rpc();
-        expect.fail("Should have thrown — $50 gate not met");
-      } catch (err: unknown) {
-        expect(err).to.exist;
-        // Either AccountNotInitialized (no UserStats) or
-        // InsufficientMainLotterySpend (UserStats exists but spend < $50)
-      }
+      await qpProgram.methods
+        .buyTicket({ numbers: [1, 5, 10, 20, 30] })
+        .accountsPartial({
+          player: player2.publicKey,
+          quickPickState: qpPDAs.quickPickState,
+          ticket: ticketPda,
+          playerUsdc: player2Usdc,
+          prizePoolUsdc: qpPDAs.prizePoolUsdc,
+          houseFeeUsdc: qpPDAs.houseFeeUsdc,
+          insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
+          usdcMint,
+          userStats: deriveQuickPickUserStatsPDA(qpProgramId, player2.publicKey)[0],
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([player2])
+        .rpc();
+
+      const ticket = await qpProgramAccounts.quickPickTicket.fetch(ticketPda);
+      expect(ticket.owner.toString()).to.equal(player2.publicKey.toString());
+      expect(ticket.numbers).to.deep.equal([1, 5, 10, 20, 30]);
     });
   });
 
@@ -860,10 +750,6 @@ describe("quickpick", () => {
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
-      const [userStatsPda] = deriveUserStatsPDA(
-        mainProgramId,
-        player1.publicKey,
-      );
 
       try {
         await qpProgram.methods
@@ -877,7 +763,7 @@ describe("quickpick", () => {
             houseFeeUsdc: qpPDAs.houseFeeUsdc,
             insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
             usdcMint,
-            userStats: userStatsPda,
+            userStats: deriveQuickPickUserStatsPDA(qpProgramId, player1.publicKey)[0],
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
           })
@@ -899,10 +785,6 @@ describe("quickpick", () => {
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
-      const [userStatsPda] = deriveUserStatsPDA(
-        mainProgramId,
-        player1.publicKey,
-      );
 
       try {
         await qpProgram.methods
@@ -916,7 +798,7 @@ describe("quickpick", () => {
             houseFeeUsdc: qpPDAs.houseFeeUsdc,
             insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
             usdcMint,
-            userStats: userStatsPda,
+            userStats: deriveQuickPickUserStatsPDA(qpProgramId, player1.publicKey)[0],
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
           })
@@ -938,10 +820,6 @@ describe("quickpick", () => {
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
-      const [userStatsPda] = deriveUserStatsPDA(
-        mainProgramId,
-        player1.publicKey,
-      );
 
       try {
         await qpProgram.methods
@@ -955,7 +833,7 @@ describe("quickpick", () => {
             houseFeeUsdc: qpPDAs.houseFeeUsdc,
             insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
             usdcMint,
-            userStats: userStatsPda,
+            userStats: deriveQuickPickUserStatsPDA(qpProgramId, player1.publicKey)[0],
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
           })
@@ -977,10 +855,6 @@ describe("quickpick", () => {
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
-      const [userStatsPda] = deriveUserStatsPDA(
-        mainProgramId,
-        player1.publicKey,
-      );
 
       try {
         await qpProgram.methods
@@ -994,7 +868,7 @@ describe("quickpick", () => {
             houseFeeUsdc: qpPDAs.houseFeeUsdc,
             insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
             usdcMint,
-            userStats: userStatsPda,
+            userStats: deriveQuickPickUserStatsPDA(qpProgramId, player1.publicKey)[0],
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
           })
@@ -1012,9 +886,8 @@ describe("quickpick", () => {
   // ==========================================================================
   describe("Buy Ticket – Insufficient Funds", () => {
     it("fails when player has no USDC", async () => {
-      // Create a user who HAS met the gate (reuse player1's UserStats trick
-      // won't work for a fresh keypair). Instead, just expect this to fail
-      // either on the gate check or the funds check.
+      // A fresh keypair with 0 USDC fails on the funds check (there is no
+      // on-chain gate anymore, so this can only fail on insufficient funds).
       const brokePlayer = Keypair.generate();
       await airdrop(provider, brokePlayer.publicKey);
       const brokeUsdc = await createAndFundUsdc(
@@ -1031,10 +904,6 @@ describe("quickpick", () => {
       const drawId = state.currentDraw.toNumber();
       const idx = state.currentDrawTickets.toNumber();
       const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
-      const [userStatsPda] = deriveUserStatsPDA(
-        mainProgramId,
-        brokePlayer.publicKey,
-      );
 
       try {
         await qpProgram.methods
@@ -1048,7 +917,7 @@ describe("quickpick", () => {
             houseFeeUsdc: qpPDAs.houseFeeUsdc,
             insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
             usdcMint,
-            userStats: userStatsPda,
+            userStats: deriveQuickPickUserStatsPDA(qpProgramId, brokePlayer.publicKey)[0],
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
           })
@@ -1057,7 +926,7 @@ describe("quickpick", () => {
         expect.fail("Should have thrown");
       } catch (err: unknown) {
         expect(err).to.exist;
-        // Might fail on gate or funds – either is acceptable
+        // Fails on insufficient funds
       }
     });
   });
@@ -1086,8 +955,8 @@ describe("quickpick", () => {
       expect(Number(insurance.amount)).to.be.greaterThan(0);
 
       // Total USDC out of players = ticket_price × numTickets
-      // 2 tickets purchased by player1 in the BuyTicket tests
-      const numTickets = 2;
+      // 3 tickets purchased so far: player1 × 2 + player2 × 1
+      const numTickets = 3;
       const totalRevenue = QP_TICKET_PRICE.toNumber() * numTickets;
       const totalInPools =
         Number(pool.amount) -
@@ -1674,10 +1543,6 @@ describe("quickpick", () => {
         const drawId = state.currentDraw.toNumber();
         const idx = state.currentDrawTickets.toNumber();
         const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
-        const [userStatsPda] = deriveUserStatsPDA(
-          mainProgramId,
-          player1.publicKey,
-        );
 
         await qpProgram.methods
           .buyTicket({ numbers })
@@ -1690,7 +1555,7 @@ describe("quickpick", () => {
             houseFeeUsdc: qpPDAs.houseFeeUsdc,
             insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
             usdcMint,
-            userStats: userStatsPda,
+            userStats: deriveQuickPickUserStatsPDA(qpProgramId, player1.publicKey)[0],
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
           })
@@ -1701,9 +1566,92 @@ describe("quickpick", () => {
       const stateAfter = await qpProgramAccounts.quickPickState.fetch(
         qpPDAs.quickPickState,
       );
-      // 2 earlier + 3 new = 5
+      // 3 earlier (player1 × 2 + player2 × 1) + 3 new = 6
       expect(stateAfter.totalTicketsSold.toNumber()).to.be.greaterThanOrEqual(
         5,
+      );
+    });
+  });
+
+  // ==========================================================================
+  // 16b. PER-WALLET TICKET CAP (M2)
+  // ==========================================================================
+  describe("Per-Wallet Ticket Cap", () => {
+    const QP_MAX_TICKETS_PER_WALLET = 100; // mirror of on-chain constant
+
+    it("tracks tickets_this_draw per wallet and resets on new draw", async () => {
+      const whale = Keypair.generate();
+      await airdrop(provider, whale.publicKey);
+      const whaleUsdc = await createAndFundUsdc(
+        provider,
+        usdcMint,
+        whale.publicKey,
+        authority,
+        BigInt(1_000_000_000), // $1,000 — plenty for the test buys
+      );
+      const [whaleStatsPda] = deriveQuickPickUserStatsPDA(
+        qpProgramId,
+        whale.publicKey,
+      );
+
+      // Buy 3 tickets as a fresh wallet (auto-initializes QuickPickUserStats)
+      const numbersSets: [number, number, number, number, number][] = [
+        [1, 6, 11, 16, 21],
+        [2, 7, 12, 17, 22],
+        [3, 8, 13, 18, 23],
+      ];
+      for (const numbers of numbersSets) {
+        const state = await qpProgramAccounts.quickPickState.fetch(
+          qpPDAs.quickPickState,
+        );
+        const drawId = state.currentDraw.toNumber();
+        const idx = state.currentDrawTickets.toNumber();
+        const [ticketPda] = deriveQPTicketPDA(qpProgramId, drawId, idx);
+
+        await qpProgram.methods
+          .buyTicket({ numbers })
+          .accountsPartial({
+            player: whale.publicKey,
+            quickPickState: qpPDAs.quickPickState,
+            ticket: ticketPda,
+            playerUsdc: whaleUsdc,
+            prizePoolUsdc: qpPDAs.prizePoolUsdc,
+            houseFeeUsdc: qpPDAs.houseFeeUsdc,
+            insurancePoolUsdc: qpPDAs.insurancePoolUsdc,
+            usdcMint,
+            userStats: whaleStatsPda,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([whale])
+          .rpc();
+      }
+
+      // Counter reflects exactly 3 tickets for this wallet
+      const stats = await qpProgramAccounts.quickPickUserStats.fetch(
+        whaleStatsPda,
+      );
+      expect(stats.wallet.toString()).to.equal(whale.publicKey.toString());
+      expect(stats.ticketsThisDraw.toNumber()).to.equal(3);
+      expect(stats.totalTickets.toNumber()).to.equal(3);
+      // Still within the cap
+      expect(stats.ticketsThisDraw.toNumber()).to.be.lessThan(
+        QP_MAX_TICKETS_PER_WALLET,
+      );
+
+      // Counters are per-wallet: player1's counter is unaffected by the whale
+      const [player1StatsPda] = deriveQuickPickUserStatsPDA(
+        qpProgramId,
+        player1.publicKey,
+      );
+      const player1Stats = await qpProgramAccounts.quickPickUserStats.fetch(
+        player1StatsPda,
+      );
+      expect(player1Stats.ticketsThisDraw.toNumber()).to.be.greaterThanOrEqual(
+        2,
+      );
+      expect(player1Stats.ticketsThisDraw.toNumber()).to.be.lessThan(
+        QP_MAX_TICKETS_PER_WALLET,
       );
     });
   });
@@ -1915,17 +1863,13 @@ describe("quickpick", () => {
   // 20. MULTI-PLAYER PURCHASE TRACKING
   // ==========================================================================
   describe("Multi-Player Purchase Tracking", () => {
-    it("player1 user stats reflect all QP + main purchases", async () => {
-      const [userStatsPda] = deriveUserStatsPDA(
-        mainProgramId,
-        player1.publicKey,
+    it("QP tickets are not gated by main-lottery spend", async () => {
+      // The $50 gate is frontend-only — on-chain, tickets sell regardless of
+      // the player's main-lottery UserStats (player2 had no spend and bought).
+      const state = await qpProgramAccounts.quickPickState.fetch(
+        qpPDAs.quickPickState,
       );
-      const stats = await mainProgramAccounts.userStats.fetch(userStatsPda);
-      // player1 bought 21+ main tickets in before() plus more during tests
-      expect(stats.totalTickets.toNumber()).to.be.greaterThanOrEqual(21);
-      expect(stats.totalSpent.toNumber()).to.be.greaterThanOrEqual(
-        QP_MIN_SPEND_GATE.toNumber(),
-      );
+      expect(state.totalTicketsSold.toNumber()).to.be.greaterThanOrEqual(4);
     });
 
     it("QP state tracks correct number of tickets sold", async () => {

@@ -4,6 +4,9 @@ import { mapRawToLotteryState } from "./types";
 /** Minimal BN-like object as returned by @coral-xyz/anchor */
 const bn = (value: number) => ({
   toNumber: () => value,
+  // toBigInt() prefers toString() (exact decimal) — the mock must provide it
+  // or every bigint field maps to 0n.
+  toString: () => String(value),
 });
 
 /** PublicKey-like object */

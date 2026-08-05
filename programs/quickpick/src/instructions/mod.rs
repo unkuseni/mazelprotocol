@@ -4,7 +4,8 @@
 //! Quick Pick Express is a high-frequency lottery running every 4 hours with a 5/35 matrix.
 //!
 //! Features:
-//! - $50 main lottery spend gate requirement
+//! - Frontend-only access gate (no on-chain $50 spend check)
+//! - Per-wallet ticket cap per draw (on-chain, `QuickPickUserStats`)
 //! - $1.50 ticket price
 //! - Fixed prizes (Normal Mode): Match 4 = $100, Match 3 = $4
 //! - Pari-mutuel prizes (Rolldown Mode): 60% to Match 4, 40% to Match 3
