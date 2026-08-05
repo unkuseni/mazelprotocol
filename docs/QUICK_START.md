@@ -233,7 +233,7 @@ program.methods.leaveSyndicate()
 
 ### Quick Pick Express (5/35) — FIXED → PARI-MUTUEL
 
-> ⚠️ **$50 Gate Requirement**: Must have spent $50+ lifetime in main lottery to access.
+> ⚠️ **$50 Gate Requirement (FRONTEND-ONLY)**: The Quick Pick page requires a $50+ lifetime main-lottery spend **in the app UI only** — the on-chain program does not enforce it.
 
 | Metric | Value | Prize Mode |
 |--------|-------|------------|
@@ -325,7 +325,7 @@ Only play with money you can afford to lose. Verify your local laws before parti
 
 ### ✅ Implemented On-Chain
 - ✅ **Fixed → Pari-Mutuel Prize Transition** (ALL prizes start fixed, transition to pari-mutuel during rolldown to cap operator liability)
-- ✅ **Quick Pick Express** (separate program — 5/35 matrix, $1.50 tickets, **+66.7% rolldown advantage**, no free ticket, $50 gate)
+- ✅ **Quick Pick Express** (separate program — 5/35 matrix, $1.50 tickets, **+66.7% rolldown advantage**, no free ticket, frontend-only $50 gate)
 - ✅ **Switchboard Randomness** (TEE-based secure randomness with commit-reveal)
 - ✅ **Dynamic House Fee** (28-40% based on jackpot)
 - ✅ **Soft/Hard Cap System** (prevents calendar gaming)

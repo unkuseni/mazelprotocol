@@ -77,7 +77,7 @@ mazelprotocol/
 - **Jackpot Seed:** $5,000
 - **Soft Cap:** $30,000
 - **Hard Cap:** $50,000
-- **$50 Gate Requirement:** Must have spent $50+ lifetime in main lottery
+- **$50 Gate Requirement (frontend-only):** The Quick Pick page is gated behind a $50+ lifetime main-lottery spend **in the app UI only** — the on-chain program does not enforce it
 
 ## ✨ Key Features
 

@@ -563,28 +563,23 @@ A high-frequency mini-lottery featuring the **same rolldown mechanics and +EV op
 
 ### 4.2 Access Requirements
 
-> ⚠️ **$50 Gate Requirement**: Players must have spent a minimum of **$50 USDC lifetime** in the main MazelProtocol (6/46) before gaining access to Quick Pick Express.
+> ⚠️ **$50 Gate Requirement (FRONTEND-ONLY)**: The Quick Pick page is gated behind a **$50 USDC lifetime spend** in the main MazelProtocol (6/46) lottery. This gate is enforced **only in the frontend UI** — the on-chain `quickpick` program does **NOT** check `UserStats` when buying tickets, so any wallet can purchase Quick Pick tickets directly on-chain.
 
 This requirement:
 - Ensures players understand the main lottery mechanics first
 - Creates exclusivity and rewards loyal players
-- Reduces abuse potential from bot accounts
+- Reduces abuse potential from bot accounts (as a UX soft-gate)
 - Builds a committed player base for the mini-game
 
-**Implementation:**
-```rust
-// Check user eligibility before Quick Pick purchase
-pub fn verify_quick_pick_eligibility(user_stats: &UserStats) -> Result<()> {
-    require!(
-        user_stats.total_spent >= QUICK_PICK_MIN_SPEND_GATE,
-        LottoError::InsufficientMainLotterySpend
-    );
-    Ok(())
-}
-
-// Constant
-pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000; // $50 in USDC lamports
+**Implementation (frontend only):**
+```ts
+// The app reads the main lottery's UserStats to decide whether to show the
+// locked overlay or the ticket builder. Nothing is enforced on-chain.
+const stats = await fetchUserStats(provider, wallet);
+const meetsGate = stats.totalSpent >= 50_000_000n; // $50 in USDC lamports
 ```
+
+> 🛡️ **On-chain anti-bot guard (M2):** Because the $50 gate is UI-only, the program enforces a **per-wallet ticket cap of 100 tickets per draw** (`QUICK_PICK_MAX_TICKETS_PER_WALLET`) via the auto-initialized `QuickPickUserStats` PDA (`["quick_pick_user", wallet]`). The counter resets each draw, so no single wallet can dominate a draw window while still allowing any wallet to buy on-chain.
 
 ### 4.3 Game Parameters
 
@@ -773,7 +768,6 @@ pub const QUICK_PICK_TICKET_PRICE: u64 = 1_500_000;        // $1.50 in USDC lamp
 pub const QUICK_PICK_NUMBERS: u8 = 5;                       // Pick 5 numbers
 pub const QUICK_PICK_RANGE: u8 = 35;                        // From 1-35
 pub const QUICK_PICK_INTERVAL: i64 = 14400;                 // 4 hours in seconds
-pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000;      // $50 gate requirement
 
 // Quick Pick Jackpot Parameters
 pub const QUICK_PICK_SEED_AMOUNT: u64 = 5_000_000_000;      // $5,000 seed
@@ -910,20 +904,13 @@ pub fn should_quick_pick_rolldown(jackpot_balance: u64, random_value: u64) -> bo
     (random_value % 10000) < probability_bps
 }
 
-/// Buy Quick Pick ticket with gate verification
+/// Buy Quick Pick ticket (no on-chain gate — gate is frontend-only)
 pub fn buy_quick_pick_ticket(
     ctx: Context<BuyQuickPick>,
     numbers: [u8; 5],
 ) -> Result<()> {
     let state = &mut ctx.accounts.quick_pick_state;
     let ticket = &mut ctx.accounts.ticket;
-    let user_stats = &ctx.accounts.user_stats;
-    
-    // Verify $50 gate requirement
-    require!(
-        user_stats.total_spent >= QUICK_PICK_MIN_SPEND_GATE,
-        LottoError::InsufficientMainLotterySpend
-    );
     
     // Validate numbers (1-35, unique)
     validate_quick_pick_numbers(&numbers)?;
@@ -1227,7 +1214,7 @@ Combined with Main Lottery (Corrected):
 | **Cycle Duration** | ~15-16 days | ~2-3 days |
 | **Rolldown Mechanics** | ✅ Probabilistic | ✅ Probabilistic |
 | **Dynamic Fees** | ✅ 28-40% | ✅ 28-38% |
-| **Access** | Open to all | $50 gate required |
+| **Access** | Open to all | Frontend $50 gate (not on-chain) |
 | **Free Ticket (Match 2)** | ✅ Yes | ❌ No |
 | **Normal Mode Edge** | -65% (house) | -89% (house) |
 | **🔥 Rolldown EV** | **+14.6% to +62% (player)** | **+66.7% (player)** |
@@ -1561,7 +1548,7 @@ pub fn distribute_syndicate_wars_prizes(
     ├── Admin: initialize, fund_seed, pause/unpause, update_config,
     │         withdraw_house_fees, add_reserve_funds, cancel_draw,
     │         force_finalize_draw, emergency_fund_transfer
-    ├── Ticket: buy_ticket ($50 spend gate)
+    ├── Ticket: buy_ticket (frontend-only $50 gate)
     ├── Draw: commit_randomness, execute_draw, finalize_draw
     └── Prize: claim_prize
 ```

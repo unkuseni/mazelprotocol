@@ -167,7 +167,7 @@
 
 ### Quick Pick Express (5/35) — FIXED → PARI-MUTUEL
 
-> ⚠️ **$50 Gate Requirement**: Players must spend $50+ lifetime in main lottery to access.
+> ⚠️ **$50 Gate Requirement (FRONTEND-ONLY)**: The Quick Pick page requires a $50+ lifetime main-lottery spend **in the app UI only** — the on-chain program does not enforce it.
 
 | Parameter | Value | Prize Mode | Location |
 |-----------|-------|------------|----------|

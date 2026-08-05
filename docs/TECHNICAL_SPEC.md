@@ -511,8 +511,7 @@ pub const QUICK_PICK_NUMBERS: u8 = 5;                 // Pick 5 numbers
 pub const QUICK_PICK_RANGE: u8 = 35;                  // From 1-35
 pub const QUICK_PICK_INTERVAL: i64 = 14400;          // 4 hours
 
-// Quick Pick $50 Gate Requirement
-pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000;  // $50 lifetime main lottery spend required
+// Quick Pick $50 Gate — FRONTEND-ONLY (no on-chain constant; enforced in app UI)
 
 // Quick Pick Jackpot System (scaled for 2-3 day cycles)
 pub const QUICK_PICK_SEED_AMOUNT: u64 = 5_000_000_000;    // $5,000 seed
@@ -2755,10 +2754,6 @@ pub enum ErrorCode {
     /// Quick pick game feature is not active
     #[msg("Quick pick game not active.")]
     QuickPickNotActive,
-
-    /// Player has not spent enough in main lottery for Quick Pick Express access
-    #[msg("Insufficient main lottery spend. $50 minimum required for Quick Pick Express.")]
-    InsufficientMainLotterySpend,
 
     /// Syndicate Wars competition is not active
     /// Syndicate Wars feature is not currently active

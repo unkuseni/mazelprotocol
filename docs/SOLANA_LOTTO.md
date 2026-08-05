@@ -736,7 +736,7 @@ Report vulnerabilities to: `security@mazelprotocol.io`
 
 High-frequency mini-lottery with **full rolldown mechanics and +EV opportunity** — exclusive to committed players:
 
-> ⚠️ **$50 Gate Requirement**: Must have spent $50+ lifetime in the main lottery to access Quick Pick Express.
+> ⚠️ **$50 Gate Requirement (FRONTEND-ONLY)**: The Quick Pick page requires a $50+ lifetime main-lottery spend **in the app UI only** — the on-chain program does not enforce it.
 
 | Parameter | Value |
 |-----------|-------|
@@ -1052,7 +1052,7 @@ All instructions are called via Anchor's `program.methods.<instruction>()` patte
 | `cancel_draw(reason)` | Cancel stuck draw |
 | `force_finalize_draw(reason)` | Emergency finalize |
 | `emergency_fund_transfer(source, amount, reason)` | Move funds between pools |
-| `buy_ticket(params)` | Buy ticket (5 numbers, $50 gate) |
+| `buy_ticket(params)` | Buy ticket (5 numbers, frontend-only $50 gate) |
 | `commit_randomness()` | Commit phase |
 | `execute_draw()` | Reveal phase |
 | `finalize_draw(params)` | Set winners & prizes |

@@ -1345,7 +1345,7 @@ Quick Pick Express is a separate Anchor program offering faster, smaller draws a
 | Ticket Price | $1.50 USDC |
 | Matrix | Pick 5 numbers from 1-35 |
 | Draw Interval | 14,400 seconds (4 hours) |
-| Access Gate | $50 lifetime main lottery spend required |
+| Access Gate | $50 lifetime main lottery spend required (frontend-only, not enforced on-chain) |
 | Jackpot Seed | $5,000 |
 | Soft Cap | $30,000 (probabilistic rolldown begins) |
 | Hard Cap | $50,000 (forced 100% rolldown) |

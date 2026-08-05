@@ -299,14 +299,17 @@ let match_3_prize = match_3_pool / match_3_winners as u64; // ~$35 each
 
 > **🔒 PRIZE TRANSITION:** Quick Pick Express uses the same Fixed → Pari-Mutuel prize transition system as the main lottery. Normal mode prizes are FIXED; rolldown prizes are PARI-MUTUEL (operator liability CAPPED at jackpot amount).
 
-> ⚠️ **$50 Gate Requirement**: Players must have spent $50+ lifetime in the main lottery to access Quick Pick Express.
+> ⚠️ **$50 Gate Requirement (FRONTEND-ONLY)**: The Quick Pick page is gated behind a $50+ lifetime main-lottery spend **in the frontend UI only**. The on-chain `quickpick` program does not check `UserStats` when buying tickets.
 
 **🎯 Key Feature:** During rolldown events, players enjoy **+66.7% positive expected value** using pari-mutuel prize distribution — comparable to the main lottery's optimal rolldown conditions.
 
-### Access Gate
+### Access Gate (frontend-only)
+> No on-chain constant. The app's gate threshold is hardcoded in `app/src/routes/QuickPick.tsx` (`LIFETIME_GATE = 50`, i.e. $50 USDC lifetime spend).
+
+### Per-Wallet Ticket Cap (on-chain anti-bot guard)
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `QUICK_PICK_MIN_SPEND_GATE` | `50,000,000` lamports | $50 minimum main lottery spend required |
+| `QUICK_PICK_MAX_TICKETS_PER_WALLET` | `100` | Max Quick Pick tickets one wallet may buy per draw (M2). Tracked via the `QuickPickUserStats` PDA (`["quick_pick_user", wallet]`), auto-initialized on first purchase and reset each draw. |
 
 ### Core Parameters
 | Constant | Value | Description |
@@ -393,15 +396,12 @@ NORMAL MODE (FIXED PRIZES — 87-91% house edge):
 
 > **🔒 OPERATOR PROTECTION:** During rolldown, total payout is EXACTLY $30,000 (the jackpot) — regardless of whether 5,000 or 50,000 tickets are sold. The pari-mutuel system absorbs all volume risk.
 
-### Gate Verification
-```rust
-pub fn verify_quick_pick_eligibility(user_stats: &UserStats) -> Result<()> {
-    require!(
-        user_stats.total_spent >= QUICK_PICK_MIN_SPEND_GATE,
-        LottoError::InsufficientMainLotterySpend
-    );
-    Ok(())
-}
+### Gate Verification (frontend-only)
+> The $50 gate is **NOT verified on-chain** — the `quickpick` program's `buy_ticket` has no `user_stats` account. The app reads the main lottery's `UserStats` and shows a locked overlay when `total_spent < $50`:
+```ts
+// app/src/routes/QuickPick.tsx
+const meets = await checkUserMeetsGateRequirement(provider, userStatsPda);
+// meets === false → <GateLockedOverlay lifetimeSpend={spend} />
 ```
 
 ### Dynamic Fee Calculation
@@ -484,7 +484,7 @@ System limits and validation parameters.
 | **Cycle Duration** | ~15-16 days | ~2-3 days |
 | **Rolldown Mechanics** | ✅ Probabilistic | ✅ Probabilistic |
 | **Dynamic Fees** | ✅ 28-40% | ✅ 28-38% |
-| **Access** | Open to all | $50 gate required |
+| **Access** | Open to all | Frontend $50 gate (not on-chain) |
 | **Free Ticket (Match 2)** | ✅ Yes | ❌ No |
 | **Normal Mode Prizes** | **FIXED** | **FIXED** |
 | **Rolldown Prizes** | **PARI-MUTUEL** | **PARI-MUTUEL** |
