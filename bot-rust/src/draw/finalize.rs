@@ -5,10 +5,11 @@ use crate::error::Result;
 use crate::indexer::{MainWinnerCounts, QpWinnerCounts};
 use anchor_lang::AnchorSerialize;
 use solana_client::rpc_client::RpcClient;
-use solana_sdk::{
-    instruction::Instruction, pubkey::Pubkey, signature::Signature, signer::Signer,
-    transaction::Transaction,
-};
+use solana_instruction::Instruction;
+use solana_pubkey::Pubkey;
+use solana_signature::Signature;
+use solana_signer::Signer;
+use solana_transaction::Transaction;
 
 pub struct FinalizeResult {
     pub signature: Signature,
@@ -129,6 +130,6 @@ fn meta(
     pubkey: Pubkey,
     is_signer: bool,
     is_writable: bool,
-) -> solana_sdk::instruction::AccountMeta {
-    solana_sdk::instruction::AccountMeta { pubkey, is_signer, is_writable }
+) -> solana_instruction::AccountMeta {
+    solana_instruction::AccountMeta { pubkey, is_signer, is_writable }
 }

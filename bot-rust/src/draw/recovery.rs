@@ -28,12 +28,10 @@ use crate::error::Result;
 use crate::indexer;
 use crate::store::{DrawPhase, Store};
 use solana_client::rpc_client::RpcClient;
-use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
-    signature::Signature,
-    signer::Signer,
-    transaction::Transaction,
-};
+use solana_instruction::{AccountMeta, Instruction};
+use solana_signature::Signature;
+use solana_signer::Signer;
+use solana_transaction::Transaction;
 
 fn discriminator(name: &str) -> [u8; 8] {
     use sha2::{Digest, Sha256};

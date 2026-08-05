@@ -3,14 +3,13 @@
 use crate::config::BotConfig;
 use crate::error::Result;
 use solana_client::rpc_client::RpcClient;
-use solana_sdk::{
-    instruction::Instruction,
-    pubkey::Pubkey,
-    signature::{Keypair, Signature},
-    signer::Signer,
-    system_program,
-    transaction::Transaction,
-};
+use solana_instruction::Instruction;
+use solana_keypair::Keypair;
+use solana_pubkey::Pubkey;
+use solana_signature::Signature;
+use solana_signer::Signer;
+use solana_system_interface::program as system_program;
+use solana_transaction::Transaction;
 
 pub struct CommitResult {
     pub signature: Signature,
@@ -96,6 +95,6 @@ fn meta(
     pubkey: Pubkey,
     is_signer: bool,
     is_writable: bool,
-) -> solana_sdk::instruction::AccountMeta {
-    solana_sdk::instruction::AccountMeta { pubkey, is_signer, is_writable }
+) -> solana_instruction::AccountMeta {
+    solana_instruction::AccountMeta { pubkey, is_signer, is_writable }
 }

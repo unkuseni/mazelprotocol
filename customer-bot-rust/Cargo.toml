@@ -11,7 +11,8 @@ path = "src/main.rs"
 
 [dependencies]
 solana-client = "2.2"
-solana-sdk = "2.2"
+solana-commitment-config = "2.2"
+solana-pubkey = "2"
 anchor-lang = "0.32"
 borsh = "0.10"
 tokio = { version = "1", features = ["full"] }
