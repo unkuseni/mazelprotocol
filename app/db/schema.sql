@@ -39,3 +39,25 @@ CREATE INDEX IF NOT EXISTS idx_messages_created_at
 -- Index for filtering system/announcement messages across syndicates
 CREATE INDEX IF NOT EXISTS idx_messages_type_created
   ON messages(type, created_at DESC);
+
+-- ============================================================================
+-- Prelaunch Waitlist
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS waitlist_entries (
+  email      TEXT PRIMARY KEY,               -- normalized lowercase email
+  wallet     TEXT,                           -- optional Solana address (base58)
+  source     TEXT    NOT NULL DEFAULT 'landing', -- acquisition source
+  referrer   TEXT,                           -- utm_source / campaign / referrer
+  ip_hash    TEXT,                           -- SHA-256 hash of client IP (rate limiting)
+  last_signup_at INTEGER NOT NULL,           -- Unix ms (rate limiting + re-signup)
+  created_at INTEGER NOT NULL                -- Unix ms (original signup)
+);
+
+-- Lookup by join date (leaderboard / stats)
+CREATE INDEX IF NOT EXISTS idx_waitlist_created_at
+  ON waitlist_entries(created_at ASC);
+
+-- Rate-limit lookups per client
+CREATE INDEX IF NOT EXISTS idx_waitlist_ip_hash
+  ON waitlist_entries(ip_hash);
