@@ -723,6 +723,7 @@ export default function PlayQuickPickExpress() {
                         size="md"
                         variant="emerald"
                         animated={false}
+                        className="flex-wrap justify-center"
                       />
                     </div>
                   )}

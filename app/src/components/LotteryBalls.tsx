@@ -3,12 +3,13 @@ import { useEffect, useState } from "react";
 interface LotteryBallProps {
   number: number;
   delay?: number;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   variant?: "emerald" | "gold" | "muted";
   animated?: boolean;
 }
 
 const sizeClasses = {
+  xs: "w-7 h-7 text-[10px] font-bold",
   sm: "w-8 h-8 text-xs font-bold",
   md: "w-12 h-12 text-lg font-bold",
   lg: "w-16 h-16 text-2xl font-black",
@@ -60,10 +61,12 @@ export function LotteryBall({
 
 interface LotteryBallRowProps {
   numbers: number[];
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   variant?: "emerald" | "gold" | "muted";
   animated?: boolean;
   staggerDelay?: number;
+  /** Tailwind gap class controlling spacing between balls (default "gap-2") */
+  gap?: string;
   className?: string;
 }
 
@@ -73,10 +76,11 @@ export function LotteryBallRow({
   variant = "emerald",
   animated = true,
   staggerDelay = 120,
+  gap = "gap-2",
   className = "",
 }: LotteryBallRowProps) {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center ${gap} ${className}`}>
       {numbers.map((num, i) => (
         <LotteryBall
           key={`${num}-${i}`}
@@ -150,8 +154,8 @@ export function FloatingBalls({
         >
           <div
             className={`w-full h-full rounded-full flex items-center justify-center text-[10px] font-bold ${ball.isGold
-                ? "bg-linear-to-br from-gold-light to-gold-dark text-white/70"
-                : "bg-linear-to-br from-emerald-light to-emerald-dark text-white/70"
+              ? "bg-linear-to-br from-gold-light to-gold-dark text-white/70"
+              : "bg-linear-to-br from-emerald-light to-emerald-dark text-white/70"
               }`}
             style={{
               boxShadow: ball.isGold

@@ -33,8 +33,8 @@ const appKitReadyPromise = initAppKit();
 /*  Stubs (shown while waiting for initialization)                            */
 /* -------------------------------------------------------------------------- */
 
-const NOOP = () => {};
-const NOOP_ASYNC = async () => {};
+const NOOP = () => { };
+const NOOP_ASYNC = async () => { };
 
 const STUB_VALUE: AppKitContextValue = {
   ready: false,
@@ -70,12 +70,18 @@ export default function AppKitClientProvider({
     let cancelled = false;
 
     appKitReadyPromise
-      .then(() => {
-        if (!cancelled) {
+      .then((initialized) => {
+        if (cancelled) return;
+        if (initialized) {
           console.log(
             "[AppKitClientProvider] AppKit initialized, mounting bridge",
           );
           setReady(true);
+        } else {
+          console.warn(
+            "[AppKitClientProvider] AppKit not initialized (missing project ID or init skipped) — staying in stub mode",
+          );
+          setFailed(true);
         }
       })
       .catch((error) => {

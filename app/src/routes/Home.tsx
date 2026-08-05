@@ -170,18 +170,16 @@ function FeatureCard({
 }) {
 	return (
 		<div
-			className={`group relative rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 ${
-				highlight
+			className={`group relative rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 ${highlight
 					? "bg-linear-to-br from-gold-500/8 via-gold-500/3 to-transparent border border-gold-500/15 glow-gold hover:border-gold-500/30"
 					: "bg-surface-1/50 border border-border hover:border-gold-500/15 hover:bg-surface-2/50"
-			}`}
+				}`}
 		>
 			<div
-				className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors ${
-					highlight
+				className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors ${highlight
 						? "bg-gold-500/15 text-gold-400"
 						: "bg-surface-2 text-muted-foreground group-hover:text-gold-400 group-hover:bg-gold-500/10"
-				}`}
+					}`}
 			>
 				<Icon size={20} />
 			</div>
@@ -390,9 +388,10 @@ function PrizeTiersSection() {
 											},
 											(_, i) => i + 1,
 										)}
-										size="sm"
+										size="xs"
 										variant={tier.color}
 										animated={false}
+										gap="gap-1.5"
 										className="justify-center"
 									/>
 								</div>

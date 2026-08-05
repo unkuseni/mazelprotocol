@@ -47,7 +47,7 @@ export function SectionHeading({
 			{eyebrow && (
 				<div
 					className={cn(
-						"inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold-500/8 border border-gold-500/15 mb-3",
+						"flex w-fit items-center gap-2 px-3 py-1 rounded-full bg-gold-500/8 border border-gold-500/15 mb-3",
 						isCenter && "mx-auto",
 					)}
 				>
@@ -61,7 +61,8 @@ export function SectionHeading({
 			<h2
 				className={cn(
 					"text-2xl sm:text-3xl lg:text-4xl font-black text-foreground font-display tracking-tight",
-					Icon && "inline-flex items-center gap-3",
+					Icon && "flex items-center gap-3",
+					isCenter && "justify-center",
 				)}
 			>
 				{Icon && (

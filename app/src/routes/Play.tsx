@@ -91,12 +91,11 @@ function NumberGrid({ selected, onToggle, disabled }: NumberGridProps) {
               relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center
               text-sm sm:text-base font-bold transition-all duration-200
               select-none cursor-pointer
-              ${
-								isSelected
-									? "bg-linear-to-b from-gold-400 to-gold-600 text-black shadow-lg shadow-gold-500/30 scale-105 ring-2 ring-gold-400/50"
-									: isFull
-										? "bg-surface-2 text-muted-foreground/40 cursor-not-allowed border border-border"
-										: "bg-surface-1 text-muted-foreground border border-border hover:bg-surface-2 hover:border-gold-500/30 hover:text-foreground hover:scale-105 active:scale-95"
+              ${isSelected
+								? "bg-linear-to-b from-gold-400 to-gold-600 text-black shadow-lg shadow-gold-500/30 scale-105 ring-2 ring-gold-400/50"
+								: isFull
+									? "bg-surface-2 text-muted-foreground/40 cursor-not-allowed border border-border"
+									: "bg-surface-1 text-muted-foreground border border-border hover:bg-surface-2 hover:border-gold-500/30 hover:text-foreground hover:scale-105 active:scale-95"
 							}
             `}
 					>
@@ -522,7 +521,7 @@ export default function PlayMainLottery() {
 			if (failedIndexes.length > 0) {
 				setPurchaseError(
 					`${failedIndexes.length} of ${tickets.length} ticket${tickets.length === 1 ? "" : "s"} failed. ` +
-						`Successfully purchased tickets were removed; failed tickets remain in your cart for retry.`,
+					`Successfully purchased tickets were removed; failed tickets remain in your cart for retry.`,
 				);
 			}
 		} catch (err) {
@@ -790,6 +789,7 @@ export default function PlayMainLottery() {
 											size="md"
 											variant="emerald"
 											animated={false}
+											className="flex-wrap justify-center"
 										/>
 									</div>
 								)}
@@ -910,9 +910,8 @@ export default function PlayMainLottery() {
 										</h3>
 										<ChevronRight
 											size={14}
-											className={`text-muted-foreground transition-transform duration-200 shrink-0 ${
-												showPrizeInfo ? "rotate-90" : ""
-											}`}
+											className={`text-muted-foreground transition-transform duration-200 shrink-0 ${showPrizeInfo ? "rotate-90" : ""
+												}`}
 										/>
 									</button>
 
@@ -926,13 +925,12 @@ export default function PlayMainLottery() {
 													>
 														<div className="flex items-center gap-2">
 															<div
-																className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
-																	tier.color === "gold"
+																className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${tier.color === "gold"
 																		? "bg-gold/20 text-gold"
 																		: tier.color === "emerald"
 																			? "bg-emerald/20 text-emerald-light"
 																			: "bg-foreground/5 text-muted-foreground"
-																}`}
+																	}`}
 															>
 																{tier.match}
 															</div>
@@ -942,13 +940,12 @@ export default function PlayMainLottery() {
 														</div>
 														<div className="text-right ml-4">
 															<span
-																className={`text-xs font-bold whitespace-nowrap ${
-																	tier.color === "gold"
+																className={`text-xs font-bold whitespace-nowrap ${tier.color === "gold"
 																		? "text-gold"
 																		: tier.color === "emerald"
 																			? "text-emerald-light"
 																			: "text-muted-foreground"
-																}`}
+																	}`}
 															>
 																{tier.prize}
 															</span>
