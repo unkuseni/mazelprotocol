@@ -16,6 +16,7 @@ import Syndicates from "@/routes/Syndicates";
 import SyndicateDetail from "@/routes/SyndicateDetail";
 import RolldownLearn from "@/routes/RolldownLearn";
 import Whitepaper from "@/routes/Whitepaper";
+import Waitlist from "@/routes/Waitlist";
 
 export default function App() {
   const [regionPending, setRegionPending] = useState(false);
@@ -190,6 +191,10 @@ export default function App() {
 
   return (
     <>
+      {/* Standalone prelaunch landing page (own nav + footer, no app shell) */}
+      <Routes>
+        <Route path="/waitlist" element={<Waitlist />} />
+      </Routes>
       <Header />
       <main>
         <Routes>
