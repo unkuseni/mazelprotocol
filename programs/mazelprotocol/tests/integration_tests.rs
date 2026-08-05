@@ -264,7 +264,6 @@ mod test_lottery_constants {
         assert_eq!(QUICK_PICK_NUMBERS, 5);
         assert_eq!(QUICK_PICK_RANGE, 35);
         assert_eq!(QUICK_PICK_INTERVAL, 14400); // 4 hours
-        assert_eq!(QUICK_PICK_MIN_SPEND_GATE, 50_000_000); // $50
         assert_eq!(QUICK_PICK_SEED_AMOUNT, 5_000_000_000); // $5,000
         assert_eq!(QUICK_PICK_SOFT_CAP, 30_000_000_000); // $30,000
         assert_eq!(QUICK_PICK_HARD_CAP, 50_000_000_000); // $50,000

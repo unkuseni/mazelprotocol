@@ -6968,11 +6968,6 @@
       "msg": "Quick Pick not active."
     },
     {
-      "code": 12213,
-      "name": "InsufficientMainLotterySpend",
-      "msg": "Insufficient main lottery spend for Quick Pick access."
-    },
-    {
       "code": 12214,
       "name": "SyndicateWarsNotActive",
       "msg": "Syndicate Wars not active."

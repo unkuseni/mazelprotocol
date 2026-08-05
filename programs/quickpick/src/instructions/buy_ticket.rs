@@ -1,27 +1,29 @@
 //! Buy Quick Pick Ticket Instruction
 //!
-//! This instruction allows eligible players to purchase Quick Pick Express tickets.
+//! This instruction allows any player to purchase Quick Pick Express tickets.
 //! It handles:
-//! - $50 main lottery spend gate verification
 //! - Number validation (5 unique numbers from 1-35)
 //! - Dynamic fee calculation based on jackpot level
 //! - USDC transfer (player -> prize pool + house fee + insurance)
 //! - Ticket account creation
 //!
+//! NOTE: The $50 main-lottery spend gate is enforced FRONTEND-ONLY. The
+//! program no longer reads the main lottery's `UserStats` account; anyone
+//! can buy tickets on-chain. The frontend is responsible for showing the
+//! gate UI (locked overlay) before allowing checkout.
+//!
 //! Key differences from main lottery:
-//! - Requires $50 lifetime spend in main lottery
 //! - 5/35 matrix instead of 6/46
 //! - $1.50 ticket price instead of $2.50
 //! - No free tickets (Match 2 doesn't exist)
 
 use anchor_lang::prelude::*;
-use anchor_lang::AccountDeserialize;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::*;
 use crate::errors::QuickPickError;
 use crate::events::QuickPickTicketPurchased;
-use crate::state::{QuickPickState, QuickPickTicket};
+use crate::state::{QuickPickState, QuickPickTicket, QuickPickUserStats};
 
 /// Parameters for buying a Quick Pick ticket
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -97,14 +99,16 @@ pub struct BuyQuickPickTicket<'info> {
     /// USDC mint
     pub usdc_mint: Account<'info, Mint>,
 
-    /// User statistics account (to verify $50 gate)
-    /// This account is owned by the main lottery program, NOT this program.
-    /// We use UncheckedAccount + manual validation because Anchor's #[account]
-    /// derives PDAs under the current program ID, but this PDA lives under the
-    /// main lottery program.
-    /// CHECK: Validated manually in handler: owner == main lottery program,
-    /// PDA derivation verified, discriminator checked, total_spent >= gate
-    pub user_stats: UncheckedAccount<'info>,
+    /// Per-wallet Quick Pick stats (M2: enforces per-draw ticket cap).
+    /// Auto-initialized on the wallet's first purchase (payer = player).
+    #[account(
+        init_if_needed,
+        payer = player,
+        space = QuickPickUserStats::LEN,
+        seeds = [QUICK_PICK_USER_SEED, player.key().as_ref()],
+        bump
+    )]
+    pub user_stats: Account<'info, QuickPickUserStats>,
 
     /// Token program
     pub token_program: Program<'info, Token>,
@@ -154,13 +158,15 @@ impl<'info> BuyQuickPickTicket<'info> {
 /// Buy a Quick Pick Express ticket
 ///
 /// This instruction:
-/// 1. Verifies the $50 main lottery spend gate requirement
-/// 2. Validates the selected numbers (1-35, unique, 5 numbers)
-/// 3. Checks if ticket sales are open for the current draw
-/// 4. Calculates the dynamic house fee based on jackpot level
-/// 5. Transfers USDC from player to prize pool, house fee, and insurance accounts
-/// 6. Creates the ticket account with the selected numbers
-/// 7. Updates Quick Pick state (jackpot contribution, ticket count)
+/// 1. Validates the selected numbers (1-35, unique, 5 numbers)
+/// 2. Checks if ticket sales are open for the current draw
+/// 3. Calculates the dynamic house fee based on jackpot level
+/// 4. Transfers USDC from player to prize pool, house fee, and insurance accounts
+/// 5. Creates the ticket account with the selected numbers
+/// 6. Updates Quick Pick state (jackpot contribution, ticket count)
+///
+/// NOTE: The $50 main-lottery spend gate is enforced frontend-only. There is
+/// no on-chain gate check in this instruction.
 ///
 /// # Arguments
 /// * `ctx` - The context containing all required accounts
@@ -168,84 +174,8 @@ impl<'info> BuyQuickPickTicket<'info> {
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
-/// Verify the UserStats account from the main lottery program and extract
-/// the `total_spent` value for the $50 gate check.
-///
-/// ## Fix #4 — Type-safe cross-program deserialization
-///
-/// Previously this function extracted `total_spent` via a hard-coded byte
-/// offset (`data[48..56]`). That is fragile: if the main lottery ever
-/// reorders fields, adds a field before `total_spent`, or changes a field's
-/// size, the offset silently reads garbage and the gate check produces
-/// incorrect results (either blocking legitimate users or allowing
-/// unqualified ones through).
-///
-/// The new implementation uses Anchor's `UserStats::try_deserialize` which:
-/// 1. Validates the 8-byte Anchor discriminator (`sha256("account:UserStats")[..8]`)
-/// 2. Borsh-deserializes every field in declared order
-/// 3. Fails loudly with a clear error if the struct layout doesn't match
-///
-/// We still perform the two manual checks that Anchor can't do for a
-/// cross-program account:
-/// - **Owner check**: account must be owned by the main lottery program
-/// - **PDA derivation**: account address must equal the expected PDA
-///
-/// ### Coordination note
-/// The QuickPick `UserStats` struct (in `state.rs`) must stay in sync with
-/// the main lottery's `UserStats` (same field order, types, sizes). This is
-/// safer than raw offsets because any mismatch causes a deserialization
-/// error rather than silent corruption.
-fn verify_main_lottery_user_stats(
-    user_stats_info: &AccountInfo,
-    player_key: &Pubkey,
-) -> Result<u64> {
-    // 1. Verify the account is owned by the main lottery program
-    let main_lottery_id = MAIN_LOTTERY_PROGRAM_ID
-        .parse::<Pubkey>()
-        .map_err(|_| QuickPickError::InsufficientMainLotterySpend)?;
-
-    require!(
-        user_stats_info.owner == &main_lottery_id,
-        QuickPickError::InsufficientMainLotterySpend
-    );
-
-    // 2. Verify PDA derivation: seeds = [USER_SEED, player.key().as_ref()]
-    //    under the main lottery program
-    let (expected_pda, _bump) =
-        Pubkey::find_program_address(&[USER_SEED, player_key.as_ref()], &main_lottery_id);
-    require!(
-        user_stats_info.key() == expected_pda,
-        QuickPickError::InsufficientMainLotterySpend
-    );
-
-    // 3. Deserialize using Anchor's typed deserialization.
-    //    `try_deserialize` checks the 8-byte discriminator and then
-    //    Borsh-deserializes all fields. If the struct layout doesn't match
-    //    (e.g. a field was added/removed/reordered in the main program),
-    //    this will return an error instead of silently reading wrong data.
-    let data = user_stats_info.try_borrow_data()?;
-    let mut data_slice: &[u8] = &data;
-
-    let user_stats = crate::state::UserStats::try_deserialize(&mut data_slice).map_err(|_| {
-        msg!("Failed to deserialize main-lottery UserStats account");
-        QuickPickError::InsufficientMainLotterySpend
-    })?;
-
-    // 4. Return total_spent via typed field access (no byte offsets!)
-    Ok(user_stats.total_spent)
-}
-
 pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParams) -> Result<()> {
     let clock = Clock::get()?;
-
-    // Validate the $50 main lottery spend gate via cross-program PDA verification
-    let total_spent =
-        verify_main_lottery_user_stats(&ctx.accounts.user_stats, &ctx.accounts.player.key())?;
-
-    require!(
-        total_spent >= QUICK_PICK_MIN_SPEND_GATE,
-        QuickPickError::InsufficientMainLotterySpend
-    );
 
     // Validate numbers first (before any borrows) - uses the consolidated
     // validate_quick_pick_numbers from constants.rs (H-1 fix).
@@ -282,6 +212,18 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
         ctx.accounts.player_usdc.amount >= ticket_price,
         QuickPickError::InsufficientFunds
     );
+
+    // M2: per-wallet ticket cap — enforce BEFORE any transfers so an
+    // over-limit purchase fails cleanly without needing refunds.
+    // Borrow is scoped so it is dropped before the transfer CPIs below.
+    {
+        let user_stats = &mut ctx.accounts.user_stats;
+        user_stats.reset_for_draw(current_draw);
+        require!(
+            user_stats.tickets_this_draw < QUICK_PICK_MAX_TICKETS_PER_WALLET,
+            QuickPickError::PerWalletTicketLimitExceeded
+        );
+    }
 
     // Calculate dynamic house fee based on current jackpot level
     let house_fee_bps = calculate_quick_pick_house_fee_bps(jackpot_balance, is_rolldown_pending);
@@ -364,6 +306,21 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
     // Check if rolldown is now pending (jackpot >= soft_cap)
     if quick_pick_state.jackpot_balance >= quick_pick_state.soft_cap {
         quick_pick_state.is_rolldown_pending = true;
+    }
+
+    // Increment per-wallet counters (M2). Borrow is scoped so it does not
+    // conflict with `quick_pick_state` above / `ticket` below (disjoint fields).
+    {
+        let user_stats = &mut ctx.accounts.user_stats;
+        user_stats.wallet = ctx.accounts.player.key();
+        user_stats.tickets_this_draw = user_stats
+            .tickets_this_draw
+            .checked_add(1)
+            .ok_or(QuickPickError::Overflow)?;
+        user_stats.total_tickets = user_stats
+            .total_tickets
+            .checked_add(1)
+            .ok_or(QuickPickError::Overflow)?;
     }
 
     // Create ticket

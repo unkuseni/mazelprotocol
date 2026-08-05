@@ -96,12 +96,9 @@ pub enum QuickPickError {
     #[msg("Numbers must be sorted in ascending order")]
     NumbersNotSorted,
 
-    // =========================================================================
-    // ACCESS GATE ERRORS (6040-6049)
-    // =========================================================================
-    /// Insufficient main lottery spend for Quick Pick access
-    #[msg("Insufficient main lottery spend: $50 lifetime spend required")]
-    InsufficientMainLotterySpend = 6040,
+    /// Per-wallet ticket cap exceeded for this draw
+    #[msg("Per-wallet ticket limit exceeded for this draw")]
+    PerWalletTicketLimitExceeded = 6028,
 
     // =========================================================================
     // FUND ERRORS (6050-6069)

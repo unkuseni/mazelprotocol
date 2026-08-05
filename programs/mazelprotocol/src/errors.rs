@@ -520,10 +520,6 @@ pub enum LottoError {
     #[msg("Quick Pick not active.")]
     QuickPickNotActive,
 
-    /// User hasn't met minimum main lottery spend for Quick Pick access
-    #[msg("Insufficient main lottery spend for Quick Pick access.")]
-    InsufficientMainLotterySpend,
-
     /// Syndicate Wars competition is not active
     #[msg("Syndicate Wars not active.")]
     SyndicateWarsNotActive,

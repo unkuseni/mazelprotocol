@@ -192,9 +192,6 @@ pub const QUICK_PICK_RANGE: u8 = 35;
 /// Quick Pick draw interval: 4 hours (14400 seconds)
 pub const QUICK_PICK_INTERVAL: i64 = 14400;
 
-/// Quick Pick minimum spend gate: $50 lifetime main lottery spend required
-pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000;
-
 /// Quick Pick seed amount: $5,000
 pub const QUICK_PICK_SEED_AMOUNT: u64 = 5_000_000_000;
 /// Quick Pick soft cap: $30,000

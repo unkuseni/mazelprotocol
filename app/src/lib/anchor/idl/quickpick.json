@@ -213,7 +213,8 @@
         "Buy a Quick Pick Express ticket",
         "",
         "Purchases a ticket with 5 selected numbers from 1-35.",
-        "Requires $50 lifetime spend in the main lottery ($50 gate).",
+        "No on-chain access gate - the $50 main-lottery spend requirement is",
+        "enforced frontend-only (in the app UI).",
         "USDC is transferred from player to prize pool, house fee, and insurance accounts.",
         "",
         "# Arguments",
@@ -420,13 +421,38 @@
         {
           "name": "user_stats",
           "docs": [
-            "User statistics account (to verify $50 gate)",
-            "This account is owned by the main lottery program, NOT this program.",
-            "We use UncheckedAccount + manual validation because Anchor's #[account]",
-            "derives PDAs under the current program ID, but this PDA lives under the",
-            "main lottery program.",
-            "PDA derivation verified, discriminator checked, total_spent >= gate"
-          ]
+            "Per-wallet Quick Pick stats (M2: enforces per-draw ticket cap).",
+            "Auto-initialized on the wallet's first purchase (payer = player)."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  105,
+                  99,
+                  107,
+                  95,
+                  112,
+                  105,
+                  99,
+                  107,
+                  95,
+                  117,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player"
+              }
+            ]
+          }
         },
         {
           "name": "token_program",
@@ -2354,6 +2380,19 @@
         127,
         73
       ]
+    },
+    {
+      "name": "QuickPickUserStats",
+      "discriminator": [
+        36,
+        126,
+        50,
+        221,
+        238,
+        205,
+        116,
+        185
+      ]
     }
   ],
   "events": [
@@ -2694,9 +2733,9 @@
       "msg": "Numbers must be sorted in ascending order"
     },
     {
-      "code": 12040,
-      "name": "InsufficientMainLotterySpend",
-      "msg": "Insufficient main lottery spend: $50 lifetime spend required"
+      "code": 12028,
+      "name": "PerWalletTicketLimitExceeded",
+      "msg": "Per-wallet ticket limit exceeded for this draw"
     },
     {
       "code": 12050,
@@ -4364,6 +4403,60 @@
             "name": "prize_amount",
             "docs": [
               "Prize amount in USDC lamports (set after claim)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuickPickUserStats",
+      "docs": [
+        "Per-wallet Quick Pick statistics.",
+        "",
+        "Tracks how many tickets a wallet bought in the current draw so the program",
+        "can enforce `QUICK_PICK_MAX_TICKETS_PER_WALLET`. This is the on-chain",
+        "anti-bot guard that replaced the removed on-chain $50 gate: any wallet can",
+        "still buy (account is auto-initialized on first purchase), but no single",
+        "wallet can dominate a draw window.",
+        "",
+        "PDA: [\"quick_pick_user\", wallet] under the quickpick program."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "wallet",
+            "docs": [
+              "Wallet address this stats account belongs to"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "draw_id",
+            "docs": [
+              "Draw ID the `tickets_this_draw` counter belongs to"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "tickets_this_draw",
+            "docs": [
+              "Tickets purchased in the current draw (reset when draw changes)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_tickets",
+            "docs": [
+              "Total Quick Pick tickets purchased lifetime"
             ],
             "type": "u64"
           },

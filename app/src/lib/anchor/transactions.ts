@@ -17,6 +17,7 @@ import {
 	deriveQuickPickPrizePoolUsdcPDA,
 	deriveQuickPickState,
 	deriveQuickPickTicketPDA,
+	deriveQuickPickUserStatsPDA,
 	deriveTicketPDA,
 	deriveUserPDA,
 	MAIN_LOTTERY_PROGRAM_ID,
@@ -88,14 +89,12 @@ const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
  *
  * @param provider - Anchor provider with connected wallet
  * @param params - Ticket parameters (5 numbers from 1-35)
- * @param userStats - User statistics account from main lottery (for $50 gate)
  * @param playerUsdc - Player's USDC token account (must be owned by player)
  * @returns Transaction instruction ready to send
  */
 export async function buildBuyQuickPickTicketInstruction(
 	provider: AnchorProvider,
 	params: BuyQuickPickTicketParams,
-	userStats: PublicKey,
 	playerUsdc: PublicKey,
 ): Promise<TransactionInstruction> {
 	// Validate input
@@ -137,6 +136,9 @@ export async function buildBuyQuickPickTicketInstruction(
 	const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA();
 	const [houseFeeUsdc] = deriveQuickPickHouseFeeUsdcPDA();
 	const [insurancePoolUsdc] = deriveQuickPickInsurancePoolUsdcPDA();
+	const [userStats] = deriveQuickPickUserStatsPDA(
+		provider.wallet.publicKey,
+	);
 
 	// Build instruction using the correct account names from IDL
 	const instruction = await program.methods
@@ -166,7 +168,6 @@ export async function buildBuyQuickPickTicketInstruction(
  *
  * @param provider - Anchor provider with connected wallet
  * @param params - Ticket parameters (5 numbers from 1-35)
- * @param userStats - User statistics account from main lottery (for $50 gate)
  * @param playerUsdc - Player's USDC token account (must be owned by player)
  * @param options - Transaction options
  * @returns Transaction signature
@@ -174,7 +175,6 @@ export async function buildBuyQuickPickTicketInstruction(
 export async function buyQuickPickTicket(
 	provider: AnchorProvider,
 	params: BuyQuickPickTicketParams,
-	userStats: PublicKey,
 	playerUsdc: PublicKey,
 	options: BuyTicketOptions = {},
 ): Promise<string> {
@@ -182,7 +182,6 @@ export async function buyQuickPickTicket(
 	const instruction = await buildBuyQuickPickTicketInstruction(
 		provider,
 		params,
-		userStats,
 		playerUsdc,
 	);
 
@@ -291,7 +290,6 @@ export async function ensureUsdcTokenAccount(
  *
  * @param provider - Anchor provider with connected wallet
  * @param tickets - Array of ticket parameters
- * @param userStats - User statistics account from main lottery
  * @param playerUsdc - Player's USDC token account
  * @param options - Transaction options
  * @returns Transaction signature
@@ -299,7 +297,6 @@ export async function ensureUsdcTokenAccount(
 export async function buyQuickPickTicketsBulk(
 	provider: AnchorProvider,
 	tickets: BuyQuickPickTicketParams[],
-	userStats: PublicKey,
 	playerUsdc: PublicKey,
 	options: BuyTicketOptions = {},
 ): Promise<string> {
@@ -333,6 +330,9 @@ export async function buyQuickPickTicketsBulk(
 	const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA();
 	const [houseFeeUsdc] = deriveQuickPickHouseFeeUsdcPDA();
 	const [insurancePoolUsdc] = deriveQuickPickInsurancePoolUsdcPDA();
+	const [userStats] = deriveQuickPickUserStatsPDA(
+		provider.wallet.publicKey,
+	);
 
 	for (const ticketParams of tickets) {
 		// Validate ticket numbers
@@ -540,11 +540,11 @@ export async function checkUserMeetsGateRequirement(
 			typeof rawTotalSpent === "bigint"
 				? rawTotalSpent
 				: BigInt(
-						typeof rawTotalSpent === "string" ||
-							typeof rawTotalSpent === "number"
-							? rawTotalSpent
-							: String(rawTotalSpent),
-					);
+					typeof rawTotalSpent === "string" ||
+						typeof rawTotalSpent === "number"
+						? rawTotalSpent
+						: String(rawTotalSpent),
+				);
 
 		return totalSpentBigInt >= FIFTY_DOLLARS_LAMPORTS;
 	} catch (error) {

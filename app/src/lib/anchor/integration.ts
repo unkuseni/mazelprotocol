@@ -75,7 +75,7 @@ export interface MazelProtocolState {
 
 	/** Whether user stats are initialized */
 	userStatsInitialized: boolean;
-	/** Whether user meets the $50 Quick Pick gate */
+	/** Whether user meets the $50 Quick Pick gate (frontend-only check) */
 	meetsQuickPickGate: boolean;
 
 	/** Read-only main lottery program client (async — lazily imports the IDL) */
@@ -294,21 +294,14 @@ export function useMazelProtocol(): MazelProtocol {
 
 			buyQuickPickTicket: async (params: BuyQuickPickTicketParams) => {
 				const provider = getProvider();
-				const userStats = deriveUserStatsPDA(wallet.publicKey!);
 				const playerUsdc = getUserUsdcAccount();
-				return buyQuickPickTicket(provider, params, userStats, playerUsdc);
+				return buyQuickPickTicket(provider, params, playerUsdc);
 			},
 
 			buyQuickPickTicketsBulk: async (tickets: BuyQuickPickTicketParams[]) => {
 				const provider = getProvider();
-				const userStats = deriveUserStatsPDA(wallet.publicKey!);
 				const playerUsdc = getUserUsdcAccount();
-				return buyQuickPickTicketsBulk(
-					provider,
-					tickets,
-					userStats,
-					playerUsdc,
-				);
+				return buyQuickPickTicketsBulk(provider, tickets, playerUsdc);
 			},
 
 			// Prize claiming
@@ -360,22 +353,6 @@ export function useMazelProtocol(): MazelProtocol {
 	);
 
 	return { state, actions, queries };
-}
-
-// ---------------------------------------------------------------------------
-// Utility: derive user stats PDA
-// ---------------------------------------------------------------------------
-
-function deriveUserStatsPDA(user: PublicKey): PublicKey {
-	const USER_SEED = Buffer.from("user");
-	const MAIN_LOTTERY_PROGRAM_ID = new PublicKey(
-		"7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF",
-	);
-	const [pda] = PublicKey.findProgramAddressSync(
-		[USER_SEED, user.toBuffer()],
-		MAIN_LOTTERY_PROGRAM_ID,
-	);
-	return pda;
 }
 
 // ---------------------------------------------------------------------------

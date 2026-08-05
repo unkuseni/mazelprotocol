@@ -30,7 +30,6 @@ import {
   buyQuickPickTicketsBulk,
   checkUserMeetsGateRequirement,
   ensureUsdcTokenAccount,
-  ensureUserStatsInitialized,
   fetchUserStats,
 } from "@/lib/anchor/transactions";
 import { deriveUserPDA } from "@/lib/anchor/pda";
@@ -63,8 +62,9 @@ async function fetchUserStatsForGate(
 const TOTAL_NUMBERS = 35;
 const PICK_COUNT = 5;
 const TICKET_PRICE = 1.5;
-const MAX_TICKETS = 20;
-const LIFETIME_GATE = 50; // $50 lifetime spend required
+const MAX_TICKETS = 20; // max per transaction
+const LIFETIME_GATE = 50; // $50 lifetime spend required (frontend-only)
+const PER_WALLET_DRAW_LIMIT = 100; // on-chain cap per draw (mirrors QUICK_PICK_MAX_TICKETS_PER_WALLET)
 
 const PRIZE_TIERS = [
   { match: 5, prize: "Jackpot", odds: "1 in 324,632", color: "gold" as const },
@@ -308,12 +308,15 @@ export default function PlayQuickPickExpress() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!walletPublicKey || !connectedProvider || !userStatsPda) {
-      if (!cancelled) setGateState({ status: "loading" });
-      return;
-    }
-    setGateState({ status: "loading" });
-    void (async () => {
+
+    const checkGate = async (showLoading: boolean) => {
+      // L1 fix: no wallet connected → nothing to gate on-chain. Treat as
+      // unlocked so the builder is visible; checkout prompts to connect.
+      if (!walletPublicKey || !connectedProvider || !userStatsPda) {
+        if (!cancelled) setGateState({ status: "unlocked" });
+        return;
+      }
+      if (showLoading) setGateState({ status: "loading" });
       try {
         const meets = await checkUserMeetsGateRequirement(
           connectedProvider,
@@ -334,9 +337,28 @@ export default function PlayQuickPickExpress() {
       } catch {
         if (!cancelled) setGateState({ status: "error" });
       }
-    })();
+    };
+
+    // Initial check (with loading state)
+    void checkGate(true);
+
+    // L2 fix: re-check periodically and on focus/visibility so the gate
+    // reflects an updated lifetime spend without a page reload. Later
+    // checks are silent (no loading flicker).
+    const interval = setInterval(() => {
+      void checkGate(false);
+    }, 30_000);
+    const onRecheck = () => {
+      void checkGate(false);
+    };
+    window.addEventListener("focus", onRecheck);
+    document.addEventListener("visibilitychange", onRecheck);
+
     return () => {
       cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener("focus", onRecheck);
+      document.removeEventListener("visibilitychange", onRecheck);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletPublicKey?.toBase58()]);
@@ -409,22 +431,21 @@ export default function PlayQuickPickExpress() {
 
     // SECURITY (review M5): checkout previously only showed an alert() — it
     // never executed an on-chain purchase. Now it submits the real QuickPick
-    // bulk purchase (with ATA + UserStats onboarding for new wallets).
+    // bulk purchase. NOTE (frontend-only gate): the $50 main-lottery spend
+    // gate is enforced only in this UI — the on-chain program does not check
+    // it, so no UserStats initialization is required before purchasing.
     setIsPurchasing(true);
     setPurchaseError(null);
     setPurchaseTx(null);
     try {
-      await ensureUserStatsInitialized(connectedProvider);
       const playerUsdc = await ensureUsdcTokenAccount(
         connectedProvider,
         connectedProvider.wallet.publicKey,
       );
-      const userStats = deriveUserPDA(connectedProvider.wallet.publicKey)[0];
       const params = tickets.map((t) => ({ numbers: t.numbers }));
       const sig = await buyQuickPickTicketsBulk(
         connectedProvider,
         params,
-        userStats,
         playerUsdc,
       );
       setPurchaseTx(sig);
@@ -509,6 +530,11 @@ export default function PlayQuickPickExpress() {
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/10 border border-gold/20">
                   <span className="text-xs font-semibold text-gold">
                     ${TICKET_PRICE.toFixed(2)} USDC / ticket
+                  </span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-foreground/5 border border-foreground/10">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {PER_WALLET_DRAW_LIMIT} tickets / draw per wallet
                   </span>
                 </div>
                 {isUnlocked ? (

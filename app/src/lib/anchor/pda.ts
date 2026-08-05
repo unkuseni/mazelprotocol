@@ -39,6 +39,7 @@ export const INSURANCE_POOL_USDC_SEED = enc.encode("insurance_pool_usdc");
 export const QUICK_PICK_SEED = enc.encode("quick_pick");
 export const QUICK_PICK_TICKET_SEED = enc.encode("quick_pick_ticket");
 export const QUICK_PICK_DRAW_SEED = enc.encode("quick_pick_draw");
+export const QUICK_PICK_USER_SEED = enc.encode("quick_pick_user");
 export const QP_PRIZE_POOL_USDC_SEED = enc.encode("prize_pool_usdc");
 export const QP_HOUSE_FEE_USDC_SEED = enc.encode("house_fee_usdc");
 export const QP_INSURANCE_POOL_USDC_SEED = enc.encode("insurance_pool_usdc");
@@ -269,6 +270,19 @@ export function deriveQuickPickInsurancePoolUsdcPDA(
 ): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [QP_INSURANCE_POOL_USDC_SEED],
+    programId,
+  );
+}
+
+/**
+ * Derive the per-wallet Quick Pick stats PDA (M2: per-draw ticket cap)
+ */
+export function deriveQuickPickUserStatsPDA(
+  user: PublicKey,
+  programId: PublicKey = QUICK_PICK_PROGRAM_ID,
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [QUICK_PICK_USER_SEED, user.toBytes()],
     programId,
   );
 }

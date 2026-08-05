@@ -15,31 +15,16 @@ pub const QUICK_PICK_SEED: &[u8] = b"quick_pick";
 pub const QUICK_PICK_TICKET_SEED: &[u8] = b"quick_pick_ticket";
 /// Seed for Quick Pick draw result PDA
 pub const QUICK_PICK_DRAW_SEED: &[u8] = b"quick_pick_draw";
+/// Seed for per-wallet Quick Pick stats PDA (M2: per-wallet ticket cap)
+pub const QUICK_PICK_USER_SEED: &[u8] = b"quick_pick_user";
 /// Seed for Quick Pick prize pool USDC account
 pub const PRIZE_POOL_USDC_SEED: &[u8] = b"prize_pool_usdc";
 /// Seed for Quick Pick house fee USDC account
 pub const HOUSE_FEE_USDC_SEED: &[u8] = b"house_fee_usdc";
 /// Seed for Quick Pick insurance pool USDC account
 pub const INSURANCE_POOL_USDC_SEED: &[u8] = b"insurance_pool_usdc";
-/// Seed for user stats PDA (shared with main lottery for gate verification)
-pub const USER_SEED: &[u8] = b"user";
 /// Seed for main lottery state (used for authority verification)
 pub const LOTTERY_SEED: &[u8] = b"lottery";
-
-/// Main lottery program ID (for cross-program PDA derivation of UserStats)
-///
-/// ## ⚠️ CRITICAL DEPENDENCY
-/// This value MUST match the deployed main lottery program ID in Anchor.toml.
-/// If either program is redeployed with a different ID, this constant and the
-/// Anchor.toml [programs.localnet] section must be updated together, or the
-/// $50 spend-gate verification will break silently.
-///
-/// ## Verification
-/// A test should assert that:
-/// ```ignore
-/// Pubkey::from_str(MAIN_LOTTERY_PROGRAM_ID).unwrap() == mazelprotocol::ID
-/// ```
-pub const MAIN_LOTTERY_PROGRAM_ID: &str = "7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF";
 
 // ============================================================================
 // GAME PARAMETERS (5/35 Matrix)
@@ -55,13 +40,6 @@ pub const QUICK_PICK_RANGE: u8 = 35;
 pub const QUICK_PICK_INTERVAL: i64 = 14400;
 /// Ticket sale cutoff before draw (5 minutes)
 pub const TICKET_SALE_CUTOFF: i64 = 300;
-
-// ============================================================================
-// ACCESS GATE
-// ============================================================================
-
-/// Quick Pick minimum spend gate: $50 lifetime main lottery spend required
-pub const QUICK_PICK_MIN_SPEND_GATE: u64 = 50_000_000;
 
 // ============================================================================
 // JACKPOT PARAMETERS
@@ -147,6 +125,14 @@ pub const MAX_REASON_LENGTH: usize = 200;
 pub const BPS_DENOMINATOR: u64 = 10000;
 /// Ticket claim expiration: 90 days (in seconds)
 pub const TICKET_CLAIM_EXPIRATION: i64 = 90 * 24 * 60 * 60;
+
+/// Maximum Quick Pick tickets one wallet may buy per draw (M2 fix).
+///
+/// With the on-chain $50 gate removed (frontend-only), this cap is the
+/// anti-bot / anti-whale guard on-chain: it bounds how many tickets a single
+/// wallet can buy in one draw cycle (reset each draw via `QuickPickUserStats`).
+pub const QUICK_PICK_MAX_TICKETS_PER_WALLET: u64 = 100;
+
 /// Maximum per-withdrawal amount for house fees as fraction of jackpot balance (in bps).
 /// Set to 5000 (50%) to limit damage from a compromised authority (M-2 fix).
 pub const QUICK_PICK_HOUSE_FEE_WITHDRAWAL_CAP_BPS: u64 = 5000;
