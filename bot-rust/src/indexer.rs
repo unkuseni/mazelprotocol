@@ -6,7 +6,7 @@
 
 use sha2::{Digest, Sha256};
 use solana_client::rpc_client::RpcClient;
-use solana_sdk::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 
 use crate::config;
 use crate::error::{BotError, Result};

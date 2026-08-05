@@ -3,11 +3,9 @@
 //! Loads from CLI args (clap) and provides a unified `BotConfig` struct.
 //! All PDA seed constants mirror the on-chain programs exactly.
 
-use solana_sdk::{
-    commitment_config::CommitmentConfig,
-    pubkey::Pubkey,
-    signature::{read_keypair_file, Keypair},
-};
+use solana_commitment_config::CommitmentConfig;
+use solana_keypair::{read_keypair_file, Keypair};
+use solana_pubkey::Pubkey;
 use std::str::FromStr;
 
 use crate::error::{BotError, Result};

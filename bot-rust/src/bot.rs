@@ -1,7 +1,7 @@
 //! Bot orchestrator — cron scheduler and HTTP server.
 
 use solana_client::rpc_client::RpcClient;
-use solana_sdk::signer::Signer;
+use solana_signer::Signer;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
