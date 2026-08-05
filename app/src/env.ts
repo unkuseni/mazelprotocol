@@ -64,7 +64,9 @@ export const env = createEnv({
     // VITE_WS_URL: z.string().url().optional(),
 
     // Third-party services (public keys only)
-    VITE_REOWN_PROJECT_ID: z.string().min(1),
+    // Optional so the app still renders (with wallet features disabled) when
+    // the project ID is missing — appkit.ts already handles this gracefully.
+    VITE_REOWN_PROJECT_ID: z.string().min(1).optional(),
 
     // Blockchain configuration
     VITE_SOLANA_RPC_URL: z

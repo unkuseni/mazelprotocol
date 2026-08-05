@@ -12,19 +12,20 @@ import { env } from "@/env";
 const isBrowser =
   typeof window !== "undefined" && typeof document !== "undefined";
 
-let initPromise: Promise<void> | null = null;
+let initPromise: Promise<boolean> | null = null;
 let solanaAdapter: SolanaAdapter | null = null;
 
 /**
  * Lazily initialize AppKit exactly once.
  *
- * Returns a promise that resolves when the modal is ready, or resolves
- * immediately on the server (no-op).
+ * Resolves `true` if AppKit was successfully created (i.e. `createAppKit`
+ * was called), or `false` if initialization was skipped (server, missing
+ * project ID, or failure). On the server it resolves immediately.
  *
  * Safe to call multiple times — only the first call triggers initialization.
  */
-export function initAppKit(): Promise<void> {
-  if (!isBrowser) return Promise.resolve();
+export function initAppKit(): Promise<boolean> {
+  if (!isBrowser) return Promise.resolve(false);
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
@@ -61,7 +62,7 @@ export function initAppKit(): Promise<void> {
           "[AppKit] Missing VITE_REOWN_PROJECT_ID — wallet connection will not work.\n" +
           "Get one at https://dashboard.reown.com",
         );
-        return;
+        return false;
       }
 
       const metadata = {
@@ -97,9 +98,11 @@ export function initAppKit(): Promise<void> {
           "--w3m-font-family": "Inter, sans-serif",
         },
       });
+
+      return true;
     } catch (error) {
       console.error("[AppKit] Initialization failed:", error);
-      throw error;
+      return false;
     }
   })();
 
