@@ -65,10 +65,7 @@ impl<'info> CommitRandomness<'info> {
 
         // SECURITY: Verify randomness is fresh (committed in current or recent slot)
         // Allow up to 10 slots of slack for transaction propagation
-        require!(
-            seed_slot >= current_slot.saturating_sub(10),
-            LottoError::RandomnessExpired
-        );
+        require!(seed_slot >= current_slot.saturating_sub(10), LottoError::RandomnessExpired);
 
         // SECURITY: Verify randomness has NOT been revealed yet
         // If get_value succeeds, the randomness is already revealed - this is bad!
@@ -120,9 +117,7 @@ pub fn handler(ctx: Context<CommitRandomness>) -> Result<()> {
     // Verify draw time has arrived (within the sale cutoff window)
     require!(
         clock.unix_timestamp
-            >= next_draw_timestamp
-                .checked_sub(TICKET_SALE_CUTOFF)
-                .unwrap_or(i64::MIN),
+            >= next_draw_timestamp.checked_sub(TICKET_SALE_CUTOFF).unwrap_or(i64::MIN),
         LottoError::DrawNotReady
     );
 
@@ -181,10 +176,7 @@ pub fn handler(ctx: Context<CommitRandomness>) -> Result<()> {
     msg!("  Rolldown possible: {}", is_rolldown_active);
     msg!("  Jackpot balance: {} USDC lamports", jackpot_balance);
     msg!("");
-    msg!(
-        "IMPORTANT: execute_draw must be called within {} seconds",
-        DRAW_COMMIT_TIMEOUT
-    );
+    msg!("IMPORTANT: execute_draw must be called within {} seconds", DRAW_COMMIT_TIMEOUT);
     msg!("           or the draw can be cancelled via cancel_draw");
 
     Ok(())

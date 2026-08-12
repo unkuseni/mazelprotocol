@@ -161,10 +161,7 @@ fn transfer_insurance_to_prize_pool<'info>(
     // The insurance token account must actually hold the funds we claim
     // to move. If it doesn't, the accounting is wrong and we must fail
     // closed rather than promise prizes we cannot pay.
-    require!(
-        insurance_pool_usdc.amount >= amount,
-        LottoError::InsufficientInsuranceFunds
-    );
+    require!(insurance_pool_usdc.amount >= amount, LottoError::InsufficientInsuranceFunds);
 
     let seeds = &[LOTTERY_SEED, &[lottery_bump]];
     let signer_seeds = &[&seeds[..]];
@@ -174,7 +171,8 @@ fn transfer_insurance_to_prize_pool<'info>(
         to: prize_pool_usdc.to_account_info(),
         authority: lottery_state.to_account_info(),
     };
-    let cpi_ctx = CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, signer_seeds);
+    let cpi_ctx =
+        CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, signer_seeds);
     token::transfer(cpi_ctx, amount)
 }
 
@@ -195,10 +193,16 @@ fn try_seed_from_lp_pool<'info>(
     draw_id: u64,
     timestamp: i64,
 ) -> Result<u64> {
-    if lp_pool.total_deposits == 0 {
+    // Never fully drain the pool: always keep at least MIN_LP_DEPOSIT (1 USDC)
+    // of liquidity. If total_deposits reached zero while total_shares remain
+    // outstanding, share accounting would be unrecoverable: every deposit
+    // divides by total_deposits, and every withdrawal computes a zero payout,
+    // permanently locking the LP feature.
+    let available = lp_pool.total_deposits.saturating_sub(MIN_LP_DEPOSIT);
+    if available == 0 {
         return Ok(0);
     }
-    let lp_seed = seed_amount.min(lp_pool.total_deposits);
+    let lp_seed = seed_amount.min(available);
 
     // Transfer USDC from LP pool to prize pool FIRST
     let lp_bump = lp_pool.bump;
@@ -210,7 +214,8 @@ fn try_seed_from_lp_pool<'info>(
         to: prize_pool_usdc.to_account_info(),
         authority: lp_pool.to_account_info(),
     };
-    let cpi_ctx = CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, signer_seeds);
+    let cpi_ctx =
+        CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, signer_seeds);
     token::transfer(cpi_ctx, lp_seed)?;
 
     // Only deduct AFTER successful transfer
@@ -498,8 +503,11 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
             // This must happen before any claim can be made on this draw.
             // The caller must supply the insurance pool token account when
             // insurance is used; failing to do so rejects the finalization.
-            let insurance_pool_usdc =
-                ctx.accounts.insurance_pool_usdc.as_ref().ok_or(LottoError::InsufficientInsuranceFunds)?;
+            let insurance_pool_usdc = ctx
+                .accounts
+                .insurance_pool_usdc
+                .as_ref()
+                .ok_or(LottoError::InsufficientInsuranceFunds)?;
             let prize_pool_usdc =
                 ctx.accounts.prize_pool_usdc.as_ref().ok_or(LottoError::LpPoolNotInitialized)?;
             let token_program =
@@ -592,14 +600,17 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
             let mut seed_from_reserve: u64 = 0;
 
             // Try LP pool first
-            if let (Some(ref mut lp_pool), Some(lp_pool_usdc), Some(prize_pool_usdc), Some(token_program)) =
-                (
-                    ctx.accounts.lp_pool.as_mut(),
-                    ctx.accounts.lp_pool_usdc.as_ref(),
-                    ctx.accounts.prize_pool_usdc.as_ref(),
-                    ctx.accounts.token_program.as_ref(),
-                )
-            {
+            if let (
+                Some(ref mut lp_pool),
+                Some(lp_pool_usdc),
+                Some(prize_pool_usdc),
+                Some(token_program),
+            ) = (
+                ctx.accounts.lp_pool.as_mut(),
+                ctx.accounts.lp_pool_usdc.as_ref(),
+                ctx.accounts.prize_pool_usdc.as_ref(),
+                ctx.accounts.token_program.as_ref(),
+            ) {
                 // validate_lp_accounts() guarantees the all-or-none invariant;
                 // destructuring above makes the transfer panic-free.
                 seed_from_lp = try_seed_from_lp_pool(
@@ -656,14 +667,17 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         let mut seed_from_lp: u64 = 0;
         let mut seed_from_reserve: u64 = 0;
 
-        if let (Some(ref mut lp_pool), Some(lp_pool_usdc), Some(prize_pool_usdc), Some(token_program)) =
-            (
-                ctx.accounts.lp_pool.as_mut(),
-                ctx.accounts.lp_pool_usdc.as_ref(),
-                ctx.accounts.prize_pool_usdc.as_ref(),
-                ctx.accounts.token_program.as_ref(),
-            )
-        {
+        if let (
+            Some(ref mut lp_pool),
+            Some(lp_pool_usdc),
+            Some(prize_pool_usdc),
+            Some(token_program),
+        ) = (
+            ctx.accounts.lp_pool.as_mut(),
+            ctx.accounts.lp_pool_usdc.as_ref(),
+            ctx.accounts.prize_pool_usdc.as_ref(),
+            ctx.accounts.token_program.as_ref(),
+        ) {
             seed_from_lp = try_seed_from_lp_pool(
                 lp_pool,
                 lp_pool_usdc,
@@ -712,7 +726,8 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     lottery_state.current_draw_id = lottery_state.current_draw_id.saturating_add(1);
 
     // Set next draw timestamp
-    lottery_state.next_draw_timestamp = clock.unix_timestamp.saturating_add(lottery_state.draw_interval);
+    lottery_state.next_draw_timestamp =
+        clock.unix_timestamp.saturating_add(lottery_state.draw_interval);
 
     // ==========================================================================
     // JACKPOT FUNDING SAFETY CHECK

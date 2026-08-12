@@ -91,17 +91,11 @@ fn calculate_quick_pick_fixed_prizes(
     prize_pool_balance: u64,
 ) -> QuickPickPrizeCalculation {
     // Calculate raw prizes
-    let match_5_total = if winner_counts.match_5 > 0 {
-        jackpot_balance
-    } else {
-        0
-    };
+    let match_5_total = if winner_counts.match_5 > 0 { jackpot_balance } else { 0 };
     let match_4_total = (winner_counts.match_4 as u64).saturating_mul(QUICK_PICK_MATCH_4_PRIZE);
     let match_3_total = (winner_counts.match_3 as u64).saturating_mul(QUICK_PICK_MATCH_3_PRIZE);
 
-    let total_required = match_5_total
-        .saturating_add(match_4_total)
-        .saturating_add(match_3_total);
+    let total_required = match_5_total.saturating_add(match_4_total).saturating_add(match_3_total);
 
     // Check if we need to scale down prizes
     let available_funds = jackpot_balance.saturating_add(prize_pool_balance);
@@ -147,9 +141,8 @@ fn calculate_quick_pick_fixed_prizes(
     let actual_match_4 = match_4_prize.saturating_mul(winner_counts.match_4 as u64);
     let actual_match_3 = match_3_prize.saturating_mul(winner_counts.match_3 as u64);
 
-    let total_distributed = actual_match_5
-        .saturating_add(actual_match_4)
-        .saturating_add(actual_match_3);
+    let total_distributed =
+        actual_match_5.saturating_add(actual_match_4).saturating_add(actual_match_3);
 
     let undistributed = available_funds.saturating_sub(total_distributed);
 
@@ -271,10 +264,7 @@ pub fn handler(
         .checked_add(QP_FINALIZATION_DELAY)
         .ok_or(QuickPickError::InvalidDrawState)?;
 
-    require!(
-        clock.unix_timestamp >= eligible_time,
-        QuickPickError::DrawNotReady
-    );
+    require!(clock.unix_timestamp >= eligible_time, QuickPickError::DrawNotReady);
 
     // Get values before mutable borrows
     let current_draw = ctx.accounts.quick_pick_state.current_draw;
@@ -370,11 +360,7 @@ pub fn handler(
     if total_winners > (total_tickets * 7) / 10 && total_tickets > 10 {
         msg!("ERROR: Implausible winner rate detected - rejecting finalization!");
         msg!("  Winner rate: {}%", (total_winners * 100) / total_tickets);
-        msg!(
-            "  Total winners: {}, Total tickets: {}",
-            total_winners,
-            total_tickets
-        );
+        msg!("  Total winners: {}, Total tickets: {}", total_winners, total_tickets);
         return Err(QuickPickError::SuspiciousWinnerCount.into());
     }
 
@@ -414,15 +400,9 @@ pub fn handler(
         params.winner_counts.match_3,
         prize_calc.match_3_prize
     );
-    msg!(
-        "  Total to distribute: {} USDC",
-        prize_calc.total_distributed
-    );
+    msg!("  Total to distribute: {} USDC", prize_calc.total_distributed);
     if prize_calc.was_scaled_down {
-        msg!(
-            "  ⚠️ PRIZES SCALED DOWN: {}% of normal",
-            prize_calc.scale_factor_bps as f64 / 100.0
-        );
+        msg!("  ⚠️ PRIZES SCALED DOWN: {}% of normal", prize_calc.scale_factor_bps as f64 / 100.0);
     }
 
     // Update draw result
@@ -467,14 +447,12 @@ pub fn handler(
 
             // Deduct seed from reserve first, then prize_pool_balance
             let from_reserve = actual_seed.min(quick_pick_state.reserve_balance);
-            quick_pick_state.reserve_balance = quick_pick_state
-                .reserve_balance
-                .saturating_sub(from_reserve);
+            quick_pick_state.reserve_balance =
+                quick_pick_state.reserve_balance.saturating_sub(from_reserve);
             let remainder_from_pool = actual_seed.saturating_sub(from_reserve);
             if remainder_from_pool > 0 {
-                quick_pick_state.prize_pool_balance = quick_pick_state
-                    .prize_pool_balance
-                    .saturating_sub(remainder_from_pool);
+                quick_pick_state.prize_pool_balance =
+                    quick_pick_state.prize_pool_balance.saturating_sub(remainder_from_pool);
             }
 
             quick_pick_state.jackpot_balance = actual_seed;
@@ -487,45 +465,32 @@ pub fn handler(
                     seed_amount
                 );
             } else {
-                msg!(
-                    "  Jackpot reset to seed amount: {} USDC (funded from reserve)",
-                    seed_amount
-                );
+                msg!("  Jackpot reset to seed amount: {} USDC (funded from reserve)", seed_amount);
             }
         }
     } else if params.winner_counts.match_5 > 0 {
         // Jackpot won: reset to seed amount, funded from reserve
         // SECURITY FIX (Issue #7): Same verification as rolldown — don't create
         // phantom balances by assigning seed_amount without backing funds.
-        let available_for_seed = quick_pick_state
-            .reserve_balance
-            .saturating_add(quick_pick_state.prize_pool_balance);
+        let available_for_seed =
+            quick_pick_state.reserve_balance.saturating_add(quick_pick_state.prize_pool_balance);
         let actual_seed = seed_amount.min(available_for_seed);
 
         let from_reserve = actual_seed.min(quick_pick_state.reserve_balance);
-        quick_pick_state.reserve_balance = quick_pick_state
-            .reserve_balance
-            .saturating_sub(from_reserve);
+        quick_pick_state.reserve_balance =
+            quick_pick_state.reserve_balance.saturating_sub(from_reserve);
         let remainder_from_pool = actual_seed.saturating_sub(from_reserve);
         if remainder_from_pool > 0 {
-            quick_pick_state.prize_pool_balance = quick_pick_state
-                .prize_pool_balance
-                .saturating_sub(remainder_from_pool);
+            quick_pick_state.prize_pool_balance =
+                quick_pick_state.prize_pool_balance.saturating_sub(remainder_from_pool);
         }
 
         quick_pick_state.jackpot_balance = actual_seed;
 
         if actual_seed < seed_amount {
-            msg!(
-                "⚠️  🎉 JACKPOT WON! Reseed: only {} of {} available",
-                actual_seed,
-                seed_amount
-            );
+            msg!("⚠️  🎉 JACKPOT WON! Reseed: only {} of {} available", actual_seed, seed_amount);
         } else {
-            msg!(
-                "  🎉 JACKPOT WON! Reset to seed amount: {} USDC",
-                seed_amount
-            );
+            msg!("  🎉 JACKPOT WON! Reset to seed amount: {} USDC", seed_amount);
         }
     }
     // If no jackpot winner and no rolldown, jackpot carries over (no change)
@@ -543,10 +508,7 @@ pub fn handler(
         quick_pick_state.is_paused = true;
 
         msg!("⚠️  ⚠️  ⚠️  CRITICAL: Jackpot funding insufficient!");
-        msg!(
-            "  Current jackpot: {} USDC lamports",
-            quick_pick_state.jackpot_balance
-        );
+        msg!("  Current jackpot: {} USDC lamports", quick_pick_state.jackpot_balance);
         msg!("  Minimum required: {} USDC lamports", minimum_jackpot);
         msg!(
             "  Deficit: {} USDC lamports",
@@ -556,10 +518,7 @@ pub fn handler(
         msg!("  Admin must add funds to reserve and unpause.");
     } else {
         msg!("✅ Jackpot funding check: OK");
-        msg!(
-            "  Current jackpot: {} USDC lamports",
-            quick_pick_state.jackpot_balance
-        );
+        msg!("  Current jackpot: {} USDC lamports", quick_pick_state.jackpot_balance);
         msg!("  Minimum required: {} USDC lamports", minimum_jackpot);
     }
 
@@ -632,10 +591,7 @@ pub fn handler(
     msg!("✅ Quick Pick draw #{} finalized!", current_draw);
     msg!("  Next draw: #{}", quick_pick_state.current_draw);
     msg!("  Next draw time: {}", quick_pick_state.next_draw_timestamp);
-    msg!(
-        "  New jackpot balance: {} USDC",
-        quick_pick_state.jackpot_balance
-    );
+    msg!("  New jackpot balance: {} USDC", quick_pick_state.jackpot_balance);
 
     Ok(())
 }
@@ -646,11 +602,7 @@ mod tests {
 
     #[test]
     fn test_calculate_quick_pick_fixed_prizes() {
-        let winner_counts = QuickPickWinnerCounts {
-            match_5: 0,
-            match_4: 10,
-            match_3: 100,
-        };
+        let winner_counts = QuickPickWinnerCounts { match_5: 0, match_4: 10, match_3: 100 };
 
         let result = calculate_quick_pick_fixed_prizes(
             &winner_counts,
@@ -669,11 +621,7 @@ mod tests {
 
     #[test]
     fn test_calculate_quick_pick_fixed_prizes_with_jackpot() {
-        let winner_counts = QuickPickWinnerCounts {
-            match_5: 2,
-            match_4: 5,
-            match_3: 50,
-        };
+        let winner_counts = QuickPickWinnerCounts { match_5: 2, match_4: 5, match_3: 50 };
 
         let jackpot = 10_000_000_000u64; // $10,000
         let result = calculate_quick_pick_fixed_prizes(
@@ -690,11 +638,7 @@ mod tests {
 
     #[test]
     fn test_calculate_quick_pick_rolldown_prizes() {
-        let winner_counts = QuickPickWinnerCounts {
-            match_5: 0,
-            match_4: 10,
-            match_3: 100,
-        };
+        let winner_counts = QuickPickWinnerCounts { match_5: 0, match_4: 10, match_3: 100 };
 
         let jackpot = 50_000_000_000u64; // $50,000
         let result = calculate_quick_pick_rolldown_prizes(&winner_counts, jackpot);
@@ -715,11 +659,7 @@ mod tests {
 
     #[test]
     fn test_calculate_quick_pick_rolldown_no_match4_winners() {
-        let winner_counts = QuickPickWinnerCounts {
-            match_5: 0,
-            match_4: 0,
-            match_3: 100,
-        };
+        let winner_counts = QuickPickWinnerCounts { match_5: 0, match_4: 0, match_3: 100 };
 
         let jackpot = 50_000_000_000u64; // $50,000
         let result = calculate_quick_pick_rolldown_prizes(&winner_counts, jackpot);
@@ -731,11 +671,7 @@ mod tests {
 
     #[test]
     fn test_calculate_quick_pick_rolldown_no_winners() {
-        let winner_counts = QuickPickWinnerCounts {
-            match_5: 0,
-            match_4: 0,
-            match_3: 0,
-        };
+        let winner_counts = QuickPickWinnerCounts { match_5: 0, match_4: 0, match_3: 0 };
 
         let jackpot = 50_000_000_000u64;
         let result = calculate_quick_pick_rolldown_prizes(&winner_counts, jackpot);

@@ -60,9 +60,10 @@ impl Store {
     ) -> Result<UserRecord> {
         // Hold the lock across load → mutate → save so concurrent webhook
         // handlers cannot clobber each other's registrations.
-        let _guard = self.lock.lock().map_err(|_| {
-            crate::error::Error::Store("store lock poisoned".to_string())
-        })?;
+        let _guard = self
+            .lock
+            .lock()
+            .map_err(|_| crate::error::Error::Store("store lock poisoned".to_string()))?;
 
         let mut data = self.load();
         if let Some(existing) = data.users.iter_mut().find(|u| u.telegram_id == telegram_id) {

@@ -4,7 +4,7 @@ use crate::config::BotConfig;
 use crate::error::Result;
 use anchor_lang::AnchorDeserialize;
 use solana_client::rpc_client::RpcClient;
-use solana_sdk::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 
 pub const LOTTERY_SEED: &[u8] = b"lottery";
 pub const DRAW_SEED: &[u8] = b"draw";
@@ -201,9 +201,11 @@ impl Solana {
             &self.cfg.main_program_id,
         );
         match self.rpc.get_account(&pda) {
-            Ok(_) => Ok(Some(
-                self.fetch_owned::<DrawResult>(&pda, &self.cfg.main_program_id, "main draw_result")?,
-            )),
+            Ok(_) => Ok(Some(self.fetch_owned::<DrawResult>(
+                &pda,
+                &self.cfg.main_program_id,
+                "main draw_result",
+            )?)),
             Err(_) => Ok(None),
         }
     }
@@ -214,9 +216,11 @@ impl Solana {
             &self.cfg.qp_program_id,
         );
         match self.rpc.get_account(&pda) {
-            Ok(_) => Ok(Some(
-                self.fetch_owned::<QpDrawResult>(&pda, &self.cfg.qp_program_id, "qp draw_result")?,
-            )),
+            Ok(_) => Ok(Some(self.fetch_owned::<QpDrawResult>(
+                &pda,
+                &self.cfg.qp_program_id,
+                "qp draw_result",
+            )?)),
             Err(_) => Ok(None),
         }
     }

@@ -89,10 +89,7 @@ impl<'info> ExecuteQuickPickDraw<'info> {
             randomness_data.seed_slot >= current_slot.saturating_sub(10),
             QuickPickError::RandomnessExpired
         );
-        require!(
-            current_slot > randomness_data.seed_slot,
-            QuickPickError::RandomnessNotFresh
-        );
+        require!(current_slot > randomness_data.seed_slot, QuickPickError::RandomnessNotFresh);
 
         // Get the revealed random value
         let revealed_value = randomness_data
@@ -114,71 +111,76 @@ impl<'info> ExecuteQuickPickDraw<'info> {
 /// # Returns
 /// * `Result<[u8; 5]>` - Sorted array of 5 unique winning numbers, or error if generation fails
 fn generate_quick_pick_winning_numbers(randomness: &[u8; 32]) -> Result<[u8; 5]> {
-    // Use SHA256 hash of randomness for better distribution
+    // Mirror the audited rejection-sampling algorithm used by the main
+    // lottery (programs/mazelprotocol/src/instructions/execute_draw.rs).
+    // The previous `hash_byte % 35` plus linear-probing approach had both
+    // modulo bias and correlations between duplicate candidates. Rejection
+    // sampling removes the modulo bias entirely, and hash chaining guarantees
+    // enough entropy for all five picks.
     use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(randomness);
-    let hash_result = hasher.finalize();
-    let hash_bytes = hash_result.as_slice();
 
-    // Create an array of available numbers 1-35
-    let mut available_numbers: [bool; QUICK_PICK_RANGE as usize] =
-        [true; QUICK_PICK_RANGE as usize];
+    let n = QUICK_PICK_RANGE as u32; // 35
+
+    // Reject u32 values in the biased tail: the largest multiple of n that
+    // fits in a u32. For n = 35 this is 35 * 122,713,351 = 4,294,967,285.
+    let reject_threshold = n.wrapping_mul(u32::MAX / n);
+
+    let mut available = [true; QUICK_PICK_RANGE as usize];
     let mut winning_numbers = [0u8; 5];
+    let mut numbers_generated = 0usize;
 
-    // Generate 5 unique numbers
-    for i in 0..5 {
-        // Use different portions of the hash for each number
-        let hash_idx = (i * 4) % hash_bytes.len();
+    // Domain-separate the first hash so number generation is independent of
+    // the rolldown decision hash derived from the same randomness.
+    let mut current_hash = {
+        let mut h = Sha256::new();
+        h.update(b"quickpick_winning_numbers");
+        h.update(randomness);
+        h.finalize()
+    };
+    let mut byte_offset = 0usize;
+    let mut hash_round: u8 = 0;
 
-        // Ensure we have at least 4 bytes available for the slice
-        let rand_val = if hash_idx + 4 <= hash_bytes.len() {
-            let hash_slice = &hash_bytes[hash_idx..hash_idx + 4];
-            // Safe to unwrap because we know slice length is exactly 4
-            u32::from_le_bytes(hash_slice.try_into().expect("Hash slice should be 4 bytes"))
-        } else {
-            // Fallback: use a deterministic value based on hash_idx
-            // Combine remaining bytes with zeros if needed
-            let mut bytes = [0u8; 4];
-            let remaining = hash_bytes.len() - hash_idx;
-            bytes[..remaining.min(4)]
-                .copy_from_slice(&hash_bytes[hash_idx..hash_idx + remaining.min(4)]);
-            u32::from_le_bytes(bytes)
-        };
+    const MAX_ATTEMPTS: u32 = 256;
+    let mut total_attempts: u32 = 0;
 
-        // Find an available number
-        let mut attempts = 0;
-        loop {
-            // Calculate candidate number (1-35)
-            let candidate =
-                ((rand_val.wrapping_add(attempts as u32) % QUICK_PICK_RANGE as u32) + 1) as u8;
-
-            if candidate >= 1
-                && candidate <= QUICK_PICK_RANGE
-                && available_numbers[candidate as usize - 1]
-            {
-                winning_numbers[i] = candidate;
-                available_numbers[candidate as usize - 1] = false;
-                break;
-            }
-
-            attempts += 1;
-            // Safety check: should never happen since we have 35 numbers and need only 5
-            if attempts > QUICK_PICK_RANGE as u32 * 2 {
-                // Fallback: use sequential numbers
-                for j in 0..QUICK_PICK_RANGE as usize {
-                    if available_numbers[j] {
-                        winning_numbers[i] = (j + 1) as u8;
-                        available_numbers[j] = false;
-                        break;
-                    }
-                }
-                break;
-            }
+    while numbers_generated < 5 {
+        total_attempts += 1;
+        if total_attempts > MAX_ATTEMPTS {
+            msg!("CRITICAL: generate_quick_pick_winning_numbers exhausted {MAX_ATTEMPTS} attempts");
+            return Err(QuickPickError::InvalidRandomnessProof.into());
         }
+
+        if byte_offset + 4 > current_hash.len() {
+            hash_round = hash_round.wrapping_add(1);
+            let mut h = Sha256::new();
+            h.update(randomness);
+            h.update(&[hash_round]);
+            current_hash = h.finalize();
+            byte_offset = 0;
+        }
+
+        let value = u32::from_le_bytes(
+            current_hash[byte_offset..byte_offset + 4]
+                .try_into()
+                .expect("4-byte slice from 32-byte hash"),
+        );
+        byte_offset += 4;
+
+        if value >= reject_threshold {
+            continue;
+        }
+
+        let candidate = (value % n) as u8 + 1;
+        if !available[candidate as usize - 1] {
+            continue;
+        }
+
+        winning_numbers[numbers_generated] = candidate;
+        available[candidate as usize - 1] = false;
+        numbers_generated += 1;
     }
 
-    // Sort the numbers and ensure no zeros
+    // Sort the numbers ascending (protocol convention).
     winning_numbers.sort();
 
     // Final validation: ensure all numbers are valid (1-35) and unique
@@ -188,10 +190,7 @@ fn generate_quick_pick_winning_numbers(randomness: &[u8; 32]) -> Result<[u8; 5]>
             // A fixed [1,2,3,4,5] fallback is exploitable — an attacker who
             // can force this path would know the winning numbers in advance.
             // Failing the draw forces admin recovery, which is far safer.
-            msg!(
-                "CRITICAL: generate_quick_pick_winning_numbers produced invalid number {}",
-                num
-            );
+            msg!("CRITICAL: generate_quick_pick_winning_numbers produced invalid number {}", num);
             return Err(QuickPickError::InvalidRandomnessProof.into());
         }
     }
@@ -201,10 +200,7 @@ fn generate_quick_pick_winning_numbers(randomness: &[u8; 32]) -> Result<[u8; 5]>
     for &num in &winning_numbers {
         if seen[num as usize - 1] {
             // FIXED: Return an error instead of a predictable fallback.
-            msg!(
-                "CRITICAL: generate_quick_pick_winning_numbers produced duplicate number {}",
-                num
-            );
+            msg!("CRITICAL: generate_quick_pick_winning_numbers produced duplicate number {}", num);
             return Err(QuickPickError::InvalidRandomnessProof.into());
         }
         seen[num as usize - 1] = true;
@@ -233,34 +229,32 @@ fn should_trigger_quick_pick_rolldown(randomness: &[u8; 32], probability_bps: u1
         return false; // 0% probability (below soft cap)
     }
 
-    // FIXED: Use domain-separated SHA256 hash to prevent correlated randomness.
-    // Previously, the same raw randomness was hashed for both number generation
-    // and rolldown decision, which could create exploitable correlations.
-    // By adding a domain separator ("rolldown_decision"), the hash output is
-    // completely independent from the one used for winning numbers.
+    // Domain-separated hash keeps this decision independent from the winning
+    // numbers derived from the same randomness.
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(b"quickpick_rolldown_decision");
     hasher.update(randomness);
-    let hash_result = hasher.finalize();
-    let hash_bytes = hash_result.as_slice();
+    let hash_bytes = hasher.finalize();
 
-    // Use first 4 bytes of hash for the roll, with bounds checking
-    let roll = if hash_bytes.len() >= 4 {
-        let roll_bytes: [u8; 4] = hash_bytes[0..4]
-            .try_into()
-            .expect("Hash slice should be 4 bytes");
-        u32::from_le_bytes(roll_bytes)
-    } else {
-        // Fallback: pad with zeros if hash is too short
+    // Read 4 bytes at `start`, padding with zeros if the offset is somehow
+    // past the end of the (always 32-byte) hash output.
+    let read_roll = |start: usize| -> u32 {
         let mut bytes = [0u8; 4];
-        bytes[..hash_bytes.len()].copy_from_slice(hash_bytes);
+        if start < hash_bytes.len() {
+            let n = hash_bytes.len().saturating_sub(start).min(4);
+            bytes[..n].copy_from_slice(&hash_bytes[start..start + n]);
+        }
         u32::from_le_bytes(bytes)
     };
 
-    // Calculate threshold (0-9999)
-    let threshold = roll % 10000;
+    // Rejection sampling removes the small modulo bias of `roll % 10000`
+    // (2^32 is not evenly divisible by 10000), matching the main program.
+    let reject_threshold = 10000u32.wrapping_mul(u32::MAX / 10000);
+    let first_roll = read_roll(0);
+    let roll = if first_roll >= reject_threshold { read_roll(4) } else { first_roll };
 
+    let threshold = roll % 10000;
     threshold < probability_bps as u32
 }
 
@@ -334,10 +328,7 @@ pub fn handler(ctx: Context<ExecuteQuickPickDraw>) -> Result<()> {
     msg!("  Soft cap: {} USDC lamports", soft_cap);
     msg!("  Hard cap: {} USDC lamports", hard_cap);
     msg!("  Rolldown pending: {}", is_rolldown_pending);
-    msg!(
-        "  Rolldown probability: {}%",
-        rolldown_probability_bps as f64 / 100.0
-    );
+    msg!("  Rolldown probability: {}%", rolldown_probability_bps as f64 / 100.0);
 
     // Get the revealed randomness
     let randomness = ctx.accounts.get_revealed_randomness(clock.slot)?;
@@ -483,10 +474,7 @@ mod tests {
         let numbers2 = generate_quick_pick_winning_numbers(&randomness)
             .expect("should generate valid numbers");
 
-        assert_eq!(
-            numbers1, numbers2,
-            "Same randomness should produce same numbers"
-        );
+        assert_eq!(numbers1, numbers2, "Same randomness should produce same numbers");
     }
 
     #[test]
@@ -506,16 +494,10 @@ mod tests {
         let hard_cap = 50_000_000_000u64; // $50,000
 
         // Below soft cap
-        assert_eq!(
-            get_quick_pick_rolldown_probability_bps(25_000_000_000, soft_cap, hard_cap),
-            0
-        );
+        assert_eq!(get_quick_pick_rolldown_probability_bps(25_000_000_000, soft_cap, hard_cap), 0);
 
         // At soft cap
-        assert_eq!(
-            get_quick_pick_rolldown_probability_bps(30_000_000_000, soft_cap, hard_cap),
-            0
-        );
+        assert_eq!(get_quick_pick_rolldown_probability_bps(30_000_000_000, soft_cap, hard_cap), 0);
 
         // Midway between soft and hard cap
         assert_eq!(
@@ -626,11 +608,7 @@ mod tests {
         }
 
         for num in 1..=35 {
-            assert!(
-                all_numbers_seen[num],
-                "Number {} was never generated after 1000 seeds",
-                num
-            );
+            assert!(all_numbers_seen[num], "Number {} was never generated after 1000 seeds", num);
         }
     }
 }

@@ -94,22 +94,13 @@ impl<'info> CreateSyndicate<'info> {
     /// Validate the syndicate parameters
     pub fn validate(&self, params: &CreateSyndicateParams) -> Result<()> {
         // Validate manager fee (max 5%)
-        require!(
-            params.manager_fee_bps <= MAX_MANAGER_FEE_BPS,
-            LottoError::ManagerFeeTooHigh
-        );
+        require!(params.manager_fee_bps <= MAX_MANAGER_FEE_BPS, LottoError::ManagerFeeTooHigh);
 
         // Validate name is not empty (check first byte)
-        require!(
-            params.name.iter().any(|&b| b != 0),
-            LottoError::InvalidSyndicateConfig
-        );
+        require!(params.name.iter().any(|&b| b != 0), LottoError::InvalidSyndicateConfig);
 
         // Validate name length
-        require!(
-            params.name.len() <= MAX_SYNDICATE_NAME_LENGTH,
-            LottoError::SyndicateNameTooLong
-        );
+        require!(params.name.len() <= MAX_SYNDICATE_NAME_LENGTH, LottoError::SyndicateNameTooLong);
 
         Ok(())
     }
@@ -177,9 +168,7 @@ pub fn handler_create_syndicate(
     });
 
     // Log syndicate name as string
-    let name_str = String::from_utf8_lossy(&params.name)
-        .trim_end_matches('\0')
-        .to_string();
+    let name_str = String::from_utf8_lossy(&params.name).trim_end_matches('\0').to_string();
 
     msg!("Syndicate created successfully!");
     msg!("  Syndicate: {}", ctx.accounts.syndicate.key());
@@ -305,12 +294,7 @@ pub fn handler_join_syndicate(
     let syndicate_key = ctx.accounts.syndicate.key();
 
     // Check if already a member (before mutable borrow)
-    let is_existing_member = ctx
-        .accounts
-        .syndicate
-        .members
-        .iter()
-        .any(|m| m.wallet == member_key);
+    let is_existing_member = ctx.accounts.syndicate.members.iter().any(|m| m.wallet == member_key);
 
     // FIXED: Validate minimum contribution for new members
     // New members must contribute at least 1 USDC (1_000_000 lamports) to prevent
@@ -386,10 +370,8 @@ pub fn handler_join_syndicate(
             share_percentage_bps: 0, // Will be calculated
             unclaimed_prize: 0,
         });
-        syndicate.member_count = syndicate
-            .member_count
-            .checked_add(1)
-            .ok_or(LottoError::Overflow)?;
+        syndicate.member_count =
+            syndicate.member_count.checked_add(1).ok_or(LottoError::Overflow)?;
     }
 
     // Update total contribution
@@ -404,10 +386,8 @@ pub fn handler_join_syndicate(
     syndicate.recalculate_shares();
 
     // Get the member's share for the event
-    let member_share = syndicate
-        .find_member(&member_key)
-        .map(|m| m.share_percentage_bps)
-        .unwrap_or(0);
+    let member_share =
+        syndicate.find_member(&member_key).map(|m| m.share_percentage_bps).unwrap_or(0);
 
     let member_count = syndicate.member_count;
     let total_contribution = syndicate.total_contribution;
@@ -426,11 +406,7 @@ pub fn handler_join_syndicate(
     msg!("  Syndicate: {}", syndicate_key);
     msg!("  Member: {}", member_key);
     msg!("  Contribution: {} USDC lamports", params.contribution);
-    msg!(
-        "  Share: {} bps ({}%)",
-        member_share,
-        member_share as f64 / 100.0
-    );
+    msg!("  Share: {} bps ({}%)", member_share, member_share as f64 / 100.0);
     msg!("  Total members: {}", member_count);
     msg!("  Total contribution: {} USDC lamports", total_contribution);
 
@@ -687,12 +663,8 @@ pub fn handler_close_syndicate(ctx: Context<CloseSyndicate>) -> Result<()> {
 
     // Get creator's recorded contribution for comparison
     let current_creator = ctx.accounts.syndicate.creator;
-    let creator_contribution = ctx
-        .accounts
-        .syndicate
-        .find_member(&current_creator)
-        .map(|m| m.contribution)
-        .unwrap_or(0);
+    let creator_contribution =
+        ctx.accounts.syndicate.find_member(&current_creator).map(|m| m.contribution).unwrap_or(0);
 
     // FIXED: Warn if remaining balance exceeds creator's contribution (potential unfairness)
     let excess_funds = remaining_balance.saturating_sub(creator_contribution);
@@ -729,15 +701,9 @@ pub fn handler_close_syndicate(ctx: Context<CloseSyndicate>) -> Result<()> {
 
         token::transfer(cpi_ctx, remaining_balance)?;
 
-        msg!(
-            "Transferred remaining {} USDC lamports to creator",
-            remaining_balance
-        );
+        msg!("Transferred remaining {} USDC lamports to creator", remaining_balance);
         if excess_funds > 0 {
-            msg!(
-                "  (includes {} excess beyond creator's tracked contribution)",
-                excess_funds
-            );
+            msg!("  (includes {} excess beyond creator's tracked contribution)", excess_funds);
         }
     }
 
@@ -763,10 +729,7 @@ pub fn handler_close_syndicate(ctx: Context<CloseSyndicate>) -> Result<()> {
     msg!("Syndicate closed!");
     msg!("  Syndicate: {}", syndicate_key);
     msg!("  Creator: {}", ctx.accounts.creator.key());
-    msg!(
-        "  Final balance transferred: {} USDC lamports",
-        remaining_balance
-    );
+    msg!("  Final balance transferred: {} USDC lamports", remaining_balance);
 
     // Account closure is handled automatically by the `close` constraint
 
@@ -854,10 +817,7 @@ pub fn handler_withdraw_creator_contribution(
     // Validate withdrawal amount
     require!(amount > 0, LottoError::InvalidSeedAmount);
     require!(amount <= max_withdrawable, LottoError::InsufficientFunds);
-    require!(
-        ctx.accounts.syndicate_usdc.amount >= amount,
-        LottoError::InsufficientTokenBalance
-    );
+    require!(ctx.accounts.syndicate_usdc.amount >= amount, LottoError::InsufficientTokenBalance);
 
     // SECURITY FIX (Issue #1): Use original_creator for signer seeds
     let syndicate_original_creator = ctx.accounts.syndicate.original_creator;
@@ -1002,10 +962,7 @@ pub struct BuySyndicateTickets<'info> {
 fn validate_ticket_numbers(numbers: &[u8; 6]) -> Result<()> {
     // Check range for each number
     for &num in numbers.iter() {
-        require!(
-            num >= MIN_NUMBER && num <= MAX_NUMBER,
-            LottoError::NumbersOutOfRange
-        );
+        require!(num >= MIN_NUMBER && num <= MAX_NUMBER, LottoError::NumbersOutOfRange);
     }
 
     // Check for duplicates by sorting and comparing adjacent
@@ -1046,10 +1003,7 @@ pub fn handler_buy_syndicate_tickets(
     // Validate ticket count
     let ticket_count = params.tickets.len();
     require!(ticket_count > 0, LottoError::EmptyTicketArray);
-    require!(
-        ticket_count <= MAX_SYNDICATE_BULK_TICKETS,
-        LottoError::BulkPurchaseLimitExceeded
-    );
+    require!(ticket_count <= MAX_SYNDICATE_BULK_TICKETS, LottoError::BulkPurchaseLimitExceeded);
 
     // Validate all ticket numbers
     for ticket in &params.tickets {
@@ -1065,22 +1019,15 @@ pub fn handler_buy_syndicate_tickets(
     // Check if ticket sales are open (same window as buy_ticket)
     require!(
         clock.unix_timestamp
-            < next_draw_timestamp
-                .checked_sub(TICKET_SALE_CUTOFF)
-                .unwrap_or(i64::MIN),
+            < next_draw_timestamp.checked_sub(TICKET_SALE_CUTOFF).unwrap_or(i64::MIN),
         LottoError::TicketSaleEnded
     );
 
     // Calculate total cost
-    let total_cost = ticket_price
-        .checked_mul(ticket_count as u64)
-        .ok_or(LottoError::Overflow)?;
+    let total_cost = ticket_price.checked_mul(ticket_count as u64).ok_or(LottoError::Overflow)?;
 
     // Verify syndicate has sufficient funds
-    require!(
-        ctx.accounts.syndicate_usdc.amount >= total_cost,
-        LottoError::InsufficientFunds
-    );
+    require!(ctx.accounts.syndicate_usdc.amount >= total_cost, LottoError::InsufficientFunds);
 
     // Calculate fees
     let total_house_fee =
@@ -1165,10 +1112,8 @@ pub fn handler_buy_syndicate_tickets(
         syndicate.pending_tickets_draw = current_draw_id;
         syndicate.pending_tickets = 0;
     }
-    syndicate.pending_tickets = syndicate
-        .pending_tickets
-        .checked_add(ticket_count as u64)
-        .ok_or(LottoError::Overflow)?;
+    syndicate.pending_tickets =
+        syndicate.pending_tickets.checked_add(ticket_count as u64).ok_or(LottoError::Overflow)?;
 
     // M2 FIX: Decrement each member's contribution proportionally by their
     // share of the total ticket cost. Without this, members could leave and
@@ -1235,10 +1180,7 @@ pub fn handler_buy_syndicate_tickets(
     msg!("  Ticket count: {}", ticket_count);
     msg!("  Total cost: {} USDC lamports", total_cost);
     msg!("  House fee: {} USDC lamports", total_house_fee);
-    msg!(
-        "  Prize pool contribution: {} USDC lamports",
-        total_prize_pool
-    );
+    msg!("  Prize pool contribution: {} USDC lamports", total_prize_pool);
     msg!(
         "  Remaining syndicate funds: {} USDC lamports",
         ctx.accounts.syndicate.total_contribution
@@ -1358,10 +1300,8 @@ pub fn handler_create_syndicate_ticket(
 
     // Increment lottery state ticket counter for this created account
     let lottery_state = &mut ctx.accounts.lottery_state;
-    lottery_state.current_draw_tickets = lottery_state
-        .current_draw_tickets
-        .checked_add(1)
-        .ok_or(LottoError::Overflow)?;
+    lottery_state.current_draw_tickets =
+        lottery_state.current_draw_tickets.checked_add(1).ok_or(LottoError::Overflow)?;
 
     msg!("Syndicate ticket created!");
     msg!("  Ticket: {}", ctx.accounts.ticket.key());
@@ -1513,16 +1453,10 @@ pub fn handler_distribute_syndicate_prize<'info>(
 
     for ticket_account_info in remaining.iter() {
         // a) Ticket account must be writable so we can mark it claimed
-        require!(
-            ticket_account_info.is_writable,
-            LottoError::InvalidTicketAccount
-        );
+        require!(ticket_account_info.is_writable, LottoError::InvalidTicketAccount);
 
         // b) Ticket must be owned by this program
-        require!(
-            ticket_account_info.owner == program_id,
-            LottoError::InvalidTicketAccount
-        );
+        require!(ticket_account_info.owner == program_id, LottoError::InvalidTicketAccount);
 
         // c) Deserialize the ticket
         let mut ticket_data_raw = ticket_account_info.try_borrow_mut_data()?;
@@ -1531,22 +1465,13 @@ pub fn handler_distribute_syndicate_prize<'info>(
             .map_err(|_| LottoError::InvalidTicketAccount)?;
 
         // d) Verify the ticket belongs to this syndicate
-        require!(
-            ticket.syndicate == Some(syndicate_key),
-            LottoError::SyndicateTicketNotOwned
-        );
+        require!(ticket.syndicate == Some(syndicate_key), LottoError::SyndicateTicketNotOwned);
 
         // e) Verify the ticket is for the correct draw
-        require!(
-            ticket.draw_id == params.draw_id,
-            LottoError::SyndicateTicketDrawMismatch
-        );
+        require!(ticket.draw_id == params.draw_id, LottoError::SyndicateTicketDrawMismatch);
 
         // f) Verify the ticket has not already been claimed
-        require!(
-            !ticket.is_claimed,
-            LottoError::SyndicateTicketAlreadyClaimed
-        );
+        require!(!ticket.is_claimed, LottoError::SyndicateTicketAlreadyClaimed);
 
         // g) Count matches against winning numbers
         let match_count = calculate_match_count(&ticket.numbers, &draw_result.winning_numbers);
@@ -1561,9 +1486,7 @@ pub fn handler_distribute_syndicate_prize<'info>(
 
         // j) Write updated ticket data back to the account
         let mut writer: &mut [u8] = &mut ticket_data_raw;
-        ticket
-            .try_serialize(&mut writer)
-            .map_err(|_| LottoError::InvalidTicketAccount)?;
+        ticket.try_serialize(&mut writer).map_err(|_| LottoError::InvalidTicketAccount)?;
 
         tickets_processed += 1;
         if prize > 0 {
@@ -1589,10 +1512,7 @@ pub fn handler_distribute_syndicate_prize<'info>(
     // =========================================================================
     // STEP 2: Verify sufficient prize pool balance
     // =========================================================================
-    require!(
-        ctx.accounts.prize_pool_usdc.amount >= total_prize,
-        LottoError::InsufficientFunds
-    );
+    require!(ctx.accounts.prize_pool_usdc.amount >= total_prize, LottoError::InsufficientFunds);
 
     // =========================================================================
     // STEP 3: Calculate manager fee and member pool
@@ -1645,9 +1565,8 @@ pub fn handler_distribute_syndicate_prize<'info>(
 
         // 3. Last resort: deduct from jackpot_balance
         if remaining_deduct > 0 {
-            lottery_state.jackpot_balance = lottery_state
-                .jackpot_balance
-                .saturating_sub(remaining_deduct);
+            lottery_state.jackpot_balance =
+                lottery_state.jackpot_balance.saturating_sub(remaining_deduct);
             msg!(
                 "WARNING: Syndicate prize distribution required {} from jackpot",
                 remaining_deduct
@@ -1672,10 +1591,8 @@ pub fn handler_distribute_syndicate_prize<'info>(
         let share_bps = syndicate.members[i].share_percentage_bps;
         let member_share =
             (member_pool as u128 * share_bps as u128 / BPS_DENOMINATOR as u128) as u64;
-        syndicate.members[i].unclaimed_prize = syndicate.members[i]
-            .unclaimed_prize
-            .checked_add(member_share)
-            .unwrap_or(u64::MAX);
+        syndicate.members[i].unclaimed_prize =
+            syndicate.members[i].unclaimed_prize.checked_add(member_share).unwrap_or(u64::MAX);
         total_allocated = total_allocated.saturating_add(member_share);
     }
 
@@ -1825,16 +1742,10 @@ pub fn handler_claim_syndicate_member_prize(
     // The unclaimed_prize was set during distribute_syndicate_prize based on
     // the member's share_percentage_bps at distribution time. Claims simply
     // deduct from this per-member snapshot.
-    require!(
-        claim_amount <= member_unclaimed,
-        LottoError::InsufficientFunds
-    );
+    require!(claim_amount <= member_unclaimed, LottoError::InsufficientFunds);
 
     // Validate syndicate token account has enough funds for the actual transfer
-    require!(
-        ctx.accounts.syndicate_usdc.amount >= claim_amount,
-        LottoError::InsufficientFunds
-    );
+    require!(ctx.accounts.syndicate_usdc.amount >= claim_amount, LottoError::InsufficientFunds);
 
     // SECURITY FIX (Issue #1): Use original_creator for signer seeds
     let syndicate = &ctx.accounts.syndicate;
@@ -1864,9 +1775,8 @@ pub fn handler_claim_syndicate_member_prize(
     // This ensures each member can only claim up to their pre-computed share,
     // regardless of when they claim relative to other members.
     let syndicate_mut = &mut ctx.accounts.syndicate;
-    syndicate_mut.members[member_index].unclaimed_prize = syndicate_mut.members[member_index]
-        .unclaimed_prize
-        .saturating_sub(claim_amount);
+    syndicate_mut.members[member_index].unclaimed_prize =
+        syndicate_mut.members[member_index].unclaimed_prize.saturating_sub(claim_amount);
 
     msg!("Syndicate member prize claimed!");
     msg!("  Member: {}", member_key);
@@ -1879,10 +1789,7 @@ pub fn handler_claim_syndicate_member_prize(
     );
     msg!(
         "  Remaining syndicate funds: {} USDC lamports",
-        ctx.accounts
-            .syndicate_usdc
-            .amount
-            .saturating_sub(claim_amount)
+        ctx.accounts.syndicate_usdc.amount.saturating_sub(claim_amount)
     );
 
     Ok(())
@@ -1968,27 +1875,18 @@ pub fn handler_update_syndicate_config(
     if let Some(is_public) = params.is_public {
         ctx.accounts.syndicate.is_public = is_public;
         updated = true;
-        msg!(
-            "Updated syndicate visibility: {}",
-            if is_public { "public" } else { "private" }
-        );
+        msg!("Updated syndicate visibility: {}", if is_public { "public" } else { "private" });
     }
 
     // Update manager fee if provided
     // M4 FIX: Block manager fee changes when any member has unclaimed prize
     // to prevent the creator from raising fees right before prize distribution.
     if let Some(manager_fee_bps) = params.manager_fee_bps {
-        require!(
-            manager_fee_bps <= MAX_MANAGER_FEE_BPS,
-            LottoError::ManagerFeeTooHigh
-        );
+        require!(manager_fee_bps <= MAX_MANAGER_FEE_BPS, LottoError::ManagerFeeTooHigh);
 
         // Ensure no pending prize distributions exist
         for member in &ctx.accounts.syndicate.members {
-            require!(
-                member.unclaimed_prize == 0,
-                LottoError::InvalidSyndicateConfig
-            );
+            require!(member.unclaimed_prize == 0, LottoError::InvalidSyndicateConfig);
         }
 
         ctx.accounts.syndicate.manager_fee_bps = manager_fee_bps;
@@ -2097,10 +1995,7 @@ pub fn handler_remove_syndicate_member(
     let member_wallet = params.member_wallet;
 
     // Cannot remove the creator
-    require!(
-        member_wallet != ctx.accounts.syndicate.creator,
-        LottoError::Unauthorized
-    );
+    require!(member_wallet != ctx.accounts.syndicate.creator, LottoError::Unauthorized);
 
     // SECURITY FIX (Issue #1): Use original_creator for signer seeds
     let syndicate_original_creator = ctx.accounts.syndicate.original_creator;
@@ -2132,10 +2027,7 @@ pub fn handler_remove_syndicate_member(
     };
 
     // Validate syndicate has enough funds for refund
-    require!(
-        ctx.accounts.syndicate_usdc.amount >= refund_amount,
-        LottoError::InsufficientFunds
-    );
+    require!(ctx.accounts.syndicate_usdc.amount >= refund_amount, LottoError::InsufficientFunds);
 
     // FIXED: Use syndicate PDA as authority (not syndicate_usdc token account).
     // The syndicate PDA is the owner/authority of the token account, so it must
@@ -2168,10 +2060,7 @@ pub fn handler_remove_syndicate_member(
     msg!("  Manager: {}", ctx.accounts.manager.key());
     msg!("  Removed member: {}", member_wallet);
     msg!("  Refund amount: {} USDC lamports", refund_amount);
-    msg!(
-        "  Remaining members: {}",
-        ctx.accounts.syndicate.member_count
-    );
+    msg!("  Remaining members: {}", ctx.accounts.syndicate.member_count);
 
     Ok(())
 }
@@ -2239,12 +2128,7 @@ pub fn handler_transfer_syndicate_creator(
     require!(new_creator != old_creator, LottoError::InvalidAuthority);
 
     // New creator must be an existing member
-    let is_member = ctx
-        .accounts
-        .syndicate
-        .members
-        .iter()
-        .any(|m| m.wallet == new_creator);
+    let is_member = ctx.accounts.syndicate.members.iter().any(|m| m.wallet == new_creator);
 
     require!(is_member, LottoError::NotSyndicateMember);
 

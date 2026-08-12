@@ -54,21 +54,43 @@ pub async fn finalize_main_draw(
     data.extend_from_slice(hash);
     data.extend_from_slice(&nonce.to_le_bytes());
 
-    let ix = Instruction {
-        program_id: config.main_program_id,
-        accounts: vec![
-            meta(config.authority.pubkey(), true, true),
-            meta(lottery_state, false, true),
-            meta(draw_result, false, true),
-        ],
-        data,
-    };
+    let mut account_metas = vec![
+        meta(config.authority.pubkey(), true, true),
+        meta(lottery_state, false, true),
+        meta(draw_result, false, true),
+    ];
+
+    // The on-chain FinalizeDraw context declares a positional optional tail:
+    // lp_pool, lp_pool_usdc, prize_pool_usdc, insurance_pool_usdc, token_program.
+    // They must be supplied all-or-none. Provide them whenever the LP pool
+    // exists so jackpot re-seeding and insurance-backed shortfalls work.
+    let (lp_pool, _) = config.main_lp_pool_pda();
+    if rpc.get_account(&lp_pool).is_ok() {
+        let (lp_pool_usdc, _) = config.main_lp_pool_usdc_pda();
+        let (prize_pool_usdc, _) = config.main_prize_pool_usdc_pda();
+        let (insurance_pool_usdc, _) = config.main_insurance_pool_usdc_pda();
+        account_metas.extend([
+            meta(lp_pool, false, true),
+            meta(lp_pool_usdc, false, true),
+            meta(prize_pool_usdc, false, true),
+            meta(insurance_pool_usdc, false, true),
+            meta(crate::config::SPL_TOKEN_PROGRAM_ID, false, false),
+        ]);
+    } else {
+        tracing::warn!(
+            draw_id,
+            "LP pool account not found; finalizing without LP/insurance accounts \
+             (a draw requiring insurance funds will fail on-chain and need manual recovery)"
+        );
+    }
+
+    let ix = Instruction { program_id: config.main_program_id, accounts: account_metas, data };
 
     let bh = rpc.get_latest_blockhash()?;
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&config.authority.pubkey()),
-        &[&config.authority],
+        &[config.authority.as_ref()],
         bh,
     );
     let sig = rpc.send_and_confirm_transaction(&tx)?;
@@ -109,7 +131,7 @@ pub async fn finalize_qp_draw(
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&config.authority.pubkey()),
-        &[&config.authority],
+        &[config.authority.as_ref()],
         bh,
     );
     let sig = rpc.send_and_confirm_transaction(&tx)?;
@@ -126,10 +148,6 @@ fn discriminator(name: &str) -> [u8; 8] {
     d
 }
 
-fn meta(
-    pubkey: Pubkey,
-    is_signer: bool,
-    is_writable: bool,
-) -> solana_instruction::AccountMeta {
+fn meta(pubkey: Pubkey, is_signer: bool, is_writable: bool) -> solana_instruction::AccountMeta {
     solana_instruction::AccountMeta { pubkey, is_signer, is_writable }
 }

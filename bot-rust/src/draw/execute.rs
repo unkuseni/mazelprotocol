@@ -44,7 +44,7 @@ pub async fn execute_main_draw(
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&config.authority.pubkey()),
-        &[&config.authority],
+        &[config.authority.as_ref()],
         bh,
     );
 
@@ -89,7 +89,7 @@ pub async fn execute_qp_draw(
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&config.authority.pubkey()),
-        &[&config.authority],
+        &[config.authority.as_ref()],
         bh,
     );
 
@@ -114,11 +114,7 @@ fn discriminator(name: &str) -> [u8; 8] {
     d
 }
 
-fn meta(
-    pubkey: Pubkey,
-    is_signer: bool,
-    is_writable: bool,
-) -> solana_instruction::AccountMeta {
+fn meta(pubkey: Pubkey, is_signer: bool, is_writable: bool) -> solana_instruction::AccountMeta {
     solana_instruction::AccountMeta { pubkey, is_signer, is_writable }
 }
 

@@ -1,6 +1,7 @@
 //! Configuration for the customer bot.
 
-use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey};
+use solana_commitment_config::CommitmentConfig;
+use solana_pubkey::Pubkey;
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]

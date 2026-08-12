@@ -211,10 +211,7 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
 
     // Proper finalization check using the is_finalized method
     // A draw is finalized when prize amounts have been calculated
-    require!(
-        ctx.accounts.draw_result.is_finalized(),
-        LottoError::DrawNotInProgress
-    );
+    require!(ctx.accounts.draw_result.is_finalized(), LottoError::DrawNotInProgress);
 
     // Check ticket claim expiration (if enabled)
     // Tickets must be claimed within TICKET_CLAIM_EXPIRATION seconds of draw execution
@@ -229,10 +226,7 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
             msg!("  Draw timestamp: {}", draw_timestamp);
             msg!("  Claim deadline: {}", claim_deadline);
             msg!("  Current time: {}", clock.unix_timestamp);
-            msg!(
-                "  Time expired by: {} seconds",
-                clock.unix_timestamp - claim_deadline
-            );
+            msg!("  Time expired by: {} seconds", clock.unix_timestamp - claim_deadline);
             return Err(LottoError::TicketExpired.into());
         }
     }
@@ -272,10 +266,7 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
         msg!("Free ticket credited for Match 2!");
     } else if prize_amount > 0 {
         // Verify prize pool solvency before transfer
-        require!(
-            prize_pool_balance >= prize_amount,
-            LottoError::InsufficientPrizePool
-        );
+        require!(prize_pool_balance >= prize_amount, LottoError::InsufficientPrizePool);
 
         // Transfer USDC prize
         transfer_prize_internal(
@@ -314,10 +305,8 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
 
     // Track USDC won (not including free ticket credits)
     if actual_transfer_amount > 0 {
-        user_stats.total_won = user_stats
-            .total_won
-            .checked_add(actual_transfer_amount)
-            .ok_or(LottoError::Overflow)?;
+        user_stats.total_won =
+            user_stats.total_won.checked_add(actual_transfer_amount).ok_or(LottoError::Overflow)?;
     }
 
     // FIXED: Credit free ticket for Match 2 - skip if at limit instead of blocking claim
@@ -325,30 +314,20 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
     if free_ticket_credited {
         if user_stats.free_tickets_available >= MAX_FREE_TICKETS as u32 {
             msg!("Free ticket limit reached - bonus skipped but claim proceeds!");
-            msg!(
-                "  Current free tickets: {} (maximum)",
-                user_stats.free_tickets_available
-            );
+            msg!("  Current free tickets: {} (maximum)", user_stats.free_tickets_available);
             msg!("  Match 2 prize acknowledged but free ticket not added.");
             // Don't return error - just skip the free ticket credit
         } else {
-            user_stats.free_tickets_available = user_stats
-                .free_tickets_available
-                .checked_add(1)
-                .ok_or(LottoError::Overflow)?;
-            msg!(
-                "Free ticket added. Total available: {}",
-                user_stats.free_tickets_available
-            );
+            user_stats.free_tickets_available =
+                user_stats.free_tickets_available.checked_add(1).ok_or(LottoError::Overflow)?;
+            msg!("Free ticket added. Total available: {}", user_stats.free_tickets_available);
         }
     }
 
     // Track jackpot wins
     if match_count == 6 {
-        user_stats.jackpot_wins = user_stats
-            .jackpot_wins
-            .checked_add(1)
-            .ok_or(LottoError::Overflow)?;
+        user_stats.jackpot_wins =
+            user_stats.jackpot_wins.checked_add(1).ok_or(LottoError::Overflow)?;
     }
 
     // Emit event with individual ticket ID for traceability
@@ -377,10 +356,7 @@ pub fn handler(ctx: Context<ClaimBulkPrize>, params: ClaimBulkPrizeParams) -> Re
         msg!("  Prize amount: {} USDC lamports", prize_amount);
         if free_ticket_credited {
             msg!("  Free ticket credited: YES");
-            msg!(
-                "  Total free tickets available: {}",
-                user_stats.free_tickets_available
-            );
+            msg!("  Total free tickets available: {}", user_stats.free_tickets_available);
         } else {
             msg!("  USDC transferred: {} lamports", actual_transfer_amount);
         }
@@ -490,16 +466,10 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
 
     // SECURITY FIX (Issue #10): Enforce batch limit to prevent compute budget exhaustion.
     // Large unified tickets (>20 tickets) must use individual claim_bulk_prize calls.
-    require!(
-        ticket_count <= MAX_BULK_CLAIM_BATCH,
-        LottoError::BulkPurchaseLimitExceeded
-    );
+    require!(ticket_count <= MAX_BULK_CLAIM_BATCH, LottoError::BulkPurchaseLimitExceeded);
 
     // Proper finalization check
-    require!(
-        ctx.accounts.draw_result.is_finalized(),
-        LottoError::DrawNotInProgress
-    );
+    require!(ctx.accounts.draw_result.is_finalized(), LottoError::DrawNotInProgress);
 
     // FIXED: Check ticket claim expiration (if enabled) with checked arithmetic
     if TICKET_CLAIM_EXPIRATION > 0 {
@@ -643,10 +613,8 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
     let user_stats = &mut ctx.accounts.user_stats;
 
     if total_prize_amount > 0 {
-        user_stats.total_won = user_stats
-            .total_won
-            .checked_add(total_prize_amount)
-            .ok_or(LottoError::Overflow)?;
+        user_stats.total_won =
+            user_stats.total_won.checked_add(total_prize_amount).ok_or(LottoError::Overflow)?;
     }
 
     // FIXED: Apply MAX_FREE_TICKETS limit when crediting free tickets
@@ -674,10 +642,8 @@ pub fn handler_claim_all(ctx: Context<ClaimAllBulkPrizes>) -> Result<()> {
     }
 
     if jackpot_wins > 0 {
-        user_stats.jackpot_wins = user_stats
-            .jackpot_wins
-            .checked_add(jackpot_wins)
-            .ok_or(LottoError::Overflow)?;
+        user_stats.jackpot_wins =
+            user_stats.jackpot_wins.checked_add(jackpot_wins).ok_or(LottoError::Overflow)?;
     }
 
     msg!("Bulk prize claim completed!");

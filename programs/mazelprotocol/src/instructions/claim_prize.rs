@@ -35,10 +35,7 @@ fn transfer_prize_internal<'info>(
     }
 
     // FIXED: Detailed solvency check with error reporting
-    require!(
-        prize_pool_usdc.amount >= amount,
-        LottoError::InsufficientPrizePool
-    );
+    require!(prize_pool_usdc.amount >= amount, LottoError::InsufficientPrizePool);
 
     let seeds = &[LOTTERY_SEED, &[lottery_bump]];
     let signer_seeds = &[&seeds[..]];
@@ -181,10 +178,7 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
 
     // FIXED: Proper finalization check using the is_finalized method
     // A draw is finalized when prize amounts have been calculated
-    require!(
-        ctx.accounts.draw_result.is_finalized(),
-        LottoError::DrawNotInProgress
-    );
+    require!(ctx.accounts.draw_result.is_finalized(), LottoError::DrawNotInProgress);
 
     // FIXED: Check ticket claim expiration (if enabled)
     // Tickets must be claimed within TICKET_CLAIM_EXPIRATION seconds of draw execution
@@ -199,10 +193,7 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
             msg!("  Draw timestamp: {}", draw_timestamp);
             msg!("  Claim deadline: {}", claim_deadline);
             msg!("  Current time: {}", clock.unix_timestamp);
-            msg!(
-                "  Time expired by: {} seconds",
-                clock.unix_timestamp - claim_deadline
-            );
+            msg!("  Time expired by: {} seconds", clock.unix_timestamp - claim_deadline);
             return Err(LottoError::TicketExpired.into());
         }
     }
@@ -246,10 +237,7 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
             msg!("Prize pool insufficient for prize payment!");
             msg!("  Required prize: {} USDC lamports", prize_amount);
             msg!("  Available in pool: {} USDC lamports", prize_pool_balance);
-            msg!(
-                "  Shortfall: {} USDC lamports",
-                prize_amount - prize_pool_balance
-            );
+            msg!("  Shortfall: {} USDC lamports", prize_amount - prize_pool_balance);
             return Err(LottoError::InsufficientPrizePool.into());
         }
 
@@ -293,10 +281,8 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
 
     // Track USDC won (not including free ticket credits)
     if actual_transfer_amount > 0 {
-        user_stats.total_won = user_stats
-            .total_won
-            .checked_add(actual_transfer_amount)
-            .ok_or(LottoError::Overflow)?;
+        user_stats.total_won =
+            user_stats.total_won.checked_add(actual_transfer_amount).ok_or(LottoError::Overflow)?;
     }
 
     // FIXED: Credit free ticket for Match 2 - skip if at limit instead of blocking claim
@@ -304,32 +290,22 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
     if free_ticket_credited {
         if user_stats.free_tickets_available >= MAX_FREE_TICKETS as u32 {
             msg!("Free ticket limit reached - bonus skipped but claim proceeds!");
-            msg!(
-                "  Current free tickets: {} (maximum)",
-                user_stats.free_tickets_available
-            );
+            msg!("  Current free tickets: {} (maximum)", user_stats.free_tickets_available);
             msg!("  Match 2 prize acknowledged but free ticket not added.");
             // Don't return error - just skip the free ticket credit
             // The user still gets credit for the Match 2 win
         } else {
-            user_stats.free_tickets_available = user_stats
-                .free_tickets_available
-                .checked_add(1)
-                .ok_or(LottoError::Overflow)?;
+            user_stats.free_tickets_available =
+                user_stats.free_tickets_available.checked_add(1).ok_or(LottoError::Overflow)?;
 
-            msg!(
-                "Free ticket added. Total available: {}",
-                user_stats.free_tickets_available
-            );
+            msg!("Free ticket added. Total available: {}", user_stats.free_tickets_available);
         }
     }
 
     // Track jackpot wins
     if match_count == 6 {
-        user_stats.jackpot_wins = user_stats
-            .jackpot_wins
-            .checked_add(1)
-            .ok_or(LottoError::Overflow)?;
+        user_stats.jackpot_wins =
+            user_stats.jackpot_wins.checked_add(1).ok_or(LottoError::Overflow)?;
     }
 
     // Emit event
@@ -355,18 +331,12 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
         msg!("  Prize amount: {} USDC lamports", prize_amount);
         if free_ticket_credited {
             msg!("  Free ticket credited: YES");
-            msg!(
-                "  Total free tickets available: {}",
-                user_stats.free_tickets_available
-            );
+            msg!("  Total free tickets available: {}", user_stats.free_tickets_available);
         } else {
             msg!("  USDC transferred: {} lamports", actual_transfer_amount);
             msg!(
                 "  Prize pool balance after transfer: {} lamports",
-                ctx.accounts
-                    .prize_pool_usdc
-                    .amount
-                    .saturating_sub(actual_transfer_amount)
+                ctx.accounts.prize_pool_usdc.amount.saturating_sub(actual_transfer_amount)
             );
         }
     } else {
@@ -539,10 +509,7 @@ mod tests {
         let match_count = 6u8;
         let streak_bonus_bps = 250u16; // even with a streak, bonus is skipped
         let should_apply = match_count >= 3 && match_count <= 5 && streak_bonus_bps > 0;
-        assert!(
-            !should_apply,
-            "Streak bonus should NOT apply to Match 6 (jackpot)"
-        );
+        assert!(!should_apply, "Streak bonus should NOT apply to Match 6 (jackpot)");
     }
 
     /// Streak bonus must NOT be applied to Match 2 (free ticket)
@@ -551,10 +518,7 @@ mod tests {
         let match_count = 2u8;
         let streak_bonus_bps = 250u16;
         let should_apply = match_count >= 3 && match_count <= 5 && streak_bonus_bps > 0;
-        assert!(
-            !should_apply,
-            "Streak bonus should NOT apply to Match 2 (free ticket)"
-        );
+        assert!(!should_apply, "Streak bonus should NOT apply to Match 2 (free ticket)");
     }
 
     /// Bonus is zero when streak_bonus_bps is zero (edge case)

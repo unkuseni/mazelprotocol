@@ -7,6 +7,7 @@ use solana_commitment_config::CommitmentConfig;
 use solana_keypair::{read_keypair_file, Keypair};
 use solana_pubkey::Pubkey;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use crate::error::{BotError, Result};
 use crate::Cli;
@@ -20,8 +21,14 @@ pub const DRAW_SEED: &[u8] = b"draw";
 pub const PRIZE_POOL_USDC_SEED: &[u8] = b"prize_pool_usdc";
 pub const HOUSE_FEE_USDC_SEED: &[u8] = b"house_fee_usdc";
 pub const INSURANCE_POOL_USDC_SEED: &[u8] = b"insurance_pool_usdc";
+pub const LP_POOL_SEED: &[u8] = b"lp_pool";
+pub const LP_POOL_USDC_SEED: &[u8] = b"lp_pool_usdc";
 pub const QUICK_PICK_SEED: &[u8] = b"quick_pick";
 pub const QUICK_PICK_DRAW_SEED: &[u8] = b"quick_pick_draw";
+
+/// SPL Token program ID (identical across mainnet/devnet/testnet).
+pub const SPL_TOKEN_PROGRAM_ID: Pubkey =
+    Pubkey::from_str_const("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
 // ---------------------------------------------------------------------------
 // On-chain constants
@@ -68,7 +75,7 @@ impl FromStr for BotMode {
 pub struct BotConfig {
     pub rpc_url: String,
     pub commitment: CommitmentConfig,
-    pub authority: Keypair,
+    pub authority: Arc<Keypair>,
     pub main_program_id: Pubkey,
     pub qp_program_id: Pubkey,
     pub switchboard_queue: Pubkey,
@@ -97,7 +104,7 @@ impl BotConfig {
                     bytes.len()
                 )));
             }
-            Keypair::from_bytes(&bytes)
+            Keypair::try_from(bytes.as_slice())
                 .map_err(|e| BotError::Keypair(format!("Invalid bytes: {e}")))?
         } else {
             read_keypair_file(&cli.keypair)
@@ -113,7 +120,7 @@ impl BotConfig {
         Ok(BotConfig {
             rpc_url: cli.rpc_url.clone(),
             commitment,
-            authority,
+            authority: Arc::new(authority),
             main_program_id: Pubkey::from_str(&cli.main_program_id)
                 .map_err(|e| BotError::Config(format!("MAIN_PROGRAM_ID: {e}")))?,
             qp_program_id: Pubkey::from_str(&cli.qp_program_id)
@@ -149,6 +156,22 @@ impl BotConfig {
 
     pub fn main_draw_result_pda(&self, draw_id: u64) -> (Pubkey, u8) {
         Pubkey::find_program_address(&[DRAW_SEED, &draw_id.to_le_bytes()], &self.main_program_id)
+    }
+
+    pub fn main_prize_pool_usdc_pda(&self) -> (Pubkey, u8) {
+        Pubkey::find_program_address(&[PRIZE_POOL_USDC_SEED], &self.main_program_id)
+    }
+
+    pub fn main_insurance_pool_usdc_pda(&self) -> (Pubkey, u8) {
+        Pubkey::find_program_address(&[INSURANCE_POOL_USDC_SEED], &self.main_program_id)
+    }
+
+    pub fn main_lp_pool_pda(&self) -> (Pubkey, u8) {
+        Pubkey::find_program_address(&[LP_POOL_SEED], &self.main_program_id)
+    }
+
+    pub fn main_lp_pool_usdc_pda(&self) -> (Pubkey, u8) {
+        Pubkey::find_program_address(&[LP_POOL_USDC_SEED], &self.main_program_id)
     }
 
     pub fn qp_state_pda(&self) -> (Pubkey, u8) {

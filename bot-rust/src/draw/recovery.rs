@@ -49,7 +49,7 @@ fn send_ix(rpc: &RpcClient, config: &BotConfig, ix: Instruction) -> Result<Signa
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&config.authority.pubkey()),
-        &[&config.authority],
+        &[config.authority.as_ref()],
         bh,
     );
     Ok(rpc.send_and_confirm_transaction(&tx)?)
@@ -167,8 +167,8 @@ async fn recover_finalize(
     let program = if is_qp { "quickpick" } else { "main" };
 
     if is_qp {
-        let ir = indexer::index_qp_draw(rpc, &config.qp_program_id, draw_id, &winning_numbers)
-            .await?;
+        let ir =
+            indexer::index_qp_draw(rpc, &config.qp_program_id, draw_id, &winning_numbers).await?;
         finalize::finalize_qp_draw(
             rpc,
             config,

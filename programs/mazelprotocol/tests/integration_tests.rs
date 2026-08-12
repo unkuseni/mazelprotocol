@@ -436,11 +436,8 @@ mod test_lottery_state {
 
     #[test]
     fn test_is_commit_timed_out_zero_timestamp() {
-        let state = LotteryState {
-            is_draw_in_progress: true,
-            commit_timestamp: 0,
-            ..create_test_state()
-        };
+        let state =
+            LotteryState { is_draw_in_progress: true, commit_timestamp: 0, ..create_test_state() };
 
         // No commit => not timed out
         assert!(!state.is_commit_timed_out(1_000_000));

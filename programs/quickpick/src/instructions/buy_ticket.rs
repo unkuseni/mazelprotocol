@@ -195,23 +195,14 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
 
     // Check if ticket sales are open (4-hour window with 5-minute cutoff)
     let sale_cutoff_time = next_draw_timestamp.saturating_sub(TICKET_SALE_CUTOFF);
-    require!(
-        clock.unix_timestamp < sale_cutoff_time,
-        QuickPickError::TicketSaleEnded
-    );
+    require!(clock.unix_timestamp < sale_cutoff_time, QuickPickError::TicketSaleEnded);
 
     // Check if jackpot is properly funded (minimum 100% of seed amount)
     let minimum_jackpot = seed_amount;
-    require!(
-        jackpot_balance >= minimum_jackpot,
-        QuickPickError::InsufficientJackpotFunding
-    );
+    require!(jackpot_balance >= minimum_jackpot, QuickPickError::InsufficientJackpotFunding);
 
     // Verify player has sufficient USDC balance
-    require!(
-        ctx.accounts.player_usdc.amount >= ticket_price,
-        QuickPickError::InsufficientFunds
-    );
+    require!(ctx.accounts.player_usdc.amount >= ticket_price, QuickPickError::InsufficientFunds);
 
     // M2: per-wallet ticket cap — enforce BEFORE any transfers so an
     // over-limit purchase fails cleanly without needing refunds.
@@ -258,8 +249,7 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
     ctx.accounts.transfer_to_prize_pool(prize_pool_transfer)?;
     ctx.accounts.transfer_to_house_fee(house_fee)?;
     if insurance_contribution > 0 {
-        ctx.accounts
-            .transfer_to_insurance_pool(insurance_contribution)?;
+        ctx.accounts.transfer_to_insurance_pool(insurance_contribution)?;
     }
 
     // SECURITY FIX (Issue #8): Replace debug_assert with runtime require!
@@ -291,14 +281,10 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
             .checked_add(reserve_contribution)
             .ok_or(QuickPickError::Overflow)?;
     }
-    quick_pick_state.current_draw_tickets = quick_pick_state
-        .current_draw_tickets
-        .checked_add(1)
-        .ok_or(QuickPickError::Overflow)?;
-    quick_pick_state.total_tickets_sold = quick_pick_state
-        .total_tickets_sold
-        .checked_add(1)
-        .ok_or(QuickPickError::Overflow)?;
+    quick_pick_state.current_draw_tickets =
+        quick_pick_state.current_draw_tickets.checked_add(1).ok_or(QuickPickError::Overflow)?;
+    quick_pick_state.total_tickets_sold =
+        quick_pick_state.total_tickets_sold.checked_add(1).ok_or(QuickPickError::Overflow)?;
 
     // Update house fee (dynamic)
     quick_pick_state.house_fee_bps = house_fee_bps;
@@ -313,14 +299,10 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
     {
         let user_stats = &mut ctx.accounts.user_stats;
         user_stats.wallet = ctx.accounts.player.key();
-        user_stats.tickets_this_draw = user_stats
-            .tickets_this_draw
-            .checked_add(1)
-            .ok_or(QuickPickError::Overflow)?;
-        user_stats.total_tickets = user_stats
-            .total_tickets
-            .checked_add(1)
-            .ok_or(QuickPickError::Overflow)?;
+        user_stats.tickets_this_draw =
+            user_stats.tickets_this_draw.checked_add(1).ok_or(QuickPickError::Overflow)?;
+        user_stats.total_tickets =
+            user_stats.total_tickets.checked_add(1).ok_or(QuickPickError::Overflow)?;
     }
 
     // Create ticket
@@ -351,27 +333,11 @@ pub fn handler(ctx: Context<BuyQuickPickTicket>, params: BuyQuickPickTicketParam
 
     // Log jackpot funding status
     let minimum_jackpot = seed_amount;
-    msg!(
-        "  Minimum jackpot required: {} USDC lamports",
-        minimum_jackpot
-    );
-    msg!(
-        "  Current jackpot: {} USDC lamports",
-        quick_pick_state.jackpot_balance
-    );
-    msg!(
-        "  House fee: {} bps ({}%)",
-        house_fee_bps,
-        house_fee_bps as f64 / 100.0
-    );
-    msg!(
-        "  Jackpot contribution: {} USDC lamports",
-        jackpot_contribution
-    );
-    msg!(
-        "  Current jackpot: {} USDC lamports",
-        quick_pick_state.jackpot_balance
-    );
+    msg!("  Minimum jackpot required: {} USDC lamports", minimum_jackpot);
+    msg!("  Current jackpot: {} USDC lamports", quick_pick_state.jackpot_balance);
+    msg!("  House fee: {} bps ({}%)", house_fee_bps, house_fee_bps as f64 / 100.0);
+    msg!("  Jackpot contribution: {} USDC lamports", jackpot_contribution);
+    msg!("  Current jackpot: {} USDC lamports", quick_pick_state.jackpot_balance);
     if quick_pick_state.is_rolldown_pending {
         msg!("  ⚠️ ROLLDOWN PENDING: Jackpot exceeds soft cap!");
     }

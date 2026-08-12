@@ -3,7 +3,7 @@
 use crate::config::BotConfig;
 use crate::solana::{self, Solana};
 use crate::store::Store;
-use solana_sdk::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;

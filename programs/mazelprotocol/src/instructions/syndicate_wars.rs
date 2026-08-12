@@ -122,14 +122,8 @@ pub fn handler_initialize_syndicate_wars(
 ) -> Result<()> {
     // Validate competition dates
     let current_time = Clock::get()?.unix_timestamp;
-    require!(
-        params.start_timestamp > current_time,
-        LottoError::InvalidTimestamp
-    );
-    require!(
-        params.end_timestamp > params.start_timestamp,
-        LottoError::InvalidTimestamp
-    );
+    require!(params.start_timestamp > current_time, LottoError::InvalidTimestamp);
+    require!(params.end_timestamp > params.start_timestamp, LottoError::InvalidTimestamp);
 
     // Calculate competition duration (max 31 days)
     let duration = params.end_timestamp - params.start_timestamp;
@@ -141,10 +135,7 @@ pub fn handler_initialize_syndicate_wars(
         / BPS_DENOMINATOR as u128) as u64;
 
     require!(wars_prize_pool > 0, LottoError::InsufficientFunds);
-    require!(
-        ctx.accounts.prize_pool_usdc.amount >= wars_prize_pool,
-        LottoError::InsufficientFunds
-    );
+    require!(ctx.accounts.prize_pool_usdc.amount >= wars_prize_pool, LottoError::InsufficientFunds);
 
     // Transfer prize pool to competition account using lottery_state as authority
     let lottery_bump = ctx.accounts.lottery_state.bump;
@@ -203,10 +194,7 @@ pub fn handler_initialize_syndicate_wars(
         // 4. Last resort: deduct from jackpot_balance
         if remaining > 0 {
             lottery_state.jackpot_balance = lottery_state.jackpot_balance.saturating_sub(remaining);
-            msg!(
-                "WARNING: Syndicate Wars init required {} from jackpot",
-                remaining
-            );
+            msg!("WARNING: Syndicate Wars init required {} from jackpot", remaining);
         }
 
         msg!(
@@ -320,10 +308,7 @@ pub fn handler_register_for_syndicate_wars(ctx: Context<RegisterForSyndicateWars
     );
 
     // Validate syndicate meets minimum requirements
-    require!(
-        ctx.accounts.syndicate.member_count >= 5,
-        LottoError::InvalidSyndicateConfig
-    );
+    require!(ctx.accounts.syndicate.member_count >= 5, LottoError::InvalidSyndicateConfig);
 
     // Initialize entry
     let entry = &mut ctx.accounts.wars_entry;
@@ -439,16 +424,11 @@ pub fn handler_update_syndicate_wars_stats(
     let state = &ctx.accounts.syndicate_wars_state;
 
     // Validate competition is still active
-    require!(
-        current_time <= state.end_timestamp,
-        LottoError::SyndicateWarsNotActive
-    );
+    require!(current_time <= state.end_timestamp, LottoError::SyndicateWarsNotActive);
 
     // Update entry
     let entry = &mut ctx.accounts.wars_entry;
-    entry.tickets_purchased = entry
-        .tickets_purchased
-        .saturating_add(params.tickets_purchased);
+    entry.tickets_purchased = entry.tickets_purchased.saturating_add(params.tickets_purchased);
     entry.prizes_won = entry.prizes_won.saturating_add(params.prizes_won);
     entry.win_count = entry.win_count.saturating_add(params.win_count);
 
@@ -522,10 +502,7 @@ pub fn handler_finalize_syndicate_wars(ctx: Context<FinalizeSyndicateWars>) -> R
     let state = &mut ctx.accounts.syndicate_wars_state;
 
     // Validate competition has ended
-    require!(
-        current_time > state.end_timestamp,
-        LottoError::SyndicateWarsNotActive
-    );
+    require!(current_time > state.end_timestamp, LottoError::SyndicateWarsNotActive);
 
     // Mark competition as inactive
     state.is_active = false;
@@ -577,10 +554,7 @@ pub fn handler_claim_syndicate_wars_prize(
     params: ClaimSyndicateWarsPrizeParams,
 ) -> Result<()> {
     // Validate rank is 1-10
-    require!(
-        params.rank >= 1 && params.rank <= 10,
-        LottoError::InvalidRank
-    );
+    require!(params.rank >= 1 && params.rank <= 10, LottoError::InvalidRank);
 
     // Calculate prize amount based on rank
     let prize_pool = ctx.accounts.syndicate_wars_state.prize_pool;
@@ -747,10 +721,7 @@ pub fn handler_distribute_syndicate_wars_prizes<'info>(
         // now used as a verification set, not an ordering.
 
         // Verify account is owned by this program
-        require!(
-            account_info.owner == ctx.program_id,
-            LottoError::InvalidAccountOwner
-        );
+        require!(account_info.owner == ctx.program_id, LottoError::InvalidAccountOwner);
 
         // Properly deserialize the SyndicateWarsEntry using Anchor's
         // Account deserialization (validates discriminator automatically).
@@ -799,9 +770,7 @@ pub fn handler_distribute_syndicate_wars_prizes<'info>(
         {
             let mut entry_data = account_info.try_borrow_mut_data()?;
             let mut writer: &mut [u8] = &mut entry_data;
-            entry
-                .try_serialize(&mut writer)
-                .map_err(|_| LottoError::InvalidAccountData)?;
+            entry.try_serialize(&mut writer).map_err(|_| LottoError::InvalidAccountData)?;
         }
         msg!("Rank {}: syndicate {}", rank, entry.syndicate);
     }

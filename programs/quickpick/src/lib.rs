@@ -296,10 +296,7 @@ pub mod quickpick {
     /// # Arguments
     /// * `ctx` - SweepQuickPickInsurance accounts context
     /// * `amount` - Amount to sweep (0 = sweep all available)
-    pub fn sweep_insurance(
-        ctx: Context<SweepQuickPickInsurance>,
-        amount: u64,
-    ) -> Result<()> {
+    pub fn sweep_insurance(ctx: Context<SweepQuickPickInsurance>, amount: u64) -> Result<()> {
         instructions::admin::handler_sweep_insurance(ctx, amount)
     }
 

@@ -40,7 +40,7 @@ pub async fn commit_main_randomness(rpc: &RpcClient, config: &BotConfig) -> Resu
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&config.authority.pubkey()),
-        &[&config.authority, &randomness_keypair],
+        &[config.authority.as_ref(), &randomness_keypair],
         bh,
     );
 
@@ -54,13 +54,13 @@ pub async fn commit_qp_randomness(rpc: &RpcClient, config: &BotConfig) -> Result
     let (qp_state, _) = config.qp_state_pda();
     let (lottery_state, _) = config.main_lottery_state_pda();
 
+    // Matches CommitQuickPickRandomness in the quickpick program exactly:
+    // authority, lottery_state, quick_pick_state, randomness_account_data.
     let accounts = vec![
-        meta(config.authority.pubkey(), true, true),
-        meta(lottery_state, false, true),
+        meta(config.authority.pubkey(), true, false),
+        meta(lottery_state, false, false),
         meta(qp_state, false, true),
-        meta(ra, true, true),
-        meta(config.switchboard_queue, false, false),
-        meta(system_program::id(), false, false),
+        meta(ra, false, false),
     ];
 
     let ix = Instruction {
@@ -73,7 +73,7 @@ pub async fn commit_qp_randomness(rpc: &RpcClient, config: &BotConfig) -> Result
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&config.authority.pubkey()),
-        &[&config.authority, &randomness_keypair],
+        &[config.authority.as_ref()],
         bh,
     );
 
@@ -91,10 +91,6 @@ fn discriminator(name: &str) -> [u8; 8] {
     d
 }
 
-fn meta(
-    pubkey: Pubkey,
-    is_signer: bool,
-    is_writable: bool,
-) -> solana_instruction::AccountMeta {
+fn meta(pubkey: Pubkey, is_signer: bool, is_writable: bool) -> solana_instruction::AccountMeta {
     solana_instruction::AccountMeta { pubkey, is_signer, is_writable }
 }

@@ -9,7 +9,7 @@ pub enum Error {
     #[error("Solana: {0}")]
     Solana(#[from] solana_client::client_error::ClientError),
     #[error("Parse: {0}")]
-    Parse(#[from] solana_sdk::pubkey::ParsePubkeyError),
+    Parse(#[from] solana_pubkey::ParsePubkeyError),
     #[error("IO: {0}")]
     Io(#[from] std::io::Error),
     #[error("JSON: {0}")]

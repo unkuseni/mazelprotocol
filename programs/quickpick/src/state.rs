@@ -431,7 +431,7 @@ impl QuickPickUserStats {
         8 +     // draw_id
         8 +     // tickets_this_draw
         8 +     // total_tickets
-        1;      // bump
+        1; // bump
 
     /// Reset the per-draw counter when the draw advances.
     pub fn reset_for_draw(&mut self, draw_id: u64) {
@@ -748,7 +748,7 @@ impl LotteryState {
         8 +  // emergency_transfer_total
         8 +  // emergency_transfer_window_start
         8 +  // max_rolldown_tickets
-        8;   // sale_target_tickets
+        8; // sale_target_tickets
 }
 
 #[cfg(test)]
