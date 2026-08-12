@@ -7,7 +7,7 @@ pub enum BotError {
     #[error("Config: {0}")]
     Config(String),
     #[error("Solana: {0}")]
-    Solana(#[from] solana_client::client_error::ClientError),
+    Solana(Box<solana_client::client_error::ClientError>),
     #[error("Program: {0}")]
     AnchorLang(#[from] anchor_lang::error::Error),
     #[error("IO: {0}")]
@@ -27,3 +27,11 @@ pub enum BotError {
 }
 
 pub type Result<T> = std::result::Result<T, BotError>;
+
+// Box the large Solana client error to keep `BotError` small, while still
+// letting `?` convert raw `ClientError` values automatically.
+impl From<solana_client::client_error::ClientError> for BotError {
+    fn from(error: solana_client::client_error::ClientError) -> Self {
+        BotError::Solana(Box::new(error))
+    }
+}

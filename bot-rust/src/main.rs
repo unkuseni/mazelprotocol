@@ -4,6 +4,12 @@
 //! (commit → execute → index → finalize) for both the Main Lottery
 //! and Quick Pick Express programs on Solana.
 //!
+//! Several fields and constants are wired for upcoming phases (priority fees,
+//! retries, admin notifications) and are therefore not read yet. Keep
+//! `dead_code` at the crate level so CI's `clippy -D warnings` stays green
+//! without deleting the planned plumbing.
+#![allow(dead_code)]
+//!
 //! ## Usage
 //!
 //! ```bash

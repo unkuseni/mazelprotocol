@@ -35,7 +35,7 @@ async fn verify_connectivity(config: &BotConfig) -> Result<()> {
     let rpc = RpcClient::new_with_commitment(config.rpc_url.clone(), config.commitment);
     match rpc.get_slot() {
         Ok(slot) => tracing::info!(slot, "Connected to Solana"),
-        Err(e) => return Err(crate::error::BotError::Solana(e)),
+        Err(e) => return Err(e.into()),
     }
     telegram::verify_bot_token(&config.telegram_bot_token).await?;
     Ok(())

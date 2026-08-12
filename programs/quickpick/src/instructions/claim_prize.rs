@@ -105,10 +105,7 @@ fn transfer_quick_pick_prize<'info>(
     }
 
     // Verify solvency
-    require!(
-        prize_pool_usdc.amount >= amount,
-        QuickPickError::InsufficientPrizePool
-    );
+    require!(prize_pool_usdc.amount >= amount, QuickPickError::InsufficientPrizePool);
 
     let seeds = &[QUICK_PICK_SEED, &[quick_pick_bump]];
     let signer_seeds = &[&seeds[..]];
@@ -171,10 +168,7 @@ pub fn handler(ctx: Context<ClaimQuickPickPrize>) -> Result<()> {
     let draw_timestamp = ctx.accounts.draw_result.timestamp;
 
     // Verify draw is finalized
-    require!(
-        ctx.accounts.draw_result.is_finalized(),
-        QuickPickError::DrawNotInProgress
-    );
+    require!(ctx.accounts.draw_result.is_finalized(), QuickPickError::DrawNotInProgress);
 
     // Check ticket claim expiration (90 days)
     if TICKET_CLAIM_EXPIRATION > 0 {
@@ -243,9 +237,8 @@ pub fn handler(ctx: Context<ClaimQuickPickPrize>) -> Result<()> {
         if match_count == 5 {
             // Jackpot prize: deduct from jackpot_balance first
             if qp_state.jackpot_balance >= actual_transfer_amount {
-                qp_state.jackpot_balance = qp_state
-                    .jackpot_balance
-                    .saturating_sub(actual_transfer_amount);
+                qp_state.jackpot_balance =
+                    qp_state.jackpot_balance.saturating_sub(actual_transfer_amount);
             } else {
                 let from_jackpot = qp_state.jackpot_balance;
                 let remainder = actual_transfer_amount.saturating_sub(from_jackpot);
@@ -255,9 +248,8 @@ pub fn handler(ctx: Context<ClaimQuickPickPrize>) -> Result<()> {
         } else {
             // Fixed prizes (Match 3/4): deduct from prize_pool_balance first
             if qp_state.prize_pool_balance >= actual_transfer_amount {
-                qp_state.prize_pool_balance = qp_state
-                    .prize_pool_balance
-                    .saturating_sub(actual_transfer_amount);
+                qp_state.prize_pool_balance =
+                    qp_state.prize_pool_balance.saturating_sub(actual_transfer_amount);
             } else {
                 let from_pool = qp_state.prize_pool_balance;
                 let remainder = actual_transfer_amount.saturating_sub(from_pool);
@@ -267,9 +259,8 @@ pub fn handler(ctx: Context<ClaimQuickPickPrize>) -> Result<()> {
         }
 
         // Increment total_prizes_paid at actual claim time for accurate tracking
-        qp_state.total_prizes_paid = qp_state
-            .total_prizes_paid
-            .saturating_add(actual_transfer_amount);
+        qp_state.total_prizes_paid =
+            qp_state.total_prizes_paid.saturating_add(actual_transfer_amount);
 
         msg!(
             "  QuickPick state updated: jackpot={}, prize_pool={}, total_paid={}",

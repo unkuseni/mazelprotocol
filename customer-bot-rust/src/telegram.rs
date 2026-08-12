@@ -176,10 +176,9 @@ pub async fn run_webhook(cfg: BotConfig) -> Result<()> {
                             .unwrap_or("Player")
                             .to_string();
                         let uid = msg.from.map(|u| u.id).unwrap_or(0);
-                        let reply = commands::handle(
-                            &text, uid, &username, chat, &solana, &store, &cfg,
-                        )
-                        .await;
+                        let reply =
+                            commands::handle(&text, uid, &username, chat, &solana, &store, &cfg)
+                                .await;
                         let _ = send_message(&token, chat, &reply).await;
                     }
                 }

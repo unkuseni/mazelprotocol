@@ -86,6 +86,11 @@ impl LpPool {
         }
         if self.total_shares == 0 {
             Some(amount)
+        } else if self.total_deposits == 0 {
+            // Fully drained pool with outstanding shares. This state is
+            // prevented by the MIN_LP_DEPOSIT floor in try_seed_from_lp_pool,
+            // but fail closed here rather than dividing by zero.
+            None
         } else {
             (amount as u128)
                 .checked_mul(self.total_shares as u128)?
@@ -216,5 +221,33 @@ impl LpPosition {
             .ok_or(LottoError::Overflow)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_shares_for_deposit_empty_pool_is_one_to_one() {
+        let pool = LpPool { total_shares: 0, total_deposits: 0, ..Default::default() };
+        assert_eq!(pool.shares_for_deposit(1_000_000), Some(1_000_000));
+    }
+
+    #[test]
+    fn test_shares_for_deposit_drained_pool_fails_closed() {
+        // A pool with outstanding shares but zero deposits must reject new
+        // deposits instead of dividing by zero. The seeding floor in
+        // finalize_draw prevents this state, but the guard is defense-in-depth.
+        let pool = LpPool { total_shares: 1_000, total_deposits: 0, ..Default::default() };
+        assert_eq!(pool.shares_for_deposit(1_000_000), None);
+    }
+
+    #[test]
+    fn test_shares_for_deposit_proportional() {
+        let pool =
+            LpPool { total_shares: 10_000, total_deposits: 10_000_000, ..Default::default() };
+        // 1 USDC into a 10 USDC pool with 10k shares -> 1k shares.
+        assert_eq!(pool.shares_for_deposit(1_000_000), Some(1_000));
     }
 }

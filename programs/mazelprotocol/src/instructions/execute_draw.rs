@@ -81,10 +81,7 @@ impl<'info> ExecuteDraw<'info> {
 
         // SECURITY: Verify the seed_slot matches our commit_slot
         // This ensures we're using the randomness we committed to
-        require!(
-            randomness_data.seed_slot == commit_slot,
-            LottoError::RandomnessNotFresh
-        );
+        require!(randomness_data.seed_slot == commit_slot, LottoError::RandomnessNotFresh);
 
         // SECURITY: Verify randomness was committed in a recent slot
         // The reveal should happen shortly after commit
@@ -98,10 +95,7 @@ impl<'info> ExecuteDraw<'info> {
             randomness_data.seed_slot >= current_slot.saturating_sub(10),
             LottoError::RandomnessExpired
         );
-        require!(
-            current_slot > randomness_data.seed_slot,
-            LottoError::RandomnessNotFresh
-        );
+        require!(current_slot > randomness_data.seed_slot, LottoError::RandomnessNotFresh);
 
         // Get the revealed random value
         let revealed_value = randomness_data
@@ -177,10 +171,7 @@ fn generate_winning_numbers(randomness: &[u8; 32]) -> Result<[u8; 6]> {
     while numbers_generated < 6 {
         total_attempts += 1;
         if total_attempts > MAX_ATTEMPTS {
-            msg!(
-                "CRITICAL: generate_winning_numbers exhausted {} attempts",
-                MAX_ATTEMPTS
-            );
+            msg!("CRITICAL: generate_winning_numbers exhausted {} attempts", MAX_ATTEMPTS);
             return Err(LottoError::InvalidRandomnessProof.into());
         }
 
@@ -196,9 +187,7 @@ fn generate_winning_numbers(randomness: &[u8; 32]) -> Result<[u8; 6]> {
 
         // Extract a u32 from the hash
         let val = u32::from_le_bytes(
-            current_hash[byte_offset..byte_offset + 4]
-                .try_into()
-                .expect("4-byte slice from hash"),
+            current_hash[byte_offset..byte_offset + 4].try_into().expect("4-byte slice from hash"),
         );
         byte_offset += 4;
 
@@ -228,17 +217,11 @@ fn generate_winning_numbers(randomness: &[u8; 32]) -> Result<[u8; 6]> {
     let mut seen = [false; MAX_NUMBER as usize];
     for &num in &winning_numbers {
         if num < 1 || num > MAX_NUMBER {
-            msg!(
-                "CRITICAL: generate_winning_numbers produced invalid number {}",
-                num
-            );
+            msg!("CRITICAL: generate_winning_numbers produced invalid number {}", num);
             return Err(LottoError::InvalidRandomnessProof.into());
         }
         if seen[num as usize - 1] {
-            msg!(
-                "CRITICAL: generate_winning_numbers produced duplicate number {}",
-                num
-            );
+            msg!("CRITICAL: generate_winning_numbers produced duplicate number {}", num);
             return Err(LottoError::InvalidRandomnessProof.into());
         }
         seen[num as usize - 1] = true;
@@ -302,11 +285,7 @@ fn should_trigger_rolldown(randomness: &[u8; 32], probability_bps: u16) -> bool 
     let reject_threshold: u32 = 10000u32.wrapping_mul(u32::MAX / 10000);
 
     let first_roll = read_roll(0);
-    let roll = if first_roll >= reject_threshold {
-        read_roll(4)
-    } else {
-        first_roll
-    };
+    let roll = if first_roll >= reject_threshold { read_roll(4) } else { first_roll };
 
     // Calculate threshold (0-9999)
     let threshold = roll % 10000;
@@ -354,15 +333,10 @@ pub fn handler(ctx: Context<ExecuteDraw>) -> Result<()> {
     msg!("  Soft cap: {} USDC lamports", soft_cap);
     msg!("  Hard cap: {} USDC lamports", hard_cap);
     msg!("  Rolldown active: {}", is_rolldown_active);
-    msg!(
-        "  Rolldown probability: {}%",
-        rolldown_probability_bps as f64 / 100.0
-    );
+    msg!("  Rolldown probability: {}%", rolldown_probability_bps as f64 / 100.0);
 
     // Get the revealed randomness
-    let randomness = ctx
-        .accounts
-        .get_revealed_randomness(clock.slot, commit_slot)?;
+    let randomness = ctx.accounts.get_revealed_randomness(clock.slot, commit_slot)?;
 
     // FIXED: Stronger security check - verify randomness has sufficient entropy
     // Require at least 8 unique bytes out of 32 (25% uniqueness minimum)
@@ -548,12 +522,7 @@ mod tests {
             }
             // All numbers in valid range
             for &n in &nums {
-                assert!(
-                    n >= 1 && n <= 46,
-                    "Number {} out of range, seed={}",
-                    n,
-                    seed
-                );
+                assert!(n >= 1 && n <= 46, "Number {} out of range, seed={}", n, seed);
             }
         }
     }
@@ -565,11 +534,7 @@ mod tests {
             let nums = generate_winning_numbers(&randomness).unwrap();
             // Must be sorted ascending
             for i in 1..6 {
-                assert!(
-                    nums[i] > nums[i - 1],
-                    "Numbers must be sorted, seed={}",
-                    seed
-                );
+                assert!(nums[i] > nums[i - 1], "Numbers must be sorted, seed={}", seed);
             }
         }
     }

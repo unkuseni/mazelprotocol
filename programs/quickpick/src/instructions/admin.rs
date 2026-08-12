@@ -1070,28 +1070,31 @@ pub fn handler_emergency_fund_transfer(
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;
     match source {
         QuickPickFundSource::Reserve => {
-            require!(
-                quick_pick_state.reserve_balance >= amount,
-                QuickPickError::InsufficientFunds
-            );
-            quick_pick_state.reserve_balance =
-                quick_pick_state.reserve_balance.checked_sub(amount).ok_or(QuickPickError::Underflow)?;
+            require!(quick_pick_state.reserve_balance >= amount, QuickPickError::InsufficientFunds);
+            quick_pick_state.reserve_balance = quick_pick_state
+                .reserve_balance
+                .checked_sub(amount)
+                .ok_or(QuickPickError::Underflow)?;
         }
         QuickPickFundSource::Insurance => {
             require!(
                 quick_pick_state.insurance_balance >= amount,
                 QuickPickError::InsufficientFunds
             );
-            quick_pick_state.insurance_balance =
-                quick_pick_state.insurance_balance.checked_sub(amount).ok_or(QuickPickError::Underflow)?;
+            quick_pick_state.insurance_balance = quick_pick_state
+                .insurance_balance
+                .checked_sub(amount)
+                .ok_or(QuickPickError::Underflow)?;
         }
         QuickPickFundSource::PrizePool => {
             require!(
                 quick_pick_state.prize_pool_balance >= amount,
                 QuickPickError::InsufficientFunds
             );
-            quick_pick_state.prize_pool_balance =
-                quick_pick_state.prize_pool_balance.checked_sub(amount).ok_or(QuickPickError::Underflow)?;
+            quick_pick_state.prize_pool_balance = quick_pick_state
+                .prize_pool_balance
+                .checked_sub(amount)
+                .ok_or(QuickPickError::Underflow)?;
         }
     }
 
@@ -1279,10 +1282,7 @@ pub struct SweepQuickPickInsurance<'info> {
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
-pub fn handler_sweep_insurance(
-    ctx: Context<SweepQuickPickInsurance>,
-    amount: u64,
-) -> Result<()> {
+pub fn handler_sweep_insurance(ctx: Context<SweepQuickPickInsurance>, amount: u64) -> Result<()> {
     let clock = Clock::get()?;
 
     // Validate USDC mint on both token accounts
@@ -1300,21 +1300,12 @@ pub fn handler_sweep_insurance(
 
     // Determine sweep amount: explicit amount, or all available (min of
     // token balance and accounting to keep books consistent).
-    let sweep_amount = if amount == 0 {
-        insurance_token_balance.min(accounting_insurance)
-    } else {
-        amount
-    };
+    let sweep_amount =
+        if amount == 0 { insurance_token_balance.min(accounting_insurance) } else { amount };
 
     require!(sweep_amount > 0, QuickPickError::InsufficientFunds);
-    require!(
-        sweep_amount <= insurance_token_balance,
-        QuickPickError::InsufficientFunds
-    );
-    require!(
-        sweep_amount <= accounting_insurance,
-        QuickPickError::InsufficientFunds
-    );
+    require!(sweep_amount <= insurance_token_balance, QuickPickError::InsufficientFunds);
+    require!(sweep_amount <= accounting_insurance, QuickPickError::InsufficientFunds);
 
     let insurance_before = accounting_insurance;
 

@@ -343,12 +343,14 @@ pub fn calculate_rolldown_prizes(
     let division_remainder = if tiers_with_winners > 0 {
         match_5_pool
             .saturating_sub(match_5_prize.saturating_mul(winner_counts.match_5 as u64))
-            .saturating_add(match_4_pool.saturating_sub(
-                match_4_prize.saturating_mul(winner_counts.match_4 as u64),
-            ))
-            .saturating_add(match_3_pool.saturating_sub(
-                match_3_prize.saturating_mul(winner_counts.match_3 as u64),
-            ))
+            .saturating_add(
+                match_4_pool
+                    .saturating_sub(match_4_prize.saturating_mul(winner_counts.match_4 as u64)),
+            )
+            .saturating_add(
+                match_3_pool
+                    .saturating_sub(match_3_prize.saturating_mul(winner_counts.match_3 as u64)),
+            )
     } else {
         0
     };

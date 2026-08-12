@@ -88,7 +88,7 @@ pub async fn run_main_lifecycle(
         let ra = commit_result
             .as_ref()
             .map(|cr| cr.randomness_account)
-            .unwrap_or_else(solana_sdk::pubkey::Pubkey::new_unique);
+            .unwrap_or_else(solana_pubkey::Pubkey::new_unique);
         let r = execute::execute_main_draw(rpc, config, draw_id, &ra).await?;
         tracing::info!(sig = %r.signature, nums = ?r.winning_numbers, "[main] execute_draw OK");
         r
@@ -208,7 +208,7 @@ pub async fn run_qp_lifecycle(
         let ra = commit_result
             .as_ref()
             .map(|cr| cr.randomness_account)
-            .unwrap_or_else(solana_sdk::pubkey::Pubkey::new_unique);
+            .unwrap_or_else(solana_pubkey::Pubkey::new_unique);
         execute::execute_qp_draw(rpc, config, draw_id, &ra).await?
     };
 
@@ -258,7 +258,7 @@ pub struct LotteryStateData {
     // 8-byte Anchor account discriminator (must be skipped — account data
     // starts with sha256("account:LotteryState")[..8]).
     _discriminator: [u8; 8],
-    pub authority: solana_sdk::pubkey::Pubkey,
+    pub authority: solana_pubkey::Pubkey,
     // pending_authority: Option<Pubkey> = 1-byte tag + 32-byte pubkey (33 bytes)
     _pending_authority: [u8; 33],
     _switchboard_queue: anchor_lang::prelude::Pubkey,
@@ -331,9 +331,9 @@ pub struct QpStateData {
 /// Fetch and deserialize an Anchor account.
 fn fetch_account<T: anchor_lang::AnchorDeserialize>(
     rpc: &RpcClient,
-    pubkey: &solana_sdk::pubkey::Pubkey,
+    pubkey: &solana_pubkey::Pubkey,
 ) -> Result<T> {
     let account = rpc.get_account(pubkey)?;
     let mut data: &[u8] = &account.data;
-    T::deserialize(&mut data).map_err(|e| crate::error::BotError::AnchorLang(e))
+    T::deserialize(&mut data).map_err(|e| crate::error::BotError::AnchorLang(e.into()))
 }

@@ -103,10 +103,7 @@ pub fn handler(ctx: Context<CommitQuickPickRandomness>) -> Result<()> {
 
     // Validate draw is ready
     let next_draw_timestamp = ctx.accounts.quick_pick_state.next_draw_timestamp;
-    require!(
-        clock.unix_timestamp >= next_draw_timestamp,
-        QuickPickError::DrawNotReady
-    );
+    require!(clock.unix_timestamp >= next_draw_timestamp, QuickPickError::DrawNotReady);
 
     // Validate and get the seed slot from randomness account
     let seed_slot = ctx.accounts.validate_randomness(clock.slot)?;
@@ -118,10 +115,7 @@ pub fn handler(ctx: Context<CommitQuickPickRandomness>) -> Result<()> {
     let randomness_account = ctx.accounts.randomness_account_data.key();
 
     // Verify no draw is currently in progress
-    require!(
-        !ctx.accounts.quick_pick_state.is_draw_in_progress,
-        QuickPickError::InvalidDrawState
-    );
+    require!(!ctx.accounts.quick_pick_state.is_draw_in_progress, QuickPickError::InvalidDrawState);
 
     // Update state to mark draw as in progress
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;

@@ -1139,7 +1139,8 @@ pub fn handler_cancel_draw(ctx: Context<CancelDraw>) -> Result<()> {
     // Do NOT increment current_draw_id - tickets are for this draw_id
 
     // Schedule next draw attempt (same draw_id, just new timing)
-    lottery_state.next_draw_timestamp = clock.unix_timestamp.saturating_add(lottery_state.draw_interval);
+    lottery_state.next_draw_timestamp =
+        clock.unix_timestamp.saturating_add(lottery_state.draw_interval);
 
     // Emit cancellation event
     emit!(DrawCancelled {
@@ -1241,14 +1242,8 @@ pub fn handler_force_finalize_draw(ctx: Context<ForceFinalizeDraw>, reason: Stri
     //      void-the-draw vector detectable and time-bounded.
     // =========================================================================
     let lottery_state = &ctx.accounts.lottery_state;
-    require!(
-        lottery_state.is_awaiting_finalization,
-        LottoError::DrawNotInProgress
-    );
-    require!(
-        lottery_state.is_commit_timed_out(clock.unix_timestamp),
-        LottoError::Timeout
-    );
+    require!(lottery_state.is_awaiting_finalization, LottoError::DrawNotInProgress);
+    require!(lottery_state.is_commit_timed_out(clock.unix_timestamp), LottoError::Timeout);
 
     // =========================================================================
     // SECURITY FIX (Audit Issue #3): Mark DrawResult as explicitly finalized
@@ -1280,7 +1275,8 @@ pub fn handler_force_finalize_draw(ctx: Context<ForceFinalizeDraw>, reason: Stri
     // Reset draw state (including tickets, since we're finalizing)
     lottery_state.reset_draw_state(true);
     lottery_state.current_draw_id = lottery_state.current_draw_id.saturating_add(1);
-    lottery_state.next_draw_timestamp = clock.unix_timestamp.saturating_add(lottery_state.draw_interval);
+    lottery_state.next_draw_timestamp =
+        clock.unix_timestamp.saturating_add(lottery_state.draw_interval);
 
     // Update house fee based on new jackpot level
     lottery_state.house_fee_bps = lottery_state.get_current_house_fee_bps();
