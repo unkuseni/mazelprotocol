@@ -4,10 +4,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Config: {0}")]
-    Config(String),
     #[error("Solana: {0}")]
-    Solana(#[from] solana_client::client_error::ClientError),
+    Solana(Box<solana_client::client_error::ClientError>),
     #[error("Parse: {0}")]
     Parse(#[from] solana_pubkey::ParsePubkeyError),
     #[error("IO: {0}")]
@@ -20,6 +18,14 @@ pub enum Error {
     Store(String),
     #[error(transparent)]
     Anyhow(#[from] anyhow::Error),
+}
+
+// Box the large Solana client error to keep `Error` small, while still
+// letting `?` convert raw `ClientError` values automatically.
+impl From<solana_client::client_error::ClientError> for Error {
+    fn from(error: solana_client::client_error::ClientError) -> Self {
+        Error::Solana(Box::new(error))
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

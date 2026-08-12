@@ -25,7 +25,6 @@ struct TgUpdate {
 
 #[derive(Debug, Deserialize)]
 struct TgMessage {
-    message_id: u64,
     chat: TgChat,
     from: Option<TgUser>,
     text: Option<String>,
@@ -78,6 +77,14 @@ pub async fn run_polling(cfg: BotConfig) -> Result<()> {
             offset + 1
         );
         let resp: TgResponse<Vec<TgUpdate>> = client.get(&url).send().await?.json().await?;
+
+        // `ok=false` indicates a Telegram API-level error (bad token, rate
+        // limit, etc.). Back off briefly instead of tight-looping.
+        if !resp.ok {
+            tracing::warn!("Telegram getUpdates returned ok=false; backing off");
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            continue;
+        }
 
         if let Some(updates) = resp.result {
             for upd in updates {

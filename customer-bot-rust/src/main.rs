@@ -57,20 +57,22 @@ pub struct Cli {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::registry()
         .with(fmt::layer().json())
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .init();
 
     let cli = Cli::parse();
-    let cfg = config::BotConfig::from_cli(&cli).expect("Invalid config");
+    let cfg = config::BotConfig::from_cli(&cli)?;
 
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "Customer Bot starting");
 
     if cli.mode == "webhook" {
-        telegram::run_webhook(cfg).await.expect("Webhook server failed");
+        telegram::run_webhook(cfg).await?;
     } else {
-        telegram::run_polling(cfg).await.expect("Polling failed");
+        telegram::run_polling(cfg).await?;
     }
+
+    Ok(())
 }

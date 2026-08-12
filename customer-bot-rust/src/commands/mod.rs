@@ -98,58 +98,109 @@ fn help() -> String {
 
 async fn jackpot(solana: &Solana) -> String {
     with_timeout("Jackpot query", async {
-        match solana.fetch_main_state() {
-            Ok(s) => {
-                let draw_id = s.current_draw_id;
-                let status = if s.is_paused {
+        match (solana.fetch_main_state(), solana.fetch_qp_state()) {
+            (Ok(m), Ok(q)) => {
+                let main_status = if m.is_paused {
                     "⏸ Paused"
-                } else if s.is_draw_in_progress {
-                    "🔒 Draw in progress"
+                } else if m.is_draw_in_progress {
+                    "🔒 In progress"
+                } else {
+                    "🟢 Open"
+                };
+                let qp_status = if q.is_paused {
+                    "⏸ Paused"
+                } else if q.is_draw_in_progress {
+                    "🔒 In progress"
                 } else {
                     "🟢 Open"
                 };
                 format!(
-                    "<b>🎰 Main Lottery (6/46)</b>\n\nDraw #{draw_id}\nTickets sold: {}\nStatus: {status}\n\nUse /quickpick to get random numbers!",
-                    s.current_draw_tickets
+                    "<b>🎰 Main Lottery (6/46)</b>\nDraw #{main_draw} • {main_status}\n💰 Jackpot: {main_jackpot}\n🎟 Tickets: {main_tickets}\n⏳ Next draw: {main_countdown}\n\n<b>⚡ Quick Pick (5/35)</b>\nDraw #{qp_draw} • {qp_status}\n💰 Jackpot: {qp_jackpot}\n🎟 Tickets: {qp_tickets}\n⏳ Next draw: {qp_countdown}\n\nUse /quickpick to get random numbers!",
+                    main_draw = m.current_draw_id,
+                    main_status = main_status,
+                    main_jackpot = solana::format_usdc(m.jackpot_balance),
+                    main_tickets = m.current_draw_tickets,
+                    main_countdown = solana::format_countdown(m.next_draw_timestamp),
+                    qp_draw = q.current_draw,
+                    qp_status = qp_status,
+                    qp_jackpot = solana::format_usdc(q.jackpot_balance),
+                    qp_tickets = q.current_draw_tickets,
+                    qp_countdown = solana::format_countdown(q.next_draw_timestamp),
                 )
             }
-            Err(e) => format!("❌ Error: {e}"),
+            (Err(e), _) => format!("❌ Main lottery error: {e}"),
+            (_, Err(e)) => format!("❌ Quick Pick error: {e}"),
         }
     }).await.unwrap_or_else(|e| e)
 }
 
 async fn draw(solana: &Solana, args: &[&str]) -> String {
     let args_owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+    // `/draw qp [id]` shows Quick Pick results; `/draw [id]` shows Main.
+    let is_qp = args_owned.first().map(|s| s.as_str()) == Some("qp");
+    let id_arg = if is_qp { args_owned.get(1) } else { args_owned.first() };
+
     with_timeout("Draw results", async {
-        match solana.fetch_main_state() {
-            Ok(s) => {
-                let did = args_owned
-                    .first()
-                    .and_then(|a| a.parse().ok())
-                    .unwrap_or(s.current_draw_id.saturating_sub(1));
-                match solana.fetch_main_draw(did) {
-                    Ok(Some(dr)) => {
-                        let nums: Vec<String> =
-                            dr.winning_numbers[..6].iter().map(|n| n.to_string()).collect();
-                        let nums_str = nums.join(", ");
-                        let rd = if dr.was_rolldown { " 🎰 ROLLDOWN!" } else { "" };
-                        format!(
-                            "<b>Main Lottery Draw #{did}{rd}</b>\n\n🎯 Numbers: <code>{nums_str}</code>\n👥 Tickets: {tickets}\n\n🏆 Winners:\nMatch 6: {m6w} → {m6p}\nMatch 5: {m5w} → {m5p}\nMatch 4: {m4w} → {m4p}\nMatch 3: {m3w} → {m3p}",
-                            did = did,
-                            rd = rd,
-                            nums_str = nums_str,
-                            tickets = dr.total_tickets,
-                            m6w = dr.match6_win, m6p = solana::format_usdc(dr.m6_prize),
-                            m5w = dr.match5_win, m5p = solana::format_usdc(dr.m5_prize),
-                            m4w = dr.match4_win, m4p = solana::format_usdc(dr.m4_prize),
-                            m3w = dr.match3_win, m3p = solana::format_usdc(dr.m3_prize),
-                        )
+        if is_qp {
+            match solana.fetch_qp_state() {
+                Ok(q) => {
+                    let did = id_arg
+                        .and_then(|a| a.parse().ok())
+                        .unwrap_or(q.current_draw.saturating_sub(1));
+                    match solana.fetch_qp_draw(did) {
+                        Ok(Some(dr)) => {
+                            let nums: Vec<String> =
+                                dr.winning_numbers.iter().map(|n| n.to_string()).collect();
+                            let nums_str = nums.join(", ");
+                            let rd = if dr.was_rolldown { " 🎰 ROLLDOWN!" } else { "" };
+                            format!(
+                                "<b>⚡ Quick Pick Draw #{did}{rd}</b>\n\n🎯 Numbers: <code>{nums_str}</code>\n👥 Tickets: {tickets}\n\n🏆 Winners:\nMatch 5: {m5w} → {m5p}\nMatch 4: {m4w} → {m4p}\nMatch 3: {m3w} → {m3p}",
+                                did = dr.draw_id,
+                                rd = rd,
+                                nums_str = nums_str,
+                                tickets = dr.total_tickets,
+                                m5w = dr.match5_win, m5p = solana::format_usdc(dr.m5_prize),
+                                m4w = dr.match4_win, m4p = solana::format_usdc(dr.m4_prize),
+                                m3w = dr.match3_win, m3p = solana::format_usdc(dr.m3_prize),
+                            )
+                        }
+                        Ok(None) => format!("❌ Quick Pick Draw #{did} not found"),
+                        Err(e) => format!("❌ Error: {e}"),
                     }
-                    Ok(None) => format!("❌ Draw #{did} not found"),
-                    Err(e) => format!("❌ Error: {e}"),
                 }
+                Err(e) => format!("❌ Error: {e}"),
             }
-            Err(e) => format!("❌ Error: {e}"),
+        } else {
+            match solana.fetch_main_state() {
+                Ok(s) => {
+                    let did = id_arg
+                        .and_then(|a| a.parse().ok())
+                        .unwrap_or(s.current_draw_id.saturating_sub(1));
+                    match solana.fetch_main_draw(did) {
+                        Ok(Some(dr)) => {
+                            let nums: Vec<String> =
+                                dr.winning_numbers.iter().map(|n| n.to_string()).collect();
+                            let nums_str = nums.join(", ");
+                            let rd = if dr.was_rolldown { " 🎰 ROLLDOWN!" } else { "" };
+                            format!(
+                                "<b>Main Lottery Draw #{did}{rd}</b>\n\n🎯 Numbers: <code>{nums_str}</code>\n👥 Tickets: {tickets}\n\n🏆 Winners:\nMatch 6: {m6w} → {m6p}\nMatch 5: {m5w} → {m5p}\nMatch 4: {m4w} → {m4p}\nMatch 3: {m3w} → {m3p}\nMatch 2: {m2w} → {m2p}",
+                                did = dr.draw_id,
+                                rd = rd,
+                                nums_str = nums_str,
+                                tickets = dr.total_tickets,
+                                m6w = dr.match6_win, m6p = solana::format_usdc(dr.m6_prize),
+                                m5w = dr.match5_win, m5p = solana::format_usdc(dr.m5_prize),
+                                m4w = dr.match4_win, m4p = solana::format_usdc(dr.m4_prize),
+                                m3w = dr.match3_win, m3p = solana::format_usdc(dr.m3_prize),
+                                m2w = dr.match2_win, m2p = solana::format_usdc(dr.m2_prize),
+                            )
+                        }
+                        Ok(None) => format!("❌ Draw #{did} not found"),
+                        Err(e) => format!("❌ Error: {e}"),
+                    }
+                }
+                Err(e) => format!("❌ Error: {e}"),
+            }
         }
     }).await.unwrap_or_else(|e| e)
 }
@@ -245,6 +296,7 @@ async fn wallet(cfg: &BotConfig, store: &Store, uid: u64) -> String {
     let user = store.get_user(uid);
     let addr = user.map(|u| u.wallet_address).unwrap_or_else(|| "Not registered".to_string());
     format!(
-        "<b>💳 Wallet</b>\n\nYour wallet: <code>{addr}</code>\n\nTo deposit USDC, send to your wallet address above.\nThe bot will track your balance.\n\nUse /register to link a different wallet."
+        "<b>💳 Wallet</b>\n\nYour wallet: <code>{addr}</code>\n\nTo deposit, send USDC (mint <code>{mint}</code>) to your wallet address above.\nThe bot will track your balance.\n\nUse /register to link a different wallet.",
+        mint = short_wallet(&cfg.usdc_mint.to_string()),
     )
 }
