@@ -105,29 +105,18 @@ impl UserStats {
         self.last_draw_participated = current_draw_id;
     }
 
-    /// Calculate streak bonus (basis points).
+    /// Calculate the streak bonus for the current player (basis points).
     ///
-    /// # ⚠️  DEPRECATED — NOT YET ACTIVE (L-7)
+    /// Returns `STREAK_BONUS_BPS_PER_DRAW` (0.5%) per consecutive draw the
+    /// player has participated in, capped at `MAX_STREAK_BONUS_BPS` (5%).
     ///
-    /// Streak bonuses are TRACKED (current_streak, best_streak) but NEVER
-    /// applied to any prize calculation or ticket purchase. The bonus logic
-    /// is correct but requires pre-funding in finalize_draw and tracking in
-    /// draw_result to ensure the prize pool can cover the additional liability.
-    /// See the TODO in claim_prize.rs for integration details.
-    ///
-    /// When activated, this provides 0.5% bonus per consecutive draw, max 5%.
-    #[deprecated(
-        since = "3.0.0",
-        note = "Streak bonuses are tracked but not yet applied to prizes. See L-7."
-    )]
+    /// This bonus is applied to USDC prize payouts at claim time (L-7). It is
+    /// funded by the `streak_bonus_pool` pre-computed at draw finalization,
+    /// which guarantees the prize pool can cover the worst-case bonus.
     pub fn get_streak_bonus_bps(&self) -> u16 {
-        // 0.5% bonus per consecutive draw, max 5%
-        let bonus = (self.current_streak as u16) * 50;
-        if bonus > 500 {
-            500
-        } else {
-            bonus
-        }
+        (self.current_streak as u16)
+            .saturating_mul(STREAK_BONUS_BPS_PER_DRAW)
+            .min(MAX_STREAK_BONUS_BPS)
     }
 }
 

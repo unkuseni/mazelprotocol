@@ -211,13 +211,10 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
         _ => 0,
     };
 
-    // TODO: Apply streak bonus when properly integrated with solvency system.
-    // Streak bonuses require pre-funding in finalize_draw and tracking in
-    // draw_result to ensure the prize pool can cover the additional liability.
-    // For now, streaks are tracked but bonuses are not yet applied to prizes.
-    // See: get_streak_bonus_bps() in state.rs for the bonus calculation logic.
-    #[allow(deprecated)]
-    let _streak_bonus_bps = ctx.accounts.user_stats.get_streak_bonus_bps();
+    // Streak bonus (L-7): 0.5% per consecutive draw, capped at 5%. Funded by the
+    // pre-computed `streak_bonus_pool` in the draw result, which guarantees
+    // solvency. Match 2 (free ticket) does not receive a streak bonus.
+    let streak_bonus_bps = ctx.accounts.user_stats.get_streak_bonus_bps();
 
     // Check if there's a prize to claim
     let has_prize = prize_amount > 0;
@@ -225,6 +222,7 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
     // Handle prize payment
     let mut free_ticket_credited = false;
     let mut actual_transfer_amount = 0u64;
+    let mut streak_bonus_amount = 0u64;
 
     if match_count == 2 && prize_amount > 0 {
         // FIXED: Match 2 = Free ticket credit (not USDC transfer)
@@ -232,26 +230,39 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
         free_ticket_credited = true;
         msg!("Free ticket credited for Match 2!");
     } else if prize_amount > 0 {
+        // Streak bonus (L-7): applies only to Match 3/4/5 fixed prizes (never
+        // the Match 6 jackpot nor the Match 2 free ticket). Capped by the
+        // remaining pre-funded bonus pool so the total payout can never exceed
+        // what was reserved at finalization.
+        if match_count >= 3 && match_count <= 5 {
+            let remaining_bonus = ctx.accounts.draw_result.get_remaining_streak_bonus();
+            let computed_bonus =
+                (prize_amount as u128 * streak_bonus_bps as u128 / BPS_DENOMINATOR as u128) as u64;
+            streak_bonus_amount = computed_bonus.min(remaining_bonus);
+        }
+        let total_payout = prize_amount.saturating_add(streak_bonus_amount);
+
         // FIXED: Detailed solvency check with error reporting
-        if prize_pool_balance < prize_amount {
+        if prize_pool_balance < total_payout {
             msg!("Prize pool insufficient for prize payment!");
             msg!("  Required prize: {} USDC lamports", prize_amount);
+            msg!("  Streak bonus: {} USDC lamports", streak_bonus_amount);
             msg!("  Available in pool: {} USDC lamports", prize_pool_balance);
-            msg!("  Shortfall: {} USDC lamports", prize_amount - prize_pool_balance);
+            msg!("  Shortfall: {} USDC lamports", total_payout.saturating_sub(prize_pool_balance));
             return Err(LottoError::InsufficientPrizePool.into());
         }
 
-        // Transfer USDC prize
+        // Transfer USDC prize (base + streak bonus)
         transfer_prize_internal(
             &ctx.accounts.prize_pool_usdc,
             &ctx.accounts.player_usdc,
             &ctx.accounts.lottery_state,
             &ctx.accounts.token_program,
-            prize_amount,
+            total_payout,
             lottery_bump,
         )?;
 
-        actual_transfer_amount = prize_amount;
+        actual_transfer_amount = total_payout;
     }
 
     // SECURITY FIX (Issue #6 + Issue #4): Update lottery_state internal accounting
@@ -268,6 +279,16 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
     if actual_transfer_amount > 0 {
         let lottery_state = &mut ctx.accounts.lottery_state;
         lottery_state.record_prize_payment(actual_transfer_amount, match_count == 6);
+    }
+
+    // Track the streak bonus paid against the pre-funded pool (L-7). This is
+    // separate bookkeeping: the actual USDC (base + bonus) was already deducted
+    // from the live balances via record_prize_payment above, and this draw-level
+    // counter enforces the `total_streak_bonus_paid <= streak_bonus_pool` bound.
+    if streak_bonus_amount > 0 {
+        let draw_result = &mut ctx.accounts.draw_result;
+        draw_result.total_streak_bonus_paid =
+            draw_result.total_streak_bonus_paid.saturating_add(streak_bonus_amount);
     }
 
     // Update ticket state
@@ -315,6 +336,7 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
         draw_id: ticket_draw_id,
         match_count,
         prize_amount,
+        streak_bonus: streak_bonus_amount,
         free_ticket_issued: free_ticket_credited,
         individual_ticket_id: 0, // Single ticket, no bulk index
         timestamp: clock.unix_timestamp,
@@ -329,6 +351,13 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
         msg!("  Winning numbers: {:?}", winning_numbers);
         msg!("  Match count: {}", match_count);
         msg!("  Prize amount: {} USDC lamports", prize_amount);
+        if streak_bonus_amount > 0 {
+            msg!(
+                "  Streak bonus: {} USDC lamports ({} bps)",
+                streak_bonus_amount,
+                streak_bonus_bps
+            );
+        }
         if free_ticket_credited {
             msg!("  Free ticket credited: YES");
             msg!("  Total free tickets available: {}", user_stats.free_tickets_available);

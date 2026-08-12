@@ -145,6 +145,8 @@ pub struct PrizeClaimed {
     pub match_count: u8,
     /// Prize amount in USDC lamports
     pub prize_amount: u64,
+    /// Streak bonus applied to the prize (USDC lamports, 0 if none)
+    pub streak_bonus: u64,
     /// Whether a free ticket was issued (Match 2)
     pub free_ticket_issued: bool,
     /// M7: Individual ticket ID for bulk claims. 0 for single-ticket claims.

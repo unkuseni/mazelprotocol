@@ -54,6 +54,17 @@ pub struct DrawResult {
     /// `total_reclaimed <= total_committed` is enforced on every reclaim.
     pub total_reclaimed: u64,
 
+    /// Pre-funded streak bonus pool for this draw (in USDC lamports).
+    /// Computed at finalization as a fraction of the committed prizes, capped
+    /// by the available prize-pool buffer. Guarantees the pool can cover the
+    /// worst-case streak bonus on every USDC prize tier (L-7).
+    pub streak_bonus_pool: u64,
+
+    /// Total streak bonus actually paid out so far for this draw (L-7).
+    /// The invariant `total_streak_bonus_paid <= streak_bonus_pool` is
+    /// enforced on every claim via `get_remaining_streak_bonus`.
+    pub total_streak_bonus_paid: u64,
+
     /// PDA bump seed
     pub bump: u8,
 }
@@ -88,6 +99,14 @@ impl DrawResult {
     /// at finalization minus what has already been swept back into reserve.
     pub fn get_reclaimable_amount(&self) -> u64 {
         self.total_committed.saturating_sub(self.total_reclaimed)
+    }
+
+    /// Returns the streak bonus still available to be paid for this draw (L-7).
+    /// This is `streak_bonus_pool - total_streak_bonus_paid` (never negative),
+    /// enforcing the invariant that no claim can pay out more streak bonus than
+    /// was pre-funded at finalization.
+    pub fn get_remaining_streak_bonus(&self) -> u64 {
+        self.streak_bonus_pool.saturating_sub(self.total_streak_bonus_paid)
     }
 
     /// Total prize liability for this draw (Σ winners × prize per tier).

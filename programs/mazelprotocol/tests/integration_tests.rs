@@ -570,6 +570,8 @@ mod test_draw_result {
             bump: 0,
             total_committed: 0,
             total_reclaimed: 0,
+            streak_bonus_pool: 0,
+            total_streak_bonus_paid: 0,
         }
     }
 
@@ -635,6 +637,42 @@ mod test_draw_result {
         assert_eq!(result.get_prize_for_matches(1), 0);
         assert_eq!(result.get_prize_for_matches(0), 0);
         assert_eq!(result.get_prize_for_matches(6), result.match_6_prize_per_winner);
+    }
+
+    // =========================================================================
+    // STREAK BONUS (L-7)
+    // =========================================================================
+
+    #[test]
+    fn test_get_remaining_streak_bonus_full_pool() {
+        let result = DrawResult {
+            streak_bonus_pool: 1_000_000,
+            total_streak_bonus_paid: 0,
+            ..create_test_draw_result()
+        };
+        assert_eq!(result.get_remaining_streak_bonus(), 1_000_000);
+    }
+
+    #[test]
+    fn test_get_remaining_streak_bonus_partially_paid() {
+        let result = DrawResult {
+            streak_bonus_pool: 1_000_000,
+            total_streak_bonus_paid: 400_000,
+            ..create_test_draw_result()
+        };
+        assert_eq!(result.get_remaining_streak_bonus(), 600_000);
+    }
+
+    #[test]
+    fn test_get_remaining_streak_bonus_saturates_at_zero() {
+        // Defensive: if paid ever exceeded the pool (shouldn't happen), the
+        // remainder must saturate to zero rather than underflow.
+        let result = DrawResult {
+            streak_bonus_pool: 1_000_000,
+            total_streak_bonus_paid: 1_500_000,
+            ..create_test_draw_result()
+        };
+        assert_eq!(result.get_remaining_streak_bonus(), 0);
     }
 
     // =========================================================================

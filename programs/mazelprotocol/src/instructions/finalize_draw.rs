@@ -705,17 +705,49 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
     }
     // If no jackpot winner and no rolldown, jackpot continues to accumulate
 
+    // ==========================================================================
+    // STREAK BONUS PRE-FUNDING (L-7)
+    // ==========================================================================
+    // The streak bonus (0.5% per consecutive draw, max 5%) is applied to Match
+    // 3/4/5 fixed prizes at claim time (never the Match 6 jackpot nor the Match
+    // 2 free ticket). To keep the protocol solvent, pre-fund a `streak_bonus_pool`
+    // at finalization equal to the worst-case bonus over those tiers, capped by
+    // the prize-pool buffer (`primary_funds - total_distributed`) so the pool is
+    // guaranteed to cover base prizes + bonuses without dipping into funds
+    // committed to other draws. The bonus is "use it or lose it": unclaimed
+    // bonus stays in the prize pool for future draws.
+    let bonusable_prizes = prize_calc
+        .match_5_prize
+        .saturating_mul(params.winner_counts.match_5 as u64)
+        .saturating_add(
+            prize_calc.match_4_prize.saturating_mul(params.winner_counts.match_4 as u64),
+        )
+        .saturating_add(
+            prize_calc.match_3_prize.saturating_mul(params.winner_counts.match_3 as u64),
+        );
+    let max_streak_bonus_pool =
+        (bonusable_prizes as u128 * MAX_STREAK_BONUS_BPS as u128 / BPS_DENOMINATOR as u128) as u64;
+    let available_for_bonus = primary_funds.saturating_sub(prize_calc.total_distributed);
+    let streak_bonus_pool = max_streak_bonus_pool.min(available_for_bonus);
+    draw_result.streak_bonus_pool = streak_bonus_pool;
+    msg!("Streak bonus pool funded: {} USDC lamports", streak_bonus_pool);
+
     // SECURITY FIX (Issue #6): Track committed prizes separately from actual paid prizes.
-    // total_prizes_committed reflects what was promised at finalization time.
-    // total_prizes_paid is now incremented at actual claim time (in claim_prize/claim_bulk_prize).
+    // total_prizes_committed reflects what was promised at finalization time
+    // (base prizes + worst-case streak bonus). total_prizes_paid is incremented
+    // at actual claim time (in claim_prize/claim_bulk_prize), and will always
+    // be <= total_prizes_committed because the actual bonus never exceeds the
+    // pre-funded streak_bonus_pool.
     // This separation allows accurate solvency monitoring and governance oversight.
-    lottery_state.total_prizes_committed =
-        lottery_state.total_prizes_committed.saturating_add(prize_calc.total_distributed);
+    lottery_state.total_prizes_committed = lottery_state
+        .total_prizes_committed
+        .saturating_add(prize_calc.total_distributed.saturating_add(streak_bonus_pool));
 
     // Fix #3: Snapshot total_committed on the DrawResult so that
     // reclaim_expired_prizes can enforce per-draw reclaim bounds.
+    // Includes the streak bonus pool so unclaimed bonus is also reclaimable.
     // total_reclaimed was already initialized to 0 in execute_draw.
-    draw_result.total_committed = prize_calc.total_distributed;
+    draw_result.total_committed = prize_calc.total_distributed.saturating_add(streak_bonus_pool);
 
     // SECURITY: Clear awaiting-finalization flag now that the draw
     // has been fully completed.

@@ -1266,6 +1266,9 @@ pub fn handler_force_finalize_draw(ctx: Context<ForceFinalizeDraw>, reason: Stri
     // force-finalized draw (total_committed = 0 → reclaimable = 0).
     draw_result.total_committed = 0;
     draw_result.total_reclaimed = 0;
+    // L-7: No streak bonus is pre-funded or payable on a force-finalized draw.
+    draw_result.streak_bonus_pool = 0;
+    draw_result.total_streak_bonus_paid = 0;
 
     let lottery_state = &mut ctx.accounts.lottery_state;
 

@@ -251,8 +251,10 @@ pub const MAX_TICKETS_PER_DRAW_PER_USER: u64 = 5000;
 pub const MAX_FREE_TICKETS: u64 = 1000;
 /// Basis points denominator
 pub const BPS_DENOMINATOR: u64 = 10000;
-/// Maximum streak bonus in basis points (10% = 1000 bps)
-pub const MAX_STREAK_BONUS_BPS: u16 = 1000;
+/// Streak bonus per consecutive draw played (0.5% = 50 bps)
+pub const STREAK_BONUS_BPS_PER_DRAW: u16 = 50;
+/// Maximum streak bonus in basis points (5% = 500 bps)
+pub const MAX_STREAK_BONUS_BPS: u16 = 500;
 
 // ============================================================================
 // ACCOUNT SIZES
@@ -337,8 +339,10 @@ pub const DRAW_RESULT_SIZE: usize = 8 + // discriminator
     1 +  // is_explicitly_finalized
     8 +  // total_committed (Fix #3: per-draw reclaim accounting)
     8 +  // total_reclaimed (Fix #3: per-draw reclaim accounting)
+    8 +  // streak_bonus_pool (L-7: pre-funded streak bonus liability)
+    8 +  // total_streak_bonus_paid (L-7: streak bonus actually paid out)
     1 +  // bump
-    16; // padding (reduced from 32 to accommodate new fields)
+    0; // no padding remaining
 
 /// Ticket account size
 pub const TICKET_SIZE: usize = 8 + // discriminator
