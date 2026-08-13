@@ -225,13 +225,6 @@ function WalletButton() {
   const [copied, setCopied] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  console.log("[WalletButton] Debug:", {
-    address,
-    isConnected,
-    hasOpen: typeof open === "function",
-    hasDisconnect: typeof disconnect === "function",
-  });
-
   const truncatedAddress = address
     ? `${address.slice(0, 4)}...${address.slice(-4)}`
     : "";
@@ -249,10 +242,7 @@ function WalletButton() {
       <div className="relative">
         <button
           type="button"
-          onClick={() => {
-            console.log("[WalletButton] Toggling dropdown, current:", showDropdown);
-            setShowDropdown((p) => !p);
-          }}
+          onClick={() => setShowDropdown((p) => !p)}
           className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-gold-400 bg-gold-500/8 border border-gold-500/15 hover:border-gold-500/30 rounded-lg transition-all duration-200"
         >
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -309,10 +299,7 @@ function WalletButton() {
   return (
     <button
       type="button"
-      onClick={() => {
-        console.log("[WalletButton] Connect button clicked, calling open");
-        open({ view: "Connect", namespace: "solana" });
-      }}
+      onClick={() => open({ view: "Connect", namespace: "solana" })}
       className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-black bg-linear-to-b from-gold-400 to-gold-600 hover:from-gold-300 hover:to-gold-500 rounded-lg transition-all duration-300 shadow-lg shadow-gold-500/20 hover:shadow-gold-500/30 hover:scale-[1.02] active:scale-[0.98]"
     >
       <Wallet size={16} />

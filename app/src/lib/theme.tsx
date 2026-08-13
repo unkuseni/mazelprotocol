@@ -59,14 +59,14 @@ function applyThemeToDocument(resolvedTheme: "light" | "dark") {
     root.style.colorScheme = "dark";
 
     // Update theme-color meta tag for dark mode
-    updateThemeColorMeta("#0a0f1a");
+    updateThemeColorMeta("#0A0908");
   } else {
     root.classList.add("light");
     root.classList.remove("dark");
     root.style.colorScheme = "light";
 
     // Update theme-color meta tag for light mode
-    updateThemeColorMeta("#f8fafc");
+    updateThemeColorMeta("#FAF8F5");
   }
 }
 
@@ -96,14 +96,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const resolvedTheme = React.useMemo(() => getResolvedTheme(theme), [theme]);
 
-  // Apply theme on initial render and when resolvedTheme changes
+  // Apply theme whenever the resolved theme changes (and on mount).
   React.useEffect(() => {
-    applyThemeToDocument(resolvedTheme);
-  }, [resolvedTheme]);
-
-  // Apply theme on initial mount (client-side only)
-  React.useEffect(() => {
-    // This ensures the theme is applied even if the initial state was incorrect
     applyThemeToDocument(resolvedTheme);
   }, [resolvedTheme]);
 

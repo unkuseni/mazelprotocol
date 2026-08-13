@@ -32,155 +32,62 @@ export default function App() {
 
   if (regionPending) {
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "100vh",
-          padding: "2rem",
-          fontFamily: "Inter, system-ui, sans-serif",
-          background: "#0a0f1a",
-          color: "#fff",
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            maxWidth: "560px",
-            margin: "0 auto",
-          }}
-        >
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-8 py-16 text-foreground">
+        {/* Ambient glow background */}
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-background via-transparent to-background" />
+        <div className="pointer-events-none absolute left-1/4 top-1/4 h-125 w-125 rounded-full bg-gold-500/5 blur-[150px]" />
+        <div className="pointer-events-none absolute bottom-1/4 right-1/4 h-125 w-125 rounded-full bg-emerald-500/5 blur-[150px]" />
+
+        <div className="relative z-10 mx-auto max-w-xl text-center">
           {/* Icon */}
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "80px",
-              height: "80px",
-              borderRadius: "20px",
-              background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(245, 158, 11, 0.15))",
-              border: "1px solid rgba(16, 185, 129, 0.3)",
-              marginBottom: "1.5rem",
-            }}
-          >
-            <Gem size={36} color="#10b981" />
+          <div className="mx-auto mb-6 inline-flex h-20 w-20 items-center justify-center rounded-2xl border border-gold-500/25 bg-linear-to-br from-gold-500/10 to-emerald-500/10 glow-gold">
+            <Gem size={36} className="text-gold-400" />
           </div>
 
           {/* Heading */}
-          <h1
-            style={{
-              fontSize: "2rem",
-              fontWeight: 800,
-              marginBottom: "0.75rem",
-              background: "linear-gradient(135deg, #10b981, #f59e0b)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
+          <h1 className="font-display mb-3 text-3xl font-black tracking-tight sm:text-4xl">
             Coming Soon to Your Region
           </h1>
 
           {/* Description */}
-          <p
-            style={{
-              color: "#cbd5e1",
-              fontSize: "1.05rem",
-              lineHeight: 1.7,
-              marginBottom: "1.25rem",
-            }}
-          >
+          <p className="mb-5 text-base leading-relaxed text-muted-foreground">
             MazelProtocol is the first provably fair, on-chain lottery protocol
             built on Solana — delivering mathematically positive expected value
             through transparent smart contracts and community-driven prize pools.
           </p>
 
           {/* Geoblock message */}
-          <p
-            style={{
-              color: "#94a3b8",
-              fontSize: "0.95rem",
-              lineHeight: 1.6,
-              marginBottom: "2rem",
-            }}
-          >
+          <p className="mb-8 text-sm leading-relaxed text-muted-foreground/80">
             {getGeoblockMessage()}
           </p>
 
           {/* Community links */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "0.75rem",
-              justifyContent: "center",
-            }}
-          >
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <a
               href="https://discord.gg/mazelprotocol"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                padding: "0.625rem 1.25rem",
-                borderRadius: "12px",
-                background: "rgba(88, 101, 242, 0.12)",
-                border: "1px solid rgba(88, 101, 242, 0.3)",
-                color: "#a5b4fc",
-                fontSize: "0.9rem",
-                fontWeight: 500,
-                textDecoration: "none",
-                transition: "background 0.2s",
-              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface-1/50 px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-gold-500/30 hover:bg-surface-2"
             >
-              <MessageCircle size={18} />
+              <MessageCircle size={18} className="text-gold-400" />
               Join Discord
             </a>
             <a
               href="https://twitter.com/mazelprotocol"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                padding: "0.625rem 1.25rem",
-                borderRadius: "12px",
-                background: "rgba(29, 161, 242, 0.12)",
-                border: "1px solid rgba(29, 161, 242, 0.3)",
-                color: "#7dd3fc",
-                fontSize: "0.9rem",
-                fontWeight: 500,
-                textDecoration: "none",
-                transition: "background 0.2s",
-              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface-1/50 px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-gold-500/30 hover:bg-surface-2"
             >
-              <Twitter size={18} />
+              <Twitter size={18} className="text-gold-400" />
               Follow on X
             </a>
             <a
               href="https://mazelprotocol.com"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                padding: "0.625rem 1.25rem",
-                borderRadius: "12px",
-                background: "rgba(16, 185, 129, 0.12)",
-                border: "1px solid rgba(16, 185, 129, 0.3)",
-                color: "#6ee7b7",
-                fontSize: "0.9rem",
-                fontWeight: 500,
-                textDecoration: "none",
-                transition: "background 0.2s",
-              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface-1/50 px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-emerald-500/30 hover:bg-surface-2"
             >
-              <Globe size={18} />
+              <Globe size={18} className="text-emerald-400" />
               Visit Website
             </a>
           </div>

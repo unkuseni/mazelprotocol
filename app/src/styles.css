@@ -43,18 +43,18 @@
   --surface-0: #FFFFFF;
   --surface-1: #FAF8F5;
   --surface-2: #F3EFE8;
-  --gold-50: #FDFBF7;
-  --gold-100: #F7F1E0;
-  --gold-200: #EFE0B8;
-  --gold-300: #E0C580;
-  --gold-400: #D4A853;
-  --gold-500: #C49535;
-  --gold-600: #B07E28;
-  --gold-700: #8F6420;
-  --gold-800: #6E4C1A;
-  --gold-900: #4D3412;
+  --gold-50: #FDFAF3;
+  --gold-100: #F9F1DD;
+  --gold-200: #F2E2B5;
+  --gold-300: #E9CE85;
+  --gold-400: #E0B65A;
+  --gold-500: #D4A23B;
+  --gold-600: #B9862A;
+  --gold-700: #946921;
+  --gold-800: #6E4D1B;
+  --gold-900: #4D3613;
   --emerald-400: #34D399;
-  --emerald-500: #10B981;
+  --emerald-500: #22C08A;
   --emerald-600: #059669;
 
   /* ---- Fluid typography scale ---- */
@@ -79,31 +79,31 @@
   --leading-loose:   2;
 }
 
-/* ---- Dark mode (primary) — Casino Luxury ---- */
+/* ---- Dark mode (primary) — Noir Opulence ---- */
 .dark {
-  --background: #08080B;
-  --foreground: #EDE8DE;
-  --card: #111114;
-  --card-foreground: #EDE8DE;
-  --popover: #16161A;
-  --popover-foreground: #EDE8DE;
-  --primary: #D4A853;
-  --primary-foreground: #0A0A0A;
-  --secondary: #1A1A1F;
-  --secondary-foreground: #EDE8DE;
-  --muted: #1A1A1F;
-  --muted-foreground: #8A867C;
-  --accent: #10B981;
-  --accent-foreground: #FFFFFF;
-  --destructive: #DC2626;
+  --background: #0A0908;
+  --foreground: #F0EBE1;
+  --card: #121110;
+  --card-foreground: #F0EBE1;
+  --popover: #171614;
+  --popover-foreground: #F0EBE1;
+  --primary: #E0B65A;
+  --primary-foreground: #12100A;
+  --secondary: #1B1A17;
+  --secondary-foreground: #F0EBE1;
+  --muted: #1B1A17;
+  --muted-foreground: #9C978A;
+  --accent: #22C08A;
+  --accent-foreground: #06120D;
+  --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #242428;
-  --input: #1E1E23;
-  --ring: #D4A853;
+  --border: #262421;
+  --input: #201E1B;
+  --ring: #E0B65A;
 
-  --surface-0: #0D0D10;
-  --surface-1: #111116;
-  --surface-2: #18181D;
+  --surface-0: #0D0C0A;
+  --surface-1: #121110;
+  --surface-2: #1A1916;
 }
 
 /* ---------------------------------------------------------------------------
@@ -111,6 +111,12 @@
  * --------------------------------------------------------------------------- */
 
 @theme inline {
+  /* Typography families */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -199,12 +205,12 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue",
-      sans-serif;
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  /* Display font is applied via the `font-display` utility on headings. */
 
   html {
     scroll-behavior: smooth;
