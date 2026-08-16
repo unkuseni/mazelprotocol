@@ -41,6 +41,8 @@ pub const QP_MAX_NUMBER: u8 = 35;
 pub const DRAW_COMMIT_TIMEOUT: i64 = 3600;
 pub const MAIN_FINALIZATION_DELAY: i64 = 120;
 pub const QP_FINALIZATION_DELAY: i64 = 60;
+pub const MAIN_TICKET_SALE_CUTOFF: i64 = 3600;
+pub const QP_TICKET_SALE_CUTOFF: i64 = 300;
 
 // ---------------------------------------------------------------------------
 // Bot mode
@@ -79,6 +81,7 @@ pub struct BotConfig {
     pub main_program_id: Pubkey,
     pub qp_program_id: Pubkey,
     pub switchboard_queue: Pubkey,
+    pub switchboard_env: String,
     pub usdc_mint: Pubkey,
     pub mode: BotMode,
     pub dry_run: bool,
@@ -127,6 +130,7 @@ impl BotConfig {
                 .map_err(|e| BotError::Config(format!("QP_PROGRAM_ID: {e}")))?,
             switchboard_queue: Pubkey::from_str(&cli.switchboard_queue)
                 .map_err(|e| BotError::Config(format!("SWITCHBOARD_QUEUE: {e}")))?,
+            switchboard_env: cli.switchboard_env.clone(),
             usdc_mint: Pubkey::from_str(&cli.usdc_mint)
                 .map_err(|e| BotError::Config(format!("USDC_MINT: {e}")))?,
             mode: BotMode::from_str(&cli.mode)?,

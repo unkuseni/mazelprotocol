@@ -107,7 +107,7 @@ mazelprotocol/
 - [Rust](https://rustup.rs/) (latest stable)
 - [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools)
 - [Anchor CLI](https://www.anchor-lang.com/docs/installation)
-- [Node.js](https://nodejs.org/) 18+ and pnpm/yarn
+- [Node.js](https://nodejs.org/) 18+ (npm or bun; pnpm is used inside `app/`)
 
 ### Installation
 
@@ -117,7 +117,7 @@ git clone https://github.com/mazelprotocol/mazelprotocol.git
 cd mazelprotocol
 
 # Install dependencies
-pnpm install  # or yarn install
+npm install  # or bun install
 
 # Build the programs
 anchor build
@@ -181,10 +181,18 @@ cargo run --release -p mazelprotocol-draw-bot -- \
   --rpc-url https://api.devnet.solana.com \
   --keypair ~/.config/solana/id.json \
   --switchboard-queue <QUEUE_PUBKEY> \
+  --switchboard-env devnet \
   --usdc-mint <USDC_MINT> \
   --telegram-bot-token <TOKEN> \
   --telegram-chat-id <ID>
 ```
+
+The bot now creates a real Switchboard randomness account on each draw
+(system create → Switchboard `randomness_commit` → lottery
+`commit_randomness`, all in one transaction) and waits for the on-chain
+finalization delay before calling `finalize_draw`. `--switchboard-env` must
+match the cluster (`devnet` or `mainnet`) and the Switchboard queue must
+allow requests from the authority keypair.
 
 ### Customer Bot (`customer-bot-rust/`)
 
@@ -216,14 +224,12 @@ cargo run --release -p mazelprotocol-customer-bot -- \
 The project includes comprehensive integration tests:
 
 ```bash
-# Run all tests
+# Run all tests (single mocha process against one local validator)
 anchor test
 
-# Run main lottery tests
-yarn test tests/mazelprotocol.ts
-
-# Run Quick Pick tests
-yarn test tests/quickpick.ts
+# Run a single suite (each needs a fresh local validator)
+npx ts-mocha -p ./tsconfig.json -t 1000000 tests/mazelprotocol.ts
+npx ts-mocha -p ./tsconfig.json -t 1000000 tests/quickpick.ts
 ```
 
 
@@ -288,13 +294,17 @@ src/
 
 ### Quick Pick Express Rolldown ($50k Hard Cap)
 
+> Assuming ~20,000 tickets sold during the rolldown draw
+
 | Match | Pool Share | Est. Prize* | Odds | EV Contribution |
 |-------|------------|-------------|------|-----------------|
-| 4 | 50% | ~$3,247* | 1/2,165 | $1.50 |
-| 3 | 50% | ~$75* | 1/72 | $1.04 |
-| **Total EV** | | | | **$2.54** |
+| 4 | 60% | ~$3,247* | 1/2,165 | $1.50 |
+| 3 | 40% | ~$72* | 1/72 | $1.00 |
+| **Total EV** | | | | **$2.50** |
 
-**Edge: $2.54 - $1.50 = +$1.04 per ticket (+69.3%)**
+**Edge: $2.50 - $1.50 = +$1.00 per ticket (+66.7%)**
+
+*\*Pari-mutuel prizes: Actual = Pool ÷ Winners. At the $50k hard cap the rolldown jackpot splits 60/40 (Match 4 = $30k pool, Match 3 = $20k pool). More tickets = more winners = lower per-winner prizes.*
 
 ## 🔧 For Developers
 

@@ -1,7 +1,14 @@
 //! Phase 2: Execute draw.
+//!
+//! Deserializes the draw result using the ON-CHAIN program types
+//! (`mazelprotocol::state::DrawResult` / `quickpick::state::QuickPickDrawResult`)
+//! so the bot can never read misaligned fields.
 
 use crate::config::BotConfig;
-use crate::error::Result;
+use crate::error::{BotError, Result};
+use anchor_lang::AccountDeserialize;
+use mazelprotocol::state::DrawResult;
+use quickpick::state::QuickPickDrawResult;
 use solana_client::rpc_client::RpcClient;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
@@ -14,6 +21,15 @@ pub struct ExecuteResult {
     pub signature: Signature,
     pub winning_numbers: Vec<u8>,
     pub was_rolldown: bool,
+    pub timestamp: i64,
+}
+
+/// Deserialize an Anchor account payload using the program crate's types,
+/// returning a typed error instead of panicking (review M4).
+pub fn deser_checked<T: AccountDeserialize>(data: &[u8]) -> Result<T> {
+    let mut slice: &[u8] = data;
+    T::try_deserialize(&mut slice)
+        .map_err(|e| BotError::Draw(format!("deserialize account data: {e}")))
 }
 
 pub async fn execute_main_draw(
@@ -51,11 +67,18 @@ pub async fn execute_main_draw(
     let sig = rpc.send_and_confirm_transaction(&tx)?;
 
     let account = rpc.get_account(&draw_result)?;
-    let dr: DrawResultData = deser_checked(&account.data)?;
+    let dr: DrawResult = deser_checked(&account.data)?;
+    if dr.draw_id != draw_id {
+        return Err(BotError::Draw(format!(
+            "DrawResult draw_id mismatch: expected {draw_id}, got {}",
+            dr.draw_id
+        )));
+    }
     Ok(ExecuteResult {
         signature: sig,
-        winning_numbers: dr.winning_numbers[..6].to_vec(),
+        winning_numbers: dr.winning_numbers.to_vec(),
         was_rolldown: dr.was_rolldown,
+        timestamp: dr.timestamp,
     })
 }
 
@@ -96,11 +119,18 @@ pub async fn execute_qp_draw(
     let sig = rpc.send_and_confirm_transaction(&tx)?;
 
     let account = rpc.get_account(&draw_result)?;
-    let dr: QpDrawResultData = deser_checked(&account.data)?;
+    let dr: QuickPickDrawResult = deser_checked(&account.data)?;
+    if dr.draw_id != draw_id {
+        return Err(BotError::Draw(format!(
+            "QuickPickDrawResult draw_id mismatch: expected {draw_id}, got {}",
+            dr.draw_id
+        )));
+    }
     Ok(ExecuteResult {
         signature: sig,
-        winning_numbers: dr.winning_numbers[..5].to_vec(),
+        winning_numbers: dr.winning_numbers.to_vec(),
         was_rolldown: dr.was_rolldown,
+        timestamp: dr.timestamp,
     })
 }
 
@@ -116,36 +146,4 @@ fn discriminator(name: &str) -> [u8; 8] {
 
 fn meta(pubkey: Pubkey, is_signer: bool, is_writable: bool) -> solana_instruction::AccountMeta {
     solana_instruction::AccountMeta { pubkey, is_signer, is_writable }
-}
-
-/// Deserialize an Anchor account payload, returning a typed error instead of
-/// panicking. SECURITY (review M4): the previous version called `.unwrap()` on
-/// RPC-derived account data; a missing/short/malformed account (RPC error,
-/// bad node) panicked inside the cron task and killed the entire bot.
-pub fn deser_checked<T: anchor_lang::AnchorDeserialize>(data: &[u8]) -> Result<T> {
-    let mut slice: &[u8] = data;
-    T::deserialize(&mut slice)
-        .map_err(|e| crate::error::BotError::Draw(format!("deserialize account data: {e}")))
-}
-
-#[derive(anchor_lang::AnchorDeserialize)]
-pub struct DrawResultData {
-    // 8-byte Anchor account discriminator
-    _pad0: u64,
-    pub winning_numbers: [u8; 6],
-    _pad1: [u8; 32],
-    _pad2: i64,
-    _pad3: u64,
-    pub was_rolldown: bool,
-}
-
-#[derive(anchor_lang::AnchorDeserialize)]
-pub struct QpDrawResultData {
-    // 8-byte Anchor account discriminator
-    _pad0: u64,
-    pub winning_numbers: [u8; 5],
-    _pad1: [u8; 32],
-    _pad2: i64,
-    _pad3: u64,
-    pub was_rolldown: bool,
 }

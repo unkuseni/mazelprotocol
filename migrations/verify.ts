@@ -1,10 +1,12 @@
 /**
  * MazelProtocol – Post-Deployment Verification Script
  *
- * ⚠️ CANONICAL SOURCE: Constants and PDA derivation functions live in
- *    bot/shared/src/constants.ts and bot/shared/src/pdas.ts.
- *    When updating on-chain constants, update those files FIRST,
- *    then sync changes here.
+ * ⚠️ CANONICAL SOURCE: The single source of truth for on-chain constants
+ *    (seeds, ticket price, caps, fees) is the Rust program constants:
+ *      - programs/mazelprotocol/src/constants.rs
+ *      - programs/quickpick/src/constants.rs
+ *    When updating on-chain constants, update the programs FIRST,
+ *    then sync the values here.
  *
  * This script fetches all on-chain state for both the main lottery (MazelProtocol)
  * and Quick Pick Express programs, checks token balances, validates solvency
@@ -28,7 +30,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 import { PublicKey, Connection } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID, getAccount, AccountLayout } from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
 
 // ---------------------------------------------------------------------------
 // PDA Seeds (must mirror on-chain constants)
@@ -411,22 +413,35 @@ async function verify() {
     );
   }
 
-  // Solvency check – prize pool should hold at least the jackpot balance
+  // Solvency check – the prize pool must hold:
+  //   jackpot + reserve + fixed_prize_balance + committed-but-unpaid prizes.
+  // total_prizes_committed / total_prizes_paid are lifetime counters, so the
+  // outstanding liability is their difference (saturated at 0). Same plain
+  // >= comparison (no tolerance) as the original check.
   if (mainState && mainPoolBal !== null) {
     const jackpotLamports = BigInt(mainState.jackpotBalance.toString());
     const reserveLamports = BigInt(mainState.reserveBalance.toString());
-    const expectedMinimum = jackpotLamports + reserveLamports;
+    const fixedPrizeLamports = BigInt(mainState.fixedPrizeBalance.toString());
+    const committedLamports = BigInt(mainState.totalPrizesCommitted.toString());
+    const paidLamports = BigInt(mainState.totalPrizesPaid.toString());
+    const outstandingCommitted =
+      committedLamports > paidLamports ? committedLamports - paidLamports : 0n;
+    const expectedMinimum =
+      jackpotLamports +
+      reserveLamports +
+      fixedPrizeLamports +
+      outstandingCommitted;
 
     if (mainPoolBal >= expectedMinimum) {
       pass(
         "main-solvency",
-        `Prize pool (${formatUsdc(mainPoolBal)}) >= jackpot + reserve (${formatUsdc(expectedMinimum)})`,
+        `Prize pool (${formatUsdc(mainPoolBal)}) >= jackpot + reserve + fixed prizes + outstanding committed (${formatUsdc(expectedMinimum)})`,
       );
     } else {
       const deficit = expectedMinimum - mainPoolBal;
       fail(
         "main-solvency",
-        `SOLVENCY ISSUE: Prize pool (${formatUsdc(mainPoolBal)}) < jackpot + reserve (${formatUsdc(expectedMinimum)}). Deficit: ${formatUsdc(deficit)}`,
+        `SOLVENCY ISSUE: Prize pool (${formatUsdc(mainPoolBal)}) < expected minimum (${formatUsdc(expectedMinimum)}). Deficit: ${formatUsdc(deficit)}`,
       );
     }
   }

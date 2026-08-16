@@ -77,6 +77,11 @@ pub struct Cli {
     #[arg(long, env = "SWITCHBOARD_QUEUE")]
     pub switchboard_queue: String,
 
+    /// Switchboard network environment: devnet | mainnet
+    /// Controls which Switchboard program the randomness account targets.
+    #[arg(long, env = "SWITCHBOARD_ENV", default_value = "mainnet")]
+    pub switchboard_env: String,
+
     /// USDC mint address
     #[arg(long, env = "USDC_MINT")]
     pub usdc_mint: String,
@@ -126,6 +131,17 @@ async fn main() {
         .init();
 
     let cli = Cli::parse();
+
+    // The switchboard-on-demand SDK selects its program id via the SB_ENV
+    // env var (`devnet` vs anything else). Set it before any SB SDK call.
+    match cli.switchboard_env.as_str() {
+        "devnet" => std::env::set_var("SB_ENV", "devnet"),
+        "mainnet" => std::env::remove_var("SB_ENV"),
+        other => {
+            tracing::error!(value = other, "SWITCHBOARD_ENV must be 'devnet' or 'mainnet'");
+            std::process::exit(1);
+        }
+    }
 
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "MazelProtocol Draw Bot starting...");
 

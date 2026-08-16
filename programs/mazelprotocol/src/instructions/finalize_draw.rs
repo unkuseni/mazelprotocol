@@ -585,6 +585,65 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         msg!("  New reserve balance: {} USDC lamports", lottery_state.reserve_balance);
     }
 
+    // ==========================================================================
+    // COMMITTED LIABILITY DEDUCTION (post-audit accounting fix)
+    // ==========================================================================
+    // The total committed liability for this draw (base prizes + pre-funded
+    // streak bonus) is deducted from the accounting buckets NOW, at
+    // finalization. Claims later transfer USDC from the prize-pool token
+    // account WITHOUT touching the buckets, so winners of past draws can
+    // never drain the re-seeded jackpot or block ticket sales for the next
+    // draw (jackpot_balance is protected).
+    //
+    // Split the liability by funding source:
+    // - Rolldown: the entire distribution is jackpot-funded.
+    // - Match 6 win: the jackpot tier pays the jackpot portion; the fixed
+    //   tiers pay the remainder.
+    // - Normal mode: everything is fixed-tier funded.
+    let (jackpot_portion, fixed_portion) = if was_rolldown {
+        (prize_calc.total_distributed, 0u64)
+    } else if params.winner_counts.match_6 > 0 {
+        let jackpot_total =
+            prize_calc.match_6_prize.saturating_mul(params.winner_counts.match_6 as u64);
+        (jackpot_total, prize_calc.total_distributed.saturating_sub(jackpot_total))
+    } else {
+        (0u64, prize_calc.total_distributed)
+    };
+
+    // Pre-fund the streak bonus pool (L-7) BEFORE deducting liabilities so
+    // the pool is part of the committed liability. Worst-case bonus over
+    // Match 3/4/5, capped by the buffer left after base prizes.
+    let bonusable_prizes = prize_calc
+        .match_5_prize
+        .saturating_mul(params.winner_counts.match_5 as u64)
+        .saturating_add(
+            prize_calc.match_4_prize.saturating_mul(params.winner_counts.match_4 as u64),
+        )
+        .saturating_add(
+            prize_calc.match_3_prize.saturating_mul(params.winner_counts.match_3 as u64),
+        );
+    let max_streak_bonus_pool =
+        (bonusable_prizes as u128 * MAX_STREAK_BONUS_BPS as u128 / BPS_DENOMINATOR as u128) as u64;
+    let available_for_bonus = primary_funds.saturating_sub(prize_calc.total_distributed);
+    let streak_bonus_pool = max_streak_bonus_pool.min(available_for_bonus);
+    draw_result.streak_bonus_pool = streak_bonus_pool;
+    msg!("Streak bonus pool funded: {} USDC lamports", streak_bonus_pool);
+
+    // Deduct base prizes + bonus from the buckets.
+    lottery_state.commit_prize_liability(jackpot_portion, fixed_portion, streak_bonus_pool);
+
+    // A Match 6 split (multiple winners) leaves integer-division dust in the
+    // jackpot bucket. Move it to reserve BEFORE the jackpot is overwritten by
+    // reseeding so it is not silently dropped from the accounting.
+    if params.winner_counts.match_6 > 0 {
+        let jackpot_dust = lottery_state.jackpot_balance;
+        lottery_state.jackpot_balance = 0;
+        lottery_state.reserve_balance = lottery_state.reserve_balance.saturating_add(jackpot_dust);
+        if jackpot_dust > 0 {
+            msg!("Match 6 division dust moved to reserve: {} USDC lamports", jackpot_dust);
+        }
+    }
+
     // Update jackpot balance
     if was_rolldown {
         // Check if jackpot was actually distributed (had winners)
@@ -704,33 +763,7 @@ pub fn handler(ctx: Context<FinalizeDraw>, params: FinalizeDrawParams) -> Result
         msg!("  New jackpot seeded: {} USDC lamports", lottery_state.jackpot_balance);
     }
     // If no jackpot winner and no rolldown, jackpot continues to accumulate
-
-    // ==========================================================================
-    // STREAK BONUS PRE-FUNDING (L-7)
-    // ==========================================================================
-    // The streak bonus (0.5% per consecutive draw, max 5%) is applied to Match
-    // 3/4/5 fixed prizes at claim time (never the Match 6 jackpot nor the Match
-    // 2 free ticket). To keep the protocol solvent, pre-fund a `streak_bonus_pool`
-    // at finalization equal to the worst-case bonus over those tiers, capped by
-    // the prize-pool buffer (`primary_funds - total_distributed`) so the pool is
-    // guaranteed to cover base prizes + bonuses without dipping into funds
-    // committed to other draws. The bonus is "use it or lose it": unclaimed
-    // bonus stays in the prize pool for future draws.
-    let bonusable_prizes = prize_calc
-        .match_5_prize
-        .saturating_mul(params.winner_counts.match_5 as u64)
-        .saturating_add(
-            prize_calc.match_4_prize.saturating_mul(params.winner_counts.match_4 as u64),
-        )
-        .saturating_add(
-            prize_calc.match_3_prize.saturating_mul(params.winner_counts.match_3 as u64),
-        );
-    let max_streak_bonus_pool =
-        (bonusable_prizes as u128 * MAX_STREAK_BONUS_BPS as u128 / BPS_DENOMINATOR as u128) as u64;
-    let available_for_bonus = primary_funds.saturating_sub(prize_calc.total_distributed);
-    let streak_bonus_pool = max_streak_bonus_pool.min(available_for_bonus);
-    draw_result.streak_bonus_pool = streak_bonus_pool;
-    msg!("Streak bonus pool funded: {} USDC lamports", streak_bonus_pool);
+    // (the streak bonus pool was computed and committed above).
 
     // SECURITY FIX (Issue #6): Track committed prizes separately from actual paid prizes.
     // total_prizes_committed reflects what was promised at finalization time

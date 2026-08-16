@@ -28,6 +28,23 @@ solana-account-decoder = "2.2"
 anchor-lang = "0.32"
 borsh = "0.10"
 
+# On-chain program crates — single source of truth for account layouts.
+# Using the program structs directly (instead of hand-rolled mirrors) means
+# the bot can never drift out of sync with a field added to the programs.
+# `no-entrypoint` avoids duplicate `entrypoint` symbols when both program
+# libs are linked into the bot binary.
+mazelprotocol = { path = "../programs/mazelprotocol", default-features = false, features = ["no-entrypoint"] }
+quickpick = { path = "../programs/quickpick", default-features = false, features = ["no-entrypoint"] }
+
+# Switchboard on-demand — randomness account layout + program IDs.
+# Deliberately WITHOUT the `client` feature: the client feature pulls the
+# full solana-sdk (openssl-sys on Windows). The randomness account structs
+# are bytemuck pods available in the base crate; the single
+# `randomness_commit` instruction is built manually from its documented
+# layout in commit.rs.
+switchboard-on-demand = "0.11.3"
+bytemuck = "1"
+
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 

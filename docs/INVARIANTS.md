@@ -7,10 +7,23 @@
 
 1. **Conservation of Value**:
    ```
-   jackpot_balance + reserve_balance + insurance_balance + fixed_prize_balance
-   + total_prizes_paid + accumulated_house_fees
-   == total_tickets_sold × ticket_price
+   prize_pool_usdc (token balance)
+   == jackpot_balance + reserve_balance + fixed_prize_balance
+      + unclaimed committed prizes
    ```
+   where `unclaimed committed prizes` tracks what was promised at
+   finalization but not yet paid out (`total_prizes_committed −
+   total_prizes_paid`, adjusted for reclaims).
+
+   **Post-audit accounting model (v3.1):** the committed liability for each
+   draw (base prizes + pre-funded streak bonus) is deducted from the
+   accounting buckets **at finalization time** via
+   `LotteryState::commit_prize_liability` / `QuickPickState::commit_prize_liability`,
+   BEFORE the jackpot is re-seeded. Claim instructions transfer USDC from
+   the prize-pool token account and only update the lifetime `total_prizes_paid`
+   counter — they never touch the buckets. This guarantees that claims on
+   past draws can never drain the re-seeded jackpot or push
+   `jackpot_balance` below `seed_amount` (which would halt ticket sales).
 
 2. **Pari-Mutuel Cap** (during rolldown):
    ```

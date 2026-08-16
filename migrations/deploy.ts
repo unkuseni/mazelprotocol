@@ -37,9 +37,10 @@
  *   - USDC mint address set correctly below (or via USDC_MINT env var)
  *   - Switchboard queue address set (or via SWITCHBOARD_QUEUE env var)
  *
- * Environment Variables (all optional – defaults work on localnet):
+ * Environment Variables (defaults work on localnet; SWITCHBOARD_QUEUE is
+ * REQUIRED for any non-localnet target — the script fails fast if unset):
  *   USDC_MINT              – USDC mint public key
- *   SWITCHBOARD_QUEUE      – Switchboard randomness queue pubkey
+ *   SWITCHBOARD_QUEUE      – Switchboard randomness queue pubkey (REQUIRED on devnet/mainnet)
  *   ANCHOR_PROVIDER_URL    – RPC endpoint
  *   ANCHOR_WALLET          – Path to authority keypair JSON
  *   DRY_RUN                – Set to "true" to derive PDAs / print plan only
@@ -197,6 +198,9 @@ async function deploy() {
   const connection = provider.connection;
   const authority = (provider.wallet as anchor.Wallet).payer;
   const cluster = env("ANCHOR_PROVIDER_URL", "http://127.0.0.1:8899")!;
+  // Localnet = the default RPC or anything that is not a named non-local
+  // cluster (same convention used below for USDC mint resolution).
+  const isLocalnet = !cluster.includes("mainnet") && !cluster.includes("devnet");
 
   hr("MazelProtocol Deployment");
   console.log(`  Cluster:    ${cluster}`);
@@ -313,18 +317,34 @@ async function deploy() {
   }
 
   // ---- Switchboard queue ----
+  // SWITCHBOARD_QUEUE is REQUIRED on any non-localnet cluster: the queue
+  // pubkey is baked into the lottery state at initialize and cannot be
+  // changed afterwards, so silently substituting a random key would deploy a
+  // lottery that can never source randomness. Fail fast instead.
   let switchboardQueue: PublicKey;
   const sbQueueEnv = env("SWITCHBOARD_QUEUE");
   if (sbQueueEnv) {
     switchboardQueue = new PublicKey(sbQueueEnv);
+  } else if (!isLocalnet) {
+    throw new Error(
+      `SWITCHBOARD_QUEUE is required when deploying to a non-localnet cluster (target: ${cluster}). ` +
+        "Set the SWITCHBOARD_QUEUE environment variable to the Switchboard randomness queue pubkey and re-run.",
+    );
   } else {
-    // Placeholder – on localnet tests mock this
+    // Localnet placeholder – on localnet the tests mock the queue, so a
+    // generated key is acceptable. Still warn loudly so a localnet run that
+    // accidentally feeds a placeholder into a real deployment is noticed.
     switchboardQueue = Keypair.generate().publicKey;
+    console.log("");
+    console.log("  ⚠️  ⚠️  WARNING: SWITCHBOARD_QUEUE is not set!");
     console.log(
-      `  Switchboard queue (placeholder): ${switchboardQueue.toBase58()}`,
+      `  Switchboard queue (LOCALNET-ONLY placeholder): ${switchboardQueue.toBase58()}`,
     );
     console.log(
-      "  ⚠  Set SWITCHBOARD_QUEUE env var for devnet/mainnet deployments.",
+      "  ⚠️  A random placeholder queue is being used. This is ONLY valid on localnet —",
+    );
+    console.log(
+      "     real deployments MUST set SWITCHBOARD_QUEUE or this script refuses to run.",
     );
   }
 
@@ -535,6 +555,8 @@ async function deploy() {
   // ========================================================================
   hr("Step 5: Post-Deployment Verification");
 
+  const verificationErrors: string[] = [];
+
   try {
     // Main lottery state
     const mainState = await mainProgram.account.lotteryState.fetch(
@@ -576,23 +598,21 @@ async function deploy() {
     console.log(`    Insurance USDC:  ${formatUsdc(qpIns.amount)}`);
 
     // Sanity checks
-    const errors: string[] = [];
-
-    if (!mainState.isFunded) errors.push("Main lottery is NOT funded");
+    if (!mainState.isFunded) verificationErrors.push("Main lottery is NOT funded");
     if (mainState.isPaused && mainState.isFunded)
-      errors.push("Main lottery is paused despite being funded");
+      verificationErrors.push("Main lottery is paused despite being funded");
     if (Number(mainPool.amount) === 0 && mainState.isFunded)
-      errors.push("Main prize pool is empty despite being funded");
+      verificationErrors.push("Main prize pool is empty despite being funded");
 
-    if (!qpState.isFunded) errors.push("Quick Pick is NOT funded");
+    if (!qpState.isFunded) verificationErrors.push("Quick Pick is NOT funded");
     if (qpState.isPaused && qpState.isFunded)
-      errors.push("Quick Pick is paused despite being funded");
+      verificationErrors.push("Quick Pick is paused despite being funded");
     if (Number(qpPool.amount) === 0 && qpState.isFunded)
-      errors.push("QP prize pool is empty despite being funded");
+      verificationErrors.push("QP prize pool is empty despite being funded");
 
-    if (errors.length > 0) {
+    if (verificationErrors.length > 0) {
       console.log("\n  ⚠️  Warnings:");
-      for (const e of errors) {
+      for (const e of verificationErrors) {
         console.log(`    - ${e}`);
       }
     } else {
@@ -603,6 +623,19 @@ async function deploy() {
     console.error(
       "     Some accounts may not exist yet. Re-run after completing all steps.",
     );
+    verificationErrors.push(`Verification threw: ${err.message ?? err}`);
+  }
+
+  if (verificationErrors.length > 0) {
+    console.error(
+      `\n  ❌ Post-deployment verification FAILED with ${verificationErrors.length} error(s) — ` +
+        "exiting with a non-zero status so automation (and operators) notice.",
+    );
+    for (const e of verificationErrors) {
+      console.error(`    - ${e}`);
+    }
+    console.error("");
+    process.exit(1);
   }
 
   // ========================================================================

@@ -62,7 +62,7 @@ pub async fn handle(
     let args: Vec<&str> = parts.iter().skip(1).copied().collect();
 
     match cmd.as_str() {
-        "start" => format!("👋 Welcome to <b>MazelProtocol</b>, {username}!\n\n🎰 <b>Main Lottery</b> (6/46) — Draws every 24h\n⚡ <b>Quick Pick</b> (5/35) — Draws every 5 min\n\nCommands:\n/jackpot — View jackpots\n/quickpick — Generate numbers\n/draw — Latest results\n/register — Link wallet\n/help — All commands"),
+        "start" => format!("👋 Welcome to <b>MazelProtocol</b>, {username}!\n\n🎰 <b>Main Lottery</b> (6/46) — Draws every 24h\n⚡ <b>Quick Pick</b> (5/35) — Draws every 4h\n\nCommands:\n/jackpot — View jackpots\n/quickpick — Generate numbers\n/draw — Latest results\n/register — Link wallet\n/help — All commands"),
         "help" => help(),
         "jackpot" | "jp" => jackpot(solana).await,
         "draw" | "results" => draw(solana, &args).await,
@@ -229,7 +229,7 @@ fn prizes() -> String {
 }
 
 fn rules() -> String {
-    "<b>📖 How to Play</b>\n\n1️⃣ Pick 6 numbers from 1–46 (or use /quickpick)\n2️⃣ Buy tickets before cutoff (1h before draw)\n3️⃣ Draws run every 24h for Main, every 5min for QP\n4️⃣ Match numbers to win prizes\n5️⃣ Rolldown: Unwon jackpots roll down to lower tiers\n\n🎯 The more you match, the more you win!\n🔐 Fully on-chain, provably fair via Switchboard VRF.".to_string()
+    "<b>📖 How to Play</b>\n\n1️⃣ Pick 6 numbers from 1–46 (or use /quickpick)\n2️⃣ Buy tickets before cutoff (1h before draw)\n3️⃣ Draws run every 24h for Main, every 4h for QP\n4️⃣ Match numbers to win prizes\n5️⃣ Rolldown: Unwon jackpots roll down to lower tiers\n\n🎯 The more you match, the more you win!\n🔐 Fully on-chain, provably fair via Switchboard VRF.".to_string()
 }
 
 fn rolldown() -> String {

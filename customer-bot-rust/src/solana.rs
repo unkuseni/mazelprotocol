@@ -3,7 +3,9 @@
 use crate::config::BotConfig;
 use crate::error::Result;
 use anchor_lang::AnchorDeserialize;
+use solana_client::client_error::{ClientError, ClientErrorKind};
 use solana_client::rpc_client::RpcClient;
+use solana_client::rpc_request::RpcError;
 use solana_pubkey::Pubkey;
 
 pub const LOTTERY_SEED: &[u8] = b"lottery";
@@ -206,7 +208,11 @@ impl Solana {
                 &self.cfg.main_program_id,
                 "main draw_result",
             )?)),
-            Err(_) => Ok(None),
+            // Only a genuinely missing account means "draw not found".
+            Err(e) if is_account_not_found(&e) => Ok(None),
+            // Everything else (RPC outage, rate limit, network failure) is a
+            // service problem and must surface as an error, not "not found".
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -221,9 +227,28 @@ impl Solana {
                 &self.cfg.qp_program_id,
                 "qp draw_result",
             )?)),
-            Err(_) => Ok(None),
+            // Only a genuinely missing account means "draw not found".
+            Err(e) if is_account_not_found(&e) => Ok(None),
+            // Everything else (RPC outage, rate limit, network failure) is a
+            // service problem and must surface as an error, not "not found".
+            Err(e) => Err(e.into()),
         }
     }
+}
+
+/// Returns true when an RPC error means "the account does not exist on
+/// chain" (i.e. the draw has not happened yet). Every other error — RPC
+/// outage, rate limit, network failure — is a service problem and must be
+/// surfaced to the user instead of being masked as "draw not found".
+fn is_account_not_found(err: &ClientError) -> bool {
+    matches!(
+        &err.kind,
+        ClientErrorKind::RpcError(RpcError::ForUser(msg)) if msg.starts_with("AccountNotFound")
+    ) || matches!(
+        &err.kind,
+        ClientErrorKind::RpcError(RpcError::RpcResponseError { message, .. })
+            if message == "AccountNotFound" || message == "account not found"
+    )
 }
 
 /// Format USDC lamports as a human-readable string.
@@ -257,5 +282,31 @@ pub fn format_countdown(target: i64) -> String {
         format!("{}m {}s", m, s)
     } else {
         format!("{}s", s)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn client_error(kind: ClientErrorKind) -> ClientError {
+        ClientError { request: None, kind }
+    }
+
+    #[test]
+    fn missing_account_is_not_found() {
+        let err = client_error(ClientErrorKind::RpcError(RpcError::ForUser(
+            "AccountNotFound: pubkey=abc".into(),
+        )));
+        assert!(is_account_not_found(&err));
+    }
+
+    #[test]
+    fn rpc_outage_is_not_not_found() {
+        let outage =
+            client_error(ClientErrorKind::RpcError(RpcError::ForUser("node is unhealthy".into())));
+        assert!(!is_account_not_found(&outage));
+        let custom = client_error(ClientErrorKind::Custom("timeout".into()));
+        assert!(!is_account_not_found(&custom));
     }
 }

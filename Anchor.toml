@@ -9,6 +9,19 @@ skip-lint = false
 mazelprotocol = "7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF"
 quickpick = "7XC1KT5mvsHHXbR2mH6er138fu2tJ4L2fAgmpjLnnZK2"
 
+# TODO: update after first deployment — these are LOCALNET placeholder IDs.
+# They exist so `anchor deploy` / migration tooling can resolve program IDs
+# instead of silently targeting wrong programs; migrations/deploy.ts fails
+# fast on non-localnet clusters when SWITCHBOARD_QUEUE is unset, which
+# protects real deploys until the real IDs are wired in here.
+[programs.devnet]
+mazelprotocol = "7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF"
+quickpick = "7XC1KT5mvsHHXbR2mH6er138fu2tJ4L2fAgmpjLnnZK2"
+
+[programs.mainnet]
+mazelprotocol = "7WyaHk2u8AgonsryMpnvbtp42CfLJFPQpyY5p9ys6FiF"
+quickpick = "7XC1KT5mvsHHXbR2mH6er138fu2tJ4L2fAgmpjLnnZK2"
+
 [registry]
 url = "https://api.apr.dev"
 

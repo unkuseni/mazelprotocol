@@ -418,6 +418,44 @@ pub fn handler(
     // Update Quick Pick state
     let quick_pick_state = &mut ctx.accounts.quick_pick_state;
 
+    // ==========================================================================
+    // COMMITTED LIABILITY DEDUCTION (post-audit accounting fix)
+    // ==========================================================================
+    // Deduct the committed liability NOW, at finalization. Claims later
+    // transfer USDC from the prize-pool token account WITHOUT touching the
+    // buckets, so winners of past draws can never drain the re-seeded
+    // jackpot or block ticket sales for the next draw.
+    //
+    // Funding split:
+    // - Rolldown: the entire distribution is jackpot-funded.
+    // - Match 5 win: the jackpot tier pays the jackpot portion; Match 3/4
+    //   fixed prizes pay the remainder.
+    // - Normal mode without a jackpot win: everything is fixed-tier funded.
+    let (jackpot_portion, fixed_portion) = if was_rolldown {
+        (prize_calc.total_distributed, 0u64)
+    } else if params.winner_counts.match_5 > 0 {
+        let jackpot_total =
+            prize_calc.match_5_prize.saturating_mul(params.winner_counts.match_5 as u64);
+        (jackpot_total, prize_calc.total_distributed.saturating_sub(jackpot_total))
+    } else {
+        (0u64, prize_calc.total_distributed)
+    };
+    quick_pick_state.commit_prize_liability(jackpot_portion, fixed_portion);
+
+    // When the jackpot tier actually paid out (rolldown with winners, or a
+    // Match 5 win), integer-division dust remains in the jackpot bucket.
+    // Move it to reserve BEFORE the jackpot is overwritten by reseeding
+    // below so it is not silently dropped from the accounting.
+    if (was_rolldown || params.winner_counts.match_5 > 0) && prize_calc.total_distributed > 0 {
+        let jackpot_dust = quick_pick_state.jackpot_balance;
+        quick_pick_state.jackpot_balance = 0;
+        quick_pick_state.reserve_balance =
+            quick_pick_state.reserve_balance.saturating_add(jackpot_dust);
+        if jackpot_dust > 0 {
+            msg!("Division dust moved to reserve: {} USDC lamports", jackpot_dust);
+        }
+    }
+
     // Handle jackpot based on mode
     if was_rolldown {
         // CRITICAL FIX (C-1): When rolldown triggers but there are zero winners
@@ -522,21 +560,15 @@ pub fn handler(
         msg!("  Minimum required: {} USDC lamports", minimum_jackpot);
     }
 
-    // SECURITY FIX (Issue #6): Track committed prizes separately from actual paid prizes.
-    // total_prizes_committed (stored in total_prizes_paid for backward compat at finalization)
-    // reflects what was promised. Actual total_prizes_paid is now incremented at claim time
-    // in claim_prize.rs. For QuickPick we keep using total_prizes_paid as the committed stat
-    // since actual payment tracking was added in claim_prize.
-    //
-    // NOTE: total_prizes_paid here represents "committed" amounts. The actual USDC transfers
-    // happen at claim time (claim_prize.rs) where we now also increment this field.
-    // To avoid double-counting, we rename the semantic: finalization records the commitment,
-    // claim records the actual payment. Both add to the same field for simplicity, but
-    // claim_prize now also deducts from internal balances (jackpot/prize_pool).
-    // We skip the finalization-time increment here and let claim_prize handle it,
-    // ensuring total_prizes_paid only reflects actual USDC transfers.
-    //
-    // Log the committed amount for audit trail without incrementing total_prizes_paid.
+    // SECURITY FIX (Issue #6 + post-audit accounting): Track committed prizes
+    // separately from actual paid prizes.
+    // - `total_prizes_committed` records what was promised at finalization time
+    //   (and was already deducted from the buckets via commit_prize_liability).
+    // - `total_prizes_paid` is incremented at actual claim time in claim_prize.rs
+    //   and only reflects real USDC transfers. It will always be <= committed.
+    quick_pick_state.total_prizes_committed =
+        quick_pick_state.total_prizes_committed.saturating_add(prize_calc.total_distributed);
+
     msg!(
         "  Prizes committed (to be paid at claim time): {} USDC lamports",
         prize_calc.total_distributed

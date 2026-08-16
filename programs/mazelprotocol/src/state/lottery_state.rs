@@ -419,63 +419,87 @@ impl LotteryState {
         (from_jackpot, from_reserve, from_insurance, remaining)
     }
 
-    /// Record a prize payment at claim time by deducting from the internal
-    /// accounting balances to match the actual USDC transfer.
+    /// Deduct the committed prize liability from the accounting buckets at
+    /// draw finalization.
     ///
-    /// Shared by `claim_prize` and `claim_bulk_prize` (single source of truth).
+    /// This is the single place where committed prizes leave the internal
+    /// accounting. It runs once per draw in `finalize_draw`, BEFORE the jackpot
+    /// is re-seeded. Claim instructions later transfer the actual USDC from the
+    /// prize-pool token account and do NOT deduct any bucket, so claims on past
+    /// draws can never drain the re-seeded jackpot or block future ticket sales.
     ///
-    /// Deduction priority depends on prize tier:
-    /// - Jackpot (match 6): deduct from `jackpot_balance` first, then reserve.
-    /// - Fixed prizes (Match 3/4/5): deduct from `fixed_prize_balance` first
-    ///   (the dedicated 39.4% allocation), then reserve, then jackpot as last
-    ///   resort. This prevents fixed prize payouts from eroding the jackpot.
+    /// Funding priority:
+    /// - Jackpot portion (Match 6 payout, or the full pari-mutuel distribution
+    ///   during a rolldown): `jackpot_balance`, then `reserve_balance`, then
+    ///   `fixed_prize_balance`.
+    /// - Fixed portion (Match 3/4/5 fixed prizes): `fixed_prize_balance`, then
+    ///   `reserve_balance`, then `jackpot_balance` as last resort.
+    /// - Streak bonus pool: `reserve_balance`, then `jackpot_balance`.
     ///
-    /// Also increments `total_prizes_paid` at actual claim time (not at
-    /// finalization) so the stat reflects real USDC transfers.
+    /// All parts are coverable by construction (prizes are scaled to the
+    /// available pool at finalization and the bonus pool is capped by the
+    /// remaining buffer), so any residual shortfall saturates defensively
+    /// instead of underflowing.
     ///
     /// # Arguments
-    /// * `amount` - USDC lamports actually transferred to the claimant
-    /// * `is_jackpot_prize` - true if this is a Match 6 jackpot payment
-    pub fn record_prize_payment(&mut self, amount: u64, is_jackpot_prize: bool) {
-        if amount == 0 {
-            return;
+    /// * `jackpot_portion` - USDC lamports funded from the jackpot tier
+    /// * `fixed_portion` - USDC lamports funded from the fixed prize tiers
+    /// * `bonus_pool` - pre-funded streak bonus pool (prize-like liability)
+    pub fn commit_prize_liability(
+        &mut self,
+        jackpot_portion: u64,
+        fixed_portion: u64,
+        bonus_pool: u64,
+    ) {
+        // 1. Jackpot-funded prizes (Match 6, or the full rolldown distribution).
+        let mut remaining = jackpot_portion;
+        let from_jackpot = remaining.min(self.jackpot_balance);
+        self.jackpot_balance = self.jackpot_balance.saturating_sub(from_jackpot);
+        remaining = remaining.saturating_sub(from_jackpot);
+
+        if remaining > 0 {
+            let from_reserve = remaining.min(self.reserve_balance);
+            self.reserve_balance = self.reserve_balance.saturating_sub(from_reserve);
+            remaining = remaining.saturating_sub(from_reserve);
         }
 
-        if is_jackpot_prize {
-            // Jackpot prize: deduct from jackpot_balance first, then reserve
-            if self.jackpot_balance >= amount {
-                self.jackpot_balance = self.jackpot_balance.saturating_sub(amount);
-            } else {
-                let from_jackpot = self.jackpot_balance;
-                let remainder = amount.saturating_sub(from_jackpot);
-                self.jackpot_balance = 0;
-                self.reserve_balance = self.reserve_balance.saturating_sub(remainder);
-            }
-        } else {
-            // Fixed prizes (Match 3/4/5): fixed_prize_balance → reserve → jackpot
-            let mut remaining = amount;
-
-            let from_fixed = remaining.min(self.fixed_prize_balance);
-            self.fixed_prize_balance = self.fixed_prize_balance.saturating_sub(from_fixed);
-            remaining = remaining.saturating_sub(from_fixed);
-
-            if remaining > 0 {
-                let from_reserve = remaining.min(self.reserve_balance);
-                self.reserve_balance = self.reserve_balance.saturating_sub(from_reserve);
-                remaining = remaining.saturating_sub(from_reserve);
-            }
-
-            if remaining > 0 {
-                self.jackpot_balance = self.jackpot_balance.saturating_sub(remaining);
-                msg!(
-                    "WARNING: Fixed prize payment required {} from jackpot (fixed pool exhausted)",
-                    remaining
-                );
-            }
+        if remaining > 0 {
+            self.fixed_prize_balance = self.fixed_prize_balance.saturating_sub(remaining);
+            msg!(
+                "WARNING: Jackpot liability required {} from fixed pool (jackpot+reserve exhausted)",
+                remaining
+            );
         }
 
-        // Increment total_prizes_paid at actual claim time for accurate tracking
-        self.total_prizes_paid = self.total_prizes_paid.saturating_add(amount);
+        // 2. Fixed prizes (Match 3/4/5).
+        let mut remaining = fixed_portion;
+        let from_fixed = remaining.min(self.fixed_prize_balance);
+        self.fixed_prize_balance = self.fixed_prize_balance.saturating_sub(from_fixed);
+        remaining = remaining.saturating_sub(from_fixed);
+
+        if remaining > 0 {
+            let from_reserve = remaining.min(self.reserve_balance);
+            self.reserve_balance = self.reserve_balance.saturating_sub(from_reserve);
+            remaining = remaining.saturating_sub(from_reserve);
+        }
+
+        if remaining > 0 {
+            self.jackpot_balance = self.jackpot_balance.saturating_sub(remaining);
+            msg!(
+                "WARNING: Fixed prize liability required {} from jackpot (fixed pool exhausted)",
+                remaining
+            );
+        }
+
+        // 3. Pre-funded streak bonus pool (prize-like liability).
+        let mut remaining = bonus_pool;
+        let from_reserve = remaining.min(self.reserve_balance);
+        self.reserve_balance = self.reserve_balance.saturating_sub(from_reserve);
+        remaining = remaining.saturating_sub(from_reserve);
+
+        if remaining > 0 {
+            self.jackpot_balance = self.jackpot_balance.saturating_sub(remaining);
+        }
     }
 
     /// Calculate the insurance coverage ratio
@@ -520,5 +544,99 @@ impl LotteryState {
         } else {
             "INACTIVE"
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a LotteryState with the given balances (all other fields default).
+    fn make_state(jackpot: u64, reserve: u64, fixed: u64, insurance: u64) -> LotteryState {
+        LotteryState {
+            jackpot_balance: jackpot,
+            reserve_balance: reserve,
+            fixed_prize_balance: fixed,
+            insurance_balance: insurance,
+            ..Default::default()
+        }
+    }
+
+    /// Conservation helper: buckets + committed liability must never change
+    /// across a commit_prize_liability call except through the explicit
+    /// portions handed to it.
+    fn bucket_sum(s: &LotteryState) -> u64 {
+        s.jackpot_balance.saturating_add(s.reserve_balance).saturating_add(s.fixed_prize_balance)
+    }
+
+    #[test]
+    fn test_commit_liability_rolldown_jackpot_funded() {
+        // Rolldown: the full distribution comes out of the jackpot.
+        let mut state = make_state(2_250_000_000_000, 200_000_000_000, 1_200_000_000_000, 0);
+        let before = bucket_sum(&state);
+        let jackpot_portion = 2_250_000_000_000u64;
+        let bonus = 100_000_000_000u64;
+
+        state.commit_prize_liability(jackpot_portion, 0, bonus);
+
+        // Jackpot reduced by the distribution; bonus taken from reserve.
+        assert_eq!(state.jackpot_balance, 0);
+        assert_eq!(state.reserve_balance, 200_000_000_000 - bonus);
+        assert_eq!(state.fixed_prize_balance, 1_200_000_000_000);
+        assert_eq!(
+            bucket_sum(&state),
+            before - jackpot_portion - bonus,
+            "liability must leave the buckets exactly"
+        );
+    }
+
+    #[test]
+    fn test_commit_liability_fixed_prizes_use_fixed_then_reserve() {
+        // Normal mode: fixed prizes come from fixed pool first, then reserve.
+        let mut state = make_state(500_000_000_000, 100_000_000_000, 50_000_000_000, 0);
+        let before = bucket_sum(&state);
+        let fixed_portion = 120_000_000_000u64; // exceeds fixed pool by 70k
+
+        state.commit_prize_liability(0, fixed_portion, 0);
+
+        assert_eq!(state.fixed_prize_balance, 0);
+        assert_eq!(state.reserve_balance, 100_000_000_000 - 70_000_000_000);
+        assert_eq!(state.jackpot_balance, 500_000_000_000); // jackpot untouched
+        assert_eq!(bucket_sum(&state), before - fixed_portion);
+    }
+
+    #[test]
+    fn test_commit_liability_jackpot_win_reseeds_cleanly() {
+        // Match 6: jackpot portion out of jackpot, fixed portion out of fixed
+        // pool; the leftover jackpot dust is returned by the caller.
+        let jackpot = 2_250_000_000_000u64;
+        let mut state = make_state(jackpot, 100_000_000_000, 1_200_000_000_000, 0);
+        let jackpot_portion = 2_250_000_000_000u64; // one winner takes all
+        let fixed_portion = 50_000_000_000u64;
+
+        state.commit_prize_liability(jackpot_portion, fixed_portion, 0);
+
+        assert_eq!(state.jackpot_balance, 0);
+        assert_eq!(state.fixed_prize_balance, 1_200_000_000_000 - fixed_portion);
+        assert_eq!(state.reserve_balance, 100_000_000_000);
+    }
+
+    #[test]
+    fn test_commit_liability_saturates_when_buckets_exhausted() {
+        // Insurance-covered shortfall: buckets saturate at zero, no underflow.
+        let mut state = make_state(100, 200, 300, 0);
+        state.commit_prize_liability(1_000, 1_000, 1_000);
+        assert_eq!(state.jackpot_balance, 0);
+        assert_eq!(state.reserve_balance, 0);
+        assert_eq!(state.fixed_prize_balance, 0);
+    }
+
+    #[test]
+    fn test_commit_liability_zero_noop() {
+        let mut state = make_state(1_000, 2_000, 3_000, 0);
+        state.commit_prize_liability(0, 0, 0);
+        assert_eq!(state.jackpot_balance, 1_000);
+        assert_eq!(state.reserve_balance, 2_000);
+        assert_eq!(state.fixed_prize_balance, 3_000);
     }
 }

@@ -106,6 +106,20 @@ pub struct Unpause<'info> {
         constraint = lottery_state.is_funded @ LottoError::LotteryNotInitialized
     )]
     pub lottery_state: Account<'info, LotteryState>,
+
+    /// Prize pool USDC token account (for the pre-unpause solvency check)
+    #[account(
+        seeds = [PRIZE_POOL_USDC_SEED],
+        bump
+    )]
+    pub prize_pool_usdc: Account<'info, TokenAccount>,
+
+    /// Insurance pool USDC token account (for the pre-unpause solvency check)
+    #[account(
+        seeds = [INSURANCE_POOL_USDC_SEED],
+        bump
+    )]
+    pub insurance_pool_usdc: Account<'info, TokenAccount>,
 }
 
 /// Unpause the lottery
@@ -125,8 +139,28 @@ pub fn handler_unpause(ctx: Context<Unpause>) -> Result<()> {
 
     // SECURITY: Re-verify solvency before allowing the lottery to resume.
     // Prevents the authority from unpausing an insolvent lottery where
-    // the prize pool cannot cover committed prizes (C3 fix).
-    require!(lottery_state.check_solvency_detailed(0, 0).0, LottoError::PrizePoolSolvencyFailed);
+    // the token balances cannot back the accounting state (C3 fix).
+    // NOTE (post-audit fix): the previous check
+    // `check_solvency_detailed(0, 0)` checked solvency for ZERO liabilities
+    // and always passed — a no-op. Compare the actual token balances against
+    // the accounting buckets instead, mirroring check_solvency.
+    let expected_prize_pool = lottery_state
+        .jackpot_balance
+        .saturating_add(lottery_state.reserve_balance)
+        .saturating_add(lottery_state.fixed_prize_balance);
+    let expected_insurance = lottery_state.insurance_balance;
+
+    // Allow a small tolerance for rounding dust (100 lamports = $0.0001),
+    // consistent with the permissionless check_solvency instruction.
+    const TOLERANCE: u64 = 100;
+    require!(
+        ctx.accounts.prize_pool_usdc.amount.saturating_add(TOLERANCE) >= expected_prize_pool,
+        LottoError::PrizePoolSolvencyFailed
+    );
+    require!(
+        ctx.accounts.insurance_pool_usdc.amount.saturating_add(TOLERANCE) >= expected_insurance,
+        LottoError::PrizePoolSolvencyFailed
+    );
 
     lottery_state.is_paused = false;
 
@@ -138,6 +172,12 @@ pub fn handler_unpause(ctx: Context<Unpause>) -> Result<()> {
     msg!("Lottery UNPAUSED by authority!");
     msg!("  Authority: {}", ctx.accounts.authority.key());
     msg!("  Timestamp: {}", clock.unix_timestamp);
+    msg!("  Solvency re-verified: prize_pool(actual={}, expected={}), insurance(actual={}, expected={})",
+        ctx.accounts.prize_pool_usdc.amount,
+        expected_prize_pool,
+        ctx.accounts.insurance_pool_usdc.amount,
+        expected_insurance
+    );
 
     Ok(())
 }

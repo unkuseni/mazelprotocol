@@ -279,42 +279,66 @@ describe("quickpick", () => {
 
     // ---------------------------------------------------------------
     // Initialise + fund the MAIN lottery (needed for QP authority checks)
+    //
+    // Idempotent setup: `npm test` runs tests/**/*.ts in one mocha process
+    // against one validator, and tests/mazelprotocol.ts has already created
+    // the main lottery state PDA (and its prize-pool / house-fee / insurance
+    // token PDAs, which are created inside `initialize`) before this hook
+    // runs. `initialize` fails on an already-initialized account and
+    // `fundSeed` fails on an already-funded state (constraint `!is_funded`),
+    // so only run them when the lottery state does not exist yet (i.e. when
+    // this file is executed standalone).
     // ---------------------------------------------------------------
-    await mainProgram.methods
-      .initialize({
-        ticketPrice: MAIN_TICKET_PRICE,
-        houseFeeBps: MAIN_HOUSE_FEE_BPS,
-        jackpotCap: MAIN_JACKPOT_CAP,
-        seedAmount: MAIN_SEED_AMOUNT,
-        softCap: MAIN_SOFT_CAP,
-        hardCap: MAIN_HARD_CAP,
-        drawInterval: MAIN_DRAW_INTERVAL,
-        switchboardQueue,
-      })
-      .accountsPartial({
-        authority: authority.publicKey,
-        lotteryState: mainPDAs.lotteryState,
-        usdcMint,
-        prizePoolUsdc: mainPDAs.prizePoolUsdc,
-        houseFeeUsdc: mainPDAs.houseFeeUsdc,
-        insurancePoolUsdc: mainPDAs.insurancePoolUsdc,
-        systemProgram: SystemProgram.programId,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .rpc();
+    let mainLotteryExists = false;
+    try {
+      await mainProgram.account.lotteryState.fetch(mainPDAs.lotteryState);
+      mainLotteryExists = true;
+    } catch {
+      // Account not found (or not decodable) — treat as "needs init".
+      mainLotteryExists = false;
+    }
 
-    await mainProgram.methods
-      .fundSeed()
-      .accountsPartial({
-        authority: authority.publicKey,
-        lotteryState: mainPDAs.lotteryState,
-        authorityUsdc,
-        prizePoolUsdc: mainPDAs.prizePoolUsdc,
-        usdcMint,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .rpc();
+    if (!mainLotteryExists) {
+      await mainProgram.methods
+        .initialize({
+          ticketPrice: MAIN_TICKET_PRICE,
+          houseFeeBps: MAIN_HOUSE_FEE_BPS,
+          jackpotCap: MAIN_JACKPOT_CAP,
+          seedAmount: MAIN_SEED_AMOUNT,
+          softCap: MAIN_SOFT_CAP,
+          hardCap: MAIN_HARD_CAP,
+          drawInterval: MAIN_DRAW_INTERVAL,
+          switchboardQueue,
+        })
+        .accountsPartial({
+          authority: authority.publicKey,
+          lotteryState: mainPDAs.lotteryState,
+          usdcMint,
+          prizePoolUsdc: mainPDAs.prizePoolUsdc,
+          houseFeeUsdc: mainPDAs.houseFeeUsdc,
+          insurancePoolUsdc: mainPDAs.insurancePoolUsdc,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .rpc();
+
+      await mainProgram.methods
+        .fundSeed()
+        .accountsPartial({
+          authority: authority.publicKey,
+          lotteryState: mainPDAs.lotteryState,
+          authorityUsdc,
+          prizePoolUsdc: mainPDAs.prizePoolUsdc,
+          usdcMint,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .rpc();
+    } else {
+      console.log(
+        "  [quickpick] Main lottery already initialized (by tests/mazelprotocol.ts) — skipping initialize + fundSeed.",
+      );
+    }
 
   });
 
@@ -1100,6 +1124,30 @@ describe("quickpick", () => {
         expect(Number(destAfter.amount) - Number(destBefore.amount)).to.equal(
           balance,
         );
+      } else {
+        // No accumulated fees — withdrawing with 0 funds must fail: the
+        // handler clamps the amount to the available balance (0) and then
+        // requires withdraw_amount > 0 (QuickPickError::InsufficientFunds).
+        // Assert the expected failure so this test is never vacuous.
+        try {
+          await qpProgram.methods
+            .withdrawHouseFees(new BN(1))
+            .accountsPartial({
+              authority: authority.publicKey,
+              lotteryState: mainPDAs.lotteryState,
+              quickPickState: qpPDAs.quickPickState,
+              houseFeeUsdc: qpPDAs.houseFeeUsdc,
+              destinationUsdc,
+              tokenProgram: TOKEN_PROGRAM_ID,
+            })
+            .rpc();
+          expect.fail("Should have thrown — no house fees to withdraw");
+        } catch (err: unknown) {
+          expect(err).to.exist;
+          if (err instanceof AnchorError) {
+            expect(err.error.errorCode.code).to.equal("InsufficientFunds");
+          }
+        }
       }
     });
 
@@ -1274,6 +1322,11 @@ describe("quickpick", () => {
       if (reserveBefore > 0) {
         const transferAmt = new BN(Math.min(reserveBefore, 500_000_000)); // $500 or less
 
+        // NOTE: the program restricts Reserve/Insurance emergency transfers
+        // to protocol-PDA destinations (prize pool or insurance pool) —
+        // see handler_emergency_fund_transfer in quickpick admin.rs. The
+        // source here is the prize pool, so the destination must be the
+        // insurance pool PDA (source == destination is also rejected).
         await qpProgram.methods
           .emergencyFundTransfer(
             { reserve: {} },
@@ -1285,7 +1338,7 @@ describe("quickpick", () => {
             lotteryState: mainPDAs.lotteryState,
             quickPickState: qpPDAs.quickPickState,
             sourceUsdc: qpPDAs.prizePoolUsdc,
-            destinationUsdc,
+            destinationUsdc: qpPDAs.insurancePoolUsdc,
             usdcMint,
             tokenProgram: TOKEN_PROGRAM_ID,
           })
@@ -1297,6 +1350,34 @@ describe("quickpick", () => {
         expect(stateAfter.reserveBalance.toNumber()).to.be.lessThan(
           reserveBefore,
         );
+      } else {
+        // No reserve funds — transferring with 0 reserve must fail with
+        // QuickPickError::InsufficientFunds (reserve_balance >= amount).
+        // Assert the expected failure so this test is never vacuous.
+        try {
+          await qpProgram.methods
+            .emergencyFundTransfer(
+              { reserve: {} },
+              new BN(1),
+              "Reserve emergency (expected failure)",
+            )
+            .accountsPartial({
+              authority: authority.publicKey,
+              lotteryState: mainPDAs.lotteryState,
+              quickPickState: qpPDAs.quickPickState,
+              sourceUsdc: qpPDAs.prizePoolUsdc,
+              destinationUsdc: qpPDAs.insurancePoolUsdc,
+              usdcMint,
+              tokenProgram: TOKEN_PROGRAM_ID,
+            })
+            .rpc();
+          expect.fail("Should have thrown — no reserve funds to transfer");
+        } catch (err: unknown) {
+          expect(err).to.exist;
+          if (err instanceof AnchorError) {
+            expect(err.error.errorCode.code).to.equal("InsufficientFunds");
+          }
+        }
       }
 
       // Unpause for further tests

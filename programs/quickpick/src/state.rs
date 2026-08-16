@@ -121,6 +121,12 @@ pub struct QuickPickState {
     /// Sale target: advance_draw triggers when current_draw_tickets >= this value
     /// AND QUICK_PICK_MIN_DRAW_INTERVAL has elapsed. 0 = disabled (time-only mode).
     pub sale_target_tickets: u64,
+
+    /// Total prizes committed at finalization time (post-audit accounting fix).
+    /// Incremented in finalize_draw when the liability is deducted from the
+    /// buckets via commit_prize_liability; total_prizes_paid (incremented at
+    /// claim time) is always <= this value.
+    pub total_prizes_committed: u64,
 }
 
 /// Type of draw state transition (QP-2: unified state machine).
@@ -173,7 +179,7 @@ impl QuickPickState {
         8 +    // emergency_transfer_total (QP-3)
         8 +    // emergency_transfer_window_start (QP-3)
         8 +    // sale_target_tickets
-        8; // padding for future use
+        8; // total_prizes_committed (formerly padding)
 
     /// Get current house fee based on jackpot level
     pub fn get_current_house_fee_bps(&self) -> u16 {
@@ -286,6 +292,58 @@ impl QuickPickState {
     pub fn reset_jackpot_after_rolldown(&mut self) {
         self.jackpot_balance = self.seed_amount;
         self.is_rolldown_pending = false;
+    }
+
+    /// Deduct the committed prize liability from the accounting buckets at
+    /// draw finalization (post-audit accounting fix).
+    ///
+    /// Runs once per draw in `finalize_draw`, BEFORE the jackpot is re-seeded.
+    /// Claim instructions later transfer USDC from the prize-pool token account
+    /// WITHOUT touching the buckets, so winners of past draws can never drain
+    /// the re-seeded jackpot or block future ticket sales.
+    ///
+    /// Funding priority:
+    /// - Jackpot portion (Match 5 payout, or the full pari-mutuel distribution
+    ///   during a rolldown): `jackpot_balance`, then `reserve_balance`, then
+    ///   `prize_pool_balance`.
+    /// - Fixed portion (Match 3/4 fixed prizes): `prize_pool_balance`, then
+    ///   `reserve_balance`, then `jackpot_balance` as last resort.
+    ///
+    /// # Arguments
+    /// * `jackpot_portion` - USDC lamports funded from the jackpot tier
+    /// * `fixed_portion` - USDC lamports funded from the fixed prize tiers
+    pub fn commit_prize_liability(&mut self, jackpot_portion: u64, fixed_portion: u64) {
+        // 1. Jackpot-funded prizes (Match 5, or the full rolldown distribution).
+        let mut remaining = jackpot_portion;
+        let from_jackpot = remaining.min(self.jackpot_balance);
+        self.jackpot_balance = self.jackpot_balance.saturating_sub(from_jackpot);
+        remaining = remaining.saturating_sub(from_jackpot);
+
+        if remaining > 0 {
+            let from_reserve = remaining.min(self.reserve_balance);
+            self.reserve_balance = self.reserve_balance.saturating_sub(from_reserve);
+            remaining = remaining.saturating_sub(from_reserve);
+        }
+
+        if remaining > 0 {
+            self.prize_pool_balance = self.prize_pool_balance.saturating_sub(remaining);
+        }
+
+        // 2. Fixed prizes (Match 3/4): prize_pool_balance → reserve → jackpot.
+        let mut remaining = fixed_portion;
+        let from_pool = remaining.min(self.prize_pool_balance);
+        self.prize_pool_balance = self.prize_pool_balance.saturating_sub(from_pool);
+        remaining = remaining.saturating_sub(from_pool);
+
+        if remaining > 0 {
+            let from_reserve = remaining.min(self.reserve_balance);
+            self.reserve_balance = self.reserve_balance.saturating_sub(from_reserve);
+            remaining = remaining.saturating_sub(from_reserve);
+        }
+
+        if remaining > 0 {
+            self.jackpot_balance = self.jackpot_balance.saturating_sub(remaining);
+        }
     }
 
     /// Check if the commit has timed out (1 hour timeout)

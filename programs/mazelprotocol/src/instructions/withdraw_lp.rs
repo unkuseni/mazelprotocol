@@ -105,10 +105,6 @@ pub fn handler(ctx: Context<WithdrawLp>, shares: u64) -> Result<()> {
     // Calculate USDC amount for the shares being withdrawn
     let withdraw_amount = lp_pool.amount_for_shares(shares).ok_or(LottoError::LpShareOverflow)?;
     require!(withdraw_amount > 0, LottoError::LpInsufficientLiquidity);
-    require!(
-        ctx.accounts.lp_pool_usdc.amount >= withdraw_amount,
-        LottoError::LpInsufficientLiquidity
-    );
 
     // --- Auto-claim pending rewards before updating shares ---
     // The user's rewards are calculated based on their CURRENT shares.
@@ -132,6 +128,16 @@ pub fn handler(ctx: Context<WithdrawLp>, shares: u64) -> Result<()> {
         msg!("Auto-claimed {} USDC lamports in pending rewards", pending);
     }
 
+    // SECURITY FIX (post-audit): the transfer MUST include the auto-claimed
+    // rewards. Previously only `withdraw_amount` was transferred while the
+    // pending rewards were deducted from bookkeeping, silently forfeiting the
+    // user's accrued rewards (they became orphaned USDC in the pool).
+    let total_to_transfer = withdraw_amount.saturating_add(pending);
+    require!(
+        ctx.accounts.lp_pool_usdc.amount >= total_to_transfer,
+        LottoError::LpInsufficientLiquidity
+    );
+
     // --- Update pool state ---
     lp_pool.total_shares =
         lp_pool.total_shares.checked_sub(shares).ok_or(LottoError::LpShareOverflow)?;
@@ -149,7 +155,7 @@ pub fn handler(ctx: Context<WithdrawLp>, shares: u64) -> Result<()> {
     // Update reward_debt AFTER share change
     lp_position.update_reward_debt(lp_pool.reward_per_share)?;
 
-    // --- Transfer USDC from LP pool to withdrawer ---
+    // --- Transfer USDC from LP pool to withdrawer (deposit share + rewards) ---
     let lp_pool_bump = lp_pool.bump;
     let seeds: &[&[u8]] = &[LP_POOL_SEED, &[lp_pool_bump]];
     let signer_seeds = &[&seeds[..]];
@@ -161,11 +167,11 @@ pub fn handler(ctx: Context<WithdrawLp>, shares: u64) -> Result<()> {
     };
     let cpi_program = ctx.accounts.token_program.to_account_info();
     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-    token::transfer(cpi_ctx, withdraw_amount)?;
+    token::transfer(cpi_ctx, total_to_transfer)?;
 
     emit!(LpWithdrawn {
         withdrawer: ctx.accounts.withdrawer.key(),
-        amount: withdraw_amount,
+        amount: total_to_transfer,
         shares_burned: shares,
         total_shares: lp_pool.total_shares,
         total_deposits: lp_pool.total_deposits,
@@ -177,6 +183,7 @@ pub fn handler(ctx: Context<WithdrawLp>, shares: u64) -> Result<()> {
     msg!("  Shares burned: {}", shares);
     msg!("  USDC withdrawn: {} lamports", withdraw_amount);
     msg!("  Pending rewards auto-claimed: {} lamports", pending);
+    msg!("  Total transferred (deposit + rewards): {} lamports", total_to_transfer);
     msg!(
         "  Pool remaining: {} shares, {} USDC lamports",
         lp_pool.total_shares,

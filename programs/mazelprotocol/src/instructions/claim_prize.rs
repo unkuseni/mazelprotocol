@@ -265,26 +265,23 @@ pub fn handler(ctx: Context<ClaimPrize>) -> Result<()> {
         actual_transfer_amount = total_payout;
     }
 
-    // SECURITY FIX (Issue #6 + Issue #4): Update lottery_state internal accounting
-    // to stay consistent with the actual prize_pool_usdc token account balance.
-    //
-    // Deduction priority depends on prize tier (encapsulated in
-    // LotteryState::record_prize_payment — single source of truth shared with
-    // claim_bulk_prize):
-    // - Match 6 (jackpot): deduct from jackpot_balance, then reserve as fallback.
-    // - Match 3/4/5 (fixed prizes): deduct from fixed_prize_balance first (the
-    //   dedicated 39.4% allocation), then reserve, then jackpot as last resort.
-    //   This prevents fixed prize payouts from eroding the advertised jackpot.
-    // - Match 2: free ticket credit, no USDC transfer, no deduction needed.
+    // SECURITY FIX (post-audit accounting): Update lottery_state accounting
+    // WITHOUT touching the fund buckets. The committed liability for this draw
+    // was already deducted from jackpot/reserve/fixed at finalization time
+    // (LotteryState::commit_prize_liability). Claims only transfer the USDC
+    // from the prize-pool token account and update the lifetime paid counter,
+    // so claims on past draws can never drain the re-seeded jackpot or block
+    // future ticket sales.
     if actual_transfer_amount > 0 {
         let lottery_state = &mut ctx.accounts.lottery_state;
-        lottery_state.record_prize_payment(actual_transfer_amount, match_count == 6);
+        lottery_state.total_prizes_paid =
+            lottery_state.total_prizes_paid.saturating_add(actual_transfer_amount);
     }
 
     // Track the streak bonus paid against the pre-funded pool (L-7). This is
-    // separate bookkeeping: the actual USDC (base + bonus) was already deducted
-    // from the live balances via record_prize_payment above, and this draw-level
-    // counter enforces the `total_streak_bonus_paid <= streak_bonus_pool` bound.
+    // separate bookkeeping: the actual USDC (base + bonus) was already
+    // committed at finalization, and this draw-level counter enforces the
+    // `total_streak_bonus_paid <= streak_bonus_pool` bound.
     if streak_bonus_amount > 0 {
         let draw_result = &mut ctx.accounts.draw_result;
         draw_result.total_streak_bonus_paid =

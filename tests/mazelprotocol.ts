@@ -612,6 +612,8 @@ describe("mazelprotocol", () => {
         .accountsPartial({
           authority: authority.publicKey,
           lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
         })
         .rpc();
 
@@ -635,6 +637,8 @@ describe("mazelprotocol", () => {
           .accountsPartial({
             authority: unauthorizedUser.publicKey,
             lotteryState: pdas.lotteryState,
+            prizePoolUsdc: pdas.prizePoolUsdc,
+            insurancePoolUsdc: pdas.insurancePoolUsdc,
           })
           .signers([unauthorizedUser])
           .rpc();
@@ -649,6 +653,8 @@ describe("mazelprotocol", () => {
         .accountsPartial({
           authority: authority.publicKey,
           lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
         })
         .rpc();
     });
@@ -1160,6 +1166,8 @@ describe("mazelprotocol", () => {
         .accountsPartial({
           authority: authority.publicKey,
           lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
         })
         .rpc();
     });
@@ -1201,6 +1209,8 @@ describe("mazelprotocol", () => {
         .accountsPartial({
           authority: authority.publicKey,
           lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
         })
         .rpc();
     });
@@ -1283,6 +1293,8 @@ describe("mazelprotocol", () => {
         .accountsPartial({
           authority: authority.publicKey,
           lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
         })
         .rpc();
     });
@@ -1326,6 +1338,8 @@ describe("mazelprotocol", () => {
         .accountsPartial({
           authority: authority.publicKey,
           lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
         })
         .rpc();
     });
@@ -1369,6 +1383,8 @@ describe("mazelprotocol", () => {
         .accountsPartial({
           authority: authority.publicKey,
           lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
         })
         .rpc();
     });
@@ -1902,6 +1918,8 @@ describe("mazelprotocol", () => {
           .accountsPartial({
             authority: authority.publicKey,
             lotteryState: pdas.lotteryState,
+            prizePoolUsdc: pdas.prizePoolUsdc,
+            insurancePoolUsdc: pdas.insurancePoolUsdc,
           })
           .rpc();
       }
@@ -1968,6 +1986,33 @@ describe("mazelprotocol", () => {
         expect(stateAfter.reserveBalance.toNumber()).to.be.lessThan(
           reserveBefore,
         );
+      } else {
+        // No reserve funds — transferring with 0 reserve must fail with
+        // LottoError::InsufficientFunds (amount <= reserve_balance).
+        // Assert the expected failure so this test is never vacuous.
+        try {
+          await program.methods
+            .emergencyFundTransfer(
+              { reserve: {} },
+              new BN(1),
+              "Reserve emergency transfer test (expected failure)",
+            )
+            .accountsPartial({
+              authority: authority.publicKey,
+              lotteryState: pdas.lotteryState,
+              insurancePoolUsdc: pdas.insurancePoolUsdc,
+              prizePoolUsdc: pdas.prizePoolUsdc,
+              destinationUsdc: destinationUsdc,
+              tokenProgram: TOKEN_PROGRAM_ID,
+            })
+            .rpc();
+          expect.fail("Should have thrown — no reserve funds to transfer");
+        } catch (err: unknown) {
+          expect(err).to.exist;
+          if (err instanceof AnchorError) {
+            expect(err.error.errorCode.code).to.equal("InsufficientFunds");
+          }
+        }
       }
 
       // Unpause
@@ -1976,6 +2021,8 @@ describe("mazelprotocol", () => {
         .accountsPartial({
           authority: authority.publicKey,
           lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
         })
         .rpc();
     });
@@ -2012,6 +2059,8 @@ describe("mazelprotocol", () => {
         .accountsPartial({
           authority: authority.publicKey,
           lotteryState: pdas.lotteryState,
+          prizePoolUsdc: pdas.prizePoolUsdc,
+          insurancePoolUsdc: pdas.insurancePoolUsdc,
         })
         .rpc();
     });

@@ -21,7 +21,7 @@
 | Smart Contract Deps | anchor-spl, sha2 | — |
 | Testing (Rust) | Anchor test framework | — |
 | Testing (TS) | Vitest (app), mocha (root) | 3.x / 10.x |
-| Package Manager | pnpm (app), yarn (root) | — |
+| Package Manager | pnpm (app), npm (root — package-lock.json; bun.lock also present) | — |
 | Linting/Formatting | Biome (app), rustfmt + clippy (Rust) | — |
 
 ## Key Directories
@@ -65,7 +65,7 @@ mazelprotocol/
 ├── Anchor.toml              # Anchor workspace configuration
 ├── Cargo.toml               # Rust workspace manifest
 ├── rust-toolchain.toml      # Pinned Rust toolchain (1.89.0)
-└── package.json             # Root package (yarn) — Anchor test scripts
+└── package.json             # Root package (npm) — Anchor test scripts
 ```
 
 ## Naming Conventions
@@ -97,9 +97,10 @@ anchor build
 # Run all integration tests (local validator)
 anchor test
 
-# Run specific test file
-yarn test tests/mazelprotocol.ts
-yarn test tests/quickpick.ts
+# Run a single test file (the root `npm test` script always runs tests/**/*.ts,
+# so use ts-mocha directly for one file)
+npx ts-mocha -p ./tsconfig.json -t 1000000 tests/mazelprotocol.ts
+npx ts-mocha -p ./tsconfig.json -t 1000000 tests/quickpick.ts
 
 # Format Rust code
 cargo fmt --all
@@ -171,11 +172,11 @@ cargo run --release -- --telegram-bot-token <TOKEN> --mode polling
 cargo run --release -- --telegram-bot-token <TOKEN> --mode webhook --webhook-url https://my-bot.example.com
 ```
 
-### Root (yarn)
+### Root (npm)
 
 ```bash
 # Install root dependencies (Anchor test runner)
-yarn install
+npm install
 
 # Run integration tests via Anchor
 anchor test

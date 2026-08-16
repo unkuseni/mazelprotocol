@@ -22,11 +22,12 @@
 use super::execute;
 use super::finalize;
 use super::DrawResult;
-use crate::config::BotConfig;
-use crate::draw::{LotteryStateData, QpStateData};
+use crate::config::{BotConfig, MAIN_FINALIZATION_DELAY, QP_FINALIZATION_DELAY};
 use crate::error::Result;
 use crate::indexer;
 use crate::store::{DrawPhase, Store};
+use mazelprotocol::state::LotteryState;
+use quickpick::state::QuickPickState;
 use solana_client::rpc_client::RpcClient;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_signature::Signature;
@@ -55,14 +56,15 @@ fn send_ix(rpc: &RpcClient, config: &BotConfig, ix: Instruction) -> Result<Signa
     Ok(rpc.send_and_confirm_transaction(&tx)?)
 }
 
-/// Fetch the winning numbers of an already-executed draw from its on-chain
-/// result account. Errors propagate instead of panicking (review M4).
-fn fetch_winning_numbers(
+/// Fetch the winning numbers (and execution timestamp) of an already-executed
+/// draw from its on-chain result account. Errors propagate instead of
+/// panicking (review M4).
+fn fetch_draw_result(
     rpc: &RpcClient,
     config: &BotConfig,
     draw_id: u64,
     is_qp: bool,
-) -> Result<Vec<u8>> {
+) -> Result<(Vec<u8>, i64)> {
     let (draw_result, _) = if is_qp {
         config.qp_draw_result_pda(draw_id)
     } else {
@@ -70,18 +72,18 @@ fn fetch_winning_numbers(
     };
     let account = rpc.get_account(&draw_result)?;
     if is_qp {
-        let dr: execute::QpDrawResultData = execute::deser_checked(&account.data)?;
-        Ok(dr.winning_numbers[..5].to_vec())
+        let dr: quickpick::state::QuickPickDrawResult = execute::deser_checked(&account.data)?;
+        Ok((dr.winning_numbers.to_vec(), dr.timestamp))
     } else {
-        let dr: execute::DrawResultData = execute::deser_checked(&account.data)?;
-        Ok(dr.winning_numbers[..6].to_vec())
+        let dr: mazelprotocol::state::DrawResult = execute::deser_checked(&account.data)?;
+        Ok((dr.winning_numbers.to_vec(), dr.timestamp))
     }
 }
 
 pub async fn handle_stuck_main_draw(
     rpc: &RpcClient,
     config: &BotConfig,
-    lottery_state: &LotteryStateData,
+    lottery_state: &LotteryState,
     store: &Store,
 ) -> Result<DrawResult> {
     let draw_id = lottery_state.current_draw_id;
@@ -120,7 +122,7 @@ pub async fn handle_stuck_main_draw(
 pub async fn handle_stuck_qp_draw(
     rpc: &RpcClient,
     config: &BotConfig,
-    qp_state: &QpStateData,
+    qp_state: &QuickPickState,
     store: &Store,
 ) -> Result<DrawResult> {
     let draw_id = qp_state.current_draw;
@@ -163,8 +165,18 @@ async fn recover_finalize(
     is_qp: bool,
     store: &Store,
 ) -> Result<DrawResult> {
-    let winning_numbers = fetch_winning_numbers(rpc, config, draw_id, is_qp)?;
+    let (winning_numbers, timestamp) = fetch_draw_result(rpc, config, draw_id, is_qp)?;
     let program = if is_qp { "quickpick" } else { "main" };
+
+    // Respect the on-chain finalization delay before submitting finalize_draw.
+    let delay = if is_qp { QP_FINALIZATION_DELAY } else { MAIN_FINALIZATION_DELAY };
+    let now = chrono::Utc::now().timestamp();
+    let eligible = timestamp.saturating_add(delay);
+    if now < eligible {
+        let wait_secs = (eligible - now) as u64;
+        tracing::info!(draw_id, wait_secs, "[{}] Recovery: waiting finalization delay", program);
+        tokio::time::sleep(std::time::Duration::from_secs(wait_secs)).await;
+    }
 
     if is_qp {
         let ir =

@@ -1,19 +1,31 @@
 //! Draw lifecycle modules.
 //!
 //! Each phase is implemented in its own module:
-//! - `commit` — Phase 1: create randomness account + commit_randomness
+//! - `commit` — Phase 1: create Switchboard randomness + commit_randomness
 //! - `execute` — Phase 2: execute_draw (reveal randomness)
 //! - `finalize` — Phase 4: finalize_draw with winner counts
-//! - `recovery` — Stuck draw recovery (advance_draw, force_finalize)
+//! - `recovery` — Stuck draw recovery (advance_draw, re-finalize)
+//!
+//! Account state is deserialized using the ON-CHAIN program crate types
+//! (`mazelprotocol::state::*`, `quickpick::state::*`) — the single source of
+//! truth. This replaces the previous hand-rolled struct mirrors, which drifted
+//! from the real layouts (missing fields shifted every boolean flag and the
+//! draw result's `draw_id`, making the bot read garbage state).
 
 pub mod commit;
 pub mod execute;
 pub mod finalize;
 pub mod recovery;
 
+use anchor_lang::AccountDeserialize;
+use mazelprotocol::state::LotteryState;
+use quickpick::state::QuickPickState;
 use solana_client::rpc_client::RpcClient;
 
-use crate::config::BotConfig;
+use crate::config::{
+    BotConfig, MAIN_FINALIZATION_DELAY, MAIN_TICKET_SALE_CUTOFF, QP_FINALIZATION_DELAY,
+    QP_TICKET_SALE_CUTOFF,
+};
 use crate::error::Result;
 use crate::indexer;
 use crate::store::{DrawPhase, PersistedDrawState, Store};
@@ -25,6 +37,17 @@ pub struct DrawResult {
     pub winning_numbers: Option<Vec<u8>>,
 }
 
+/// Sleep until `timestamp + delay`, if that time is still in the future.
+async fn wait_for_finalization_eligibility(draw_id: u64, timestamp: i64, delay: i64) {
+    let now = chrono::Utc::now().timestamp();
+    let eligible = timestamp.saturating_add(delay);
+    if now < eligible {
+        let wait_secs = (eligible - now) as u64;
+        tracing::info!(draw_id, wait_secs, "Waiting for on-chain finalization delay");
+        tokio::time::sleep(std::time::Duration::from_secs(wait_secs)).await;
+    }
+}
+
 /// Execute the complete draw lifecycle for the Main Lottery.
 pub async fn run_main_lifecycle(
     rpc: &RpcClient,
@@ -32,7 +55,7 @@ pub async fn run_main_lifecycle(
     store: &Store,
 ) -> Result<DrawResult> {
     let (lottery_state_pda, _) = config.main_lottery_state_pda();
-    let lottery_state: LotteryStateData = fetch_account(rpc, &lottery_state_pda)?;
+    let lottery_state: LotteryState = fetch_account(rpc, &lottery_state_pda)?;
     let draw_id = lottery_state.current_draw_id;
 
     tracing::info!(
@@ -46,6 +69,19 @@ pub async fn run_main_lifecycle(
     }
     if lottery_state.is_paused {
         tracing::info!(draw_id, "[main] Paused — skipping");
+        return Ok(DrawResult { phase: DrawPhase::Idle, draw_id, winning_numbers: None });
+    }
+
+    // SECURITY (review C5): only attempt a commit inside the sale-cutoff
+    // window. Outside it the on-chain commit would fail with DrawNotReady,
+    // spamming failure notifications for ~23h/day on a daily lottery.
+    let now = chrono::Utc::now().timestamp();
+    if now < lottery_state.next_draw_timestamp.saturating_sub(MAIN_TICKET_SALE_CUTOFF) {
+        tracing::debug!(
+            draw_id,
+            next_draw = lottery_state.next_draw_timestamp,
+            "[main] Idle — draw not yet within commit window"
+        );
         return Ok(DrawResult { phase: DrawPhase::Idle, draw_id, winning_numbers: None });
     }
 
@@ -75,6 +111,9 @@ pub async fn run_main_lifecycle(
         })?;
     }
 
+    // The on-chain execute requires the reveal to land within 10 slots of the
+    // commit seed slot. The randomness account is committed and revealed in
+    // the same or next slot, so only a small settle delay is needed.
     tokio::time::sleep(std::time::Duration::from_millis(config.commit_execute_delay_ms)).await;
 
     // ---- Phase 2: EXECUTE ----
@@ -118,6 +157,12 @@ pub async fn run_main_lifecycle(
     .await?;
     tracing::info!(draw_id, total = ir.total_tickets_scanned, ?ir.winner_counts, "[main] Indexed");
 
+    // SECURITY (review C4): the on-chain finalize requires
+    // FINALIZATION_DELAY (120s) after execute. Wait for eligibility so the
+    // first finalize attempt doesn't always fail with DrawNotReady.
+    wait_for_finalization_eligibility(draw_id, execute_result.timestamp, MAIN_FINALIZATION_DELAY)
+        .await;
+
     // ---- Phase 4: FINALIZE ----
     if !config.dry_run {
         let fr = finalize::finalize_main_draw(
@@ -156,7 +201,7 @@ pub async fn run_qp_lifecycle(
     store: &Store,
 ) -> Result<DrawResult> {
     let (qp_state_pda, _) = config.qp_state_pda();
-    let qp_state: QpStateData = fetch_account(rpc, &qp_state_pda)?;
+    let qp_state: QuickPickState = fetch_account(rpc, &qp_state_pda)?;
     let draw_id = qp_state.current_draw;
 
     tracing::info!(
@@ -169,6 +214,17 @@ pub async fn run_qp_lifecycle(
         return recovery::handle_stuck_qp_draw(rpc, config, &qp_state, store).await;
     }
     if qp_state.is_paused {
+        return Ok(DrawResult { phase: DrawPhase::Idle, draw_id, winning_numbers: None });
+    }
+
+    // SECURITY (review C5): same commit-window gating as the main lottery.
+    let now = chrono::Utc::now().timestamp();
+    if now < qp_state.next_draw_timestamp.saturating_sub(QP_TICKET_SALE_CUTOFF) {
+        tracing::debug!(
+            draw_id,
+            next_draw = qp_state.next_draw_timestamp,
+            "[quickpick] Idle — draw not yet within commit window"
+        );
         return Ok(DrawResult { phase: DrawPhase::Idle, draw_id, winning_numbers: None });
     }
 
@@ -220,6 +276,10 @@ pub async fn run_qp_lifecycle(
     )
     .await?;
 
+    // SECURITY (review C4): QP finalization delay is 60s.
+    wait_for_finalization_eligibility(draw_id, execute_result.timestamp, QP_FINALIZATION_DELAY)
+        .await;
+
     if !config.dry_run {
         finalize::finalize_qp_draw(
             rpc,
@@ -249,91 +309,70 @@ pub async fn run_qp_lifecycle(
     })
 }
 
-// ---------------------------------------------------------------------------
-// Account data structs
-// ---------------------------------------------------------------------------
-
-#[derive(anchor_lang::AnchorDeserialize, Debug)]
-pub struct LotteryStateData {
-    // 8-byte Anchor account discriminator (must be skipped — account data
-    // starts with sha256("account:LotteryState")[..8]).
-    _discriminator: [u8; 8],
-    pub authority: solana_pubkey::Pubkey,
-    // pending_authority: Option<Pubkey> = 1-byte tag + 32-byte pubkey (33 bytes)
-    _pending_authority: [u8; 33],
-    _switchboard_queue: anchor_lang::prelude::Pubkey,
-    _current_randomness_account: anchor_lang::prelude::Pubkey,
-    pub current_draw_id: u64,
-    _pad1: u64,
-    _pad2: u64,
-    _pad3: u64,
-    _pad4: u64,
-    _pad5: u64,
-    _pad6: u16,
-    _pad7: u64,
-    _pad8: u64,
-    _pad9: u64,
-    _pad10: u64,
-    _pad11: i64,
-    _pad12: i64,
-    _pad13: u64,
-    _pad14: i64,
-    pub current_draw_tickets: u64,
-    _pad15: u64,
-    pub is_draw_in_progress: bool,
-    // SECURITY (review H1): expose this flag so recovery can distinguish
-    // "committed but never executed" (numbers not public → advance_draw)
-    // from "executed but not finalized" (numbers public → re-index + finalize).
-    pub is_awaiting_finalization: bool,
-    _pad17: bool,
-    pub is_paused: bool,
-    _pad18: bool,
-    _pad19: u8,
-    _pad20: u8,
-}
-
-#[derive(anchor_lang::AnchorDeserialize, Debug)]
-pub struct QpStateData {
-    // 8-byte Anchor account discriminator (must be skipped).
-    _discriminator: [u8; 8],
-    pub current_draw: u64,
-    _pad0: u64,
-    _pad1: u8,
-    _pad2: u8,
-    _pad3: u16,
-    _pad4: i64,
-    _pad5: i64,
-    _pad6: u64,
-    _pad7: u64,
-    _pad8: u64,
-    _pad9: u64,
-    _pad10: u64,
-    _pad11: u64,
-    pub current_draw_tickets: u64,
-    _pad12: u64,
-    _pad13: u64,
-    _pad14: u64,
-    _pad15: u64,
-    _pad16: u64,
-    _pad17: anchor_lang::prelude::Pubkey,
-    _pad18: u64,
-    _pad19: i64,
-    pub is_draw_in_progress: bool,
-    // SECURITY (review H1): same as LotteryStateData — distinguishes
-    // "committed but never executed" from "executed but not finalized".
-    pub is_awaiting_finalization: bool,
-    _pad21: bool,
-    pub is_paused: bool,
-    _pad22: bool,
-    _pad23: u8,
-}
-
-/// Fetch and deserialize an Anchor account.
-fn fetch_account<T: anchor_lang::AnchorDeserialize>(
+/// Fetch and deserialize an Anchor account using the program crate's type.
+fn fetch_account<T: AccountDeserialize>(
     rpc: &RpcClient,
     pubkey: &solana_pubkey::Pubkey,
 ) -> Result<T> {
     let account = rpc.get_account(pubkey)?;
-    let mut data: &[u8] = &account.data;
-    T::deserialize(&mut data).map_err(|e| crate::error::BotError::AnchorLang(e.into()))
+    execute::deser_checked(&account.data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anchor_lang::AccountSerialize;
+    use mazelprotocol::state::DrawResult as MainDrawResult;
+
+    /// The bot deserializes state via the program crates. This test proves
+    /// the round-trip works through the bot's `fetch_account` path for both
+    /// the lottery state and the draw result (the layouts that previously
+    /// drifted). It catches any future feature-flag or dependency issue where
+    /// the program crates stop deserializing from the bot.
+    #[test]
+    fn test_program_types_roundtrip_through_bot_deserializer() {
+        // LotteryState round-trip with all flags set. `AccountSerialize`
+        // writes the account DISCRIMINATOR + body, matching on-chain account
+        // data (plain `AnchorSerialize` omits the discriminator).
+        let state = LotteryState {
+            current_draw_id: 42,
+            current_draw_tickets: 7,
+            next_draw_timestamp: 1_700_000_000,
+            is_draw_in_progress: true,
+            is_awaiting_finalization: true,
+            is_paused: true,
+            ..Default::default()
+        };
+
+        let mut buf = Vec::new();
+        state.try_serialize(&mut buf).unwrap();
+        let mut slice: &[u8] = &buf;
+        let decoded = LotteryState::try_deserialize(&mut slice).unwrap();
+
+        assert_eq!(decoded.current_draw_id, 42);
+        assert_eq!(decoded.current_draw_tickets, 7);
+        assert_eq!(decoded.next_draw_timestamp, 1_700_000_000);
+        assert!(decoded.is_draw_in_progress);
+        assert!(decoded.is_awaiting_finalization);
+        assert!(decoded.is_paused);
+
+        // DrawResult round-trip: winning numbers must land at the right offset.
+        let dr = MainDrawResult {
+            draw_id: 42,
+            winning_numbers: [3, 7, 11, 22, 35, 46],
+            was_rolldown: true,
+            timestamp: 1_700_000_001,
+            ..Default::default()
+        };
+
+        let mut buf = Vec::new();
+        dr.try_serialize(&mut buf).unwrap();
+        let mut slice: &[u8] = &buf;
+        let decoded = MainDrawResult::try_deserialize(&mut slice).unwrap();
+
+        assert_eq!(decoded.draw_id, 42);
+        assert_eq!(decoded.winning_numbers, [3, 7, 11, 22, 35, 46]);
+        assert!(decoded.was_rolldown);
+        assert_eq!(decoded.timestamp, 1_700_000_001);
+    }
 }

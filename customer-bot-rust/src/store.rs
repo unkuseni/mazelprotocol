@@ -32,10 +32,52 @@ impl Store {
     }
 
     fn load(&self) -> StoreData {
-        if let Ok(data) = std::fs::read_to_string(&self.path) {
-            serde_json::from_str(&data).unwrap_or(StoreData { users: vec![] })
-        } else {
-            StoreData { users: vec![] }
+        match std::fs::read_to_string(&self.path) {
+            Ok(data) => match serde_json::from_str::<StoreData>(&data) {
+                Ok(parsed) => parsed,
+                Err(e) => {
+                    // A corrupt file must never silently reset to an empty
+                    // list: the next save would overwrite real registrations
+                    // with an empty store. Move it aside for recovery, then
+                    // continue with an empty store (safe now that the corrupt
+                    // file is out of the way).
+                    tracing::error!(
+                        error = %e,
+                        path = %self.path.display(),
+                        "users.json is corrupt; backing it up and starting with an empty store"
+                    );
+                    self.backup_corrupt();
+                    StoreData { users: vec![] }
+                }
+            },
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => StoreData { users: vec![] },
+            Err(e) => {
+                tracing::error!(
+                    error = %e,
+                    path = %self.path.display(),
+                    "failed to read users.json; starting with an empty store"
+                );
+                StoreData { users: vec![] }
+            }
+        }
+    }
+
+    /// Move a corrupt users.json to `<name>.corrupt-<timestamp>` so it is
+    /// preserved for inspection instead of being overwritten by the next
+    /// save (which would destroy the only copy of the registrations).
+    fn backup_corrupt(&self) {
+        let stamp = chrono::Utc::now().timestamp();
+        let backup = self.path.with_extension(format!("corrupt-{stamp}"));
+        match std::fs::rename(&self.path, &backup) {
+            Ok(()) => tracing::warn!(
+                backup = %backup.display(),
+                "corrupt users.json preserved for inspection"
+            ),
+            Err(e) => tracing::error!(
+                error = %e,
+                path = %self.path.display(),
+                "failed to back up corrupt users.json"
+            ),
         }
     }
 
@@ -43,7 +85,13 @@ impl Store {
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(&self.path, serde_json::to_string_pretty(data)?)?;
+        // Write to a temp file in the same directory, then rename over the
+        // target. A crash mid-write leaves the previous good file in place
+        // instead of a truncated users.json, and the rename is atomic on
+        // the same filesystem.
+        let tmp = self.path.with_extension("json.tmp");
+        std::fs::write(&tmp, serde_json::to_string_pretty(data)?)?;
+        std::fs::rename(&tmp, &self.path)?;
         Ok(())
     }
 
@@ -82,5 +130,57 @@ impl Store {
         data.users.push(rec.clone());
         self.save(&data)?;
         Ok(rec)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Unique temp dir per test so parallel tests never collide.
+    fn temp_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "mazelprotocol-customer-bot-{name}-{}-{}",
+            std::process::id(),
+            chrono::Utc::now().timestamp_millis()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn save_writes_temp_file_then_renames() {
+        let dir = temp_dir("save");
+        let store = Store::new(dir.clone());
+        store.register_user(1, "alice", "wallet1").unwrap();
+        let content = std::fs::read_to_string(dir.join("users.json")).unwrap();
+        assert!(content.contains("alice"));
+        // No leftover temp files after a successful save.
+        let leftovers: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "temp file left behind: {leftovers:?}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn corrupt_store_is_backed_up_not_silently_reset() {
+        let dir = temp_dir("corrupt");
+        let store = Store::new(dir.clone());
+        store.register_user(1, "alice", "wallet1").unwrap();
+        // Corrupt the file on disk.
+        std::fs::write(dir.join("users.json"), "{ not json").unwrap();
+        let data = store.load();
+        assert!(data.users.is_empty(), "corrupt file must not be parsed");
+        // The corrupt file must be preserved as a backup, not overwritten.
+        let backups: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains("corrupt"))
+            .collect();
+        assert_eq!(backups.len(), 1, "corrupt file must be preserved as a backup");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

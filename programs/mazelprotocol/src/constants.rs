@@ -444,7 +444,7 @@ pub const QUICK_PICK_STATE_SIZE: usize = 8 + // discriminator
     32 + // pending_config_hash (H-2 fix)
     8 +  // emergency_transfer_total (QP-3 fix)
     8 +  // emergency_transfer_window_start (QP-3 fix)
-    8; // padding
+    8; // total_prizes_committed (formerly padding)
 
 /// Quick Pick ticket size
 pub const QUICK_PICK_TICKET_SIZE: usize = 8 + // discriminator

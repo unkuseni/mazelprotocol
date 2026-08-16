@@ -60,18 +60,14 @@ pub fn handler(ctx: Context<AdvanceDraw>) -> Result<()> {
     if draw_in_progress {
         require!(!lottery_state.is_awaiting_finalization, LottoError::DrawNotInProgress);
 
-        let can_advance = (timeout_elapsed || target_hit) && min_interval_elapsed;
+        // SECURITY (post-audit fix): a draw in progress can ONLY be skipped on
+        // timeout. Previously `target_hit` also allowed advancement here, which
+        // let anyone void a committed-but-not-yet-executed draw during the
+        // ~4-second commit→execute window when the sale target was enabled.
+        let can_advance = timeout_elapsed && min_interval_elapsed;
         require!(can_advance, LottoError::DrawAdvancementNotReady);
 
-        if target_hit && !timeout_elapsed {
-            msg!(
-                "🎯 SALE TARGET HIT during stuck draw: {} >= {}",
-                lottery_state.current_draw_tickets,
-                lottery_state.sale_target_tickets
-            );
-        } else {
-            msg!("⚠️  Draw advancement triggered by timeout");
-        }
+        msg!("⚠️  Draw advancement triggered by timeout");
 
         lottery_state.reset_draw_state(true);
         lottery_state.current_draw_id =
@@ -100,6 +96,12 @@ pub fn handler(ctx: Context<AdvanceDraw>) -> Result<()> {
             msg!("🎯 SALE TARGET HIT but bot never committed after timeout");
             msg!("  Skipping draw {} — advancing to next cycle", lottery_state.current_draw_id);
 
+            // SECURITY (post-audit fix): reset the ticket counter when the
+            // draw is skipped. Tickets sold for the skipped draw can never
+            // claim (no draw result will exist for its draw_id), so counting
+            // them toward the next draw would inflate total_tickets in the
+            // winner-plausibility checks and distort draw statistics.
+            lottery_state.reset_draw_state(true);
             lottery_state.current_draw_id =
                 lottery_state.current_draw_id.checked_add(1).ok_or(LottoError::Overflow)?;
             lottery_state.next_draw_timestamp = clock
