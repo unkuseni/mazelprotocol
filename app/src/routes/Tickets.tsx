@@ -648,8 +648,8 @@ function EmptyState({ filter }: { filter: TicketFilter }) {
 			desc: "All your winning tickets have been claimed.",
 		},
 		lost: {
-			title: "No losing tickets",
-			desc: "Good news — nothing to see here!",
+			title: "No settled tickets yet",
+			desc: "Every ticket you buy gets a shot at the next draw.",
 		},
 		claimed: {
 			title: "No claimed tickets",

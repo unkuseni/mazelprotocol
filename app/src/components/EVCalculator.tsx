@@ -2,7 +2,7 @@ import {
 	Calculator,
 	Info,
 	Minus,
-	TrendingDown,
+	Sparkles,
 	TrendingUp,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
@@ -254,8 +254,8 @@ export function EVCalculator({
 			</div>
 			<p className="text-xs text-muted-foreground mb-6">
 				{rolldownActive
-					? "Pari-mutuel prizes — adjust ticket estimate below to see how volume affects your edge"
-					: "Normal mode with fixed prizes — EV is below ticket cost"}
+					? "Pari-mutuel prizes — adjust ticket estimate below to see how volume affects prizes per winner"
+					: "Normal mode — fixed prizes, plus every ticket builds the jackpot that rolldown distributes"}
 			</p>
 
 			{/* Rolldown mode: ticket volume slider */}
@@ -299,16 +299,16 @@ export function EVCalculator({
 					"text-center py-6 rounded-2xl mb-6 border",
 					scenario.isPlusEV
 						? "bg-emerald-500/5 border-emerald-500/20"
-						: "bg-red-500/5 border-red-500/10",
+						: "bg-gold-500/5 border-gold-500/15",
 				)}
 			>
 				<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-					Expected Value Per Ticket
+					{scenario.isPlusEV ? "Expected Value Per Ticket" : "Expected Prizes Per Ticket"}
 				</p>
 				<p
 					className={cn(
 						"text-4xl sm:text-5xl font-black tracking-tight tabular-nums",
-						scenario.isPlusEV ? "text-emerald-400" : "text-red-400",
+						scenario.isPlusEV ? "text-emerald-400" : "text-gold-300",
 					)}
 				>
 					{formatCurrency(scenario.totalEV)}
@@ -317,21 +317,25 @@ export function EVCalculator({
 					{scenario.isPlusEV ? (
 						<TrendingUp size={16} className="text-emerald-400" />
 					) : scenario.edge < -0.5 ? (
-						<TrendingDown size={16} className="text-red-400" />
+						<Sparkles size={16} className="text-gold-300" />
 					) : (
 						<Minus size={16} className="text-muted-foreground" />
 					)}
 					<span
 						className={cn(
 							"text-sm font-bold",
-							scenario.isPlusEV ? "text-emerald-400" : "text-red-400",
+							scenario.isPlusEV ? "text-emerald-400" : "text-gold-300",
 						)}
 					>
-						{formatPercent(scenario.edgePercent)} edge
+						{scenario.isPlusEV
+							? `${formatPercent(scenario.edgePercent)} edge`
+							: "Jackpot building"}
 					</span>
-					<span className="text-xs text-muted-foreground">
-						({formatCurrency(Math.abs(scenario.edge))} per ticket)
-					</span>
+					{scenario.isPlusEV && (
+						<span className="text-xs text-muted-foreground">
+							({formatCurrency(scenario.edge)} per ticket)
+						</span>
+					)}
 				</div>
 			</div>
 
@@ -398,8 +402,8 @@ export function EVCalculator({
 						<span className="font-semibold text-foreground">pari-mutuel</span>{" "}
 						during rolldown — per-winner amounts decrease as more tickets are
 						sold. This protects the protocol from unbounded liability while
-						maintaining fair distribution. The more popular the draw, the lower
-						your per-ticket edge.
+						maintaining fair distribution. The more popular the draw, the more
+						winners share each pool.
 					</p>
 				</div>
 			)}
@@ -409,11 +413,11 @@ export function EVCalculator({
 				<div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
 					<Info size={14} className="text-amber-400 shrink-0 mt-0.5" />
 					<p className="text-[10px] text-muted-foreground leading-relaxed">
-						During normal mode, the house has an edge. But once the jackpot
-						reaches{" "}
+						In normal mode, a share of every ticket is set aside to build the
+						jackpot. Once it reaches{" "}
 						<span className="font-semibold text-foreground">$1.75M</span> and
-						rolldown activates, prizes become pari-mutuel and the edge flips in
-						favor of players. This is the +EV window that makes MazelProtocol
+						rolldown activates, that jackpot is distributed back to players as
+						pari-mutuel prizes. This is the +EV window that makes MazelProtocol
 						unique.
 					</p>
 				</div>

@@ -510,7 +510,7 @@ export default function LearnRolldownPage() {
 										</h3>
 										<ul className="space-y-2">
 											{[
-												"You always lose on average (–50% EV or worse)",
+												"Only ~50% of ticket value is ever returned as prizes",
 												"Jackpot rolls forever — you never see that money",
 												"Opaque randomness — no way to verify fairness",
 												"Fixed prizes that never change",
@@ -697,8 +697,8 @@ export default function LearnRolldownPage() {
 										<span className="font-bold text-emerald-400">
 											Traditional lotteries NEVER offer +EV.
 										</span>{" "}
-										Powerball and Mega Millions always have a negative expected
-										value (~-50%), meaning you lose half your money on average.
+										Powerball and Mega Millions keep roughly half of every dollar
+										forever, with no mechanism to return it to players.
 										MazelProtocol creates predictable +EV windows where the math
 										shifts in your favor. During a 6/46 rolldown, the average
 										return is up to $2.04 per dollar wagered — an unprecedented
@@ -719,7 +719,7 @@ export default function LearnRolldownPage() {
 									title="Average EV Across All Draws (6/46)"
 									formula="EV = Weighted Avg(Normal EV, Rolldown EV)"
 									result="+18% overall"
-									explanation="Even averaging across normal and rolldown draws, MazelProtocol maintains a positive expected value. Traditional lotteries remain negative in every single draw."
+									explanation="Even averaging across normal and rolldown draws, MazelProtocol maintains a positive expected value. Traditional lotteries never return their accumulated jackpots to players at all."
 								/>
 							</div>
 
@@ -1134,7 +1134,7 @@ export default function LearnRolldownPage() {
 								},
 								{
 									q: "Does the +EV guarantee I'll make money?",
-									a: "Positive EV is a statistical edge over many plays — not a guarantee on any single ticket. But consider this: traditional lotteries have -50% EV (you lose half on average). During rolldown, MazelProtocol has +47% EV. Over time, that mathematical edge compounds in your favor. It's the same principle strategic investors use — maximizing opportunities when conditions favor you.",
+									a: "Positive EV is a statistical edge over many plays — not a guarantee on any single ticket. But consider this: traditional lotteries return only about half of ticket value as prizes, and their jackpots never come back. During rolldown, MazelProtocol has +47% EV because the accumulated jackpot is distributed back to players. Over time, that mathematical edge compounds in your favor. It's the same principle strategic investors use — maximizing opportunities when conditions favor you.",
 								},
 								{
 									q: "Why are the odds so much better than Powerball or Mega Millions?",

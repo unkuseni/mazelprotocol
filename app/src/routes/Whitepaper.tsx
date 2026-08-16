@@ -579,11 +579,11 @@ export default function WhitepaperPage() {
 							players while maintaining long-term protocol sustainability. By
 							implementing a rolldown mechanism inspired by the Massachusetts
 							Cash WinFall lottery (2004–2012), the protocol creates a two-phase
-							economic cycle: negative-EV normal operation that builds the prize
-							pool, followed by positive-EV rolldown events that distribute
-							accumulated value to lower-tier winners. This paper presents the
-							mathematical foundations, economic sustainability proofs, and
-							technical implementation details of MazelProtocol.
+							economic cycle: a normal operation phase where every ticket builds
+							the prize pool, followed by positive-EV rolldown events that
+							distribute accumulated value to lower-tier winners. This paper
+							presents the mathematical foundations, economic sustainability
+							proofs, and technical implementation details of MazelProtocol.
 						</p>
 					</div>
 
@@ -680,9 +680,9 @@ export default function WhitepaperPage() {
 								</p>
 								<p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
 									This creates a paradox: lotteries depend on player
-									participation, yet rational economic actors should avoid
-									negative-EV propositions. Traditional lotteries resolve this
-									through:
+									participation, yet in traditional games most of the ticket
+									value never returns to players. Traditional lotteries resolve
+									this through:
 								</p>
 								<ul className="space-y-1.5 ml-1">
 									{[
@@ -902,7 +902,7 @@ export default function WhitepaperPage() {
 										],
 										[
 											"Standard VRF Lotteries",
-											"Standard negative-EV",
+											"Fixed prize pools, jackpot never returns",
 											"No differentiation from traditional",
 										],
 										[
@@ -1037,7 +1037,7 @@ export default function WhitepaperPage() {
 											<span className="text-magenta-300">$0.868</span>
 										</p>
 										<p className="text-[10px] text-muted-foreground mt-1">
-											Ticket costs $2.50 — negative EV in normal mode
+											Ticket costs $2.50 — the difference accumulates in the jackpot
 										</p>
 									</div>
 								</div>
@@ -1386,7 +1386,7 @@ export default function WhitepaperPage() {
 												"Motivation: Entertainment, jackpot dreams",
 												"Behavior: Play regardless of EV",
 												"Strategy: Quick picks, consistent participation",
-												"Outcome: Net negative (entertainment cost)",
+												"Outcome: Entertainment value, jackpot-building",
 											].map((item) => (
 												<li
 													key={item}

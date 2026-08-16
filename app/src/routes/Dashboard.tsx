@@ -145,7 +145,7 @@ function StatCard({
 							positive ? "text-emerald-400" : colors.valueColor,
 						)}
 					>
-						{positive ? "Profitable" : (negativeLabel ?? "Negative")}
+						{positive ? "Profitable" : (negativeLabel ?? "In Play")}
 					</span>
 				</div>
 			)}
@@ -533,7 +533,7 @@ export default function DashboardPage() {
 									accent="gold"
 								/>
 								<StatCard
-									label="Net P&L"
+									label="Player Edge"
 									value={formatCurrency(Math.abs(playerStats.netProfit))}
 									sub={
 										playerStats.totalSpentIsEstimate

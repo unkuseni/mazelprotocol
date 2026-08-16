@@ -49,7 +49,7 @@ const features = [
 		icon: TrendingUp,
 		title: "Mathematical +EV Windows",
 		description:
-			"When the jackpot hits the soft cap, the house edge flips. Rolldown mechanics create provably positive expected value windows — the math works in your favor.",
+			"When the jackpot hits the soft cap, the odds flip in your favor. Rolldown mechanics create provably positive expected value windows — the math works for you.",
 		highlight: true,
 	},
 	{
