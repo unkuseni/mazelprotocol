@@ -581,9 +581,14 @@ export default function WhitepaperPage() {
 							Cash WinFall lottery (2004–2012), the protocol creates a two-phase
 							economic cycle: a normal operation phase where every ticket builds
 							the prize pool, followed by positive-EV rolldown events that
-							distribute accumulated value to lower-tier winners. This paper
-							presents the mathematical foundations, economic sustainability
-							proofs, and technical implementation details of MazelProtocol.
+							distribute accumulated value to lower-tier winners. Unlike
+							traditional lotteries that retain roughly half of ticket revenue
+							indefinitely, MazelProtocol returns its jackpot to players during
+							rolldown windows — up to $2.04 per $1 wagered — making it a lottery
+							engineered to put more money back in players&apos; pockets. This
+							paper presents the mathematical foundations, economic
+							sustainability proofs, and technical implementation details of
+							MazelProtocol.
 						</p>
 					</div>
 

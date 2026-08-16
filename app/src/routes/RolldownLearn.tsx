@@ -16,6 +16,7 @@ import {
 	TrendingUp,
 	Trophy,
 	Users,
+	Wallet,
 	Zap,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -535,11 +536,11 @@ export default function LearnRolldownPage() {
 										</h3>
 										<ul className="space-y-2">
 											{[
-												"Positive EV (+62%) during rolldown windows",
-												"Jackpot capped — excess flows to players",
+												"Up to +104% EV — more money back than you put in",
+												"Jackpot capped — the excess flows straight to players",
+												"Match 2 returns your $2.50 as a free ticket",
 												"Verifiable randomness (Switchboard TEE)",
-												"Pari-mutuel prizes that scale with the pool",
-												"Strategic players can time purchases for max EV",
+												"Timing is rewarded — buy near the cap for maximum return",
 											].map((item) => (
 												<li
 													key={item}
@@ -553,6 +554,30 @@ export default function LearnRolldownPage() {
 												</li>
 											))}
 										</ul>
+									</div>
+								</div>
+							</div>
+
+							<div className="hud-frame rounded-lg p-4 border-emerald-500/30">
+								<div className="flex items-start gap-3">
+									<div className="p-1.5 rounded-lg bg-emerald-500/10 shrink-0 mt-0.5">
+										<Wallet size={14} className="text-emerald-400" />
+									</div>
+									<div>
+										<p className="font-display text-xs font-bold text-emerald-400 uppercase tracking-wide mb-1">
+											The Money Difference
+										</p>
+										<p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+											Traditional lotteries keep roughly half of every
+											ticket dollar forever. MazelProtocol returns it —
+											during rolldown, players receive up to{" "}
+											<span className="font-bold text-emerald-400">
+												$2.04 back for every $1 wagered
+											</span>
+											, on top of Match 2 free tickets and streak
+											bonuses. That&apos;s the difference between money that
+											disappears and money that comes back to your pocket.
+										</p>
 									</div>
 								</div>
 							</div>

@@ -33,7 +33,7 @@ const features = [
 		icon: TrendingUp,
 		title: "Predictable +EV Windows",
 		description:
-			"Our probabilistic rolldown system creates mathematically provable positive expected value windows. When the jackpot reaches the soft cap, the edge flips in your favor.",
+			"Traditional lotteries keep ~50% of every dollar forever. Our probabilistic rolldown system creates mathematically provable positive expected value windows — up to $2.04 back per $1 wagered — and the edge flips in your favor.",
 		highlight: true,
 	},
 	{
@@ -434,6 +434,73 @@ function PrizeTiersSection() {
 	);
 }
 
+function ComparisonSection() {
+	const comparisons = [
+		{
+			stat: "$2.04",
+			title: "Back per $1 Wagered",
+			description:
+				"During rolldown windows, players receive up to $2.04 for every $1 wagered — a +104% edge. Traditional lotteries keep roughly half of every dollar, permanently.",
+			accent: "text-gradient-gold",
+		},
+		{
+			stat: "31×",
+			title: "Better Jackpot Odds",
+			description:
+				"1 in 9.37 million vs Powerball's 1 in 292 million. A jackpot that's actually within reach instead of a distant dream.",
+			accent: "text-gradient-primary",
+		},
+		{
+			stat: "$2.50",
+			title: "Back on Match 2",
+			description:
+				"Match just two numbers and your full ticket price returns as a free ticket. Most lotteries pay nothing at all for two numbers.",
+			accent: "text-gradient-emerald",
+		},
+		{
+			stat: "100%",
+			title: "Jackpot Returns to Players",
+			description:
+				"The hard cap forces the entire jackpot back into player pockets. Traditional jackpots roll for years — or never come back.",
+			accent: "text-gradient-magenta",
+		},
+	];
+
+	return (
+		<section className="py-16 sm:py-20 bg-muted/20">
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<SectionHeading
+					eyebrow="vs. Traditional Lotteries"
+					title="More Money in Your Pocket"
+					description="MazelProtocol is engineered to return more value to players than any traditional lottery. Here's the difference, in real numbers."
+					icon={Wallet}
+				/>
+
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+					{comparisons.map((c) => (
+						<div
+							key={c.title}
+							className="rounded-2xl p-6 card-premium text-center border-gradient-gold"
+						>
+							<p
+								className={`text-3xl sm:text-4xl font-black font-display tracking-wide mb-2 ${c.accent}`}
+							>
+								{c.stat}
+							</p>
+							<p className="text-sm font-bold text-foreground mb-2">
+								{c.title}
+							</p>
+							<p className="text-[11px] text-muted-foreground leading-relaxed">
+								{c.description}
+							</p>
+						</div>
+					))}
+				</div>
+			</div>
+		</section>
+	);
+}
+
 function HowItWorksSection() {
 	return (
 		<section className="py-16 sm:py-20 bg-muted/20">
@@ -717,6 +784,8 @@ export default function LandingPage() {
 			/>
 
 			<PrizeTiersSection />
+
+			<ComparisonSection />
 
 			<HowItWorksSection />
 

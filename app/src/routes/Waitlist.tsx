@@ -49,7 +49,7 @@ const features = [
 		icon: TrendingUp,
 		title: "Mathematical +EV Windows",
 		description:
-			"When the jackpot hits the soft cap, the odds flip in your favor. Rolldown mechanics create provably positive expected value windows — the math works for you.",
+			"Traditional lotteries keep ~50% of every dollar forever. When our jackpot hits the soft cap, the odds flip in your favor — up to $2.04 back per $1 wagered. The math works for you.",
 		highlight: true,
 	},
 	{
@@ -112,7 +112,7 @@ const roadmap = [
 const faqs = [
 	{
 		q: "What makes MazelProtocol different from other lotteries?",
-		a: "Every draw uses provably fair on-chain randomness, and the rolldown mechanic creates mathematically positive expected value windows when the jackpot reaches its soft cap. The protocol is designed so the math can flip in the player's favor.",
+		a: "Traditional lotteries keep roughly half of every dollar forever, and their jackpots rarely land. MazelProtocol returns its jackpot to players: when it hits the soft cap, the rolldown mechanic creates mathematically positive expected value windows — up to $2.04 back for every $1 wagered, with 31× better jackpot odds than Powerball. The math is designed to flip in the player's favor.",
 	},
 	{
 		q: "Is it really non-custodial?",

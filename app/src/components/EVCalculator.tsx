@@ -414,11 +414,12 @@ export function EVCalculator({
 					<Info size={14} className="text-amber-400 shrink-0 mt-0.5" />
 					<p className="text-[10px] text-muted-foreground leading-relaxed">
 						In normal mode, a share of every ticket is set aside to build the
-						jackpot. Once it reaches{" "}
+						jackpot — traditional lotteries keep that money forever. Here, once
+						it reaches{" "}
 						<span className="font-semibold text-foreground">$1.75M</span> and
-						rolldown activates, that jackpot is distributed back to players as
-						pari-mutuel prizes. This is the +EV window that makes MazelProtocol
-						unique.
+						rolldown activates, the jackpot is distributed back to players as
+						pari-mutuel prizes — up to $2.04 back per $1 wagered. That&apos;s
+						the +EV window that makes MazelProtocol unique.
 					</p>
 				</div>
 			)}
