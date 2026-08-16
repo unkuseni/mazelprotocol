@@ -94,14 +94,14 @@ function StatusBadge({ status }: { status: TicketStatus }) {
 	> = {
 		pending: {
 			label: "Pending",
-			bg: "bg-blue-500/10 border-blue-500/20",
-			text: "text-blue-400",
+			bg: "bg-cyan-500/10 border-cyan-500/25",
+			text: "text-cyan-300",
 			icon: Clock,
 		},
 		won: {
 			label: "Won",
-			bg: "bg-gold/10 border-gold/20",
-			text: "text-gold",
+			bg: "bg-gold-500/10 border-gold-500/30",
+			text: "neon-amber",
 			icon: Trophy,
 		},
 		lost: {
@@ -112,13 +112,13 @@ function StatusBadge({ status }: { status: TicketStatus }) {
 		},
 		claimed: {
 			label: "Claimed",
-			bg: "bg-emerald/10 border-emerald/20",
-			text: "text-emerald-light",
+			bg: "bg-emerald-500/10 border-emerald-500/25",
+			text: "text-emerald-400",
 			icon: Check,
 		},
 		expired: {
 			label: "Expired",
-			bg: "bg-red-500/10 border-red-500/20",
+			bg: "bg-red-500/10 border-red-500/25",
 			text: "text-red-400",
 			icon: AlertTriangle,
 		},
@@ -129,7 +129,7 @@ function StatusBadge({ status }: { status: TicketStatus }) {
 
 	return (
 		<span
-			className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider ${c.bg} ${c.text}`}
+			className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border font-mono text-[10px] font-semibold uppercase tracking-[0.2em] ${c.bg} ${c.text}`}
 		>
 			<Icon size={9} />
 			{c.label}
@@ -140,14 +140,14 @@ function StatusBadge({ status }: { status: TicketStatus }) {
 function GameBadge({ gameType }: { gameType: GameType }) {
 	if (gameType === "quickpick") {
 		return (
-			<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald/10 border border-emerald/20 text-[9px] font-semibold text-emerald-light uppercase tracking-wider">
+			<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/30 font-mono text-[9px] font-semibold text-cyan-300 uppercase tracking-[0.2em]">
 				<Zap size={8} />
 				5/35
 			</span>
 		);
 	}
 	return (
-		<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gold/10 border border-gold/20 text-[9px] font-semibold text-gold uppercase tracking-wider">
+		<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gold-500/10 border border-gold-500/30 font-mono text-[9px] font-semibold text-gold-300 uppercase tracking-[0.2em]">
 			<Trophy size={8} />
 			6/46
 		</span>
@@ -178,29 +178,29 @@ function TicketRow({
 
 	return (
 		<div
-			className={`glass rounded-xl transition-all duration-200 ${
+			className={`glass rounded-lg transition-all duration-200 ${
 				ticket.status === "won" && !ticket.isClaimed
-					? "border-gold/20 shadow-sm shadow-gold/5"
+					? "border-gold-500/40 shadow-lg shadow-gold-500/10 glow-gold"
 					: ticket.status === "pending"
-						? "border-blue-500/10"
-						: ""
+						? "border-cyan-500/30"
+						: "border-cyan-500/10"
 			}`}
 		>
 			{/* Main row */}
 			<button
 				type="button"
 				onClick={onToggleExpand}
-				className="w-full p-4 flex items-center gap-3 sm:gap-4 text-left hover:bg-foreground/1 transition-colors rounded-xl"
+				className="w-full p-4 flex items-center gap-3 sm:gap-4 text-left hover:bg-foreground/1 transition-colors rounded-lg"
 			>
 				{/* Status indicator dot */}
 				<div
 					className={`shrink-0 w-2 h-2 rounded-full ${
 						ticket.status === "pending"
-							? "bg-blue-400 animate-pulse"
+							? "bg-cyan-400 animate-pulse"
 							: ticket.status === "won"
-								? "bg-gold"
+								? "bg-gold-400"
 								: ticket.status === "claimed"
-									? "bg-emerald"
+									? "bg-emerald-400"
 									: ticket.status === "expired"
 										? "bg-red-400"
 										: "bg-gray-600"
@@ -225,13 +225,13 @@ function TicketRow({
 							</span>
 						)}
 						{ticket.isSyndicateTicket && (
-							<span className="text-[9px] text-emerald-light/70 font-medium flex items-center gap-0.5 truncate max-w-30">
+							<span className="text-[9px] text-cyan-300/70 font-medium flex items-center gap-0.5 truncate max-w-30">
 								<Star size={7} />
 								{ticket.syndicateName}
 							</span>
 						)}
 						{ticket.wasRolldown && (
-							<span className="text-[9px] text-emerald-light font-semibold flex items-center gap-0.5">
+							<span className="font-mono text-[9px] text-magenta-300 font-semibold flex items-center gap-0.5 uppercase tracking-[0.15em]">
 								<TrendingUp size={7} />
 								Rolldown
 							</span>
@@ -241,12 +241,12 @@ function TicketRow({
 
 				{/* Draw info - compact on mobile */}
 				<div className="text-right shrink-0">
-					<div className="text-[10px] text-muted-foreground">
+					<div className="font-mono text-[10px] text-muted-foreground">
 						<span className="sm:hidden">#</span>Draw{" "}
 						<span className="hidden sm:inline">#</span>
 						{ticket.drawId}
 					</div>
-					<div className="text-[10px] text-muted-foreground/60 truncate max-w-25 sm:max-w-none">
+					<div className="font-mono text-[10px] text-muted-foreground/60 truncate max-w-25 sm:max-w-none">
 						{ticket.drawDate}
 					</div>
 				</div>
@@ -254,28 +254,32 @@ function TicketRow({
 				{/* Match count / Prize */}
 				<div className="text-right shrink-0 min-w-12.5 sm:min-w-15">
 					{ticket.status === "pending" ? (
-						<div className="text-xs text-blue-400 font-semibold">Pending</div>
+						<div className="font-mono text-xs text-cyan-300 font-semibold">
+							Pending
+						</div>
 					) : ticket.matchCount > 0 ? (
 						<>
 							<div
-								className={`text-xs font-bold ${
+								className={`font-mono text-xs font-bold ${
 									ticket.matchCount >= 4
-										? "text-gold"
+										? "text-gold-300"
 										: ticket.matchCount >= 3
-											? "text-emerald-light"
+											? "text-emerald-400"
 											: "text-muted-foreground"
 								}`}
 							>
 								{ticket.matchCount} match{ticket.matchCount !== 1 ? "es" : ""}
 							</div>
 							{ticket.prize > 0 && (
-								<div className="text-xs font-black text-gradient-gold">
+								<div className="font-mono text-xs font-black text-gradient-gold">
 									+${ticket.prize.toFixed(ticket.prize >= 1 ? 0 : 2)}
 								</div>
 							)}
 						</>
 					) : (
-						<div className="text-xs text-muted-foreground/60">No match</div>
+						<div className="font-mono text-xs text-muted-foreground/60">
+							No match
+						</div>
 					)}
 				</div>
 
@@ -295,14 +299,14 @@ function TicketRow({
 
 			{/* Expanded details */}
 			{expanded && (
-				<div className="px-4 pb-4 border-t border-foreground/5 pt-3 space-y-3 animate-slide-down">
+				<div className="px-4 pb-4 border-t border-cyan-500/10 pt-3 space-y-3 animate-slide-down">
 					{/* Mobile-only status & draw info */}
 					<div className="flex items-center justify-between sm:hidden">
 						<div>
-							<div className="text-[10px] text-muted-foreground">
+							<div className="font-mono text-[10px] text-muted-foreground">
 								Draw #{ticket.drawId}
 							</div>
-							<div className="text-[10px] text-muted-foreground/60">
+							<div className="font-mono text-[10px] text-muted-foreground/60">
 								{ticket.drawDate}
 							</div>
 						</div>
@@ -311,21 +315,25 @@ function TicketRow({
 
 					{/* Winning numbers comparison */}
 					{ticket.winningNumbers && (
-						<div>
-							<div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">
-								Winning Numbers
+						<div className="terminal-window">
+							<div className="terminal-titlebar">
+								<span className="w-1.5 h-1.5 rounded-full bg-cyan-400/80" />
+								<span className="w-1.5 h-1.5 rounded-full bg-magenta-400/80" />
+								<span className="ml-1">Winning Numbers</span>
 							</div>
-							<WinningNumbers numbers={ticket.winningNumbers} size="sm" />
+							<div className="p-3 flex flex-wrap items-center gap-1.5 font-mono">
+								<WinningNumbers numbers={ticket.winningNumbers} size="sm" />
+							</div>
 						</div>
 					)}
 
 					{/* Details grid */}
 					<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
 						<div className="p-2 rounded-lg bg-foreground/2">
-							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+							<div className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
 								Purchased
 							</div>
-							<div className="text-[10px] text-foreground font-medium mt-0.5">
+							<div className="font-mono text-[10px] text-foreground font-medium mt-0.5">
 								{new Date(ticket.purchaseTime).toLocaleString("en-US", {
 									month: "short",
 									day: "numeric",
@@ -335,25 +343,25 @@ function TicketRow({
 							</div>
 						</div>
 						<div className="p-2 rounded-lg bg-foreground/2">
-							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+							<div className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
 								Game
 							</div>
-							<div className="text-[10px] text-foreground font-medium mt-0.5">
+							<div className="font-mono text-[10px] text-foreground font-medium mt-0.5">
 								{ticket.gameType === "main"
 									? "6/46 Main Lottery"
 									: "Quick Pick Express 5/35"}
 							</div>
 						</div>
 						<div className="p-2 rounded-lg bg-foreground/2">
-							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+							<div className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
 								Matches
 							</div>
 							<div
-								className={`text-[10px] font-bold mt-0.5 ${
+								className={`font-mono text-[10px] font-bold mt-0.5 ${
 									ticket.status === "pending"
-										? "text-blue-400"
+										? "text-cyan-300"
 										: ticket.matchCount >= 3
-											? "text-emerald-light"
+											? "text-emerald-400"
 											: "text-muted-foreground"
 								}`}
 							>
@@ -363,12 +371,12 @@ function TicketRow({
 							</div>
 						</div>
 						<div className="p-2 rounded-lg bg-foreground/2">
-							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+							<div className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
 								Prize
 							</div>
 							<div
-								className={`text-[10px] font-bold mt-0.5 ${
-									ticket.prize > 0 ? "text-gold" : "text-muted-foreground"
+								className={`font-mono text-[10px] font-bold mt-0.5 ${
+									ticket.prize > 0 ? "text-gold-300" : "text-muted-foreground"
 								}`}
 							>
 								{ticket.status === "pending"
@@ -388,7 +396,7 @@ function TicketRow({
 							href={`https://solscan.io/tx/${ticket.txSignature}`}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-emerald-light transition-colors"
+							className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-cyan-300 transition-colors"
 						>
 							<ExternalLink size={9} />
 							<span className="font-mono">{ticket.txSignature}</span>
@@ -399,14 +407,15 @@ function TicketRow({
 							<Button
 								onClick={() => onClaim(ticket.id)}
 								size="sm"
-								className="h-8 px-4 text-xs font-bold bg-linear-to-r from-gold-dark to-gold hover:from-gold to-gold-light text-navy rounded-lg shadow-md shadow-gold/20 hover:shadow-gold/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+								variant="gold"
+								className="h-8 px-4 text-xs"
 							>
 								<Gift size={12} />
 								Claim Prize
 							</Button>
 						)}
 						{ticket.status === "expired" && (
-							<span className="text-[10px] text-red-400/70 flex items-center gap-1">
+							<span className="font-mono text-[10px] text-red-400/70 flex items-center gap-1">
 								<AlertTriangle size={9} />
 								Prize expired — unclaimed after 30 days
 							</span>
@@ -433,19 +442,19 @@ function UnclaimedBanner({
 	if (total <= 0) return null;
 
 	return (
-		<div className="relative glass-strong rounded-2xl p-4 sm:p-6 overflow-hidden border border-gold/20 w-full">
-			<div className="absolute inset-0 bg-linear-to-br from-gold/4 via-transparent to-emerald/2" />
-			<div className="absolute top-0 right-0 w-40 h-40 bg-glow-gold opacity-15" />
+		<div className="relative card-gold-edge p-4 sm:p-6 overflow-hidden w-full">
+			<div className="absolute inset-0 bg-linear-to-br from-gold-500/5 via-transparent to-emerald-500/5" />
+			<div className="absolute top-0 right-0 w-40 h-40 bg-glow-gold opacity-20" />
 
 			<div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
 				<div className="flex items-center gap-3">
-					<div className="p-2.5 rounded-xl bg-gold/15 border border-gold/20 shrink-0">
-						<Gift size={22} className="text-gold" />
+					<div className="p-2.5 rounded-xl bg-gold-500/15 border border-gold-500/30 shrink-0 glow-gold">
+						<Gift size={22} className="text-gold-300" />
 					</div>
 					<div>
-						<h3 className="text-base font-black text-foreground">
+						<h3 className="font-display text-base font-black uppercase tracking-wide text-foreground">
 							You have{" "}
-							<span className="text-gradient-gold">
+							<span className="font-mono text-gradient-gold">
 								${total.toFixed(2)} USDC
 							</span>{" "}
 							to claim!
@@ -460,7 +469,8 @@ function UnclaimedBanner({
 				<Button
 					onClick={onClaimAll}
 					disabled={busy}
-					className="w-full sm:w-auto h-11 px-6 bg-linear-to-r from-gold-dark to-gold-light hover:from-gold hover:to-gold-light text-navy font-bold rounded-xl shadow-lg shadow-gold/25 hover:shadow-gold/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0 disabled:opacity-60 disabled:pointer-events-none"
+					variant="gold"
+					className="w-full sm:w-auto h-11 px-6 shrink-0 disabled:opacity-60 disabled:pointer-events-none"
 				>
 					<Gift size={16} />
 					{busy ? "Claiming…" : `Claim All ($${total.toFixed(2)})`}
@@ -486,37 +496,43 @@ function TicketStats({
 
 	return (
 		<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-			<div className="glass rounded-xl p-3 text-center">
-				<div className="text-lg font-black text-foreground">{totalTickets}</div>
-				<div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+			<div className="hud-frame rounded-lg p-3 text-center">
+				<div className="font-mono text-lg font-black text-foreground tabular-nums">
+					{totalTickets}
+				</div>
+				<div className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
 					Total Tickets
 				</div>
 			</div>
-			<div className="glass rounded-xl p-3 text-center">
-				<div className="text-lg font-black text-blue-400">{pendingCount}</div>
-				<div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+			<div className="hud-frame rounded-lg p-3 text-center">
+				<div className="font-mono text-lg font-black text-cyan-300 tabular-nums">
+					{pendingCount}
+				</div>
+				<div className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
 					Pending
 				</div>
 			</div>
-			<div className="glass rounded-xl p-3 text-center">
-				<div className="text-lg font-black text-gold">{wonCount}</div>
-				<div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+			<div className="hud-frame rounded-lg p-3 text-center">
+				<div className="font-mono text-lg font-black text-gold-300 tabular-nums">
+					{wonCount}
+				</div>
+				<div className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
 					Wins
 				</div>
 			</div>
-			<div className="glass rounded-xl p-3 text-center">
-				<div className="text-lg font-black text-gradient-gold">
+			<div className="hud-frame rounded-lg p-3 text-center">
+				<div className="font-mono text-lg font-black text-gradient-gold tabular-nums">
 					${totalPrizes.toFixed(0)}
 				</div>
-				<div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+				<div className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
 					Total Prizes
 				</div>
 			</div>
-			<div className="glass rounded-xl p-3 text-center">
-				<div className="text-lg font-black text-emerald-light">
+			<div className="hud-frame rounded-lg p-3 text-center">
+				<div className="font-mono text-lg font-black text-emerald-400 tabular-nums">
 					{freeCredits}
 				</div>
-				<div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+				<div className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
 					Free Credits
 				</div>
 			</div>
@@ -540,17 +556,19 @@ function WalletNotConnected() {
 
 	return (
 		<div className="min-h-screen bg-background">
-			<section className="relative pt-24 pb-8 sm:pt-28 sm:pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
+			<section className="relative pt-24 pb-8 sm:pt-28 sm:pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden scanlines">
 				<div className="absolute inset-0 hero-grid opacity-30" />
-				<div className="absolute inset-0 bg-glow-emerald opacity-15" />
+				<div className="absolute inset-0 bg-glow-top-left" />
+				<div className="absolute inset-0 bg-glow-bottom-right" />
 				<FloatingBalls count={5} />
 
 				<div className="relative z-10 max-w-2xl mx-auto text-center py-6 sm:py-8 mt-16 sm:mt-24">
-					<div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-linear-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20 mb-6 glow-emerald">
-						<Ticket size={36} className="text-emerald-light" />
+					<div className="hud-label mb-4">{"// Secure Wallet Access"}</div>
+					<div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-linear-to-br from-cyan-500/20 to-magenta-500/10 border border-cyan-500/30 mb-6 glow-cyan">
+						<Ticket size={36} className="text-cyan-300" />
 					</div>
 
-					<h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground mb-3">
+					<h1 className="font-display text-2xl sm:text-4xl font-black tracking-wide uppercase text-gradient-primary mb-3">
 						Connect Your Wallet
 					</h1>
 					<p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto mb-8">
@@ -560,23 +578,25 @@ function WalletNotConnected() {
 
 					<Button
 						onClick={() => open({ view: "Connect", namespace: "solana" })}
-						className="h-12 px-8 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] text-sm"
+						variant="default"
+						size="xl"
+						className="px-8 text-sm"
 					>
 						<Wallet size={18} />
 						Connect Wallet
 					</Button>
 
-					<div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-[10px] text-muted-foreground">
+					<div className="mt-8 flex flex-wrap items-center justify-center gap-4 font-mono text-[10px] text-muted-foreground">
 						<div className="flex items-center gap-1.5">
-							<Shield size={10} className="text-emerald/60" />
+							<Shield size={10} className="text-cyan-400/60" />
 							<span>Non-custodial</span>
 						</div>
 						<div className="flex items-center gap-1.5">
-							<Eye size={10} className="text-emerald/60" />
+							<Eye size={10} className="text-cyan-400/60" />
 							<span>Read-only access</span>
 						</div>
 						<div className="flex items-center gap-1.5">
-							<Shield size={10} className="text-emerald/60" />
+							<Shield size={10} className="text-cyan-400/60" />
 							<span>Sign to claim prizes</span>
 						</div>
 					</div>
@@ -640,16 +660,16 @@ function EmptyState({ filter }: { filter: TicketFilter }) {
 	const msg = messages[filter];
 
 	return (
-		<div className="glass rounded-2xl p-12 text-center">
-			<div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground/3 border border-foreground/6 mb-4">
-				<Ticket size={24} className="text-muted-foreground/60" />
+		<div className="hud-frame rounded-lg p-12 text-center">
+			<div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-cyan-500/5 border border-cyan-500/20 mb-4">
+				<Ticket size={24} className="text-cyan-300/60" />
 			</div>
 			<p className="text-sm text-muted-foreground mb-1">{msg.title}</p>
 			<p className="text-xs text-muted-foreground/60 mb-4">{msg.desc}</p>
 			{filter === "all" && (
 				<Link
 					to="/play"
-					className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+					className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-linear-to-r from-cyan-400 to-cyan-600 hover:from-cyan-300 hover:to-cyan-500 text-primary-foreground text-sm font-bold rounded-xl shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
 				>
 					<Trophy size={14} />
 					Buy Tickets
@@ -1011,11 +1031,13 @@ export default function MyTicketsPage() {
 								Home
 							</Link>
 							<ChevronRight size={12} />
-							<span className="text-emerald-light font-medium">My Tickets</span>
+							<span className="font-mono text-cyan-300 font-medium">
+								My Tickets
+							</span>
 						</nav>
 						<div className="flex items-center gap-3 mb-4">
-							<div className="p-2 rounded-xl bg-linear-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20">
-								<Ticket size={24} className="text-emerald-light" />
+							<div className="p-2 rounded-xl bg-linear-to-br from-cyan-500/20 to-magenta-500/10 border border-cyan-500/30">
+								<Ticket size={24} className="text-cyan-300" />
 							</div>
 							<div>
 								<div className="h-7 w-40 bg-foreground/8 rounded-lg animate-pulse" />
@@ -1070,16 +1092,17 @@ export default function MyTicketsPage() {
 				<section className="relative pt-24 pb-6 sm:pt-28 sm:pb-8 px-4 sm:px-6 lg:px-8 overflow-hidden">
 					<div className="absolute inset-0 hero-grid opacity-20" />
 					<div className="relative z-10 max-w-7xl mx-auto text-center py-6 sm:py-8">
-						<div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 mb-4">
+						<div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-red-500/10 border border-red-500/25 mb-4">
 							<AlertTriangle size={28} className="text-red-400" />
 						</div>
-						<h2 className="text-xl font-bold text-foreground mb-2">
+						<h2 className="font-display text-xl font-bold uppercase tracking-wide text-foreground mb-2">
 							Failed to load tickets
 						</h2>
 						<p className="text-sm text-muted-foreground mb-6">{fetchError}</p>
 						<Button
 							onClick={refetch}
-							className="h-10 px-6 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl"
+							variant="default"
+							className="h-10 px-6 text-sm"
 						>
 							Try Again
 						</Button>
@@ -1095,9 +1118,10 @@ export default function MyTicketsPage() {
 			{/* ================================================================ */}
 			{/*  HERO                                                            */}
 			{/* ================================================================ */}
-			<section className="relative pt-24 pb-6 sm:pt-28 sm:pb-8 px-4 sm:px-6 lg:px-8 overflow-hidden">
+			<section className="relative pt-24 pb-6 sm:pt-28 sm:pb-8 px-4 sm:px-6 lg:px-8 overflow-hidden scanlines">
 				<div className="absolute inset-0 hero-grid opacity-20" />
 				<div className="absolute inset-0 bg-glow-top-left" />
+				<div className="absolute inset-0 bg-glow-bottom-right" />
 				<FloatingBalls count={4} />
 
 				<div className="relative z-10 max-w-7xl mx-auto py-6 sm:py-8">
@@ -1107,17 +1131,20 @@ export default function MyTicketsPage() {
 							Home
 						</Link>
 						<ChevronRight size={12} />
-						<span className="text-emerald-light font-medium">My Tickets</span>
+						<span className="font-mono text-cyan-300 font-medium">
+							My Tickets
+						</span>
 					</nav>
 
 					<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
 						<div>
+							<div className="hud-label mb-2">{"// Live On-Chain"}</div>
 							<div className="flex items-center gap-3 mb-1">
-								<div className="p-2 rounded-xl bg-linear-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20">
-									<Ticket size={24} className="text-emerald-light" />
+								<div className="p-2 rounded-xl bg-linear-to-br from-cyan-500/20 to-magenta-500/10 border border-cyan-500/30 glow-cyan">
+									<Ticket size={24} className="text-cyan-300" />
 								</div>
 								<div>
-									<h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+									<h1 className="font-display text-2xl sm:text-3xl font-black tracking-wide uppercase text-gradient-primary">
 										My Tickets
 									</h1>
 									<p className="text-sm text-muted-foreground mt-0.5">
@@ -1129,16 +1156,16 @@ export default function MyTicketsPage() {
 
 						<div className="flex items-center gap-3">
 							{freeTicketCredits > 0 && (
-								<div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gold/10 border border-gold/20">
-									<Sparkles size={14} className="text-gold" />
-									<span className="text-xs font-bold text-gold">
+								<div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gold-500/10 border border-gold-500/30">
+									<Sparkles size={14} className="text-gold-300" />
+									<span className="font-mono text-xs font-bold text-gold-300">
 										{freeTicketCredits} Free
 									</span>
 								</div>
 							)}
 							<Link
 								to="/play"
-								className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+								className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-linear-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-primary-foreground text-sm font-bold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
 							>
 								<Trophy size={16} />
 								Buy Tickets
@@ -1169,7 +1196,7 @@ export default function MyTicketsPage() {
 						<div
 							className={`rounded-xl px-4 py-3 text-sm font-semibold border ${
 								claimMessage.kind === "success"
-									? "bg-emerald/10 border-emerald/30 text-emerald-light"
+									? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
 									: "bg-red-500/10 border-red-500/30 text-red-400"
 							}`}
 						>
@@ -1179,7 +1206,7 @@ export default function MyTicketsPage() {
 					)}
 
 					{/* Filters & Controls */}
-					<div className="glass rounded-2xl p-4 sm:p-5 space-y-3">
+					<div className="hud-frame rounded-lg p-4 sm:p-5 space-y-3">
 						{/* Top row: search + game filter */}
 						<div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
 							{/* Search */}
@@ -1193,7 +1220,7 @@ export default function MyTicketsPage() {
 									value={searchQuery}
 									onChange={(e) => setSearchQuery(e.target.value)}
 									placeholder="Search by draw #, ticket ID, numbers, or syndicate..."
-									className="w-full h-9 pl-9 pr-3 rounded-xl bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+									className="w-full h-9 pl-9 pr-3 rounded-lg bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20 transition-colors"
 								/>
 							</div>
 
@@ -1210,9 +1237,9 @@ export default function MyTicketsPage() {
 										key={key}
 										type="button"
 										onClick={() => setGameFilter(key)}
-										className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+										className={`px-3 py-1.5 rounded-lg font-mono text-xs font-semibold transition-all ${
 											gameFilter === key
-												? "bg-emerald/15 text-emerald-light border border-emerald/20"
+												? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/30"
 												: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
 										}`}
 									>
@@ -1240,9 +1267,9 @@ export default function MyTicketsPage() {
 										key={key}
 										type="button"
 										onClick={() => setFilter(key)}
-										className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+										className={`px-3 py-1.5 rounded-lg font-mono text-xs font-semibold transition-all flex items-center gap-1.5 ${
 											filter === key
-												? "bg-emerald/15 text-emerald-light border border-emerald/20"
+												? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/30"
 												: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
 										}`}
 									>
@@ -1250,7 +1277,7 @@ export default function MyTicketsPage() {
 										<span
 											className={`text-[9px] tabular-nums ${
 												filter === key
-													? "text-emerald-light/70"
+													? "text-cyan-300/70"
 													: "text-muted-foreground/60"
 											}`}
 										>
@@ -1275,9 +1302,9 @@ export default function MyTicketsPage() {
 										key={field}
 										type="button"
 										onClick={() => handleSort(field)}
-										className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
+										className={`px-2.5 py-1.5 rounded-lg font-mono text-xs font-semibold transition-all flex items-center gap-1 ${
 											sortField === field
-												? "bg-emerald/15 text-emerald-light border border-emerald/20"
+												? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/30"
 												: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
 										}`}
 									>
@@ -1297,7 +1324,7 @@ export default function MyTicketsPage() {
 					<div className="flex items-center justify-between">
 						<p className="text-xs text-muted-foreground">
 							Showing{" "}
-							<span className="font-bold text-foreground">
+							<span className="font-mono font-bold text-cyan-300 tabular-nums">
 								{filteredTickets.length}
 							</span>{" "}
 							ticket{filteredTickets.length !== 1 ? "s" : ""}
@@ -1305,7 +1332,7 @@ export default function MyTicketsPage() {
 								<span>
 									{" "}
 									matching &ldquo;
-									<span className="text-emerald-light">{searchQuery}</span>
+									<span className="font-mono text-cyan-300">{searchQuery}</span>
 									&rdquo;
 								</span>
 							)}
@@ -1343,14 +1370,14 @@ export default function MyTicketsPage() {
 					)}
 
 					{/* Bottom info */}
-					<div className="glass rounded-2xl p-5 sm:p-6">
-						<h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2 mb-4">
-							<Shield size={16} className="text-emerald" />
+					<div className="hud-frame rounded-lg p-5 sm:p-6">
+						<h3 className="hud-label mb-4 flex items-center gap-2">
+							<Shield size={16} className="text-cyan-300" />
 							Ticket Information
 						</h3>
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 							<div>
-								<h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
+								<h4 className="font-mono text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5 uppercase tracking-wider">
 									<Clock size={11} className="text-muted-foreground" />
 									Prize Expiry
 								</h4>
@@ -1360,8 +1387,8 @@ export default function MyTicketsPage() {
 								</p>
 							</div>
 							<div>
-								<h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
-									<Sparkles size={11} className="text-gold" />
+								<h4 className="font-mono text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5 uppercase tracking-wider">
+									<Sparkles size={11} className="text-gold-300" />
 									Free Ticket Credits
 								</h4>
 								<p className="text-[10px] text-muted-foreground leading-relaxed">
@@ -1371,8 +1398,8 @@ export default function MyTicketsPage() {
 								</p>
 							</div>
 							<div>
-								<h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
-									<TrendingUp size={11} className="text-emerald" />
+								<h4 className="font-mono text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5 uppercase tracking-wider">
+									<TrendingUp size={11} className="text-magenta-300" />
 									Rolldown Prizes
 								</h4>
 								<p className="text-[10px] text-muted-foreground leading-relaxed">
@@ -1383,22 +1410,22 @@ export default function MyTicketsPage() {
 							</div>
 						</div>
 
-						<div className="mt-4 pt-3 border-t border-foreground/5 flex flex-wrap items-center gap-4 text-[10px] text-muted-foreground">
+						<div className="mt-4 pt-3 border-t border-foreground/5 flex flex-wrap items-center gap-4 font-mono text-[10px] text-muted-foreground">
 							<div className="flex items-center gap-1.5">
-								<Shield size={10} className="text-emerald/60" />
+								<Shield size={10} className="text-cyan-400/60" />
 								<span>All tickets stored on-chain</span>
 							</div>
 							<div className="flex items-center gap-1.5">
-								<Eye size={10} className="text-emerald/60" />
+								<Eye size={10} className="text-cyan-400/60" />
 								<span>Verifiable on Solana Explorer</span>
 							</div>
 							<div className="flex items-center gap-1.5">
-								<Shield size={10} className="text-emerald/60" />
+								<Shield size={10} className="text-cyan-400/60" />
 								<span>Non-custodial prize claiming</span>
 							</div>
 							<Link
 								to="/results"
-								className="flex items-center gap-1.5 text-emerald-light hover:text-emerald transition-colors"
+								className="flex items-center gap-1.5 text-cyan-300 hover:text-cyan-400 transition-colors"
 							>
 								<ExternalLink size={10} />
 								<span className="font-semibold">View Draw Results</span>

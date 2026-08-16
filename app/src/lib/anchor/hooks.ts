@@ -1,75 +1,75 @@
-import React from "react";
-import {
-  useQuery,
-  useQueries,
-  type UseQueryResult,
-  type UseQueryOptions,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { PublicKey } from "@solana/web3.js";
 import type { BN } from "@coral-xyz/anchor";
+import { PublicKey } from "@solana/web3.js";
 import {
-  fetchMainLotteryState,
-  fetchQuickPickState,
-  fetchMainDrawResult,
-  fetchQuickPickDrawResult,
-  fetchUserMainTicketsForDraw,
-  fetchUserQuickPickTicketsForDraw,
-  fetchAllLotteryData,
-  type MainLotteryProgram,
-  type QuickPickProgram,
-  createMainLotteryProgram,
-  createQuickPickProgram,
-} from "./programs";
+	type UseQueryOptions,
+	type UseQueryResult,
+	useQueries,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
+import React from "react";
 import { getConnection } from "./connection";
+import {
+	createMainLotteryProgram,
+	createQuickPickProgram,
+	fetchAllLotteryData,
+	fetchMainDrawResult,
+	fetchMainLotteryState,
+	fetchQuickPickDrawResult,
+	fetchQuickPickState,
+	fetchUserMainTicketsForDraw,
+	fetchUserQuickPickTicketsForDraw,
+	type MainLotteryProgram,
+	type QuickPickProgram,
+} from "./programs";
 
 // ---------------------------------------------------------------------------
 // Query keys
 // ---------------------------------------------------------------------------
 
 export const lotteryKeys = {
-  all: ["lottery"] as const,
-  main: {
-    all: () => [...lotteryKeys.all, "main"] as const,
-    state: () => [...lotteryKeys.main.all(), "state"] as const,
-    draw: (drawId: number | BN) =>
-      [
-        ...lotteryKeys.main.all(),
-        "draw",
-        { drawId: drawId.toString() },
-      ] as const,
-    userTickets: (user: string, drawId: number | BN) =>
-      [
-        ...lotteryKeys.main.all(),
-        "user-tickets",
-        { user, drawId: drawId.toString() },
-      ] as const,
-  },
-  quickPick: {
-    all: () => [...lotteryKeys.all, "quick-pick"] as const,
-    state: () => [...lotteryKeys.quickPick.all(), "state"] as const,
-    draw: (drawId: number | BN) =>
-      [
-        ...lotteryKeys.quickPick.all(),
-        "draw",
-        { drawId: drawId.toString() },
-      ] as const,
-    userTickets: (user: string, drawId: number | BN) =>
-      [
-        ...lotteryKeys.quickPick.all(),
-        "user-tickets",
-        { user, drawId: drawId.toString() },
-      ] as const,
-  },
-  combined: {
-    all: () => [...lotteryKeys.all, "combined"] as const,
-    states: () => [...lotteryKeys.combined.all(), "states"] as const,
-  },
-  program: {
-    all: () => [...lotteryKeys.all, "program"] as const,
-    main: () => [...lotteryKeys.program.all(), "main"] as const,
-    quickPick: () => [...lotteryKeys.program.all(), "quick-pick"] as const,
-  },
+	all: ["lottery"] as const,
+	main: {
+		all: () => [...lotteryKeys.all, "main"] as const,
+		state: () => [...lotteryKeys.main.all(), "state"] as const,
+		draw: (drawId: number | BN) =>
+			[
+				...lotteryKeys.main.all(),
+				"draw",
+				{ drawId: drawId.toString() },
+			] as const,
+		userTickets: (user: string, drawId: number | BN) =>
+			[
+				...lotteryKeys.main.all(),
+				"user-tickets",
+				{ user, drawId: drawId.toString() },
+			] as const,
+	},
+	quickPick: {
+		all: () => [...lotteryKeys.all, "quick-pick"] as const,
+		state: () => [...lotteryKeys.quickPick.all(), "state"] as const,
+		draw: (drawId: number | BN) =>
+			[
+				...lotteryKeys.quickPick.all(),
+				"draw",
+				{ drawId: drawId.toString() },
+			] as const,
+		userTickets: (user: string, drawId: number | BN) =>
+			[
+				...lotteryKeys.quickPick.all(),
+				"user-tickets",
+				{ user, drawId: drawId.toString() },
+			] as const,
+	},
+	combined: {
+		all: () => [...lotteryKeys.all, "combined"] as const,
+		states: () => [...lotteryKeys.combined.all(), "states"] as const,
+	},
+	program: {
+		all: () => [...lotteryKeys.all, "program"] as const,
+		main: () => [...lotteryKeys.program.all(), "main"] as const,
+		quickPick: () => [...lotteryKeys.program.all(), "quick-pick"] as const,
+	},
 };
 
 // ---------------------------------------------------------------------------
@@ -82,13 +82,13 @@ const DEFAULT_RETRY = 2;
 const DEFAULT_RETRY_DELAY = 1000;
 
 const defaultQueryOptions: Partial<UseQueryOptions> = {
-  staleTime: DEFAULT_STALE_TIME,
-  gcTime: DEFAULT_CACHE_TIME,
-  retry: DEFAULT_RETRY,
-  retryDelay: DEFAULT_RETRY_DELAY,
-  refetchOnWindowFocus: false,
-  refetchOnMount: true,
-  refetchOnReconnect: true,
+	staleTime: DEFAULT_STALE_TIME,
+	gcTime: DEFAULT_CACHE_TIME,
+	retry: DEFAULT_RETRY,
+	retryDelay: DEFAULT_RETRY_DELAY,
+	refetchOnWindowFocus: false,
+	refetchOnMount: true,
+	refetchOnReconnect: true,
 };
 
 // ---------------------------------------------------------------------------
@@ -99,21 +99,21 @@ const defaultQueryOptions: Partial<UseQueryOptions> = {
  * Hook to get the Solana connection instance
  */
 export function useConnection() {
-  return getConnection();
+	return getConnection();
 }
 
 /**
  * Hook to get the Main Lottery program client (read-only)
  */
 export function useMainLotteryProgram() {
-  return createMainLotteryProgram();
+	return createMainLotteryProgram();
 }
 
 /**
  * Hook to get the Quick Pick program client (read-only)
  */
 export function useQuickPickProgram() {
-  return createQuickPickProgram();
+	return createQuickPickProgram();
 }
 
 // ---------------------------------------------------------------------------
@@ -124,51 +124,51 @@ export function useQuickPickProgram() {
  * Hook to fetch the Main Lottery state
  */
 export function useMainLotteryState(options?: Partial<UseQueryOptions>) {
-  return useQuery({
-    queryKey: lotteryKeys.main.state(),
-    queryFn: () => fetchMainLotteryState(),
-    ...defaultQueryOptions,
-    ...options,
-  });
+	return useQuery({
+		queryKey: lotteryKeys.main.state(),
+		queryFn: () => fetchMainLotteryState(),
+		...defaultQueryOptions,
+		...options,
+	});
 }
 
 /**
  * Hook to fetch a specific Main Lottery draw result
  */
 export function useMainDrawResult(
-  drawId: number | BN,
-  options?: Partial<UseQueryOptions>,
+	drawId: number | BN,
+	options?: Partial<UseQueryOptions>,
 ) {
-  return useQuery({
-    queryKey: lotteryKeys.main.draw(drawId),
-    queryFn: () => fetchMainDrawResult(drawId),
-    ...defaultQueryOptions,
-    ...options,
-  });
+	return useQuery({
+		queryKey: lotteryKeys.main.draw(drawId),
+		queryFn: () => fetchMainDrawResult(drawId),
+		...defaultQueryOptions,
+		...options,
+	});
 }
 
 /**
  * Hook to fetch a user's Main Lottery tickets for a specific draw
  */
 export function useUserMainTicketsForDraw(
-  user: PublicKey | string | null | undefined,
-  drawId: number | BN,
-  options?: Partial<UseQueryOptions>,
+	user: PublicKey | string | null | undefined,
+	drawId: number | BN,
+	options?: Partial<UseQueryOptions>,
 ) {
-  const userKey = user instanceof PublicKey ? user.toBase58() : user;
+	const userKey = user instanceof PublicKey ? user.toBase58() : user;
 
-  return useQuery({
-    queryKey: lotteryKeys.main.userTickets(userKey || "", drawId),
-    queryFn: () => {
-      if (!userKey) {
-        return Promise.resolve([]);
-      }
-      return fetchUserMainTicketsForDraw(new PublicKey(userKey), drawId);
-    },
-    enabled: !!userKey,
-    ...defaultQueryOptions,
-    ...options,
-  });
+	return useQuery({
+		queryKey: lotteryKeys.main.userTickets(userKey || "", drawId),
+		queryFn: () => {
+			if (!userKey) {
+				return Promise.resolve([]);
+			}
+			return fetchUserMainTicketsForDraw(new PublicKey(userKey), drawId);
+		},
+		enabled: !!userKey,
+		...defaultQueryOptions,
+		...options,
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -179,51 +179,51 @@ export function useUserMainTicketsForDraw(
  * Hook to fetch the Quick Pick state
  */
 export function useQuickPickState(options?: Partial<UseQueryOptions>) {
-  return useQuery({
-    queryKey: lotteryKeys.quickPick.state(),
-    queryFn: () => fetchQuickPickState(),
-    ...defaultQueryOptions,
-    ...options,
-  });
+	return useQuery({
+		queryKey: lotteryKeys.quickPick.state(),
+		queryFn: () => fetchQuickPickState(),
+		...defaultQueryOptions,
+		...options,
+	});
 }
 
 /**
  * Hook to fetch a specific Quick Pick draw result
  */
 export function useQuickPickDrawResult(
-  drawId: number | BN,
-  options?: Partial<UseQueryOptions>,
+	drawId: number | BN,
+	options?: Partial<UseQueryOptions>,
 ) {
-  return useQuery({
-    queryKey: lotteryKeys.quickPick.draw(drawId),
-    queryFn: () => fetchQuickPickDrawResult(drawId),
-    ...defaultQueryOptions,
-    ...options,
-  });
+	return useQuery({
+		queryKey: lotteryKeys.quickPick.draw(drawId),
+		queryFn: () => fetchQuickPickDrawResult(drawId),
+		...defaultQueryOptions,
+		...options,
+	});
 }
 
 /**
  * Hook to fetch a user's Quick Pick tickets for a specific draw
  */
 export function useUserQuickPickTicketsForDraw(
-  user: PublicKey | string | null | undefined,
-  drawId: number | BN,
-  options?: Partial<UseQueryOptions>,
+	user: PublicKey | string | null | undefined,
+	drawId: number | BN,
+	options?: Partial<UseQueryOptions>,
 ) {
-  const userKey = user instanceof PublicKey ? user.toBase58() : user;
+	const userKey = user instanceof PublicKey ? user.toBase58() : user;
 
-  return useQuery({
-    queryKey: lotteryKeys.quickPick.userTickets(userKey || "", drawId),
-    queryFn: () => {
-      if (!userKey) {
-        return Promise.resolve([]);
-      }
-      return fetchUserQuickPickTicketsForDraw(new PublicKey(userKey), drawId);
-    },
-    enabled: !!userKey,
-    ...defaultQueryOptions,
-    ...options,
-  });
+	return useQuery({
+		queryKey: lotteryKeys.quickPick.userTickets(userKey || "", drawId),
+		queryFn: () => {
+			if (!userKey) {
+				return Promise.resolve([]);
+			}
+			return fetchUserQuickPickTicketsForDraw(new PublicKey(userKey), drawId);
+		},
+		enabled: !!userKey,
+		...defaultQueryOptions,
+		...options,
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -234,50 +234,50 @@ export function useUserQuickPickTicketsForDraw(
  * Hook to fetch both Main Lottery and Quick Pick states
  */
 export function useAllLotteryStates(options?: Partial<UseQueryOptions>) {
-  return useQuery({
-    queryKey: lotteryKeys.combined.states(),
-    queryFn: () => fetchAllLotteryData(),
-    ...defaultQueryOptions,
-    ...options,
-  });
+	return useQuery({
+		queryKey: lotteryKeys.combined.states(),
+		queryFn: () => fetchAllLotteryData(),
+		...defaultQueryOptions,
+		...options,
+	});
 }
 
 /**
  * Hook to fetch multiple Main Lottery draw results
  */
 export function useMultipleMainDrawResults(
-  drawIds: (number | BN)[],
-  options?: Partial<UseQueryOptions>,
+	drawIds: (number | BN)[],
+	options?: Partial<UseQueryOptions>,
 ): UseQueryResult[] {
-  const queries = useQueries({
-    queries: drawIds.map((drawId) => ({
-      queryKey: lotteryKeys.main.draw(drawId),
-      queryFn: () => fetchMainDrawResult(drawId),
-      ...defaultQueryOptions,
-      ...options,
-    })),
-  });
+	const queries = useQueries({
+		queries: drawIds.map((drawId) => ({
+			queryKey: lotteryKeys.main.draw(drawId),
+			queryFn: () => fetchMainDrawResult(drawId),
+			...defaultQueryOptions,
+			...options,
+		})),
+	});
 
-  return queries;
+	return queries;
 }
 
 /**
  * Hook to fetch multiple Quick Pick draw results
  */
 export function useMultipleQuickPickDrawResults(
-  drawIds: (number | BN)[],
-  options?: Partial<UseQueryOptions>,
+	drawIds: (number | BN)[],
+	options?: Partial<UseQueryOptions>,
 ): UseQueryResult[] {
-  const queries = useQueries({
-    queries: drawIds.map((drawId) => ({
-      queryKey: lotteryKeys.quickPick.draw(drawId),
-      queryFn: () => fetchQuickPickDrawResult(drawId),
-      ...defaultQueryOptions,
-      ...options,
-    })),
-  });
+	const queries = useQueries({
+		queries: drawIds.map((drawId) => ({
+			queryKey: lotteryKeys.quickPick.draw(drawId),
+			queryFn: () => fetchQuickPickDrawResult(drawId),
+			...defaultQueryOptions,
+			...options,
+		})),
+	});
 
-  return queries;
+	return queries;
 }
 
 /**
@@ -285,60 +285,60 @@ export function useMultipleQuickPickDrawResults(
  * (For a specific draw or all draws)
  */
 export function useAllUserTickets(
-  user: PublicKey | string | null | undefined,
-  drawIds: {
-    main: (number | BN)[];
-    quickPick: (number | BN)[];
-  },
-  options?: Partial<UseQueryOptions>,
+	user: PublicKey | string | null | undefined,
+	drawIds: {
+		main: (number | BN)[];
+		quickPick: (number | BN)[];
+	},
+	options?: Partial<UseQueryOptions>,
 ) {
-  const userKey = user instanceof PublicKey ? user.toBase58() : user;
+	const userKey = user instanceof PublicKey ? user.toBase58() : user;
 
-  const mainQueries = useQueries({
-    queries: drawIds.main.map((drawId) => ({
-      queryKey: lotteryKeys.main.userTickets(userKey || "", drawId),
-      queryFn: () => {
-        if (!userKey) return [];
-        return fetchUserMainTicketsForDraw(new PublicKey(userKey), drawId);
-      },
-      enabled: !!userKey,
-      ...defaultQueryOptions,
-      ...options,
-    })),
-  });
+	const mainQueries = useQueries({
+		queries: drawIds.main.map((drawId) => ({
+			queryKey: lotteryKeys.main.userTickets(userKey || "", drawId),
+			queryFn: () => {
+				if (!userKey) return [];
+				return fetchUserMainTicketsForDraw(new PublicKey(userKey), drawId);
+			},
+			enabled: !!userKey,
+			...defaultQueryOptions,
+			...options,
+		})),
+	});
 
-  const quickPickQueries = useQueries({
-    queries: drawIds.quickPick.map((drawId) => ({
-      queryKey: lotteryKeys.quickPick.userTickets(userKey || "", drawId),
-      queryFn: () => {
-        if (!userKey) return [];
-        return fetchUserQuickPickTicketsForDraw(new PublicKey(userKey), drawId);
-      },
-      enabled: !!userKey,
-      ...defaultQueryOptions,
-      ...options,
-    })),
-  });
+	const quickPickQueries = useQueries({
+		queries: drawIds.quickPick.map((drawId) => ({
+			queryKey: lotteryKeys.quickPick.userTickets(userKey || "", drawId),
+			queryFn: () => {
+				if (!userKey) return [];
+				return fetchUserQuickPickTicketsForDraw(new PublicKey(userKey), drawId);
+			},
+			enabled: !!userKey,
+			...defaultQueryOptions,
+			...options,
+		})),
+	});
 
-  // Combine results
-  const allMainTickets = mainQueries.flatMap((query) => query.data || []);
-  const allQuickPickTickets = quickPickQueries.flatMap(
-    (query) => query.data || [],
-  );
+	// Combine results
+	const allMainTickets = mainQueries.flatMap((query) => query.data || []);
+	const allQuickPickTickets = quickPickQueries.flatMap(
+		(query) => query.data || [],
+	);
 
-  return {
-    mainTickets: allMainTickets,
-    quickPickTickets: allQuickPickTickets,
-    isLoading:
-      mainQueries.some((q) => q.isLoading) ||
-      quickPickQueries.some((q) => q.isLoading),
-    isError:
-      mainQueries.some((q) => q.isError) ||
-      quickPickQueries.some((q) => q.isError),
-    error:
-      mainQueries.find((q) => q.error)?.error ||
-      quickPickQueries.find((q) => q.error)?.error,
-  };
+	return {
+		mainTickets: allMainTickets,
+		quickPickTickets: allQuickPickTickets,
+		isLoading:
+			mainQueries.some((q) => q.isLoading) ||
+			quickPickQueries.some((q) => q.isLoading),
+		isError:
+			mainQueries.some((q) => q.isError) ||
+			quickPickQueries.some((q) => q.isError),
+		error:
+			mainQueries.find((q) => q.error)?.error ||
+			quickPickQueries.find((q) => q.error)?.error,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -349,55 +349,55 @@ export function useAllUserTickets(
  * Hook to get query client for manual invalidation
  */
 export function useLotteryQueryClient() {
-  const queryClient = useQueryClient();
+	const queryClient = useQueryClient();
 
-  const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: lotteryKeys.all });
-  };
+	const invalidateAll = () => {
+		queryClient.invalidateQueries({ queryKey: lotteryKeys.all });
+	};
 
-  const invalidateMainLottery = () => {
-    queryClient.invalidateQueries({ queryKey: lotteryKeys.main.all() });
-  };
+	const invalidateMainLottery = () => {
+		queryClient.invalidateQueries({ queryKey: lotteryKeys.main.all() });
+	};
 
-  const invalidateQuickPick = () => {
-    queryClient.invalidateQueries({ queryKey: lotteryKeys.quickPick.all() });
-  };
+	const invalidateQuickPick = () => {
+		queryClient.invalidateQueries({ queryKey: lotteryKeys.quickPick.all() });
+	};
 
-  const invalidateMainDraw = (drawId: number | BN) => {
-    queryClient.invalidateQueries({ queryKey: lotteryKeys.main.draw(drawId) });
-  };
+	const invalidateMainDraw = (drawId: number | BN) => {
+		queryClient.invalidateQueries({ queryKey: lotteryKeys.main.draw(drawId) });
+	};
 
-  const invalidateQuickPickDraw = (drawId: number | BN) => {
-    queryClient.invalidateQueries({
-      queryKey: lotteryKeys.quickPick.draw(drawId),
-    });
-  };
+	const invalidateQuickPickDraw = (drawId: number | BN) => {
+		queryClient.invalidateQueries({
+			queryKey: lotteryKeys.quickPick.draw(drawId),
+		});
+	};
 
-  const invalidateUserMainTickets = (user: string, drawId: number | BN) => {
-    queryClient.invalidateQueries({
-      queryKey: lotteryKeys.main.userTickets(user, drawId),
-    });
-  };
+	const invalidateUserMainTickets = (user: string, drawId: number | BN) => {
+		queryClient.invalidateQueries({
+			queryKey: lotteryKeys.main.userTickets(user, drawId),
+		});
+	};
 
-  const invalidateUserQuickPickTickets = (
-    user: string,
-    drawId: number | BN,
-  ) => {
-    queryClient.invalidateQueries({
-      queryKey: lotteryKeys.quickPick.userTickets(user, drawId),
-    });
-  };
+	const invalidateUserQuickPickTickets = (
+		user: string,
+		drawId: number | BN,
+	) => {
+		queryClient.invalidateQueries({
+			queryKey: lotteryKeys.quickPick.userTickets(user, drawId),
+		});
+	};
 
-  return {
-    queryClient,
-    invalidateAll,
-    invalidateMainLottery,
-    invalidateQuickPick,
-    invalidateMainDraw,
-    invalidateQuickPickDraw,
-    invalidateUserMainTickets,
-    invalidateUserQuickPickTickets,
-  };
+	return {
+		queryClient,
+		invalidateAll,
+		invalidateMainLottery,
+		invalidateQuickPick,
+		invalidateMainDraw,
+		invalidateQuickPickDraw,
+		invalidateUserMainTickets,
+		invalidateUserQuickPickTickets,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -409,43 +409,43 @@ export function useLotteryQueryClient() {
  * Note: This is a placeholder - implement WebSocket subscription logic
  */
 export function useSubscribeToMainLotteryState(
-  enabled: boolean = true,
-  onUpdate?: (data: any) => void,
+	enabled: boolean = true,
+	onUpdate?: (data: any) => void,
 ) {
-  // Implementation would use WebSocket connection
-  // For now, we'll use polling via React Query
-  const { data, refetch } = useMainLotteryState({
-    refetchInterval: enabled ? 10_000 : false, // Poll every 10 seconds if enabled
-  });
+	// Implementation would use WebSocket connection
+	// For now, we'll use polling via React Query
+	const { data, refetch } = useMainLotteryState({
+		refetchInterval: enabled ? 10_000 : false, // Poll every 10 seconds if enabled
+	});
 
-  // Call onUpdate when data changes
-  React.useEffect(() => {
-    if (onUpdate && data) {
-      onUpdate(data);
-    }
-  }, [data, onUpdate]);
+	// Call onUpdate when data changes
+	React.useEffect(() => {
+		if (onUpdate && data) {
+			onUpdate(data);
+		}
+	}, [data, onUpdate]);
 
-  return { data, refetch };
+	return { data, refetch };
 }
 
 /**
  * Hook to subscribe to Quick Pick state changes
  */
 export function useSubscribeToQuickPickState(
-  enabled: boolean = true,
-  onUpdate?: (data: any) => void,
+	enabled: boolean = true,
+	onUpdate?: (data: any) => void,
 ) {
-  const { data, refetch } = useQuickPickState({
-    refetchInterval: enabled ? 10_000 : false,
-  });
+	const { data, refetch } = useQuickPickState({
+		refetchInterval: enabled ? 10_000 : false,
+	});
 
-  React.useEffect(() => {
-    if (onUpdate && data) {
-      onUpdate(data);
-    }
-  }, [data, onUpdate]);
+	React.useEffect(() => {
+		if (onUpdate && data) {
+			onUpdate(data);
+		}
+	}, [data, onUpdate]);
 
-  return { data, refetch };
+	return { data, refetch };
 }
 
 // ---------------------------------------------------------------------------
@@ -456,32 +456,32 @@ export function useSubscribeToQuickPickState(
  * Prefetch Main Lottery state
  */
 export async function prefetchMainLotteryState(queryClient: any) {
-  return queryClient.prefetchQuery({
-    queryKey: lotteryKeys.main.state(),
-    queryFn: () => fetchMainLotteryState(),
-    ...defaultQueryOptions,
-  });
+	return queryClient.prefetchQuery({
+		queryKey: lotteryKeys.main.state(),
+		queryFn: () => fetchMainLotteryState(),
+		...defaultQueryOptions,
+	});
 }
 
 /**
  * Prefetch Quick Pick state
  */
 export async function prefetchQuickPickState(queryClient: any) {
-  return queryClient.prefetchQuery({
-    queryKey: lotteryKeys.quickPick.state(),
-    queryFn: () => fetchQuickPickState(),
-    ...defaultQueryOptions,
-  });
+	return queryClient.prefetchQuery({
+		queryKey: lotteryKeys.quickPick.state(),
+		queryFn: () => fetchQuickPickState(),
+		...defaultQueryOptions,
+	});
 }
 
 /**
  * Prefetch all lottery data
  */
 export async function prefetchAllLotteryData(queryClient: any) {
-  await Promise.all([
-    prefetchMainLotteryState(queryClient),
-    prefetchQuickPickState(queryClient),
-  ]);
+	await Promise.all([
+		prefetchMainLotteryState(queryClient),
+		prefetchQuickPickState(queryClient),
+	]);
 }
 
 // ---------------------------------------------------------------------------

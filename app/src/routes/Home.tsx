@@ -71,21 +71,21 @@ const features = [
 const prizeTiers = [
 	{
 		match: "Match 5",
-		prize: "$28,000",
+		prize: "$4,000",
 		odds: "1 in 39,028",
 		rolldown: "~$46,000*",
 		color: "gold" as const,
 	},
 	{
 		match: "Match 4",
-		prize: "$800",
+		prize: "$150",
 		odds: "1 in 800",
 		rolldown: "~$1,330*",
 		color: "emerald" as const,
 	},
 	{
 		match: "Match 3",
-		prize: "$18",
+		prize: "$5",
 		odds: "1 in 47",
 		rolldown: "~$90*",
 		color: "muted" as const,
@@ -170,20 +170,22 @@ function FeatureCard({
 }) {
 	return (
 		<div
-			className={`group relative rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 ${highlight
-					? "bg-linear-to-br from-gold-500/8 via-gold-500/3 to-transparent border border-gold-500/15 glow-gold hover:border-gold-500/30"
-					: "bg-surface-1/50 border border-border hover:border-gold-500/15 hover:bg-surface-2/50"
-				}`}
+			className={`group relative rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hud-frame ${
+				highlight
+					? "border-magenta-500/30 bg-linear-to-br from-magenta-500/8 via-magenta-500/3 to-transparent glow-magenta hover:border-magenta-400/50"
+					: "bg-surface-1/50 border border-border hover:border-cyan-500/30 hover:bg-surface-2/50"
+			}`}
 		>
 			<div
-				className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors ${highlight
-						? "bg-gold-500/15 text-gold-400"
-						: "bg-surface-2 text-muted-foreground group-hover:text-gold-400 group-hover:bg-gold-500/10"
-					}`}
+				className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 transition-colors ${
+					highlight
+						? "bg-magenta-500/15 text-magenta-300 shadow-[0_0_14px_rgba(255,46,196,0.25)]"
+						: "bg-surface-2 text-muted-foreground group-hover:text-cyan-300 group-hover:bg-cyan-500/10"
+				}`}
 			>
 				<Icon size={20} />
 			</div>
-			<h3 className="text-sm sm:text-base font-bold mb-2 text-foreground">
+			<h3 className="text-sm sm:text-base font-bold mb-2 text-foreground font-display tracking-wide uppercase">
 				{title}
 			</h3>
 			<p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
@@ -191,7 +193,10 @@ function FeatureCard({
 			</p>
 			{highlight && (
 				<div className="absolute top-4 right-4">
-					<Sparkles size={16} className="text-gold-400 animate-pulse" />
+					<Sparkles
+						size={16}
+						className="text-magenta-300 animate-pulse drop-shadow-[0_0_8px_rgba(255,46,196,0.8)]"
+					/>
 				</div>
 			)}
 		</div>
@@ -225,36 +230,43 @@ function HeroSection({
 	const { isConnected } = useAppKitAccount();
 
 	return (
-		<section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+		<section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden scanlines">
 			{/* Background effects */}
 			<div className="absolute inset-0 bg-linear-to-b from-background via-transparent to-background pointer-events-none" />
 			<FloatingBalls count={12} className="opacity-30" />
-			<div className="absolute top-1/4 left-1/4 w-125 h-125 bg-gold-500/3 rounded-full blur-[150px] pointer-events-none" />
-			<div className="absolute bottom-1/4 right-1/4 w-125 h-125 bg-emerald-500/3 rounded-full blur-[150px] pointer-events-none" />
+			<div className="absolute top-1/4 left-1/4 w-125 h-125 bg-cyan-500/6 rounded-full blur-[150px] pointer-events-none" />
+			<div className="absolute bottom-1/4 right-1/4 w-125 h-125 bg-magenta-500/6 rounded-full blur-[150px] pointer-events-none" />
 			{/* Hero grid pattern */}
-			<div className="absolute inset-0 hero-grid opacity-50 pointer-events-none" />
+			<div className="absolute inset-0 hero-grid opacity-60 pointer-events-none" />
 
 			<div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
 				{/* Badge */}
-				<div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gold-500/8 border border-gold-500/15 mb-8 animate-pulse-glow">
-					<div className="w-2 h-2 rounded-full bg-gold-400" />
-					<span className="text-xs font-bold text-gold-400 uppercase tracking-[0.2em]">
-						Live on Solana
-					</span>
+				<div
+					className="inline-flex items-center gap-2.5 px-4 py-2 bg-cyan-500/8 border border-cyan-500/30 mb-8 animate-pulse-glow"
+					style={{
+						clipPath:
+							"polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)",
+					}}
+				>
+					<div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(0,229,255,0.9)]" />
+					<span className="hud-label">Live on Solana</span>
 				</div>
 
 				{/* Main heading */}
-				<h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-foreground leading-none mb-6 font-display">
-					The First <span className="text-gradient-gold">+EV Lottery</span>
+				<h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-wide text-foreground leading-none mb-6 font-display uppercase">
+					The First{" "}
+					<span className="text-gradient-gold glitch" data-text="+EV Lottery">
+						+EV Lottery
+					</span>
 					<br />
-					<span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-medium text-muted-foreground">
-						Built on Solana
+					<span className="font-mono text-base sm:text-lg md:text-xl lg:text-2xl font-normal text-muted-foreground tracking-[0.35em] uppercase">
+						// Built on Solana
 					</span>
 				</h1>
 
 				<p className="max-w-2xl mx-auto text-base sm:text-lg text-muted-foreground leading-relaxed mb-10">
 					MazelProtocol creates predictable windows of{" "}
-					<span className="text-emerald-light font-semibold">
+					<span className="text-emerald-300 font-semibold [text-shadow:0_0_10px_rgba(0,255,159,0.5)]">
 						positive expected value
 					</span>{" "}
 					through mathematical rolldown mechanics. When the jackpot reaches the
@@ -285,10 +297,10 @@ function HeroSection({
 				</div>
 
 				{/* Live on-chain status strip (redesign: single source of truth) */}
-				<div className="inline-flex flex-wrap items-center justify-center gap-x-5 gap-y-2 px-5 py-2.5 rounded-2xl glass mb-8 text-[11px] text-muted-foreground">
+				<div className="inline-flex flex-wrap items-center justify-center gap-x-5 gap-y-2 px-5 py-2.5 rounded-lg glass hud-frame mb-8 text-[11px] text-muted-foreground font-mono">
 					<span className="inline-flex items-center gap-1.5">
 						<span
-							className={`w-1.5 h-1.5 rounded-full ${isSaleOpen ? "bg-emerald animate-pulse" : "bg-gold"}`}
+							className={`w-1.5 h-1.5 rounded-full ${isSaleOpen ? "bg-emerald-400 shadow-[0_0_8px_rgba(0,255,159,0.9)] animate-pulse" : "bg-gold-400"}`}
 						/>
 						<span className="font-semibold text-foreground">
 							{isSaleOpen ? "Sales Open" : "Sales Closed"}
@@ -297,14 +309,14 @@ function HeroSection({
 					<span className="hidden sm:inline w-px h-3 bg-foreground/10" />
 					<span>
 						Draw{" "}
-						<span className="font-bold text-foreground tabular-nums">
+						<span className="font-bold text-cyan-300 tabular-nums">
 							{drawId !== null ? `#${drawId.toLocaleString()}` : "…"}
 						</span>
 					</span>
 					<span className="hidden sm:inline w-px h-3 bg-foreground/10" />
 					<span>
 						Tickets{" "}
-						<span className="font-bold text-foreground tabular-nums">
+						<span className="font-bold text-cyan-300 tabular-nums">
 							{ticketsSold !== null ? ticketsSold.toLocaleString() : "…"}
 						</span>
 					</span>
@@ -315,7 +327,7 @@ function HeroSection({
 					<button
 						type="button"
 						onClick={() => (isConnected ? null : open?.())}
-						className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-linear-to-b from-gold-400 to-gold-600 text-black font-bold text-lg shadow-lg shadow-gold-500/25 hover:shadow-gold-500/40 transition-all hover:-translate-y-0.5 active:translate-y-0"
+						className="inline-flex items-center gap-2 px-8 py-4 rounded-lg bg-linear-to-b from-gold-300 to-gold-600 text-black font-bold text-lg tracking-wide shadow-lg shadow-gold-500/30 hover:shadow-gold-400/50 transition-all hover:-translate-y-0.5 active:translate-y-0"
 					>
 						{isConnected ? (
 							<Link to="/play" className="flex items-center gap-2">
@@ -332,7 +344,7 @@ function HeroSection({
 
 					<Link
 						to="/learn/rolldown"
-						className="inline-flex items-center gap-2 px-6 py-4 rounded-xl border border-gold-500/20 hover:border-gold-500/40 text-muted-foreground hover:text-foreground font-semibold transition-all"
+						className="inline-flex items-center gap-2 px-6 py-4 rounded-lg border border-cyan-500/25 hover:border-cyan-400/50 text-muted-foreground hover:text-cyan-200 font-semibold tracking-wide transition-all hover:shadow-[0_0_16px_rgba(0,229,255,0.15)]"
 					>
 						How It Works
 						<ArrowRight size={18} />
@@ -343,8 +355,8 @@ function HeroSection({
 				{nextDrawTimeMs ? (
 					<CountdownTimer size="sm" showUrgency targetTime={nextDrawTimeMs} />
 				) : (
-					<div className="text-[10px] text-muted-foreground/60">
-						Next draw schedule loading…
+					<div className="font-mono text-[10px] text-muted-foreground/60">
+						// Next draw schedule loading…
 					</div>
 				)}
 			</div>

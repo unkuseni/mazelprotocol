@@ -378,6 +378,10 @@ Comprehensive documentation is available in the `docs/` directory:
 - Statistical plausibility checks
 - Draw timeout recovery mechanism
 - Per-user ticket limits
+- Bonded draw challenges — disputing winner counts requires a $500 USDC bond
+  (slashed on frivolous challenges, rewarded when upheld) and freezes claims
+  on the challenged draw only, with a 7-day timeout release so claims can
+  never be frozen forever
 
 ## 📄 License
 

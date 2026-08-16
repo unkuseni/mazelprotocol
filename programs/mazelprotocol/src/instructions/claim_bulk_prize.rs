@@ -93,7 +93,8 @@ pub struct ClaimBulkPrize<'info> {
     #[account(
         seeds = [DRAW_SEED, &unified_ticket.draw_id.to_le_bytes()],
         bump = draw_result.bump,
-        constraint = draw_result.draw_id == unified_ticket.draw_id @ LottoError::DrawIdMismatch
+        constraint = draw_result.draw_id == unified_ticket.draw_id @ LottoError::DrawIdMismatch,
+        constraint = !draw_result.challenged @ LottoError::DrawChallenged
     )]
     pub draw_result: Account<'info, DrawResult>,
 
@@ -416,7 +417,8 @@ pub struct ClaimAllBulkPrizes<'info> {
     #[account(
         seeds = [DRAW_SEED, &unified_ticket.draw_id.to_le_bytes()],
         bump = draw_result.bump,
-        constraint = draw_result.draw_id == unified_ticket.draw_id @ LottoError::DrawIdMismatch
+        constraint = draw_result.draw_id == unified_ticket.draw_id @ LottoError::DrawIdMismatch,
+        constraint = !draw_result.challenged @ LottoError::DrawChallenged
     )]
     pub draw_result: Account<'info, DrawResult>,
 

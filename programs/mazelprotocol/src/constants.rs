@@ -26,6 +26,8 @@ pub const QUICK_PICK_SEED: &[u8] = b"quick_pick";
 pub const SYNDICATE_WARS_SEED: &[u8] = b"syndicate_wars";
 /// PDA seed for unified ticket accounts (bulk purchases)
 pub const UNIFIED_TICKET_SEED: &[u8] = b"unified_ticket";
+/// PDA seed for challenge records (bonded draw disputes)
+pub const CHALLENGE_SEED: &[u8] = b"challenge";
 /// PDA seed for prize pool USDC token account
 pub const PRIZE_POOL_USDC_SEED: &[u8] = b"prize_pool_usdc";
 /// PDA seed for house fee USDC token account
@@ -144,10 +146,10 @@ pub const INSURANCE_ALLOCATION_BPS: u16 = 200;
 // LP (LIQUIDITY PROVIDER) PARAMETERS
 // ============================================================================
 
-/// Default LP reward share of house fees: 60%
-/// When house_fee_bps is 2800 (28%), LPs earn 2800 * 60% = 1680 bps of ticket price
-/// That's $2.50 * 16.80% = $0.42 per ticket
-pub const DEFAULT_LP_REWARD_BPS: u16 = 6000;
+/// Default LP reward share of house fees: 67%
+/// When house_fee_bps is 2800 (28%), LPs earn 2800 * 67% = 1876 bps of ticket price
+/// That's $2.50 * 18.76% = $0.469 per ticket
+pub const DEFAULT_LP_REWARD_BPS: u16 = 6700;
 
 /// Maximum LP reward share: 80% of house fees
 pub const MAX_LP_REWARD_BPS: u16 = 8000;
@@ -318,6 +320,38 @@ pub const MIN_DRAW_INTERVAL: i64 = 3600;
 /// AND MIN_DRAW_INTERVAL has elapsed since the start of the current draw cycle.
 pub const DEFAULT_SALE_TARGET_TICKETS: u64 = 0;
 
+// ============================================================================
+// CHALLENGE SYSTEM (bonded draw disputes)
+// ============================================================================
+
+/// Bond a challenger must post to challenge a finalized draw's winner
+/// counts. Held in the insurance pool's token account until resolution.
+/// $500 USDC — meaningful enough to deter spam, affordable for a legitimate
+/// dispute over a multi-million-dollar jackpot.
+pub const CHALLENGE_BOND: u64 = 500_000_000;
+
+/// Reward paid to a challenger whose challenge is UPHELD (1x bond, funded
+/// from the insurance pool). A correct challenger therefore nets +$500.
+pub const CHALLENGE_REWARD: u64 = 500_000_000;
+
+/// Maximum time an unresolved challenge can freeze a draw's claims before
+/// anyone may release it (7 days). Neutral release refunds the bond without
+/// reward, so claims can never be frozen forever by an absent authority.
+pub const CHALLENGE_RESOLUTION_TIMEOUT: i64 = 7 * 24 * 60 * 60;
+
+/// ChallengeRecord account size
+pub const CHALLENGE_RECORD_SIZE: usize = 8 + // discriminator
+    32 + // challenger
+    8 +  // draw_id
+    8 +  // bond_amount
+    20 + // alternative_winner_counts (5 x u32)
+    32 + // evidence_hash
+    8 +  // timestamp
+    1 +  // resolved
+    1 +  // upheld
+    1 +  // bump
+    7; // padding
+
 /// DrawResult account size
 pub const DRAW_RESULT_SIZE: usize = 8 + // discriminator
     8 +  // draw_id
@@ -341,6 +375,7 @@ pub const DRAW_RESULT_SIZE: usize = 8 + // discriminator
     8 +  // total_reclaimed (Fix #3: per-draw reclaim accounting)
     8 +  // streak_bonus_pool (L-7: pre-funded streak bonus liability)
     8 +  // total_streak_bonus_paid (L-7: streak bonus actually paid out)
+    1 +  // challenged (bonded dispute freeze on this draw's claims)
     1 +  // bump
     0; // no padding remaining
 

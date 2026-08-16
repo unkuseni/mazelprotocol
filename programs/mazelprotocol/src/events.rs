@@ -635,6 +635,67 @@ pub struct SoloAuthorityWarning {
 }
 
 // ============================================================================
+// CHALLENGE EVENTS (bonded draw disputes)
+// ============================================================================
+
+/// Emitted when a bonded challenge is filed against a finalized draw.
+/// Prize claims for the challenged draw are frozen until resolution.
+#[event]
+pub struct ChallengeRecorded {
+    /// The draw being disputed
+    pub draw_id: u64,
+    /// The challenger (bond provider)
+    pub challenger: Pubkey,
+    /// Bond amount posted (USDC lamports)
+    pub bond_amount: u64,
+    /// The challenger's alternative winner counts
+    pub alt_match_6: u32,
+    pub alt_match_5: u32,
+    pub alt_match_4: u32,
+    pub alt_match_3: u32,
+    pub alt_match_2: u32,
+    /// SHA256 hash of supporting off-chain evidence
+    pub evidence_hash: [u8; 32],
+    /// Timestamp when the challenge was filed
+    pub timestamp: i64,
+}
+
+/// Emitted when the authority resolves a challenge.
+#[event]
+pub struct ChallengeResolved {
+    /// The draw that was disputed
+    pub draw_id: u64,
+    /// The challenger
+    pub challenger: Pubkey,
+    /// Whether the challenge was upheld (true) or dismissed (false)
+    pub upheld: bool,
+    /// Bond refunded to the challenger (0 when dismissed)
+    pub bond_refunded: u64,
+    /// Reward paid to the challenger (0 when dismissed)
+    pub reward_paid: u64,
+    /// The resolving authority
+    pub authority: Pubkey,
+    /// Timestamp of resolution
+    pub timestamp: i64,
+}
+
+/// Emitted when an unresolved challenge is released after the timeout
+/// (neutral outcome: bond refunded, no reward, claims unfrozen).
+#[event]
+pub struct ChallengeReleased {
+    /// The draw that was disputed
+    pub draw_id: u64,
+    /// The challenger
+    pub challenger: Pubkey,
+    /// Bond refunded (neutral release)
+    pub bond_refunded: u64,
+    /// Who called the release
+    pub caller: Pubkey,
+    /// Timestamp of release
+    pub timestamp: i64,
+}
+
+// ============================================================================
 // LP (LIQUIDITY PROVIDER) EVENTS
 // ============================================================================
 

@@ -183,13 +183,13 @@ function ProtocolStats({
 			label: "Main Draws",
 			value: loading ? "…" : count(mainDraws),
 			icon: Trophy,
-			color: "text-gold",
+			color: "text-gold-300",
 		},
 		{
 			label: "QP Draws",
 			value: loading ? "…" : count(qpDraws),
 			icon: Zap,
-			color: "text-emerald-light",
+			color: "text-cyan-300",
 		},
 		{
 			label: "Total Tickets",
@@ -201,19 +201,19 @@ function ProtocolStats({
 			label: "Prizes Paid",
 			value: loading ? "…" : fmt(prizesPaid),
 			icon: Award,
-			color: "text-gold",
+			color: "text-gold-300",
 		},
 		{
 			label: "Biggest Win",
 			value: loading ? "…" : fmt(biggestWin),
 			icon: Star,
-			color: "text-gold",
+			color: "text-gold-300",
 		},
 		{
 			label: "Rolldown Events",
 			value: loading ? "…" : count(rolldownEvents),
 			icon: TrendingUp,
-			color: "text-emerald-light",
+			color: "text-magenta-300",
 		},
 	];
 
@@ -224,16 +224,18 @@ function ProtocolStats({
 				return (
 					<div
 						key={item.label}
-						className="glass rounded-xl p-3 sm:p-4 text-center"
+						className="hud-frame rounded-lg p-3 sm:p-4 text-center"
 					>
 						<Icon
 							size={16}
 							className={`${item.color} mx-auto mb-1.5 opacity-70`}
 						/>
-						<div className={`text-lg sm:text-xl font-black ${item.color}`}>
+						<div
+							className={`font-mono text-lg sm:text-xl font-black tabular-nums ${item.color}`}
+						>
 							{item.value}
 						</div>
-						<div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
+						<div className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em] mt-0.5">
 							{item.label}
 						</div>
 					</div>
@@ -275,43 +277,45 @@ function DrawCard({
 
 	return (
 		<div
-			className={`glass rounded-2xl transition-all duration-200 ${
-				draw.wasRolldown ? "border-emerald/15 shadow-sm shadow-emerald/5" : ""
+			className={`glass rounded-lg transition-all duration-200 ${
+				draw.wasRolldown
+					? "border-magenta-500/40 shadow-lg shadow-magenta-500/10 glow-magenta"
+					: "border-cyan-500/15"
 			}`}
 		>
 			{/* Main row (clickable) */}
 			<button
 				type="button"
 				onClick={onToggle}
-				className="w-full p-4 sm:p-5 text-left hover:bg-foreground/1 transition-colors rounded-2xl"
+				className="w-full p-4 sm:p-5 text-left hover:bg-foreground/1 transition-colors rounded-lg"
 			>
 				<div className="flex flex-col sm:flex-row sm:items-center gap-4">
 					{/* Left: Draw info + Numbers */}
 					<div className="flex-1 min-w-0">
 						{/* Header badges */}
 						<div className="flex items-center gap-2 flex-wrap mb-2.5">
-							<span className="text-sm font-bold text-foreground truncate max-w-30 sm:max-w-none">
+							<span className="font-mono text-sm font-bold neon-cyan truncate max-w-30 sm:max-w-none">
 								Draw #{draw.drawId}
 							</span>
-							<span className="text-[10px] text-muted-foreground shrink-0">
+							<span className="font-mono text-[10px] text-muted-foreground shrink-0">
 								{formatDate(draw.date)} · {draw.time}
 							</span>
 
 							{/* Game badge */}
 							{isMain ? (
-								<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gold/10 border border-gold/20 text-[9px] font-semibold text-gold uppercase tracking-wider">
+								<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gold-500/10 border border-gold-500/30 font-mono text-[9px] font-semibold text-gold-300 uppercase tracking-[0.2em]">
 									<Trophy size={8} />
 									6/46
 								</span>
 							) : (
-								<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald/10 border border-emerald/20 text-[9px] font-semibold text-emerald-light uppercase tracking-wider">
+								<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/30 font-mono text-[9px] font-semibold text-cyan-300 uppercase tracking-[0.2em]">
 									<Zap size={8} />
 									5/35
 								</span>
 							)}
 
 							{draw.wasRolldown && (
-								<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald/15 border border-emerald/30 text-[9px] font-bold text-emerald-light uppercase tracking-wider">
+								<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-magenta-500/10 border border-magenta-500/30 font-mono text-[9px] font-bold text-magenta-300 uppercase tracking-[0.2em]">
 									<TrendingUp size={8} />
 									Rolldown
 									{draw.rolldownTrigger === "hard_cap" ? " (Hard)" : ""}
@@ -327,30 +331,30 @@ function DrawCard({
 					<div className="flex items-center gap-3 sm:gap-6 shrink-0">
 						{/* Jackpot */}
 						<div className="text-right">
-							<div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
+							<div className="font-mono text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-[0.2em] mb-0.5">
 								Jackpot
 							</div>
-							<div className="text-xs sm:text-sm font-black text-gradient-gold tabular-nums truncate max-w-20 sm:max-w-none">
+							<div className="font-mono text-xs sm:text-sm font-black text-gradient-gold tabular-nums truncate max-w-20 sm:max-w-none">
 								{formatCurrency(draw.jackpotAtDraw, true)}
 							</div>
 						</div>
 
 						{/* Tickets */}
 						<div className="text-right hidden sm:block">
-							<div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
+							<div className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em] mb-0.5">
 								Tickets
 							</div>
-							<div className="text-sm font-bold text-foreground tabular-nums">
+							<div className="font-mono text-sm font-bold text-cyan-300 tabular-nums">
 								{draw.totalTickets.toLocaleString()}
 							</div>
 						</div>
 
 						{/* Winners */}
 						<div className="text-right hidden sm:block">
-							<div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
+							<div className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em] mb-0.5">
 								Winners
 							</div>
-							<div className="text-sm font-bold text-emerald-light tabular-nums">
+							<div className="font-mono text-sm font-bold text-emerald-400 tabular-nums">
 								{totalWinners.toLocaleString()}
 							</div>
 						</div>
@@ -368,18 +372,18 @@ function DrawCard({
 
 			{/* Expanded details */}
 			{expanded && (
-				<div className="px-4 sm:px-5 pb-5 border-t border-foreground/5 pt-4 space-y-4 animate-slide-down">
+				<div className="px-4 sm:px-5 pb-5 border-t border-cyan-500/10 pt-4 space-y-4 animate-slide-down">
 					{/* Rolldown info banner */}
 					{draw.wasRolldown && (
-						<div className="relative rounded-xl p-3 bg-emerald/4 border border-emerald/15 overflow-hidden">
-							<div className="absolute inset-0 bg-linear-to-r from-emerald/3 to-transparent" />
+						<div className="relative rounded-xl p-3 bg-magenta-500/5 border border-magenta-500/25 overflow-hidden">
+							<div className="absolute inset-0 bg-linear-to-r from-magenta-500/5 to-transparent" />
 							<div className="relative z-10 flex items-start gap-2">
 								<TrendingUp
 									size={14}
-									className="text-emerald-light mt-0.5 shrink-0"
+									className="text-magenta-300 mt-0.5 shrink-0"
 								/>
 								<div>
-									<p className="text-xs font-bold text-emerald-light mb-0.5">
+									<p className="font-display text-xs font-bold text-magenta-300 uppercase tracking-wide mb-0.5">
 										Rolldown Event — Pari-Mutuel Prizes
 									</p>
 									<p className="text-[10px] text-muted-foreground">
@@ -396,24 +400,24 @@ function DrawCard({
 
 					{/* Prize breakdown table */}
 					<div>
-						<h4 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-							<Award size={12} className="text-gold" />
+						<h4 className="hud-label mb-3 flex items-center gap-2">
+							<Award size={12} className="text-gold-300" />
 							Prize Breakdown
 						</h4>
 						<div className="overflow-x-auto">
 							<table className="w-full text-xs">
 								<thead>
 									<tr className="border-b border-foreground/5">
-										<th className="text-left py-2 pr-2 sm:pr-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+										<th className="text-left py-2 pr-2 sm:pr-4 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-semibold">
 											Tier
 										</th>
-										<th className="text-right py-2 px-2 sm:px-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+										<th className="text-right py-2 px-2 sm:px-4 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-semibold">
 											Winners
 										</th>
-										<th className="text-right py-2 px-2 sm:px-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+										<th className="text-right py-2 px-2 sm:px-4 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-semibold">
 											Prize
 										</th>
-										<th className="text-right py-2 pl-2 sm:pl-4 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold hidden sm:table-cell">
+										<th className="text-right py-2 pl-2 sm:pl-4 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-semibold hidden sm:table-cell">
 											Total Paid
 										</th>
 									</tr>
@@ -441,13 +445,13 @@ function DrawCard({
 												<td className="py-2.5 pr-2 sm:pr-4">
 													<div className="flex items-center gap-1.5 sm:gap-2">
 														<div
-															className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
+															className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-[9px] font-bold ${
 																tier === "jackpot"
-																	? "bg-gold/20 text-gold"
+																	? "bg-gold-500/20 text-gold-300"
 																	: tier === "high"
-																		? "bg-emerald/20 text-emerald-light"
+																		? "bg-emerald-500/20 text-emerald-400"
 																		: tier === "mid"
-																			? "bg-emerald/10 text-emerald-light/70"
+																			? "bg-emerald-500/10 text-emerald-400/70"
 																			: tier === "free"
 																				? "bg-foreground/5 text-muted-foreground"
 																				: "bg-foreground/5 text-muted-foreground"
@@ -458,25 +462,25 @@ function DrawCard({
 														<span
 															className={`font-medium ${
 																tier === "jackpot"
-																	? "text-gold"
+																	? "text-gold-300"
 																	: tier === "high"
-																		? "text-emerald-light"
+																		? "text-emerald-400"
 																		: "text-muted-foreground"
 															}`}
 														>
 															{label}
 														</span>
 														{tier === "jackpot" && (
-															<Star size={9} className="text-gold/50" />
+															<Star size={9} className="text-gold-300/50" />
 														)}
 														{tier === "free" && isMain && (
-															<span className="text-[8px] text-muted-foreground">
+															<span className="font-mono text-[8px] text-muted-foreground">
 																(Free Ticket)
 															</span>
 														)}
 													</div>
 												</td>
-												<td className="py-2.5 px-2 sm:px-4 text-right tabular-nums">
+												<td className="py-2.5 px-2 sm:px-4 text-right font-mono tabular-nums">
 													<span
 														className={`font-semibold ${
 															winners > 0
@@ -487,14 +491,14 @@ function DrawCard({
 														{winners.toLocaleString()}
 													</span>
 												</td>
-												<td className="py-2.5 px-2 sm:px-4 text-right tabular-nums">
+												<td className="py-2.5 px-2 sm:px-4 text-right font-mono tabular-nums">
 													{prizeEach > 0 ? (
 														<span
 															className={`font-bold ${
 																tier === "jackpot"
-																	? "text-gold"
+																	? "text-gold-300"
 																	: tier === "high"
-																		? "text-emerald-light"
+																		? "text-emerald-400"
 																		: "text-muted-foreground"
 															}`}
 														>
@@ -504,7 +508,7 @@ function DrawCard({
 															{draw.wasRolldown &&
 																tier !== "free" &&
 																winners > 0 && (
-																	<span className="ml-1 text-[8px] text-emerald-light/60">
+																	<span className="ml-1 font-mono text-[8px] text-magenta-300/70">
 																		PM
 																	</span>
 																)}
@@ -517,7 +521,7 @@ function DrawCard({
 														<span className="text-muted-foreground/60">—</span>
 													)}
 												</td>
-												<td className="py-2.5 pl-2 sm:pl-4 text-right tabular-nums hidden sm:table-cell">
+												<td className="py-2.5 pl-2 sm:pl-4 text-right font-mono tabular-nums hidden sm:table-cell">
 													{totalPaid > 0 ? (
 														<span className="font-semibold text-muted-foreground">
 															{formatCurrency(totalPaid, totalPaid >= 10_000)}
@@ -532,14 +536,14 @@ function DrawCard({
 								</tbody>
 								<tfoot>
 									<tr className="border-t border-foreground/6">
-										<td className="py-2.5 pr-2 sm:pr-4 text-xs font-bold text-foreground">
+										<td className="py-2.5 pr-2 sm:pr-4 font-mono text-xs font-bold text-foreground">
 											Total
 										</td>
-										<td className="py-2.5 px-2 sm:px-4 text-right text-xs font-bold text-foreground tabular-nums">
+										<td className="py-2.5 px-2 sm:px-4 text-right font-mono text-xs font-bold text-foreground tabular-nums">
 											{totalWinners.toLocaleString()}
 										</td>
 										<td className="py-2.5 px-2 sm:px-4 text-right" />
-										<td className="py-2.5 pl-2 sm:pl-4 text-right text-xs font-black text-gradient-gold tabular-nums hidden sm:table-cell">
+										<td className="py-2.5 pl-2 sm:pl-4 text-right font-mono text-xs font-black text-gradient-gold tabular-nums hidden sm:table-cell">
 											{formatCurrency(
 												draw.totalPrizesPaid,
 												draw.totalPrizesPaid >= 10_000,
@@ -554,65 +558,69 @@ function DrawCard({
 					{/* Draw Details Grid */}
 					<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
 						<div className="p-2.5 rounded-lg bg-foreground/2">
-							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+							<div className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
 								Total Tickets
 							</div>
-							<div className="text-xs font-bold text-foreground mt-0.5 tabular-nums">
+							<div className="font-mono text-xs font-bold text-cyan-300 mt-0.5 tabular-nums">
 								{draw.totalTickets.toLocaleString()}
 							</div>
 						</div>
 						<div className="p-2.5 rounded-lg bg-foreground/2">
-							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+							<div className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
 								Revenue
 							</div>
-							<div className="text-xs font-bold text-foreground mt-0.5 tabular-nums">
+							<div className="font-mono text-xs font-bold text-foreground mt-0.5 tabular-nums">
 								{formatCurrency(draw.totalTickets * (isMain ? 2.5 : 1.5), true)}
 							</div>
 						</div>
 						<div className="p-2.5 rounded-lg bg-foreground/2">
-							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+							<div className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
 								House Fee
 							</div>
-							<div className="text-xs font-bold text-foreground mt-0.5 tabular-nums">
+							<div className="font-mono text-xs font-bold text-foreground mt-0.5 tabular-nums">
 								{formatCurrency(draw.houseFeeCollected, true)}
 							</div>
 						</div>
 						<div className="p-2.5 rounded-lg bg-foreground/2">
-							<div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+							<div className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
 								Jackpot After
 							</div>
-							<div className="text-xs font-bold text-gold mt-0.5 tabular-nums">
+							<div className="font-mono text-xs font-bold text-gold-300 mt-0.5 tabular-nums">
 								{formatCurrency(draw.jackpotAfterDraw, true)}
 							</div>
 						</div>
 					</div>
 
 					{/* Verification */}
-					<div className="p-3 rounded-xl bg-foreground/2 border border-foreground/4">
-						<h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-							<Eye size={10} className="text-emerald/60" />
-							On-Chain Verification
-						</h4>
-						<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+					<div className="terminal-window">
+						<div className="terminal-titlebar">
+							<span className="w-1.5 h-1.5 rounded-full bg-cyan-400/80" />
+							<span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
+							<span className="ml-1 flex items-center gap-1.5">
+								<Eye size={10} className="text-cyan-300" />
+								On-Chain Verification
+							</span>
+						</div>
+						<div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
 							<div>
-								<div className="text-[9px] text-muted-foreground mb-0.5">
+								<div className="font-mono text-[9px] text-muted-foreground mb-0.5 uppercase tracking-[0.2em]">
 									Randomness Source
 								</div>
-								<div className="text-[10px] text-muted-foreground font-mono">
+								<div className="font-mono text-[10px] text-cyan-300/80 break-all">
 									{draw.randomnessProof}
 								</div>
 							</div>
 							<div>
-								<div className="text-[9px] text-muted-foreground mb-0.5">
+								<div className="font-mono text-[9px] text-muted-foreground mb-0.5 uppercase tracking-[0.2em]">
 									Verification Hash
 								</div>
-								<div className="text-[10px] text-muted-foreground font-mono flex items-center gap-1.5">
+								<div className="font-mono text-[10px] text-cyan-300/80 flex items-center gap-1.5">
 									<span>{draw.verificationHash}</span>
 									<a
 										href={`https://solscan.io/tx/${draw.verificationHash}`}
 										target="_blank"
 										rel="noopener noreferrer"
-										className="text-emerald-light/50 hover:text-emerald-light transition-colors"
+										className="text-emerald-400/50 hover:text-emerald-400 transition-colors"
 										aria-label="View on Solscan"
 									>
 										<ExternalLink size={9} />
@@ -644,13 +652,13 @@ function RolldownHistory({
 	if (rolldownDraws.length === 0) return null;
 
 	return (
-		<div className="glass-strong rounded-2xl p-5 sm:p-6 border-gradient-emerald">
+		<div className="hud-frame rounded-lg p-5 sm:p-6 glow-magenta">
 			<div className="flex items-center justify-between mb-4">
-				<h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
-					<TrendingUp size={16} className="text-emerald" />
+				<h3 className="font-display text-xs sm:text-sm font-bold text-magenta-300 uppercase tracking-wide flex items-center gap-2">
+					<TrendingUp size={16} className="text-magenta-300" />
 					Recent Rolldown Events
 				</h3>
-				<span className="text-[10px] text-muted-foreground">
+				<span className="font-mono text-[10px] text-muted-foreground">
 					{rolldownDraws.length} total rolldowns
 				</span>
 			</div>
@@ -661,27 +669,27 @@ function RolldownHistory({
 					return (
 						<div
 							key={`rolldown-${draw.drawId}`}
-							className="p-3 rounded-xl bg-emerald/3 border border-emerald/10"
+							className="p-3 rounded-lg bg-magenta-500/5 border border-magenta-500/20"
 						>
 							<div className="flex items-center justify-between mb-2">
 								<div className="flex items-center gap-2">
-									<span className="text-xs font-bold text-foreground">
+									<span className="font-mono text-xs font-bold text-magenta-300">
 										#{draw.drawId}
 									</span>
-									<span className="text-[10px] text-muted-foreground">
+									<span className="font-mono text-[10px] text-muted-foreground">
 										{formatDate(draw.date)}
 									</span>
 									{isMain ? (
-										<span className="text-[8px] px-1 py-0.5 rounded bg-gold/10 text-gold font-bold uppercase">
+										<span className="font-mono text-[8px] px-1 py-0.5 rounded bg-gold-500/10 text-gold-300 font-bold uppercase tracking-[0.15em]">
 											6/46
 										</span>
 									) : (
-										<span className="text-[8px] px-1 py-0.5 rounded bg-emerald/10 text-emerald-light font-bold uppercase">
+										<span className="font-mono text-[8px] px-1 py-0.5 rounded bg-cyan-500/10 text-cyan-300 font-bold uppercase tracking-[0.15em]">
 											5/35
 										</span>
 									)}
 								</div>
-								<span className="text-xs font-black text-gradient-gold">
+								<span className="font-mono text-xs font-black text-gradient-gold">
 									{formatCurrency(draw.jackpotAtDraw, true)}
 								</span>
 							</div>
@@ -690,16 +698,16 @@ function RolldownHistory({
 								<WinningNumbers numbers={draw.winningNumbers} size="sm" />
 							</div>
 
-							<div className="grid grid-cols-3 gap-2 text-[10px]">
+							<div className="grid grid-cols-3 gap-2 font-mono text-[10px]">
 								<div>
 									<span className="text-muted-foreground">Tickets</span>
-									<div className="font-bold text-foreground">
+									<div className="font-bold text-cyan-300">
 										{draw.totalTickets.toLocaleString()}
 									</div>
 								</div>
 								<div>
 									<span className="text-muted-foreground">Distributed</span>
-									<div className="font-bold text-emerald-light">
+									<div className="font-bold text-emerald-400">
 										{formatCurrency(draw.totalPrizesPaid, true)}
 									</div>
 								</div>
@@ -717,10 +725,10 @@ function RolldownHistory({
 				})}
 			</div>
 
-			<div className="mt-4 p-3 rounded-xl bg-foreground/2 border border-foreground/4">
+			<div className="mt-4 p-3 rounded-lg bg-foreground/2 border border-cyan-500/10">
 				<div className="flex items-start gap-2">
-					<Sparkles size={12} className="text-gold/60 mt-0.5 shrink-0" />
-					<div className="text-[10px] text-muted-foreground">
+					<Sparkles size={12} className="text-gold-300/60 mt-0.5 shrink-0" />
+					<div className="font-mono text-[10px] text-muted-foreground">
 						<span className="font-semibold text-muted-foreground">
 							Total rolldown prizes paid:
 						</span>{" "}
@@ -734,7 +742,7 @@ function RolldownHistory({
 						jackpot exceeds the soft cap and no top-tier winner is drawn.{" "}
 						<Link
 							to="/learn/rolldown"
-							className="text-emerald-light hover:text-emerald font-semibold inline-flex items-center gap-0.5 transition-colors"
+							className="text-cyan-300 hover:text-cyan-400 font-semibold inline-flex items-center gap-0.5 transition-colors"
 						>
 							Learn more <ChevronRight size={8} />
 						</Link>
@@ -769,7 +777,7 @@ function Pagination({
 			</Button>
 
 			{/* Mobile: current page indicator */}
-			<span className="sm:hidden text-xs font-semibold text-emerald-light px-2">
+			<span className="sm:hidden font-mono text-xs font-semibold text-cyan-300 px-2">
 				{currentPage} / {totalPages}
 			</span>
 
@@ -780,9 +788,9 @@ function Pagination({
 						key={page}
 						type="button"
 						onClick={() => onPageChange(page)}
-						className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${
+						className={`w-8 h-8 rounded-lg font-mono text-xs font-semibold transition-all ${
 							page === currentPage
-								? "bg-emerald/15 text-emerald-light border border-emerald/20"
+								? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/30"
 								: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
 						}`}
 					>
@@ -896,9 +904,10 @@ export default function ResultsPage() {
 			{/* ================================================================ */}
 			{/*  HERO                                                            */}
 			{/* ================================================================ */}
-			<section className="relative pt-24 pb-8 sm:pt-28 sm:pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
+			<section className="relative pt-24 pb-8 sm:pt-28 sm:pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden scanlines">
 				<div className="absolute inset-0 hero-grid opacity-20" />
-				<div className="absolute inset-0 bg-glow-emerald opacity-15" />
+				<div className="absolute inset-0 bg-glow-top-left" />
+				<div className="absolute inset-0 bg-glow-bottom-right" />
 				<FloatingBalls count={4} />
 
 				<div className="relative z-10 max-w-7xl mx-auto py-6 sm:py-8">
@@ -908,17 +917,18 @@ export default function ResultsPage() {
 							Home
 						</Link>
 						<ChevronRight size={12} />
-						<span className="text-emerald-light font-medium">Results</span>
+						<span className="font-mono text-cyan-300 font-medium">Results</span>
 					</nav>
 
 					<div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
 						<div>
+							<div className="hud-label mb-2">{"// Draw Archive"}</div>
 							<div className="flex items-center gap-3 mb-2">
-								<div className="p-2 rounded-xl bg-linear-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20">
-									<BarChart3 size={24} className="text-emerald-light" />
+								<div className="p-2 rounded-xl bg-linear-to-br from-cyan-500/20 to-magenta-500/10 border border-cyan-500/30 glow-cyan">
+									<BarChart3 size={24} className="text-cyan-300" />
 								</div>
 								<div>
-									<h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+									<h1 className="font-display text-2xl sm:text-3xl font-black tracking-wide uppercase text-gradient-primary">
 										Draw Results
 									</h1>
 									<p className="text-sm text-muted-foreground mt-0.5">
@@ -955,7 +965,7 @@ export default function ResultsPage() {
 							{isConnected ? (
 								<Link
 									to="/tickets"
-									className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+									className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-primary-foreground bg-linear-to-r from-cyan-400 to-cyan-600 hover:from-cyan-300 hover:to-cyan-500 rounded-xl shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
 								>
 									<Ticket size={16} />
 									Check My Tickets
@@ -964,7 +974,7 @@ export default function ResultsPage() {
 								<button
 									type="button"
 									onClick={() => open({ view: "Connect", namespace: "solana" })}
-									className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+									className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-primary-foreground bg-linear-to-r from-cyan-400 to-cyan-600 hover:from-cyan-300 hover:to-cyan-500 rounded-xl shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
 								>
 									<Wallet size={16} />
 									Connect to Check Tickets
@@ -988,7 +998,7 @@ export default function ResultsPage() {
 						{/* Left column: Draw list */}
 						<div className="lg:col-span-2 space-y-4">
 							{/* Filters */}
-							<div className="glass rounded-2xl p-4 sm:p-5 space-y-3">
+							<div className="hud-frame rounded-lg p-4 sm:p-5 space-y-3">
 								{/* Search + Game filter */}
 								<div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
 									<div className="relative flex-1 w-full">
@@ -1004,7 +1014,7 @@ export default function ResultsPage() {
 												setCurrentPage(1);
 											}}
 											placeholder="Search by draw #, date, or winning number..."
-											className="w-full h-9 pl-9 pr-3 rounded-xl bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+											className="w-full h-9 pl-9 pr-3 rounded-lg bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20 transition-colors"
 										/>
 									</div>
 
@@ -1024,9 +1034,9 @@ export default function ResultsPage() {
 												key={key}
 												type="button"
 												onClick={() => handleGameFilter(key)}
-												className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+												className={`px-3 py-1.5 rounded-lg font-mono text-xs font-semibold transition-all ${
 													gameFilter === key
-														? "bg-emerald/15 text-emerald-light border border-emerald/20"
+														? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/30"
 														: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
 												}`}
 											>
@@ -1056,9 +1066,9 @@ export default function ResultsPage() {
 											key={key}
 											type="button"
 											onClick={() => handleRolldownFilter(key)}
-											className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+											className={`px-3 py-1.5 rounded-lg font-mono text-xs font-semibold transition-all ${
 												rolldownFilter === key
-													? "bg-emerald/15 text-emerald-light border border-emerald/20"
+													? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/30"
 													: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
 											}`}
 										>
@@ -1072,7 +1082,7 @@ export default function ResultsPage() {
 							<div className="flex items-center justify-between">
 								<p className="text-xs text-muted-foreground">
 									Showing{" "}
-									<span className="font-bold text-foreground">
+									<span className="font-mono font-bold text-cyan-300 tabular-nums">
 										{filteredDraws.length}
 									</span>{" "}
 									draw{filteredDraws.length !== 1 ? "s" : ""}
@@ -1080,7 +1090,9 @@ export default function ResultsPage() {
 										<span>
 											{" "}
 											matching &ldquo;
-											<span className="text-emerald-light">{searchQuery}</span>
+											<span className="font-mono text-cyan-300">
+												{searchQuery}
+											</span>
 											&rdquo;
 										</span>
 									)}
@@ -1103,7 +1115,7 @@ export default function ResultsPage() {
 										<div
 											// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
 											key={`skeleton-row-${i}`}
-											className="glass rounded-2xl p-5 animate-pulse"
+											className="glass rounded-lg p-5 animate-pulse"
 										>
 											<div className="flex items-center gap-3 mb-3">
 												<div className="h-4 w-20 bg-foreground/10 rounded" />
@@ -1123,9 +1135,9 @@ export default function ResultsPage() {
 									))}
 								</div>
 							) : paginatedDraws.length === 0 ? (
-								<div className="glass rounded-2xl p-12 text-center">
-									<div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground/3 border border-foreground/6 mb-4">
-										<Search size={24} className="text-muted-foreground/60" />
+								<div className="hud-frame rounded-lg p-12 text-center">
+									<div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-cyan-500/5 border border-cyan-500/20 mb-4">
+										<Search size={24} className="text-cyan-300/60" />
 									</div>
 									<p className="text-sm text-muted-foreground mb-1">
 										No draws found
@@ -1144,7 +1156,7 @@ export default function ResultsPage() {
 										}}
 										variant="outline"
 										size="sm"
-										className="w-full sm:w-auto text-xs border-emerald/20 text-emerald-light hover:bg-emerald/5"
+										className="w-full sm:w-auto text-xs border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10"
 									>
 										Clear Filters
 									</Button>
@@ -1180,16 +1192,16 @@ export default function ResultsPage() {
 							<RolldownHistory draws={liveDraws} loading={drawsLoading} />
 
 							{/* How to Read Results */}
-							<div className="glass rounded-2xl p-5 sm:p-6">
-								<h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2 mb-4">
-									<Eye size={16} className="text-emerald" />
+							<div className="hud-frame rounded-lg p-5 sm:p-6">
+								<h3 className="hud-label mb-4 flex items-center gap-2">
+									<Eye size={16} className="text-cyan-300" />
 									Understanding Results
 								</h3>
 
 								<div className="space-y-3">
 									<div>
-										<h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
-											<div className="w-3 h-3 rounded-full bg-linear-to-br from-gold-light to-gold" />
+										<h4 className="font-mono text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5 uppercase tracking-wider">
+											<div className="w-3 h-3 rounded-full bg-linear-to-br from-gold-300 to-gold-500" />
 											Matched Numbers
 										</h4>
 										<p className="text-[10px] text-muted-foreground leading-relaxed">
@@ -1200,12 +1212,12 @@ export default function ResultsPage() {
 									</div>
 
 									<div>
-										<h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
-											<TrendingUp size={11} className="text-emerald" />
+										<h4 className="font-mono text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5 uppercase tracking-wider">
+											<TrendingUp size={11} className="text-magenta-300" />
 											Rolldown Draws
 										</h4>
 										<p className="text-[10px] text-muted-foreground leading-relaxed">
-											Draws marked with the green &quot;Rolldown&quot; badge
+											Draws marked with the magenta &quot;Rolldown&quot; badge
 											used pari-mutuel prize distribution. The jackpot was
 											divided among Match 3+ winners, resulting in
 											higher-than-normal prizes.
@@ -1213,8 +1225,8 @@ export default function ResultsPage() {
 									</div>
 
 									<div>
-										<h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
-											<span className="text-[9px] font-bold px-1 py-0.5 rounded bg-emerald/10 text-emerald-light">
+										<h4 className="font-mono text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5 uppercase tracking-wider">
+											<span className="font-mono text-[9px] font-bold px-1 py-0.5 rounded bg-magenta-500/10 text-magenta-300">
 												PM
 											</span>
 											Pari-Mutuel
@@ -1227,7 +1239,7 @@ export default function ResultsPage() {
 									</div>
 
 									<div>
-										<h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
+										<h4 className="font-mono text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5 uppercase tracking-wider">
 											<Hash size={11} className="text-muted-foreground" />
 											Verification
 										</h4>
@@ -1242,7 +1254,7 @@ export default function ResultsPage() {
 								<div className="mt-4 pt-3 border-t border-foreground/5">
 									<Link
 										to="/learn/rolldown"
-										className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-light hover:text-emerald transition-colors"
+										className="flex items-center gap-1.5 font-mono text-[10px] font-semibold text-cyan-300 hover:text-cyan-400 transition-colors"
 									>
 										<Sparkles size={10} />
 										Learn how rolldown mechanics work
@@ -1252,9 +1264,9 @@ export default function ResultsPage() {
 							</div>
 
 							{/* Quick Links */}
-							<div className="glass rounded-xl p-4 space-y-2">
-								<h3 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-									<Zap size={12} className="text-emerald" />
+							<div className="hud-frame rounded-lg p-4 space-y-2">
+								<h3 className="hud-label mb-3 flex items-center gap-2">
+									<Zap size={12} className="text-cyan-300" />
 									Quick Links
 								</h3>
 								<Link
@@ -1282,7 +1294,7 @@ export default function ResultsPage() {
 									<div className="flex items-center gap-2">
 										<Zap
 											size={14}
-											className="text-emerald/60 group-hover:text-emerald-light transition-colors"
+											className="text-cyan-400/60 group-hover:text-cyan-300 transition-colors"
 										/>
 										<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
 											Quick Pick Express

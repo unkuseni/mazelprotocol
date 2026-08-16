@@ -88,21 +88,22 @@ function NumberGrid({ selected, onToggle, disabled }: NumberGridProps) {
 						disabled={disabled || isFull}
 						onClick={() => onToggle(num)}
 						className={`
-              relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center
-              text-sm sm:text-base font-bold transition-all duration-200
+              relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center
+              text-sm sm:text-base font-bold font-mono transition-all duration-200
               select-none cursor-pointer
-              ${isSelected
-								? "bg-linear-to-b from-gold-400 to-gold-600 text-black shadow-lg shadow-gold-500/30 scale-105 ring-2 ring-gold-400/50"
-								: isFull
-									? "bg-surface-2 text-muted-foreground/40 cursor-not-allowed border border-border"
-									: "bg-surface-1 text-muted-foreground border border-border hover:bg-surface-2 hover:border-gold-500/30 hover:text-foreground hover:scale-105 active:scale-95"
+              ${
+								isSelected
+									? "bg-linear-to-b from-cyan-300 to-cyan-600 text-primary-foreground shadow-lg shadow-cyan-500/40 scale-105 ring-1 ring-cyan-300/70 [text-shadow:0_0_10px_rgba(125,243,255,0.4)]"
+									: isFull
+										? "bg-surface-2 text-muted-foreground/40 cursor-not-allowed border border-border"
+										: "bg-surface-1 text-muted-foreground border border-cyan-500/15 hover:bg-surface-2 hover:border-cyan-400/40 hover:text-cyan-200 hover:scale-105 active:scale-95 hover:shadow-[0_0_10px_rgba(0,229,255,0.15)]"
 							}
             `}
 					>
 						{num}
 						{isSelected && (
-							<div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-gold flex items-center justify-center">
-								<Check size={8} className="text-navy" />
+							<div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-cyan-400 flex items-center justify-center shadow-[0_0_8px_rgba(0,229,255,0.9)]">
+								<Check size={8} className="text-primary-foreground" />
 							</div>
 						)}
 					</button>
@@ -132,7 +133,7 @@ const STATUS_META: Record<
 	},
 	purchased: {
 		label: "Purchased",
-		className: "bg-emerald/10 border-emerald/25 text-emerald-light",
+		className: "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
 		icon: Check,
 	},
 	failed: {
@@ -152,7 +153,7 @@ function TicketCard({
 	const status = purchaseStatus ? STATUS_META[purchaseStatus] : null;
 	return (
 		<div
-			className={`group relative glass rounded-xl p-3 sm:p-4 transition-all hover:border-gold-500/20 ${purchaseStatus === "failed" ? "border-red-500/30" : ""} ${purchaseStatus === "purchased" ? "border-emerald/25" : ""}`}
+			className={`group relative glass rounded-xl p-3 sm:p-4 transition-all hover:border-gold-500/20 ${purchaseStatus === "failed" ? "border-red-500/30" : ""} ${purchaseStatus === "purchased" ? "border-emerald-500/25" : ""}`}
 		>
 			<div className="flex items-center justify-between mb-2">
 				<div className="flex items-center gap-2">
@@ -277,8 +278,8 @@ function CartSummary({
 			)}
 
 			{purchaseTx && (
-				<div className="mb-4 p-3 rounded-xl bg-emerald/10 border border-emerald/20">
-					<p className="text-xs font-bold text-emerald mb-1">
+				<div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+					<p className="text-xs font-bold text-emerald-300 mb-1">
 						Purchase successful!
 					</p>
 					<p className="text-[10px] text-muted-foreground break-all">
@@ -291,7 +292,7 @@ function CartSummary({
 				<Button
 					onClick={onCheckout}
 					disabled={ticketCount === 0 || isPurchasing}
-					className="w-full h-12 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none"
+					className="w-full h-12 bg-linear-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-primary-foreground font-bold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none"
 				>
 					{isPurchasing ? (
 						<span className="flex items-center gap-2">
@@ -312,7 +313,7 @@ function CartSummary({
 			) : (
 				<Button
 					onClick={onCheckout}
-					className="w-full h-12 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+					className="w-full h-12 bg-linear-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-primary-foreground font-bold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
 				>
 					<Wallet size={18} />
 					Connect Wallet to Play
@@ -521,7 +522,7 @@ export default function PlayMainLottery() {
 			if (failedIndexes.length > 0) {
 				setPurchaseError(
 					`${failedIndexes.length} of ${tickets.length} ticket${tickets.length === 1 ? "" : "s"} failed. ` +
-					`Successfully purchased tickets were removed; failed tickets remain in your cart for retry.`,
+						`Successfully purchased tickets were removed; failed tickets remain in your cart for retry.`,
 				);
 			}
 		} catch (err) {
@@ -559,7 +560,7 @@ export default function PlayMainLottery() {
 							Home
 						</Link>
 						<ChevronRight size={12} />
-						<span className="text-emerald-light font-medium">
+						<span className="text-emerald-300 font-medium">
 							6/46 Main Lottery
 						</span>
 					</nav>
@@ -567,8 +568,8 @@ export default function PlayMainLottery() {
 					<div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
 						<div>
 							<div className="flex items-center gap-3 mb-2">
-								<div className="p-2 rounded-xl bg-linear-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20">
-									<Trophy size={24} className="text-emerald-light" />
+								<div className="p-2 rounded-xl bg-linear-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/20">
+									<Trophy size={24} className="text-emerald-300" />
 								</div>
 								<div>
 									<h1 className="text-lg sm:text-xl lg:text-2xl font-black tracking-tight text-foreground">
@@ -583,12 +584,12 @@ export default function PlayMainLottery() {
 							{/* Status badges */}
 							<div className="flex flex-wrap items-center gap-2 mt-3">
 								{rolldownActive ? (
-									<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald/15 border border-emerald/30">
+									<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30">
 										<div className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />
-										<span className="text-xs font-semibold text-emerald-light">
+										<span className="text-xs font-semibold text-emerald-300">
 											Rolldown Active
 										</span>
-										<TrendingUp size={12} className="text-emerald-light" />
+										<TrendingUp size={12} className="text-emerald-300" />
 									</div>
 								) : (
 									<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-foreground/5 border border-foreground/10">
@@ -598,8 +599,8 @@ export default function PlayMainLottery() {
 										</span>
 									</div>
 								)}
-								<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/10 border border-gold/20">
-									<span className="text-xs font-semibold text-gold">
+								<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold-500/10 border border-gold-500/20">
+									<span className="text-xs font-semibold text-gold-300">
 										${TICKET_PRICE.toFixed(2)} USDC / ticket
 									</span>
 								</div>
@@ -682,7 +683,7 @@ export default function PlayMainLottery() {
 								<div className="flex items-center justify-between mb-5">
 									<div>
 										<h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
-											<Star size={18} className="text-gold" />
+											<Star size={18} className="text-gold-300" />
 											Pick Your Numbers
 										</h2>
 										<p className="text-xs text-muted-foreground mt-1">
@@ -694,7 +695,7 @@ export default function PlayMainLottery() {
 											<span
 												className={
 													selectedNumbers.size === PICK_COUNT
-														? "text-emerald-light"
+														? "text-emerald-300"
 														: "text-foreground"
 												}
 											>
@@ -731,7 +732,7 @@ export default function PlayMainLottery() {
 											selectedNumbers.size !== PICK_COUNT ||
 											tickets.length >= MAX_TICKETS
 										}
-										className="w-full lg:w-auto bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/20 disabled:opacity-40 disabled:shadow-none transition-all"
+										className="w-full lg:w-auto bg-linear-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-primary-foreground font-bold rounded-xl shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:shadow-none transition-all"
 										size="lg"
 									>
 										<Plus size={16} />
@@ -756,7 +757,7 @@ export default function PlayMainLottery() {
 										disabled={tickets.length >= MAX_TICKETS}
 										variant="outline"
 										size="lg"
-										className="w-full lg:w-auto border-emerald/20 hover:border-emerald/40 hover:bg-emerald/5 text-emerald-light"
+										className="w-full lg:w-auto border-emerald-500/20 hover:border-emerald-400/40 hover:bg-emerald-500/5 text-emerald-300"
 									>
 										<Shuffle size={14} />
 										Quick Pick
@@ -767,7 +768,7 @@ export default function PlayMainLottery() {
 										disabled={tickets.length >= MAX_TICKETS - 4}
 										variant="outline"
 										size="lg"
-										className="w-full lg:w-auto border-emerald/20 hover:border-emerald/40 hover:bg-emerald/5 text-emerald-light"
+										className="w-full lg:w-auto border-emerald-500/20 hover:border-emerald-400/40 hover:bg-emerald-500/5 text-emerald-300"
 									>
 										<Zap size={14} />
 										Quick Pick ×5
@@ -799,10 +800,10 @@ export default function PlayMainLottery() {
 							<div className="glass rounded-2xl p-5 sm:p-6">
 								<div className="flex items-center justify-between mb-4">
 									<h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
-										<ShoppingCart size={18} className="text-emerald" />
+										<ShoppingCart size={18} className="text-emerald-300" />
 										Your Tickets
 										{tickets.length > 0 && (
-											<span className="ml-1 px-2 py-0.5 rounded-full bg-emerald/15 text-xs font-bold text-emerald-light">
+											<span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-xs font-bold text-emerald-300">
 												{tickets.length}
 											</span>
 										)}
@@ -885,12 +886,12 @@ export default function PlayMainLottery() {
 								<div className="glass rounded-xl p-4 mt-4">
 									<div className="flex items-center justify-between">
 										<div className="flex items-center gap-2">
-											<Sparkles size={14} className="text-gold" />
+											<Sparkles size={14} className="text-gold-300" />
 											<span className="text-xs font-semibold text-foreground">
 												Free Tickets Available
 											</span>
 										</div>
-										<span className="text-sm font-bold text-gold">0</span>
+										<span className="text-sm font-bold text-gold-300">0</span>
 									</div>
 									<p className="text-[10px] text-muted-foreground mt-1.5">
 										Match 2 numbers in any draw to earn a free ticket credit
@@ -905,13 +906,14 @@ export default function PlayMainLottery() {
 										className="w-full flex items-center justify-between"
 									>
 										<h3 className="text-sm font-bold text-foreground flex items-center gap-2 shrink-0">
-											<Info size={14} className="text-emerald" />
+											<Info size={14} className="text-emerald-300" />
 											Prize Tiers
 										</h3>
 										<ChevronRight
 											size={14}
-											className={`text-muted-foreground transition-transform duration-200 shrink-0 ${showPrizeInfo ? "rotate-90" : ""
-												}`}
+											className={`text-muted-foreground transition-transform duration-200 shrink-0 ${
+												showPrizeInfo ? "rotate-90" : ""
+											}`}
 										/>
 									</button>
 
@@ -925,12 +927,13 @@ export default function PlayMainLottery() {
 													>
 														<div className="flex items-center gap-2">
 															<div
-																className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${tier.color === "gold"
-																		? "bg-gold/20 text-gold"
+																className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+																	tier.color === "gold"
+																		? "bg-gold-500/20 text-gold-300"
 																		: tier.color === "emerald"
-																			? "bg-emerald/20 text-emerald-light"
+																			? "bg-emerald-500/20 text-emerald-300"
 																			: "bg-foreground/5 text-muted-foreground"
-																	}`}
+																}`}
 															>
 																{tier.match}
 															</div>
@@ -940,12 +943,13 @@ export default function PlayMainLottery() {
 														</div>
 														<div className="text-right ml-4">
 															<span
-																className={`text-xs font-bold whitespace-nowrap ${tier.color === "gold"
-																		? "text-gold"
+																className={`text-xs font-bold whitespace-nowrap ${
+																	tier.color === "gold"
+																		? "text-gold-300"
 																		: tier.color === "emerald"
-																			? "text-emerald-light"
+																			? "text-emerald-300"
 																			: "text-muted-foreground"
-																	}`}
+																}`}
 															>
 																{tier.prize}
 															</span>
@@ -983,7 +987,7 @@ export default function PlayMainLottery() {
 										<div className="flex items-center gap-2">
 											<Zap
 												size={14}
-												className="text-emerald group-hover:text-emerald-light transition-colors"
+												className="text-emerald-300 group-hover:text-emerald-300 transition-colors"
 											/>
 											<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
 												Quick Pick Express (5/35)

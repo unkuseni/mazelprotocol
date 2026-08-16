@@ -65,6 +65,11 @@ pub struct DrawResult {
     /// enforced on every claim via `get_remaining_streak_bonus`.
     pub total_streak_bonus_paid: u64,
 
+    /// Whether this draw has an active (unresolved) bonded challenge.
+    /// While true, prize claims for THIS draw are frozen (scoped block —
+    /// the rest of the lottery keeps operating normally).
+    pub challenged: bool,
+
     /// PDA bump seed
     pub bump: u8,
 }

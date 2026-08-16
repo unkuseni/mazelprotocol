@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * SectionHeading — shared section header for the premium casino design.
+ * SectionHeading — shared section header for the cyberpunk design system.
  *
  * Standardizes the typography and layout of section headers across pages so
  * the app has a single, consistent visual rhythm (redesign pass).
@@ -47,12 +47,17 @@ export function SectionHeading({
 			{eyebrow && (
 				<div
 					className={cn(
-						"flex w-fit items-center gap-2 px-3 py-1 rounded-full bg-gold-500/8 border border-gold-500/15 mb-3",
+						"flex w-fit items-center gap-2 px-3 py-1 border border-cyan-500/30 bg-cyan-500/8 mb-3",
 						isCenter && "mx-auto",
 					)}
+					style={{
+						clipPath:
+							"polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)",
+					}}
 				>
-					<div className="w-1.5 h-1.5 rounded-full bg-gold-400" />
-					<span className="text-[10px] font-bold text-gold-400 uppercase tracking-[0.18em]">
+					<div className="w-1.5 h-1.5 bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(0,229,255,0.9)]" />
+					<span className="hud-label">
+						{"// "}
 						{eyebrow}
 					</span>
 				</div>
@@ -60,7 +65,7 @@ export function SectionHeading({
 
 			<h2
 				className={cn(
-					"text-2xl sm:text-3xl lg:text-4xl font-black text-foreground font-display tracking-tight",
+					"text-2xl sm:text-3xl lg:text-4xl font-black text-foreground font-display tracking-wide uppercase",
 					Icon && "flex items-center gap-3",
 					isCenter && "justify-center",
 				)}
@@ -68,7 +73,7 @@ export function SectionHeading({
 				{Icon && (
 					<Icon
 						size={28}
-						className="shrink-0 text-gold-400/80 inline-block"
+						className="shrink-0 text-cyan-300 drop-shadow-[0_0_10px_rgba(0,229,255,0.7)] inline-block"
 						aria-hidden
 					/>
 				)}

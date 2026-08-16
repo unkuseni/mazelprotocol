@@ -3527,8 +3527,8 @@ describe("mazelprotocol", () => {
   describe("LP Pool", () => {
     // MIN_LP_DEPOSIT from program constants = 1_000_000 lamports ($1)
     const MIN_LP_DEPOSIT = 1_000_000;
-    // DEFAULT_LP_REWARD_BPS = 6000 (60% of house fee routed to LPs)
-    const LP_REWARD_BPS = 6000;
+    // DEFAULT_LP_REWARD_BPS = 6700 (67% of house fee routed to LPs)
+    const LP_REWARD_BPS = 6700;
 
     let lpPlayer: Keypair;
     let lpPlayerUsdc: PublicKey;
@@ -3782,10 +3782,10 @@ describe("mazelprotocol", () => {
         .rpc();
 
       // House fee = 28% of $2.50 = 700,000 lamports
-      // LP reward = 60% of house fee = 420,000 lamports
+      // LP reward = 67% of house fee = 469,000 lamports
       const houseFee = (TICKET_PRICE.toNumber() * HOUSE_FEE_BPS) / 10000;
       const expectedReward = Math.floor((houseFee * LP_REWARD_BPS) / 10000);
-      expect(expectedReward).to.equal(420_000);
+      expect(expectedReward).to.equal(469_000);
 
       const lpPool = await programAccounts.lpPool.fetch(lpPDAs.lpPool);
       expect(lpPool.accumulatedRewards.toNumber()).to.equal(expectedReward);

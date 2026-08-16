@@ -136,9 +136,7 @@ export async function buildBuyQuickPickTicketInstruction(
 	const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA();
 	const [houseFeeUsdc] = deriveQuickPickHouseFeeUsdcPDA();
 	const [insurancePoolUsdc] = deriveQuickPickInsurancePoolUsdcPDA();
-	const [userStats] = deriveQuickPickUserStatsPDA(
-		provider.wallet.publicKey,
-	);
+	const [userStats] = deriveQuickPickUserStatsPDA(provider.wallet.publicKey);
 
 	// Build instruction using the correct account names from IDL
 	const instruction = await program.methods
@@ -330,9 +328,7 @@ export async function buyQuickPickTicketsBulk(
 	const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA();
 	const [houseFeeUsdc] = deriveQuickPickHouseFeeUsdcPDA();
 	const [insurancePoolUsdc] = deriveQuickPickInsurancePoolUsdcPDA();
-	const [userStats] = deriveQuickPickUserStatsPDA(
-		provider.wallet.publicKey,
-	);
+	const [userStats] = deriveQuickPickUserStatsPDA(provider.wallet.publicKey);
 
 	for (const ticketParams of tickets) {
 		// Validate ticket numbers
@@ -540,11 +536,11 @@ export async function checkUserMeetsGateRequirement(
 			typeof rawTotalSpent === "bigint"
 				? rawTotalSpent
 				: BigInt(
-					typeof rawTotalSpent === "string" ||
-						typeof rawTotalSpent === "number"
-						? rawTotalSpent
-						: String(rawTotalSpent),
-				);
+						typeof rawTotalSpent === "string" ||
+							typeof rawTotalSpent === "number"
+							? rawTotalSpent
+							: String(rawTotalSpent),
+					);
 
 		return totalSpentBigInt >= FIFTY_DOLLARS_LAMPORTS;
 	} catch (error) {

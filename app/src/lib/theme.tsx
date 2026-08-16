@@ -3,146 +3,146 @@ import * as React from "react";
 type Theme = "light" | "dark" | "system";
 
 interface ThemeContextType {
-  theme: Theme;
-  resolvedTheme: "light" | "dark";
-  setTheme: (theme: Theme) => void;
+	theme: Theme;
+	resolvedTheme: "light" | "dark";
+	setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = React.createContext<ThemeContextType | undefined>(
-  undefined,
+	undefined,
 );
 
 function getSystemTheme(): "light" | "dark" {
-  if (typeof window === "undefined") {
-    return "dark"; // Default to dark on server
-  }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+	if (typeof window === "undefined") {
+		return "dark"; // Default to dark on server
+	}
+	return window.matchMedia("(prefers-color-scheme: dark)").matches
+		? "dark"
+		: "light";
 }
 
 function getStoredTheme(): Theme | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  const stored = localStorage.getItem("theme");
-  if (stored === "light" || stored === "dark" || stored === "system") {
-    return stored;
-  }
-  return null;
+	if (typeof window === "undefined") {
+		return null;
+	}
+	const stored = localStorage.getItem("theme");
+	if (stored === "light" || stored === "dark" || stored === "system") {
+		return stored;
+	}
+	return null;
 }
 
 function setStoredTheme(theme: Theme) {
-  if (typeof window === "undefined") {
-    return;
-  }
-  localStorage.setItem("theme", theme);
+	if (typeof window === "undefined") {
+		return;
+	}
+	localStorage.setItem("theme", theme);
 }
 
 function getResolvedTheme(theme: Theme): "light" | "dark" {
-  if (theme === "system") {
-    return getSystemTheme();
-  }
-  return theme;
+	if (theme === "system") {
+		return getSystemTheme();
+	}
+	return theme;
 }
 
 function applyThemeToDocument(resolvedTheme: "light" | "dark") {
-  if (typeof document === "undefined") {
-    return;
-  }
+	if (typeof document === "undefined") {
+		return;
+	}
 
-  const root = document.documentElement;
+	const root = document.documentElement;
 
-  if (resolvedTheme === "dark") {
-    root.classList.add("dark");
-    root.classList.remove("light");
-    root.style.colorScheme = "dark";
+	if (resolvedTheme === "dark") {
+		root.classList.add("dark");
+		root.classList.remove("light");
+		root.style.colorScheme = "dark";
 
-    // Update theme-color meta tag for dark mode
-    updateThemeColorMeta("#0A0908");
-  } else {
-    root.classList.add("light");
-    root.classList.remove("dark");
-    root.style.colorScheme = "light";
+		// Update theme-color meta tag for dark mode
+		updateThemeColorMeta("#04050D");
+	} else {
+		root.classList.add("light");
+		root.classList.remove("dark");
+		root.style.colorScheme = "light";
 
-    // Update theme-color meta tag for light mode
-    updateThemeColorMeta("#FAF8F5");
-  }
+		// Update theme-color meta tag for light mode
+		updateThemeColorMeta("#EEF2F8");
+	}
 }
 
 function updateThemeColorMeta(color: string) {
-  if (typeof document === "undefined") {
-    return;
-  }
+	if (typeof document === "undefined") {
+		return;
+	}
 
-  // Find existing theme-color meta tag
-  let themeColorMeta = document.querySelector('meta[name="theme-color"]');
+	// Find existing theme-color meta tag
+	let themeColorMeta = document.querySelector('meta[name="theme-color"]');
 
-  if (!themeColorMeta) {
-    // Create new meta tag if it doesn't exist
-    themeColorMeta = document.createElement("meta");
-    themeColorMeta.setAttribute("name", "theme-color");
-    document.head.appendChild(themeColorMeta);
-  }
+	if (!themeColorMeta) {
+		// Create new meta tag if it doesn't exist
+		themeColorMeta = document.createElement("meta");
+		themeColorMeta.setAttribute("name", "theme-color");
+		document.head.appendChild(themeColorMeta);
+	}
 
-  themeColorMeta.setAttribute("content", color);
+	themeColorMeta.setAttribute("content", color);
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>(() => {
-    const stored = getStoredTheme();
-    return stored || "dark"; // Default to dark mode as per the app's design
-  });
+	const [theme, setThemeState] = React.useState<Theme>(() => {
+		const stored = getStoredTheme();
+		return stored || "dark"; // Default to dark mode as per the app's design
+	});
 
-  const resolvedTheme = React.useMemo(() => getResolvedTheme(theme), [theme]);
+	const resolvedTheme = React.useMemo(() => getResolvedTheme(theme), [theme]);
 
-  // Apply theme whenever the resolved theme changes (and on mount).
-  React.useEffect(() => {
-    applyThemeToDocument(resolvedTheme);
-  }, [resolvedTheme]);
+	// Apply theme whenever the resolved theme changes (and on mount).
+	React.useEffect(() => {
+		applyThemeToDocument(resolvedTheme);
+	}, [resolvedTheme]);
 
-  React.useEffect(() => {
-    // Only run on client side
-    if (typeof window === "undefined") {
-      return;
-    }
+	React.useEffect(() => {
+		// Only run on client side
+		if (typeof window === "undefined") {
+			return;
+		}
 
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-    const handleChange = () => {
-      if (theme === "system") {
-        const newSystemTheme = getSystemTheme();
-        applyThemeToDocument(newSystemTheme);
-      }
-    };
+		const handleChange = () => {
+			if (theme === "system") {
+				const newSystemTheme = getSystemTheme();
+				applyThemeToDocument(newSystemTheme);
+			}
+		};
 
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [theme]);
+		mediaQuery.addEventListener("change", handleChange);
+		return () => mediaQuery.removeEventListener("change", handleChange);
+	}, [theme]);
 
-  const setTheme = React.useCallback((newTheme: Theme) => {
-    setThemeState(newTheme);
-    setStoredTheme(newTheme);
-  }, []);
+	const setTheme = React.useCallback((newTheme: Theme) => {
+		setThemeState(newTheme);
+		setStoredTheme(newTheme);
+	}, []);
 
-  const value = React.useMemo(
-    () => ({
-      theme,
-      resolvedTheme,
-      setTheme,
-    }),
-    [theme, resolvedTheme, setTheme],
-  );
+	const value = React.useMemo(
+		() => ({
+			theme,
+			resolvedTheme,
+			setTheme,
+		}),
+		[theme, resolvedTheme, setTheme],
+	);
 
-  return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-  );
+	return (
+		<ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+	);
 }
 
 export function useTheme() {
-  const context = React.useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
+	const context = React.useContext(ThemeContext);
+	if (context === undefined) {
+		throw new Error("useTheme must be used within a ThemeProvider");
+	}
+	return context;
 }

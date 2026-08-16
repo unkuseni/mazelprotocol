@@ -12,6 +12,12 @@
 
 interface Env {
   CHAT_DB: D1Database;
+  /**
+   * Comma-separated list of base58 Solana pubkeys allowed to send
+   * "announcement" messages and toggle message pins. When unset or empty,
+   * no wallet is an admin and both actions are rejected with 403.
+   */
+  CHAT_ADMIN_PUBKEYS?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -86,6 +92,48 @@ function formatSenderShort(address: string): string {
   if (address === "system") return "System";
   if (address.length <= 12) return address;
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Admin allow-list (security review C2)
+//
+// Announcements and pins are privileged actions. Previously any wallet with a
+// valid signature could post styled "announcements" and toggle pins. Now both
+// are restricted to the CHAT_ADMIN_PUBKEYS allow-list (comma-separated base58
+// Solana pubkeys). When the env var is unset or empty, no wallet is an admin
+// and both actions are rejected with 403.
+// ---------------------------------------------------------------------------
+
+/** Parse the CHAT_ADMIN_PUBKEYS env var into a set of base58 pubkeys. */
+function getAdminPubkeys(env: Env): Set<string> {
+  const raw = env.CHAT_ADMIN_PUBKEYS;
+  if (!raw) return new Set();
+  return new Set(
+    raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+}
+
+/** Whether a sender is on the chat admin allow-list. */
+function isChatAdmin(env: Env, sender: string): boolean {
+  if (!validateSolanaAddress(sender)) return false;
+  return getAdminPubkeys(env).has(sender);
+}
+
+/**
+ * Read and parse a JSON request body, returning null (instead of throwing)
+ * when the body is empty or malformed so callers can respond with 400.
+ */
+async function parseJsonBody(request: Request): Promise<unknown | null> {
+  const text = await request.text();
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -426,14 +474,25 @@ export async function onRequest(context: {
         parseInt(url.searchParams.get("limit") ?? "50", 10),
         100,
       );
-      const before = url.searchParams.get("before");
+      const beforeRaw = url.searchParams.get("before");
+
+      // Robustness: a non-numeric or NaN "before" must not reach D1 — reject
+      // the request instead of silently binding NaN.
+      let beforeTs: number | null = null;
+      if (beforeRaw !== null) {
+        const parsed = Number(beforeRaw);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+          return error("Invalid 'before' timestamp");
+        }
+        beforeTs = parsed;
+      }
 
       let query = "SELECT * FROM messages WHERE syndicate_id = ?";
       const bindings: (string | number)[] = [syndicateId];
 
-      if (before) {
+      if (beforeTs !== null) {
         query += " AND created_at < ?";
-        bindings.push(parseInt(before, 10));
+        bindings.push(beforeTs);
       }
 
       query += " ORDER BY created_at DESC LIMIT ?";
@@ -494,7 +553,9 @@ export async function onRequest(context: {
       const syndicateId = validateSafeId(route[0]);
       if (!syndicateId) return error("Invalid syndicate ID");
 
-      const body: {
+      const parsedBody = await parseJsonBody(request);
+      if (!parsedBody) return error("Request body is required", 400);
+      const body = parsedBody as {
         text?: string;
         type?: string;
         replyTo?: string;
@@ -503,7 +564,7 @@ export async function onRequest(context: {
         signature?: string;
         timestamp?: number;
         nonce?: string;
-      } = await request.json();
+      };
 
       if (!body.text?.trim()) return error("Text is required");
       if (!body.sender) return error("Sender address is required");
@@ -540,6 +601,13 @@ export async function onRequest(context: {
       // Only allow "system" type messages from the system sender
       if (msgType === "system" && body.sender !== "system") {
         return error("Only the system account can send system messages", 403);
+      }
+
+      // SECURITY (review C2): announcements are a privileged channel — only
+      // senders on the CHAT_ADMIN_PUBKEYS allow-list may post them. If the
+      // env var is unset, ALL announcement messages are rejected (403).
+      if (msgType === "announcement" && !isChatAdmin(env, body.sender)) {
+        return error("Only chat admins can send announcements", 403);
       }
 
       await db
@@ -589,14 +657,16 @@ export async function onRequest(context: {
       const messageId = validateSafeId(route[0]);
       if (!messageId) return error("Invalid message ID");
 
-      const body: {
+      const parsedBody = await parseJsonBody(request);
+      if (!parsedBody) return error("Request body is required", 400);
+      const body = parsedBody as {
         emoji?: string;
         action?: string;
         sender?: string;
         signature?: string;
         timestamp?: number;
         nonce?: string;
-      } = await request.json();
+      };
 
       if (!body.emoji) return error("Emoji is required");
       if (!body.sender) return error("Sender address is required");
@@ -667,23 +737,21 @@ export async function onRequest(context: {
       const messageId = validateSafeId(route[0]);
       if (!messageId) return error("Invalid message ID");
 
-      const body: {
+      const parsedBody = await parseJsonBody(request);
+      if (!parsedBody) return error("Request body is required", 400);
+      const body = parsedBody as {
         pinned?: boolean;
         sender?: string;
         signature?: string;
         timestamp?: number;
         nonce?: string;
-      } = await request.json();
+      };
 
       if (typeof body.pinned !== "boolean")
         return error("pinned (boolean) is required");
       if (!body.sender) return error("Sender address is required");
 
-      // SECURITY (review H6): pins must be authenticated. NOTE: enforcing
-      // that the signer is the syndicate MANAGER requires an on-chain or
-      // server-side role registry, which does not exist yet — the client
-      // currently hides the pin control for non-managers, and this check
-      // at least prevents unauthenticated spoofing of the pin state.
+      // SECURITY (review H6): pins must be authenticated.
       const authError = await verifyChatAuth(
         db,
         body.sender,
@@ -693,6 +761,13 @@ export async function onRequest(context: {
         messageId,
       );
       if (authError) return error(authError, 401);
+
+      // SECURITY (review C2): pinning is restricted to the CHAT_ADMIN_PUBKEYS
+      // allow-list. When the env var is unset, ALL pin requests are rejected
+      // (403) — a wallet signature alone no longer authorizes pin changes.
+      if (!isChatAdmin(env, body.sender)) {
+        return error("Only chat admins can pin messages", 403);
+      }
 
       // SECURITY (review M6): throttle pin toggles per wallet.
       const rateError = await checkRateLimit(db, body.sender, "interaction");

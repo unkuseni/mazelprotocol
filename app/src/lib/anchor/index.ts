@@ -9,183 +9,169 @@
  * ```
  */
 
-// Primary integration hook
+// Connection
 export {
-  useMazelProtocol,
-  type MazelProtocol,
-  type MazelProtocolState,
-  type MazelProtocolActions,
-  type MazelProtocolQueries,
-} from "./integration";
+	getAccountInfo,
+	getBalance,
+	getConnection,
+	getCurrentSlot,
+	getTokenAccountBalance,
+	getWsConnection,
+	sendAndConfirmTransaction,
+	sendInstruction,
+	sendInstructions,
+} from "./connection";
 
 // React Query hooks
 export {
-  useMainLotteryState,
-  useQuickPickState,
-  useMainDrawResult,
-  useQuickPickDrawResult,
-  useAllLotteryStates,
-  useUserMainTicketsForDraw,
-  useUserQuickPickTicketsForDraw,
-  useAllUserTickets,
-  useMultipleMainDrawResults,
-  useMultipleQuickPickDrawResults,
-  useSubscribeToMainLotteryState,
-  useSubscribeToQuickPickState,
-  useLotteryQueryClient,
-  useConnection,
-  useMainLotteryProgram,
-  useQuickPickProgram,
-  prefetchMainLotteryState,
-  prefetchQuickPickState,
-  prefetchAllLotteryData,
-  lotteryKeys,
+	lotteryKeys,
+	prefetchAllLotteryData,
+	prefetchMainLotteryState,
+	prefetchQuickPickState,
+	useAllLotteryStates,
+	useAllUserTickets,
+	useConnection,
+	useLotteryQueryClient,
+	useMainDrawResult,
+	useMainLotteryProgram,
+	useMainLotteryState,
+	useMultipleMainDrawResults,
+	useMultipleQuickPickDrawResults,
+	useQuickPickDrawResult,
+	useQuickPickProgram,
+	useQuickPickState,
+	useSubscribeToMainLotteryState,
+	useSubscribeToQuickPickState,
+	useUserMainTicketsForDraw,
+	useUserQuickPickTicketsForDraw,
 } from "./hooks";
-
-// Transaction builders
+// Primary integration hook
 export {
-  // Main lottery
-  buyMainTicket,
-  buildBuyMainTicketInstruction,
-  claimMainPrize,
-  claimAllMainPrizes,
-  buildClaimMainPrizeInstruction,
-
-  // Quick Pick
-  buyQuickPickTicket,
-  buyQuickPickTicketsBulk,
-  buildBuyQuickPickTicketInstruction,
-  claimQuickPickPrize,
-  buildClaimQuickPickPrizeInstruction,
-
-  // User stats
-  initUserStats,
-  buildInitUserStatsInstruction,
-  ensureUserStatsInitialized,
-  fetchUserStats,
-  checkUserMeetsGateRequirement,
-
-  // Utilities
-  validateQuickPickNumbers,
-  generateRandomQuickPickNumbers,
-  ensureUsdcTokenAccount,
-
-  // Types
-  type BuyQuickPickTicketParams,
-  type BuyMainTicketParams,
-  type BuyTicketOptions,
-} from "./transactions";
-
+	type MazelProtocol,
+	type MazelProtocolActions,
+	type MazelProtocolQueries,
+	type MazelProtocolState,
+	useMazelProtocol,
+} from "./integration";
+// PDA derivation
+export {
+	DRAW_SEED,
+	deriveDrawResultPDA,
+	deriveHouseFeeUsdcPDA,
+	deriveInsurancePoolUsdcPDA,
+	deriveLotteryState,
+	// PDA derivation
+	deriveMainPDAs,
+	derivePrizePoolUsdcPDA,
+	deriveQuickPickDrawResultPDA,
+	deriveQuickPickHouseFeeUsdcPDA,
+	deriveQuickPickInsurancePoolUsdcPDA,
+	deriveQuickPickPDAs,
+	deriveQuickPickPrizePoolUsdcPDA,
+	deriveQuickPickState,
+	deriveQuickPickTicketPDA,
+	deriveTicketPDA,
+	deriveUnifiedTicketPDA,
+	deriveUserPDA,
+	generateMainLotteryNumbers,
+	generateQuickPickNumbers,
+	// Utility
+	generateRandomNumbers,
+	HOUSE_FEE_USDC_SEED,
+	houseFeeUsdc,
+	INSURANCE_POOL_USDC_SEED,
+	insurancePoolUsdc,
+	// Seeds
+	LOTTERY_SEED,
+	lotteryState,
+	MAIN_LOTTERY_PROGRAM_ID,
+	MAX_NUMBER,
+	// Types
+	type MainPDAs,
+	// Pre-computed PDAs
+	mainPDAs,
+	NUMBERS_PER_TICKET,
+	numberToU64Buffer,
+	PRIZE_POOL_USDC_SEED,
+	prizePoolUsdc,
+	QP_MAX_NUMBER,
+	QP_NUMBERS_PER_TICKET,
+	QUICK_PICK_DRAW_SEED,
+	QUICK_PICK_PROGRAM_ID,
+	QUICK_PICK_SEED,
+	QUICK_PICK_TICKET_SEED,
+	type QuickPickPDAs,
+	quickPickHouseFeeUsdc,
+	quickPickInsurancePoolUsdc,
+	quickPickPDAs,
+	quickPickPrizePoolUsdc,
+	quickPickState,
+	TICKET_SEED,
+	UNIFIED_TICKET_SEED,
+	// Constants
+	USDC_MINT,
+	USER_SEED,
+} from "./pda";
 // Program clients
 export {
-  createMainLotteryProgram,
-  createQuickPickProgram,
-  createReadOnlyProvider,
-  createProgramClients,
-  fetchMainLotteryState,
-  fetchQuickPickState,
-  fetchMainDrawResult,
-  fetchQuickPickDrawResult,
-  fetchUserMainTicketsForDraw,
-  fetchUserQuickPickTicketsForDraw,
-  fetchAllLotteryData,
-  type MainLotteryProgram,
-  type QuickPickProgram,
-  type ProgramClients,
+	createMainLotteryProgram,
+	createProgramClients,
+	createQuickPickProgram,
+	createReadOnlyProvider,
+	fetchAllLotteryData,
+	fetchMainDrawResult,
+	fetchMainLotteryState,
+	fetchQuickPickDrawResult,
+	fetchQuickPickState,
+	fetchUserMainTicketsForDraw,
+	fetchUserQuickPickTicketsForDraw,
+	type MainLotteryProgram,
+	type ProgramClients,
+	type QuickPickProgram,
 } from "./programs";
-
-// Wallet
-export {
-  useWallet,
-  useWalletForPublicKey,
-  useConnectedWallet,
-  type WalletHookReturn,
-} from "./wallet";
 
 // Provider
 export {
-  useAnchorProvider,
-  useReadOnlyAnchorProvider,
-  useConnectedAnchorProvider,
-  useSmartProgramClient,
-  useProgramsWithProvider,
-  type AnchorProviderHookReturn,
+	type AnchorProviderHookReturn,
+	useAnchorProvider,
+	useConnectedAnchorProvider,
+	useProgramsWithProvider,
+	useReadOnlyAnchorProvider,
+	useSmartProgramClient,
 } from "./provider";
-
-// Connection
+// Transaction builders
 export {
-  getConnection,
-  getWsConnection,
-  sendAndConfirmTransaction,
-  sendInstruction,
-  sendInstructions,
-  getAccountInfo,
-  getBalance,
-  getTokenAccountBalance,
-  getCurrentSlot,
-} from "./connection";
-
-// PDA derivation
+	type BuyMainTicketParams,
+	// Types
+	type BuyQuickPickTicketParams,
+	type BuyTicketOptions,
+	buildBuyMainTicketInstruction,
+	buildBuyQuickPickTicketInstruction,
+	buildClaimMainPrizeInstruction,
+	buildClaimQuickPickPrizeInstruction,
+	buildInitUserStatsInstruction,
+	// Main lottery
+	buyMainTicket,
+	// Quick Pick
+	buyQuickPickTicket,
+	buyQuickPickTicketsBulk,
+	checkUserMeetsGateRequirement,
+	claimAllMainPrizes,
+	claimMainPrize,
+	claimQuickPickPrize,
+	ensureUsdcTokenAccount,
+	ensureUserStatsInitialized,
+	fetchUserStats,
+	generateRandomQuickPickNumbers,
+	// User stats
+	initUserStats,
+	// Utilities
+	validateQuickPickNumbers,
+} from "./transactions";
+// Wallet
 export {
-  // Seeds
-  LOTTERY_SEED,
-  TICKET_SEED,
-  DRAW_SEED,
-  USER_SEED,
-  UNIFIED_TICKET_SEED,
-  PRIZE_POOL_USDC_SEED,
-  HOUSE_FEE_USDC_SEED,
-  INSURANCE_POOL_USDC_SEED,
-  QUICK_PICK_SEED,
-  QUICK_PICK_TICKET_SEED,
-  QUICK_PICK_DRAW_SEED,
-
-  // Constants
-  USDC_MINT,
-  MAIN_LOTTERY_PROGRAM_ID,
-  QUICK_PICK_PROGRAM_ID,
-  NUMBERS_PER_TICKET,
-  MAX_NUMBER,
-  QP_NUMBERS_PER_TICKET,
-  QP_MAX_NUMBER,
-
-  // PDA derivation
-  deriveMainPDAs,
-  deriveQuickPickPDAs,
-  deriveLotteryState,
-  deriveDrawResultPDA,
-  deriveTicketPDA,
-  deriveUnifiedTicketPDA,
-  deriveUserPDA,
-  derivePrizePoolUsdcPDA,
-  deriveHouseFeeUsdcPDA,
-  deriveInsurancePoolUsdcPDA,
-  deriveQuickPickState,
-  deriveQuickPickDrawResultPDA,
-  deriveQuickPickTicketPDA,
-  deriveQuickPickPrizePoolUsdcPDA,
-  deriveQuickPickHouseFeeUsdcPDA,
-  deriveQuickPickInsurancePoolUsdcPDA,
-
-  // Pre-computed PDAs
-  mainPDAs,
-  quickPickPDAs,
-  lotteryState,
-  quickPickState,
-  prizePoolUsdc,
-  houseFeeUsdc,
-  insurancePoolUsdc,
-  quickPickPrizePoolUsdc,
-  quickPickHouseFeeUsdc,
-  quickPickInsurancePoolUsdc,
-
-  // Utility
-  generateRandomNumbers,
-  generateMainLotteryNumbers,
-  generateQuickPickNumbers,
-  numberToU64Buffer,
-
-  // Types
-  type MainPDAs,
-  type QuickPickPDAs,
-} from "./pda";
+	useConnectedWallet,
+	useWallet,
+	useWalletForPublicKey,
+	type WalletHookReturn,
+} from "./wallet";

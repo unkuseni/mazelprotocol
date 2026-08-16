@@ -350,24 +350,66 @@ pub mod mazelprotocol {
         instructions::advance_draw::handler(ctx)
     }
 
-    /// Challenge a draw finalization (permissionless dispute)
+    /// Challenge a draw's winner counts (bonded, scoped dispute)
     ///
-    /// Anyone who detects incorrect winner counts can challenge the draw.
-    /// This pauses the lottery and records alternative counts on-chain.
-    /// Combined with permissionless finalization and the finalization delay,
-    /// this creates a system where fabricating winner counts is detectable
-    /// and punishable (M1 fix).
+    /// Anyone who detects incorrect winner counts in a FINALIZED draw can post
+    /// a CHALLENGE_BOND ($500 USDC, escrowed in the insurance pool) and record
+    /// their alternative counts + evidence hash on-chain. Prize claims for the
+    /// CHALLENGED DRAW ONLY are frozen — ticket sales, draws, and other draws'
+    /// claims continue normally. The authority adjudicates via
+    /// `resolve_challenge` (uphold → bond refunded + reward; dismiss → bond
+    /// slashed to the insurance pool). If the authority never resolves,
+    /// `release_challenge` (anyone, after the timeout) refunds the bond and
+    /// unfreezes claims. A challenged draw can never be frozen forever.
     ///
     /// # Arguments
     /// * `ctx` - ChallengeDraw accounts context
+    /// * `draw_id` - The finalized draw being challenged
     /// * `alternative_winner_counts` - Corrected winner counts
     /// * `evidence_hash` - SHA256 hash of supporting off-chain evidence
     pub fn challenge_draw(
         ctx: Context<ChallengeDraw>,
+        draw_id: u64,
         alternative_winner_counts: WinnerCounts,
         evidence_hash: [u8; 32],
     ) -> Result<()> {
-        instructions::admin::handler_challenge_draw(ctx, alternative_winner_counts, evidence_hash)
+        instructions::admin::handler_challenge_draw(
+            ctx,
+            draw_id,
+            alternative_winner_counts,
+            evidence_hash,
+        )
+    }
+
+    /// Resolve a challenge (authority adjudication)
+    ///
+    /// Uphold: refund the challenger's bond AND pay a CHALLENGE_REWARD from
+    /// the insurance pool. Dismiss: slash the bond to the insurance pool.
+    /// Either way, the challenged draw's claims are unfrozen.
+    ///
+    /// # Arguments
+    /// * `ctx` - ResolveChallenge accounts context
+    /// * `draw_id` - The disputed draw
+    /// * `uphold` - Whether the challenge is upheld
+    pub fn resolve_challenge(
+        ctx: Context<ResolveChallenge>,
+        draw_id: u64,
+        uphold: bool,
+    ) -> Result<()> {
+        instructions::admin::handler_resolve_challenge(ctx, draw_id, uphold)
+    }
+
+    /// Release an unresolved challenge after the timeout (permissionless)
+    ///
+    /// Neutral outcome: the bond is refunded (no reward, no slash) and the
+    /// draw's claims are unfrozen. Prevents permanent claim freezes when the
+    /// authority is unavailable or unresponsive.
+    ///
+    /// # Arguments
+    /// * `ctx` - ReleaseChallenge accounts context
+    /// * `draw_id` - The disputed draw
+    pub fn release_challenge(ctx: Context<ReleaseChallenge>, draw_id: u64) -> Result<()> {
+        instructions::admin::handler_release_challenge(ctx, draw_id)
     }
 
     /// Emergency transfer funds from reserve or insurance pool to prize pool

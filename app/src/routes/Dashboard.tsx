@@ -15,7 +15,7 @@ import {
 	Wallet,
 	Zap,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { EVBadge } from "@/components/EVCalculator";
@@ -26,6 +26,8 @@ import { RolldownGauge } from "@/components/RolldownGauge";
 import { useDraws } from "@/hooks/use-draws";
 import { useLotteryState } from "@/hooks/use-lottery-state";
 import { useTickets } from "@/hooks/use-tickets";
+import { useAnchorProvider } from "@/lib/anchor/provider";
+import { fetchUserStats } from "@/lib/anchor/transactions";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 import { cn } from "@/lib/utils";
 
@@ -80,28 +82,28 @@ function StatCard({
 }) {
 	const colorMap = {
 		emerald: {
-			iconBg: "bg-emerald/10",
-			iconColor: "text-emerald-light",
-			valueColor: "text-emerald-light",
+			iconBg: "bg-emerald-500/10",
+			iconColor: "text-emerald-400",
+			valueColor: "neon-green",
 		},
 		gold: {
-			iconBg: "bg-gold/10",
-			iconColor: "text-gold",
-			valueColor: "text-gold",
+			iconBg: "bg-gold-500/10",
+			iconColor: "text-gold-300",
+			valueColor: "neon-amber",
 		},
 		red: {
-			iconBg: "bg-red-500/10",
-			iconColor: "text-red-400",
-			valueColor: "text-red-400",
+			iconBg: "bg-magenta-500/10",
+			iconColor: "text-magenta-300",
+			valueColor: "neon-magenta",
 		},
 		amber: {
-			iconBg: "bg-amber-400/10",
-			iconColor: "text-amber-400",
-			valueColor: "text-amber-400",
+			iconBg: "bg-magenta-500/10",
+			iconColor: "text-magenta-300",
+			valueColor: "neon-magenta",
 		},
 		default: {
-			iconBg: "bg-foreground/5",
-			iconColor: "text-muted-foreground",
+			iconBg: "bg-cyan-500/10",
+			iconColor: "text-cyan-300",
 			valueColor: "text-foreground",
 		},
 	};
@@ -109,7 +111,7 @@ function StatCard({
 	const colors = colorMap[accent];
 
 	return (
-		<div className="p-4 rounded-2xl bg-card/50 border border-border/50">
+		<div className="hud-frame rounded-lg p-4">
 			<div className="flex items-center gap-3 mb-3">
 				<div
 					className={cn(
@@ -119,12 +121,13 @@ function StatCard({
 				>
 					<Icon size={18} className={colors.iconColor} />
 				</div>
-				<span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-					{label}
-				</span>
+				<span className="hud-label">{label}</span>
 			</div>
 			<div
-				className={cn("text-2xl font-black tracking-tight", colors.valueColor)}
+				className={cn(
+					"font-mono text-2xl font-black tracking-tight",
+					colors.valueColor,
+				)}
 			>
 				{value}
 			</div>
@@ -132,14 +135,14 @@ function StatCard({
 			{positive !== undefined && (
 				<div className="flex items-center gap-1 mt-2">
 					{positive ? (
-						<ArrowUpRight size={12} className="text-emerald-light" />
+						<ArrowUpRight size={12} className="text-emerald-400" />
 					) : (
 						<ArrowDownRight size={12} className={colors.iconColor} />
 					)}
 					<span
 						className={cn(
 							"text-[10px] font-bold",
-							positive ? "text-emerald-light" : colors.valueColor,
+							positive ? "text-emerald-400" : colors.valueColor,
 						)}
 					>
 						{positive ? "Profitable" : (negativeLabel ?? "Negative")}
@@ -170,18 +173,18 @@ function RecentDrawCard({
 	return (
 		<div
 			className={cn(
-				"p-5 rounded-2xl border transition-colors",
+				"hud-frame rounded-lg p-5 transition-colors",
 				wasRolldown
-					? "bg-emerald-500/5 border-emerald-500/15"
-					: "bg-card/50 border-border/50",
+					? "bg-emerald-500/10 border-emerald-500/30"
+					: "border-cyan-500/10",
 			)}
 		>
 			<div className="flex items-center justify-between mb-3">
 				<div>
-					<p className="text-xs font-semibold text-muted-foreground">
-						Draw #{drawId}
+					<p className="hud-label">Draw #{drawId}</p>
+					<p className="font-mono text-[10px] text-muted-foreground/60">
+						{date}
 					</p>
-					<p className="text-[10px] text-muted-foreground/60">{date}</p>
 				</div>
 				{wasRolldown && (
 					<div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/20">
@@ -197,18 +200,18 @@ function RecentDrawCard({
 
 			<div className="grid grid-cols-3 gap-2 mt-4 text-center">
 				<div>
-					<p className="text-[10px] text-muted-foreground">Tickets</p>
-					<p className="text-xs font-bold text-foreground">
+					<p className="hud-label">Tickets</p>
+					<p className="font-mono text-xs font-bold text-cyan-300">
 						{totalTickets.toLocaleString()}
 					</p>
 				</div>
 				<div>
-					<p className="text-[10px] text-muted-foreground">Jackpot</p>
-					<p className="text-xs font-bold text-gold">{jackpot}</p>
+					<p className="hud-label">Jackpot</p>
+					<p className="font-mono text-xs font-bold text-gold-300">{jackpot}</p>
 				</div>
 				<div>
-					<p className="text-[10px] text-muted-foreground">Winners</p>
-					<p className="text-xs font-bold text-foreground">
+					<p className="hud-label">Winners</p>
+					<p className="font-mono text-xs font-bold text-foreground">
 						{Object.values(matchCounts).reduce((a, b) => a + b, 0)}
 					</p>
 				</div>
@@ -223,7 +226,7 @@ function ActiveTicketsPanel() {
 
 	if (loading) {
 		return (
-			<div className="p-6 rounded-2xl bg-card/50 border border-border/50 animate-pulse">
+			<div className="hud-frame rounded-lg p-6 animate-pulse">
 				<div className="h-5 w-32 bg-foreground/5 rounded mb-4" />
 				{[1, 2, 3].map((i) => (
 					<div key={i} className="h-16 bg-foreground/5 rounded-lg mb-2" />
@@ -233,15 +236,15 @@ function ActiveTicketsPanel() {
 	}
 
 	return (
-		<div className="p-6 rounded-2xl bg-card/50 border border-border/50">
+		<div className="hud-frame rounded-lg p-6">
 			<div className="flex items-center justify-between mb-4">
-				<h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-					<Ticket size={16} className="text-gold" />
+				<h3 className="font-display text-sm font-bold text-foreground uppercase tracking-wide flex items-center gap-2">
+					<Ticket size={16} className="text-gold-300" />
 					Your Tickets
 				</h3>
 				<Link
 					to="/tickets"
-					className="text-[10px] font-semibold text-emerald-light hover:text-emerald flex items-center gap-1"
+					className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
 				>
 					View All <ArrowRight size={10} />
 				</Link>
@@ -249,13 +252,13 @@ function ActiveTicketsPanel() {
 
 			{/* Unclaimed prizes callout */}
 			{unclaimedTickets.length > 0 && (
-				<div className="mb-4 p-3 rounded-xl bg-gold/5 border border-gold/10">
+				<div className="mb-4 p-3 rounded-lg bg-gold-500/10 border border-gold-500/30">
 					<div className="flex items-center justify-between">
-						<span className="text-xs font-semibold text-gold">
+						<span className="text-xs font-semibold text-gold-300">
 							{unclaimedTickets.length} unclaimed prize
 							{unclaimedTickets.length > 1 ? "s" : ""}
 						</span>
-						<span className="text-sm font-bold text-gold">
+						<span className="font-mono text-sm font-bold text-gold-300">
 							{formatUSDC(unclaimedPrizeTotal)}
 						</span>
 					</div>
@@ -269,7 +272,7 @@ function ActiveTicketsPanel() {
 					<p className="text-sm text-muted-foreground">No tickets yet</p>
 					<Link
 						to="/play"
-						className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-emerald-light hover:text-emerald"
+						className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-emerald-400 hover:text-emerald-300"
 					>
 						Buy your first ticket <ArrowRight size={10} />
 					</Link>
@@ -279,7 +282,7 @@ function ActiveTicketsPanel() {
 					{tickets.slice(0, 5).map((ticket) => (
 						<div
 							key={ticket.id}
-							className="flex items-center justify-between p-3 rounded-lg bg-foreground/3 border border-foreground/5"
+							className="flex items-center justify-between p-3 rounded-lg bg-cyan-500/5 border border-cyan-500/10"
 						>
 							<div className="flex items-center gap-3">
 								<div
@@ -300,14 +303,14 @@ function ActiveTicketsPanel() {
 										animated={false}
 										staggerDelay={0}
 									/>
-									<p className="text-[9px] text-muted-foreground mt-1">
+									<p className="font-mono text-[9px] text-muted-foreground mt-1">
 										Draw #{ticket.drawId} · {timeAgo(ticket.purchaseTime)}
 									</p>
 								</div>
 							</div>
 							<div className="text-right">
 								{ticket.matchCount >= 2 && (
-									<span className="text-xs font-bold text-gold">
+									<span className="font-mono text-xs font-bold text-gold-300">
 										{formatUSDC(ticket.prize)}
 									</span>
 								)}
@@ -331,10 +334,10 @@ function WalletNotConnected() {
 	return (
 		<div className="min-h-[60vh] flex items-center justify-center px-4 sm:px-6 lg:px-8">
 			<div className="text-center max-w-md">
-				<div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald/10 flex items-center justify-center mx-auto mb-6">
-					<Wallet size={24} className="text-emerald-light sm:size-7" />
+				<div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto mb-6">
+					<Wallet size={24} className="text-emerald-400 sm:size-7" />
 				</div>
-				<h2 className="text-xl sm:text-2xl font-black text-foreground mb-3">
+				<h2 className="font-display text-xl sm:text-2xl font-black text-foreground uppercase tracking-wide mb-3">
 					Connect Your Wallet
 				</h2>
 				<p className="text-sm sm:text-base text-muted-foreground mb-8">
@@ -344,7 +347,7 @@ function WalletNotConnected() {
 				<button
 					type="button"
 					onClick={() => open?.()}
-					className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-linear-to-r from-emerald to-emerald-dark text-white font-bold text-base sm:text-lg shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all hover:-translate-y-0.5"
+					className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-linear-to-b from-emerald-400 to-emerald-600 text-black font-bold text-base sm:text-lg shadow-lg shadow-emerald-500/25 hover:from-emerald-300 hover:to-emerald-500 hover:shadow-emerald-500/40 transition-all hover:-translate-y-0.5"
 				>
 					<Wallet size={18} className="sm:size-5" />
 					Connect Wallet
@@ -370,11 +373,53 @@ export default function DashboardPage() {
 	const { draws, currentDrawId, loading: drawsLoading } = useDraws();
 	const { tickets, unclaimedTickets, unclaimedPrizeTotal } = useTickets();
 
+	// On-chain lifetime spend (main lottery UserStats.total_spent in USDC
+	// lamports, divided by 1e6). Fall back to an estimate when unavailable.
+	const { connectedProvider } = useAnchorProvider();
+	const walletPubkey = connectedProvider?.wallet.publicKey ?? null;
+	const [onChainTotalSpent, setOnChainTotalSpent] = useState<number | null>(
+		null,
+	);
+
+	useEffect(() => {
+		let cancelled = false;
+		if (!connectedProvider || !walletPubkey) {
+			setOnChainTotalSpent(null);
+			return;
+		}
+		void (async () => {
+			try {
+				const stats = await fetchUserStats(connectedProvider, walletPubkey);
+				if (cancelled || !stats) return;
+				const raw = stats.totalSpent ?? stats.total_spent ?? 0;
+				const lamports =
+					typeof raw === "bigint"
+						? raw
+						: typeof raw === "number"
+							? BigInt(Math.trunc(raw))
+							: BigInt(String(raw ?? 0));
+				if (!cancelled) {
+					setOnChainTotalSpent(Number(lamports) / 1_000_000);
+				}
+			} catch {
+				// Non-fatal — fall back to the estimate below
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [connectedProvider, walletPubkey]);
+
 	// Compute player stats from on-chain data
 	const playerStats = useMemo(() => {
 		if (!isConnected || tickets.length === 0) return null;
 
-		const totalSpent = tickets.length * 2.5;
+		// Prefer the on-chain lifetime spend. If the UserStats fetch failed
+		// (or hasn't resolved yet), fall back to the old per-ticket estimate
+		// and label it as such.
+		const usingEstimate = onChainTotalSpent === null;
+		const totalSpent =
+			onChainTotalSpent !== null ? onChainTotalSpent : tickets.length * 2.5;
 		const totalWon = tickets.reduce(
 			(sum, t) => sum + Number(t.prize) / 1_000_000,
 			0,
@@ -387,13 +432,20 @@ export default function DashboardPage() {
 		return {
 			totalTickets: tickets.length,
 			totalSpent,
+			totalSpentIsEstimate: usingEstimate,
 			totalWon,
 			netProfit,
 			winRate,
 			unclaimedCount: unclaimedTickets.length,
 			unclaimedTotal: Number(unclaimedPrizeTotal) / 1_000_000,
 		};
-	}, [tickets, unclaimedTickets, unclaimedPrizeTotal, isConnected]);
+	}, [
+		tickets,
+		unclaimedTickets,
+		unclaimedPrizeTotal,
+		isConnected,
+		onChainTotalSpent,
+	]);
 
 	if (!isConnected) {
 		return (
@@ -409,7 +461,8 @@ export default function DashboardPage() {
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 				{/* Page header */}
 				<div className="mb-6 sm:mb-8">
-					<h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground tracking-tight mb-2">
+					<p className="hud-label mb-2">{"// PLAYER COMMAND CENTER"}</p>
+					<h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-black text-foreground uppercase tracking-wide mb-2">
 						Dashboard
 					</h1>
 					<p className="text-xs sm:text-sm md:text-base text-muted-foreground">
@@ -431,7 +484,7 @@ export default function DashboardPage() {
 								rolldownActive={rolldownActive}
 								softCap={1_750_000}
 							/>
-							<div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-card/50 border border-border/50">
+							<div className="hud-frame rounded-lg flex flex-col items-center justify-center p-4">
 								{nextDrawTimeMs ? (
 									<CountdownTimer
 										size="sm"
@@ -482,7 +535,11 @@ export default function DashboardPage() {
 								<StatCard
 									label="Net P&L"
 									value={formatCurrency(Math.abs(playerStats.netProfit))}
-									sub="Lifetime"
+									sub={
+										playerStats.totalSpentIsEstimate
+											? "Lifetime (est.)"
+											: "Lifetime"
+									}
 									icon={TrendingUp}
 									accent={playerStats.netProfit >= 0 ? "emerald" : "amber"}
 									positive={playerStats.netProfit >= 0}
@@ -501,13 +558,13 @@ export default function DashboardPage() {
 						{/* Recent draws */}
 						<div>
 							<div className="flex items-center justify-between mb-4">
-								<h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
-									<Clock size={18} className="text-muted-foreground" />
+								<h2 className="font-display text-base sm:text-lg font-bold text-foreground uppercase tracking-wide flex items-center gap-2">
+									<Clock size={18} className="text-cyan-300" />
 									Recent Draws
 								</h2>
 								<Link
 									to="/results"
-									className="text-xs font-semibold text-emerald-light hover:text-emerald flex items-center gap-1"
+									className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
 								>
 									All Results <ArrowRight size={12} />
 								</Link>
@@ -520,7 +577,7 @@ export default function DashboardPage() {
 									))}
 								</div>
 							) : draws.length === 0 ? (
-								<div className="text-center py-8 sm:py-12 rounded-2xl bg-card/50 border border-border/50">
+								<div className="hud-frame rounded-lg text-center py-8 sm:py-12">
 									<Activity
 										size={32}
 										className="mx-auto mb-3 text-muted-foreground/30"
@@ -566,25 +623,25 @@ export default function DashboardPage() {
 						<ActiveTicketsPanel />
 
 						{/* Quick links */}
-						<div className="p-4 sm:p-6 rounded-2xl bg-card/50 border border-border/50">
-							<h3 className="text-xs sm:text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-								<Zap size={16} className="text-gold" />
+						<div className="hud-frame rounded-lg p-4 sm:p-6">
+							<h3 className="font-display text-xs sm:text-sm font-bold text-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
+								<Zap size={16} className="text-gold-300" />
 								Quick Actions
 							</h3>
 							<div className="space-y-2">
 								<Link
 									to="/play"
-									className="flex items-center justify-between p-3 rounded-xl bg-emerald/5 border border-emerald/10 hover:bg-emerald/10 transition-colors group"
+									className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors group"
 								>
 									<div className="flex items-center gap-3">
-										<Trophy size={16} className="text-emerald-light shrink-0" />
+										<Trophy size={16} className="text-emerald-400 shrink-0" />
 										<span className="text-xs sm:text-sm font-medium text-foreground">
 											Buy Tickets
 										</span>
 									</div>
 									<ArrowRight
 										size={14}
-										className="text-emerald-light opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+										className="text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
 									/>
 								</Link>
 								<Link

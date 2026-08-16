@@ -572,6 +572,7 @@ mod test_draw_result {
             total_reclaimed: 0,
             streak_bonus_pool: 0,
             total_streak_bonus_paid: 0,
+            challenged: false,
         }
     }
 

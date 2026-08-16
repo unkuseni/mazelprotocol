@@ -280,6 +280,21 @@ pub enum LottoError {
     DrawResultNotFound,
 
     // ============================================================================
+    // Challenge Errors (bonded draw disputes)
+    // ============================================================================
+    /// Prize claims for this draw are frozen by an active challenge
+    #[msg("Draw is under challenge.")]
+    DrawChallenged,
+
+    /// The challenge cannot be resolved (already resolved/released)
+    #[msg("Challenge cannot be resolved.")]
+    ChallengeNotResolvable,
+
+    /// The challenge release timeout has not elapsed yet
+    #[msg("Challenge release timeout not elapsed.")]
+    ChallengeNotTimedOut,
+
+    // ============================================================================
     // Syndicate Errors (6090-6109)
     // ============================================================================
     /// Syndicate has reached maximum member capacity

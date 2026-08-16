@@ -19,12 +19,12 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::constants::*;
 use crate::errors::LottoError;
 use crate::events::{
-    ConfigUpdated, DrawCancelled, DrawForceFinalized, EmergencyFundTransferred, EmergencyPause,
-    EmergencyUnpause, ExpiredPrizesReclaimed, HouseFeesWithdrawn, InsurancePoolFunded,
-    LpPoolPaused, LpPoolUnpaused, LpRewardBpsProposed, LpRewardBpsUpdated, LpRewardsClaimed,
-    SolvencyCheckPerformed,
+    ChallengeRecorded, ChallengeReleased, ChallengeResolved, ConfigUpdated, DrawCancelled,
+    DrawForceFinalized, EmergencyFundTransferred, EmergencyPause, EmergencyUnpause,
+    ExpiredPrizesReclaimed, HouseFeesWithdrawn, InsurancePoolFunded, LpPoolPaused, LpPoolUnpaused,
+    LpRewardBpsProposed, LpRewardBpsUpdated, LpRewardsClaimed, SolvencyCheckPerformed,
 };
-use crate::state::{DrawResult, LotteryState, LpPool, LpPosition, WinnerCounts};
+use crate::state::{ChallengeRecord, DrawResult, LotteryState, LpPool, LpPosition, WinnerCounts};
 
 // ============================================================================
 // PAUSE INSTRUCTION
@@ -1743,11 +1743,15 @@ pub struct ReclaimExpiredPrizes<'info> {
     /// has expired based on TICKET_CLAIM_EXPIRATION.
     /// Fix #3: Made mutable so we can increment `total_reclaimed` to enforce
     /// per-draw reclaim bounds and prevent cross-draw theft / double-reclaiming.
+    /// SECURITY (challenge fix): a challenged draw cannot be reclaimed while
+    /// its claims are frozen — that would let the authority sweep prizes
+    /// users are temporarily unable to claim.
     #[account(
         mut,
         seeds = [DRAW_SEED, &params.draw_id.to_le_bytes()],
         bump = draw_result.bump,
-        constraint = draw_result.draw_id == params.draw_id @ LottoError::DrawIdMismatch
+        constraint = draw_result.draw_id == params.draw_id @ LottoError::DrawIdMismatch,
+        constraint = !draw_result.challenged @ LottoError::DrawChallenged
     )]
     pub draw_result: Account<'info, DrawResult>,
 }
@@ -1860,22 +1864,27 @@ pub fn handler_reclaim_expired_prizes(
     Ok(())
 }
 // ============================================================================
-// CHALLENGE DRAW INSTRUCTION (M1 fix: permissionless dispute mechanism)
+// CHALLENGE DRAW SYSTEM (M1 fix v2: bonded, scoped dispute mechanism)
 // ============================================================================
-// Allows ANYONE to challenge the winner counts submitted in finalize_draw.
-// If a challenge is raised, the draw is paused for admin review and the
-// challenger's alternative winner counts are recorded on-chain. This creates
-// accountability: a malicious operator who fabricates counts can be caught
-// and the draw can be corrected before prizes are claimed.
+// The original challenge_draw was a FREE, PROTOCOL-WIDE pause: anyone could
+// halt the entire lottery for the cost of a transaction fee, and there was no
+// resolution path. This redesign fixes both problems:
 //
-// The challenger does NOT need to stake funds — the mere existence of an
-// on-chain challenge with alternative counts is sufficient to alert the
-// community and trigger manual review.
+// 1. BONDED — filing a challenge requires posting CHALLENGE_BOND ($500 USDC),
+//    escrowed in the insurance pool's token account. Frivolous challenges are
+//    slashed; upheld challenges are refunded and rewarded.
+// 2. SCOPED — a challenge freezes prize claims for the CHALLENGED DRAW ONLY.
+//    Ticket sales, draws, and claims on every other draw continue normally.
+// 3. RESOLVABLE — the authority resolves via resolve_challenge (uphold/dismiss).
+//    If the authority never resolves, anyone can call release_challenge after
+//    CHALLENGE_RESOLUTION_TIMEOUT for a neutral outcome (bond refunded, no
+//    reward, claims unfrozen). A draw's claims can never be frozen forever.
 
-/// Accounts required for challenging a draw finalization
+/// Accounts required for challenging a draw's winner counts
 #[derive(Accounts)]
+#[instruction(draw_id: u64, alternative_winner_counts: WinnerCounts, evidence_hash: [u8; 32])]
 pub struct ChallengeDraw<'info> {
-    /// Anyone can challenge (permissionless)
+    /// Anyone can challenge (permissionless), but must post a bond
     #[account(mut)]
     pub challenger: Signer<'info>,
 
@@ -1884,66 +1893,130 @@ pub struct ChallengeDraw<'info> {
         mut,
         seeds = [LOTTERY_SEED],
         bump = lottery_state.bump,
-        constraint = lottery_state.is_awaiting_finalization @ LottoError::DrawNotInProgress
     )]
     pub lottery_state: Account<'info, LotteryState>,
 
-    /// The draw result being challenged
+    /// The FINALIZED draw result being challenged.
+    /// The challenge targets the counts/prizes made public at finalization.
     #[account(
         mut,
-        seeds = [DRAW_SEED, &lottery_state.current_draw_id.to_le_bytes()],
+        seeds = [DRAW_SEED, &draw_id.to_le_bytes()],
         bump = draw_result.bump,
-        constraint = !draw_result.is_explicitly_finalized @ LottoError::DrawAlreadyCompleted
+        constraint = draw_result.draw_id == draw_id @ LottoError::DrawIdMismatch,
+        constraint = draw_result.is_finalized() @ LottoError::DrawNotInProgress,
+        constraint = !draw_result.challenged @ LottoError::DrawChallenged
     )]
     pub draw_result: Account<'info, DrawResult>,
+
+    /// Challenge record (one active challenge per draw per challenger)
+    #[account(
+        init,
+        payer = challenger,
+        space = CHALLENGE_RECORD_SIZE,
+        seeds = [CHALLENGE_SEED, &draw_id.to_le_bytes(), challenger.key().as_ref()],
+        bump
+    )]
+    pub challenge_record: Account<'info, ChallengeRecord>,
+
+    /// Challenger's USDC token account (bond source, must match insurance mint)
+    #[account(
+        mut,
+        constraint = challenger_usdc.owner == challenger.key() @ LottoError::TokenAccountOwnerMismatch,
+        constraint = challenger_usdc.mint == insurance_pool_usdc.mint @ LottoError::InvalidUsdcMint
+    )]
+    pub challenger_usdc: Account<'info, TokenAccount>,
+
+    /// Insurance pool USDC token account (bond escrow)
+    #[account(
+        mut,
+        seeds = [INSURANCE_POOL_USDC_SEED],
+        bump
+    )]
+    pub insurance_pool_usdc: Account<'info, TokenAccount>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+
+    /// System program
+    pub system_program: Program<'info, System>,
 }
 
-/// Challenge a draw finalization with alternative winner counts.
+/// Challenge a finalized draw's winner counts with a bonded dispute.
 ///
-/// This is the primary defense against operator-fabricated winner counts (M1).
-/// Anyone who detects incorrect counts can call this instruction to:
-/// 1. Pause the lottery (prevents prize claims on fabricated counts)
-/// 2. Record their alternative counts on-chain for audit
-/// 3. Trigger admin review
+/// Anyone who detects incorrect winner counts can call this instruction to:
+/// 1. Post a CHALLENGE_BOND in USDC (escrowed in the insurance pool)
+/// 2. Record their alternative counts + evidence hash on-chain
+/// 3. Freeze prize claims for THIS draw only (scoped — no global pause)
 ///
-/// After a challenge, the lottery remains paused until the authority:
-/// - Accepts the challenger's counts (calls finalize_draw with corrected data)
-/// - Or overrides via force_finalize_draw with a public explanation
+/// Resolution paths:
+/// - `resolve_challenge` (authority): uphold → bond + reward refunded;
+///   dismiss → bond slashed to the insurance pool.
+/// - `release_challenge` (anyone, after CHALLENGE_RESOLUTION_TIMEOUT):
+///   neutral release — bond refunded, no reward, claims unfrozen.
 ///
 /// # Arguments
 /// * `ctx` - ChallengeDraw accounts context
+/// * `draw_id` - The finalized draw being challenged
 /// * `alternative_winner_counts` - The challenger's corrected winner counts
 /// * `evidence_hash` - SHA256 hash of supporting evidence (off-chain data)
 pub fn handler_challenge_draw(
     ctx: Context<ChallengeDraw>,
+    draw_id: u64,
     alternative_winner_counts: WinnerCounts,
     evidence_hash: [u8; 32],
 ) -> Result<()> {
     let clock = Clock::get()?;
+
+    // The challenger must be able to pay the bond.
+    require!(ctx.accounts.challenger_usdc.amount >= CHALLENGE_BOND, LottoError::InsufficientFunds);
+
+    // Transfer the bond from the challenger into the insurance pool escrow.
+    let cpi_accounts = Transfer {
+        from: ctx.accounts.challenger_usdc.to_account_info(),
+        to: ctx.accounts.insurance_pool_usdc.to_account_info(),
+        authority: ctx.accounts.challenger.to_account_info(),
+    };
+    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+    token::transfer(cpi_ctx, CHALLENGE_BOND)?;
+
+    // Accounting: the bond is now part of the insurance pool's backing.
     let lottery_state = &mut ctx.accounts.lottery_state;
+    lottery_state.insurance_balance =
+        lottery_state.insurance_balance.checked_add(CHALLENGE_BOND).ok_or(LottoError::Overflow)?;
 
-    // Pause the lottery to prevent prize claims on potentially fabricated counts
-    lottery_state.is_paused = true;
+    // Record the challenge on-chain.
+    let record = &mut ctx.accounts.challenge_record;
+    record.challenger = ctx.accounts.challenger.key();
+    record.draw_id = draw_id;
+    record.bond_amount = CHALLENGE_BOND;
+    record.alternative_winner_counts = alternative_winner_counts.clone();
+    record.evidence_hash = evidence_hash;
+    record.timestamp = clock.unix_timestamp;
+    record.resolved = false;
+    record.upheld = false;
+    record.bump = ctx.bumps.challenge_record;
 
-    // Emit emergency pause event with challenge details
-    emit!(EmergencyPause {
-        authority: ctx.accounts.challenger.key(),
-        reason: format!(
-            "DRAW_CHALLENGE: draw_id={}, alt_match6={}, alt_match5={}, alt_match4={}, alt_match3={}, alt_match2={}, evidence_hash={:?}",
-            lottery_state.current_draw_id,
-            alternative_winner_counts.match_6,
-            alternative_winner_counts.match_5,
-            alternative_winner_counts.match_4,
-            alternative_winner_counts.match_3,
-            alternative_winner_counts.match_2,
-            evidence_hash,
-        ),
+    // Scoped freeze: prize claims for THIS draw are blocked until resolution.
+    // Ticket sales, draws, and other draws' claims keep operating.
+    ctx.accounts.draw_result.challenged = true;
+
+    emit!(ChallengeRecorded {
+        draw_id,
+        challenger: ctx.accounts.challenger.key(),
+        bond_amount: CHALLENGE_BOND,
+        alt_match_6: alternative_winner_counts.match_6,
+        alt_match_5: alternative_winner_counts.match_5,
+        alt_match_4: alternative_winner_counts.match_4,
+        alt_match_3: alternative_winner_counts.match_3,
+        alt_match_2: alternative_winner_counts.match_2,
+        evidence_hash,
         timestamp: clock.unix_timestamp,
     });
 
-    msg!("DRAW CHALLENGED!");
-    msg!("  Draw ID: {}", lottery_state.current_draw_id);
+    msg!("DRAW CHALLENGED (bonded)!");
+    msg!("  Draw ID: {}", draw_id);
     msg!("  Challenger: {}", ctx.accounts.challenger.key());
+    msg!("  Bond posted: {} USDC lamports", CHALLENGE_BOND);
     msg!(
         "  Alternative counts: 6={}, 5={}, 4={}, 3={}, 2={}",
         alternative_winner_counts.match_6,
@@ -1952,7 +2025,290 @@ pub fn handler_challenge_draw(
         alternative_winner_counts.match_3,
         alternative_winner_counts.match_2,
     );
-    msg!("  Lottery PAUSED for admin review.");
+    msg!("  Prize claims for this draw are FROZEN until resolution.");
+    msg!("  The lottery itself continues operating normally.");
+
+    Ok(())
+}
+
+// ----------------------------------------------------------------------------
+// RESOLVE CHALLENGE (authority adjudication)
+// ----------------------------------------------------------------------------
+
+/// Accounts required for resolving a challenge
+#[derive(Accounts)]
+#[instruction(draw_id: u64)]
+pub struct ResolveChallenge<'info> {
+    /// The authority adjudicating the challenge
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    /// The main lottery state account
+    #[account(
+        mut,
+        seeds = [LOTTERY_SEED],
+        bump = lottery_state.bump,
+        constraint = lottery_state.authority == authority.key() @ LottoError::Unauthorized
+    )]
+    pub lottery_state: Account<'info, LotteryState>,
+
+    /// The disputed draw result
+    #[account(
+        mut,
+        seeds = [DRAW_SEED, &draw_id.to_le_bytes()],
+        bump = draw_result.bump,
+        constraint = draw_result.draw_id == draw_id @ LottoError::DrawIdMismatch
+    )]
+    pub draw_result: Account<'info, DrawResult>,
+
+    /// The challenge record being resolved
+    #[account(
+        mut,
+        seeds = [CHALLENGE_SEED, &draw_id.to_le_bytes(), challenge_record.challenger.as_ref()],
+        bump = challenge_record.bump,
+        constraint = challenge_record.draw_id == draw_id @ LottoError::DrawIdMismatch,
+        constraint = !challenge_record.resolved @ LottoError::ChallengeNotResolvable
+    )]
+    pub challenge_record: Account<'info, ChallengeRecord>,
+
+    /// Challenger's USDC token account (refund destination on uphold)
+    #[account(
+        mut,
+        constraint = challenger_usdc.owner == challenge_record.challenger @ LottoError::TokenAccountOwnerMismatch,
+        constraint = challenger_usdc.mint == insurance_pool_usdc.mint @ LottoError::InvalidUsdcMint
+    )]
+    pub challenger_usdc: Account<'info, TokenAccount>,
+
+    /// Insurance pool USDC token account (bond escrow + reward source)
+    #[account(
+        mut,
+        seeds = [INSURANCE_POOL_USDC_SEED],
+        bump
+    )]
+    pub insurance_pool_usdc: Account<'info, TokenAccount>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+}
+
+/// Resolve a challenge (authority-only adjudication).
+///
+/// - `uphold = true`: the challenger was right — refund the bond AND pay a
+///   CHALLENGE_REWARD from the insurance pool.
+/// - `uphold = false`: the challenge was frivolous — the bond is slashed and
+///   stays in the insurance pool (it does NOT go to the authority, avoiding
+///   perverse incentives).
+///
+/// Either way, the draw's claims are unfrozen. Corrective re-pricing of the
+/// disputed draw's prizes remains an off-chain/operational remediation; the
+/// on-chain record + events serve as the audit trail.
+///
+/// # Arguments
+/// * `ctx` - ResolveChallenge accounts context
+/// * `draw_id` - The disputed draw
+/// * `uphold` - Whether the challenge is upheld
+pub fn handler_resolve_challenge(
+    ctx: Context<ResolveChallenge>,
+    draw_id: u64,
+    uphold: bool,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let bond = ctx.accounts.challenge_record.bond_amount;
+
+    let (bond_refunded, reward_paid) = if uphold {
+        // Reward comes from insurance funds that existed BEFORE the bond was
+        // posted (the bond itself is returned, not double-spent as reward).
+        let reward =
+            CHALLENGE_REWARD.min(ctx.accounts.lottery_state.insurance_balance.saturating_sub(bond));
+        let refund_total = bond.saturating_add(reward);
+        require!(
+            ctx.accounts.insurance_pool_usdc.amount >= refund_total,
+            LottoError::InsufficientInsuranceFunds
+        );
+
+        // Transfer bond + reward from insurance pool to challenger.
+        let lottery_bump = ctx.accounts.lottery_state.bump;
+        let seeds = &[LOTTERY_SEED, &[lottery_bump]];
+        let signer_seeds = &[&seeds[..]];
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.insurance_pool_usdc.to_account_info(),
+            to: ctx.accounts.challenger_usdc.to_account_info(),
+            authority: ctx.accounts.lottery_state.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            cpi_accounts,
+            signer_seeds,
+        );
+        token::transfer(cpi_ctx, refund_total)?;
+
+        // Accounting: bond + reward leave the insurance pool.
+        ctx.accounts.lottery_state.insurance_balance = ctx
+            .accounts
+            .lottery_state
+            .insurance_balance
+            .checked_sub(refund_total)
+            .ok_or(LottoError::Overflow)?;
+
+        (bond, reward)
+    } else {
+        // Dismissed: the bond stays in the insurance pool (slashed).
+        (0u64, 0u64)
+    };
+
+    // Close out the challenge and unfreeze the draw's claims.
+    ctx.accounts.challenge_record.resolved = true;
+    ctx.accounts.challenge_record.upheld = uphold;
+    ctx.accounts.draw_result.challenged = false;
+
+    emit!(ChallengeResolved {
+        draw_id,
+        challenger: ctx.accounts.challenge_record.challenger,
+        upheld: uphold,
+        bond_refunded,
+        reward_paid,
+        authority: ctx.accounts.authority.key(),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!("CHALLENGE RESOLVED!");
+    msg!("  Draw ID: {}", draw_id);
+    msg!("  Upheld: {}", uphold);
+    msg!("  Bond refunded: {} USDC lamports", bond_refunded);
+    msg!("  Reward paid: {} USDC lamports", reward_paid);
+    msg!("  Claims for this draw UNFROZEN.");
+
+    Ok(())
+}
+
+// ----------------------------------------------------------------------------
+// RELEASE CHALLENGE (permissionless timeout release)
+// ----------------------------------------------------------------------------
+
+/// Accounts required for releasing an unresolved challenge after timeout
+#[derive(Accounts)]
+#[instruction(draw_id: u64)]
+pub struct ReleaseChallenge<'info> {
+    /// Anyone can release an expired challenge (pays for the transaction)
+    #[account(mut)]
+    pub caller: Signer<'info>,
+
+    /// The main lottery state account
+    #[account(
+        mut,
+        seeds = [LOTTERY_SEED],
+        bump = lottery_state.bump,
+    )]
+    pub lottery_state: Account<'info, LotteryState>,
+
+    /// The disputed draw result
+    #[account(
+        mut,
+        seeds = [DRAW_SEED, &draw_id.to_le_bytes()],
+        bump = draw_result.bump,
+        constraint = draw_result.draw_id == draw_id @ LottoError::DrawIdMismatch
+    )]
+    pub draw_result: Account<'info, DrawResult>,
+
+    /// The challenge record being released
+    #[account(
+        mut,
+        seeds = [CHALLENGE_SEED, &draw_id.to_le_bytes(), challenge_record.challenger.as_ref()],
+        bump = challenge_record.bump,
+        constraint = challenge_record.draw_id == draw_id @ LottoError::DrawIdMismatch,
+        constraint = !challenge_record.resolved @ LottoError::ChallengeNotResolvable
+    )]
+    pub challenge_record: Account<'info, ChallengeRecord>,
+
+    /// Challenger's USDC token account (neutral bond refund destination)
+    #[account(
+        mut,
+        constraint = challenger_usdc.owner == challenge_record.challenger @ LottoError::TokenAccountOwnerMismatch,
+        constraint = challenger_usdc.mint == insurance_pool_usdc.mint @ LottoError::InvalidUsdcMint
+    )]
+    pub challenger_usdc: Account<'info, TokenAccount>,
+
+    /// Insurance pool USDC token account (bond escrow)
+    #[account(
+        mut,
+        seeds = [INSURANCE_POOL_USDC_SEED],
+        bump
+    )]
+    pub insurance_pool_usdc: Account<'info, TokenAccount>,
+
+    /// Token program
+    pub token_program: Program<'info, Token>,
+}
+
+/// Release an unresolved challenge after CHALLENGE_RESOLUTION_TIMEOUT.
+///
+/// Neutral outcome: the bond is refunded (no reward, no slash) and the draw's
+/// claims are unfrozen. This guarantees a challenged draw can never be frozen
+/// forever if the authority disappears or refuses to adjudicate. The on-chain
+/// challenge record remains as evidence for off-chain remediation.
+///
+/// # Arguments
+/// * `ctx` - ReleaseChallenge accounts context
+/// * `draw_id` - The disputed draw
+pub fn handler_release_challenge(ctx: Context<ReleaseChallenge>, draw_id: u64) -> Result<()> {
+    let clock = Clock::get()?;
+    let bond = ctx.accounts.challenge_record.bond_amount;
+
+    // Timeout must have fully elapsed.
+    let release_eligible_at = ctx
+        .accounts
+        .challenge_record
+        .timestamp
+        .checked_add(CHALLENGE_RESOLUTION_TIMEOUT)
+        .ok_or(LottoError::ArithmeticError)?;
+    require!(clock.unix_timestamp >= release_eligible_at, LottoError::ChallengeNotTimedOut);
+
+    require!(
+        ctx.accounts.insurance_pool_usdc.amount >= bond,
+        LottoError::InsufficientInsuranceFunds
+    );
+
+    // Refund the bond (neutral release).
+    let lottery_bump = ctx.accounts.lottery_state.bump;
+    let seeds = &[LOTTERY_SEED, &[lottery_bump]];
+    let signer_seeds = &[&seeds[..]];
+    let cpi_accounts = Transfer {
+        from: ctx.accounts.insurance_pool_usdc.to_account_info(),
+        to: ctx.accounts.challenger_usdc.to_account_info(),
+        authority: ctx.accounts.lottery_state.to_account_info(),
+    };
+    let cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.token_program.to_account_info(),
+        cpi_accounts,
+        signer_seeds,
+    );
+    token::transfer(cpi_ctx, bond)?;
+
+    // Accounting: the bond leaves the insurance pool.
+    ctx.accounts.lottery_state.insurance_balance = ctx
+        .accounts
+        .lottery_state
+        .insurance_balance
+        .checked_sub(bond)
+        .ok_or(LottoError::Overflow)?;
+
+    // Close out the challenge and unfreeze the draw's claims.
+    ctx.accounts.challenge_record.resolved = true;
+    ctx.accounts.challenge_record.upheld = false;
+    ctx.accounts.draw_result.challenged = false;
+
+    emit!(ChallengeReleased {
+        draw_id,
+        challenger: ctx.accounts.challenge_record.challenger,
+        bond_refunded: bond,
+        caller: ctx.accounts.caller.key(),
+        timestamp: clock.unix_timestamp,
+    });
+
+    msg!("CHALLENGE RELEASED (timeout)!");
+    msg!("  Draw ID: {}", draw_id);
+    msg!("  Bond refunded (neutral): {} USDC lamports", bond);
+    msg!("  Claims for this draw UNFROZEN.");
 
     Ok(())
 }

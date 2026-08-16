@@ -217,7 +217,7 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
 	return (
 		<Link
 			to={`/syndicates/${syndicate.id}`}
-			className="group block glass rounded-2xl p-5 transition-all duration-300 hover:border-emerald/20 hover:shadow-lg hover:shadow-emerald/5"
+			className="group block hud-frame rounded-lg p-5 transition-all duration-300 hover:border-cyan-400/40 hover:shadow-lg hover:shadow-cyan-500/10"
 		>
 			{/* Header */}
 			<div className="flex items-start justify-between mb-3">
@@ -226,16 +226,16 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
 					<div
 						className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${
 							syndicate.totalWinnings >= 20_000
-								? "bg-linear-to-br from-gold/30 to-gold-dark/20 text-gold border border-gold/20"
+								? "bg-linear-to-br from-gold-500/30 to-gold-600/20 text-gold-300 border border-gold-500/30"
 								: syndicate.totalWinnings >= 10_000
-									? "bg-linear-to-br from-emerald/20 to-emerald-dark/10 text-emerald-light border border-emerald/20"
+									? "bg-linear-to-br from-emerald-400/20 to-emerald-600/10 text-emerald-400 border border-emerald-500/30"
 									: "bg-foreground/4 text-muted-foreground border border-foreground/6"
 						}`}
 					>
 						{syndicate.name.charAt(0)}
 					</div>
 					<div className="min-w-0">
-						<h3 className="text-sm font-bold text-foreground truncate group-hover:text-emerald-light transition-colors">
+						<h3 className="text-sm font-bold text-foreground truncate group-hover:text-cyan-300 transition-colors">
 							{syndicate.name}
 						</h3>
 						<div className="flex items-center gap-1.5 mt-0.5">
@@ -256,13 +256,13 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
 							key={tag}
 							className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider ${
 								tag === "Top Earner"
-									? "bg-gold/15 text-gold border border-gold/20"
+									? "bg-gold-500/15 text-gold-300 border border-gold-500/30"
 									: tag === "Full"
 										? "bg-red-500/10 text-red-400 border border-red-500/20"
 										: tag === "New"
-											? "bg-emerald/10 text-emerald-light border border-emerald/20"
+											? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
 											: tag === "No Fee"
-												? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+												? "bg-violet-500/10 text-violet-400 border border-violet-500/30"
 												: "bg-foreground/5 text-muted-foreground border border-foreground/6"
 							}`}
 						>
@@ -275,26 +275,20 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
 			{/* Stats grid */}
 			<div className="grid grid-cols-3 gap-3 mb-4">
 				<div>
-					<div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
-						Winnings
-					</div>
-					<div className="text-sm font-bold text-gradient-gold">
+					<div className="hud-label mb-1">Winnings</div>
+					<div className="font-mono text-sm font-bold text-gradient-gold">
 						${syndicate.totalWinnings.toLocaleString()}
 					</div>
 				</div>
 				<div>
-					<div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
-						Win Rate
-					</div>
-					<div className="text-sm font-bold text-emerald-light">
+					<div className="hud-label mb-1">Win Rate</div>
+					<div className="font-mono text-sm font-bold text-emerald-400">
 						{syndicate.winRate}%
 					</div>
 				</div>
 				<div>
-					<div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
-						This Draw
-					</div>
-					<div className="text-sm font-bold text-foreground">
+					<div className="hud-label mb-1">This Draw</div>
+					<div className="font-mono text-sm font-bold text-cyan-300">
 						{syndicate.ticketsThisDraw}
 						<span className="text-[10px] text-muted-foreground font-normal ml-0.5">
 							tix
@@ -311,7 +305,7 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
 						Members
 					</span>
 					<span
-						className={`font-bold ${isFull ? "text-red-400" : "text-foreground"}`}
+						className={`font-mono font-bold ${isFull ? "text-red-400" : "text-cyan-300"}`}
 					>
 						{syndicate.members}/{syndicate.maxMembers}
 					</span>
@@ -322,8 +316,8 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
 							isFull
 								? "bg-linear-to-r from-red-500 to-red-400"
 								: fillPercent >= 80
-									? "bg-linear-to-r from-gold-dark to-gold"
-									: "bg-linear-to-r from-emerald-dark to-emerald"
+									? "bg-linear-to-r from-gold-500 to-gold-300"
+									: "bg-linear-to-r from-emerald-600 to-emerald-400"
 						}`}
 						style={{ width: `${fillPercent}%` }}
 					/>
@@ -331,7 +325,7 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
 			</div>
 
 			{/* Meta info row */}
-			<div className="flex items-center justify-between text-[10px] text-muted-foreground mb-4">
+			<div className="flex items-center justify-between font-mono text-[10px] text-muted-foreground mb-4">
 				<span>
 					{syndicate.drawsParticipated} draws &bull;{" "}
 					{syndicate.totalTickets.toLocaleString()} total tickets
@@ -351,12 +345,12 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
 					Full
 				</div>
 			) : !syndicate.isPublic ? (
-				<div className="w-full h-9 text-xs font-semibold border border-gold/20 text-gold rounded-md inline-flex items-center justify-center gap-2">
+				<div className="w-full h-9 text-xs font-semibold border border-gold-500/30 text-gold-300 rounded-md inline-flex items-center justify-center gap-2">
 					<Lock size={12} />
 					Request Invite
 				</div>
 			) : (
-				<div className="w-full h-9 text-xs font-bold bg-linear-to-r from-emerald to-emerald-dark text-white rounded-xl shadow-md shadow-emerald/15 inline-flex items-center justify-center gap-2 group-hover:from-emerald-light group-hover:to-emerald group-hover:shadow-emerald/30 transition-all duration-300">
+				<div className="w-full h-9 text-xs font-bold bg-linear-to-r from-emerald-400 to-emerald-600 text-black rounded-xl shadow-md shadow-emerald-500/20 inline-flex items-center justify-center gap-2 group-hover:from-emerald-300 group-hover:to-emerald-500 group-hover:shadow-emerald-500/30 transition-all duration-300">
 					<UserPlus size={12} />
 					View &amp; Join
 				</div>
@@ -367,22 +361,22 @@ function SyndicateCard({ syndicate }: { syndicate: Syndicate }) {
 
 function SyndicateWarsBanner() {
 	return (
-		<div className="relative glass-strong rounded-2xl p-5 sm:p-6 overflow-hidden border border-gold/15">
-			<div className="absolute inset-0 bg-linear-to-br from-gold/4 via-transparent to-emerald/3" />
+		<div className="relative hud-frame rounded-lg p-5 sm:p-6 overflow-hidden">
+			<div className="absolute inset-0 bg-linear-to-br from-gold-500/5 via-transparent to-emerald-500/4" />
 			<div className="absolute top-0 right-0 w-48 h-48 bg-glow-gold opacity-20" />
 
 			<div className="relative z-10">
 				<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
 					<div>
 						<div className="flex items-center gap-2 mb-1.5">
-							<div className="p-1.5 rounded-lg bg-gold/15 border border-gold/20">
-								<Crown size={16} className="text-gold" />
+							<div className="p-1.5 rounded-lg bg-gold-500/15 border border-gold-500/30">
+								<Crown size={16} className="text-gold-300" />
 							</div>
-							<span className="text-[10px] font-bold text-gold uppercase tracking-wider">
+							<span className="text-[10px] font-bold text-gold-300 uppercase tracking-wider">
 								Syndicate Wars &bull; Season {SYNDICATE_WARS_SEASON.season}
 							</span>
 						</div>
-						<h3 className="text-lg font-black text-foreground mb-1">
+						<h3 className="font-display text-lg font-black text-foreground uppercase tracking-wide mb-1">
 							Compete for{" "}
 							<span className="text-gradient-gold">
 								${SYNDICATE_WARS_SEASON.prizePool.toLocaleString()}
@@ -396,25 +390,25 @@ function SyndicateWarsBanner() {
 					</div>
 
 					<div className="flex flex-col items-end gap-2 shrink-0">
-						<div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/5 border border-foreground/10 text-xs">
-							<Clock size={12} className="text-muted-foreground" />
+						<div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-xs">
+							<Clock size={12} className="text-cyan-300" />
 							<span className="text-muted-foreground">
 								Ends in{" "}
-								<span className="font-bold text-foreground">
+								<span className="font-mono font-bold text-cyan-300">
 									{SYNDICATE_WARS_SEASON.endsIn}
 								</span>
 							</span>
 						</div>
-						<div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+						<div className="flex items-center gap-4 font-mono text-[10px] text-muted-foreground">
 							<span>
-								<span className="font-bold text-foreground">
+								<span className="font-bold text-cyan-300">
 									{SYNDICATE_WARS_SEASON.participants}
 								</span>{" "}
 								syndicates competing
 							</span>
 							<span>
 								Leading:{" "}
-								<span className="font-bold text-gold">
+								<span className="font-bold text-gold-300">
 									{SYNDICATE_WARS_SEASON.topSyndicate}
 								</span>
 							</span>
@@ -454,13 +448,13 @@ function CreateSyndicateModal({
 			/>
 
 			{/* Modal */}
-			<div className="relative glass-strong rounded-none sm:rounded-2xl p-6 sm:p-8 max-w-md w-full h-full sm:h-auto sm:max-w-lg border border-emerald/20 shadow-2xl shadow-black/50 animate-slide-up overflow-y-auto">
+			<div className="relative glass-strong rounded-none sm:rounded-2xl p-6 sm:p-8 max-w-md w-full h-full sm:h-auto sm:max-w-lg border border-cyan-500/30 shadow-2xl shadow-black/50 animate-slide-up overflow-y-auto">
 				<div className="flex items-center justify-between mb-6">
 					<div className="flex items-center gap-2">
-						<div className="p-1.5 rounded-lg bg-emerald/15 border border-emerald/20">
-							<Plus size={16} className="text-emerald-light" />
+						<div className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30">
+							<Plus size={16} className="text-emerald-400" />
 						</div>
-						<h2 className="text-lg font-bold text-foreground">
+						<h2 className="font-display text-lg font-bold text-foreground uppercase tracking-wide">
 							Create Syndicate
 						</h2>
 					</div>
@@ -489,7 +483,7 @@ function CreateSyndicateModal({
 							onChange={(e) => setName(e.target.value)}
 							placeholder="e.g. Diamond Hands Club"
 							maxLength={32}
-							className="w-full h-10 px-3 rounded-xl bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+							className="w-full h-10 px-3 rounded-xl bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
 						/>
 						<p className="text-[10px] text-muted-foreground/60 mt-1">
 							{name.length}/32 characters
@@ -511,7 +505,7 @@ function CreateSyndicateModal({
 							onChange={(e) => setMaxMembers(e.target.value)}
 							min={2}
 							max={100}
-							className="w-full h-10 px-3 rounded-xl bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+							className="w-full h-10 px-3 rounded-xl bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
 						/>
 						<p className="text-[10px] text-muted-foreground/60 mt-1">
 							Between 2 and 100 members
@@ -534,7 +528,7 @@ function CreateSyndicateModal({
 							min={0}
 							max={10}
 							step={0.5}
-							className="w-full h-10 px-3 rounded-xl bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+							className="w-full h-10 px-3 rounded-xl bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
 						/>
 						<p className="text-[10px] text-muted-foreground/60 mt-1">
 							Fee taken from syndicate prize winnings (0-10%)
@@ -552,7 +546,7 @@ function CreateSyndicateModal({
 								onClick={() => setIsPublic(true)}
 								className={`flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition-all ${
 									isPublic
-										? "bg-emerald/15 border border-emerald/30 text-emerald-light"
+										? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-400"
 										: "bg-foreground/3 border border-foreground/6 text-muted-foreground hover:bg-foreground/5"
 								}`}
 							>
@@ -564,7 +558,7 @@ function CreateSyndicateModal({
 								onClick={() => setIsPublic(false)}
 								className={`flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition-all ${
 									!isPublic
-										? "bg-gold/15 border border-gold/30 text-gold"
+										? "bg-gold-500/15 border border-gold-500/40 text-gold-300"
 										: "bg-foreground/3 border border-foreground/6 text-muted-foreground hover:bg-foreground/5"
 								}`}
 							>
@@ -580,8 +574,11 @@ function CreateSyndicateModal({
 					</div>
 
 					{/* Info */}
-					<div className="flex items-start gap-2 p-3 rounded-xl bg-foreground/2 border border-foreground/4">
-						<AlertTriangle size={12} className="text-gold/60 mt-0.5 shrink-0" />
+					<div className="flex items-start gap-2 p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/10">
+						<AlertTriangle
+							size={12}
+							className="text-gold-300/70 mt-0.5 shrink-0"
+						/>
 						<p className="text-[10px] text-muted-foreground">
 							Creating a syndicate requires a wallet connection. You&apos;ll
 							need to sign a transaction to create the on-chain syndicate
@@ -608,7 +605,8 @@ function CreateSyndicateModal({
 								);
 								onClose();
 							}}
-							className="flex-1 h-10 text-sm font-bold bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-lg shadow-emerald/20 disabled:opacity-40 disabled:shadow-none transition-all"
+							variant="emerald"
+							className="flex-1 h-10 text-sm"
 						>
 							<Plus size={14} />
 							Create Syndicate
@@ -618,7 +616,8 @@ function CreateSyndicateModal({
 							onClick={() =>
 								openWallet({ view: "Connect", namespace: "solana" })
 							}
-							className="flex-1 h-10 text-sm font-bold bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white rounded-xl shadow-lg shadow-emerald/20 transition-all"
+							variant="emerald"
+							className="flex-1 h-10 text-sm"
 						>
 							<Wallet size={14} />
 							Connect & Create
@@ -630,31 +629,53 @@ function CreateSyndicateModal({
 	);
 }
 
+function DemoDataBanner() {
+	return (
+		<div className="hud-frame rounded-lg flex items-start gap-2.5 p-3.5">
+			<AlertTriangle
+				size={14}
+				className="text-magenta-300 shrink-0 mt-0.5"
+				aria-hidden="true"
+			/>
+			<p className="text-[11px] leading-relaxed text-muted-foreground">
+				<span className="block hud-label mb-1">
+					{"// DEMO FEED — NOT LIVE"}
+				</span>
+				<span className="font-bold text-magenta-300 uppercase tracking-wider">
+					Demo data — not live on-chain data.
+				</span>{" "}
+				Syndicate listings below are UI previews: names, addresses, win rates,
+				and winnings are fabricated examples, not real on-chain syndicates.
+			</p>
+		</div>
+	);
+}
+
 function StatsBar() {
 	const stats = [
 		{
 			label: "Active Syndicates",
 			value: "142",
 			icon: Users,
-			color: "text-emerald-light",
+			color: "text-emerald-400",
 		},
 		{
 			label: "Total Members",
 			value: "3,847",
 			icon: UserPlus,
-			color: "text-foreground",
+			color: "text-cyan-300",
 		},
 		{
 			label: "Combined Winnings",
 			value: "$487K",
 			icon: Trophy,
-			color: "text-gold",
+			color: "text-gold-300",
 		},
 		{
 			label: "Avg Win Rate",
 			value: "67.3%",
 			icon: TrendingUp,
-			color: "text-emerald-light",
+			color: "text-emerald-400",
 		},
 	];
 
@@ -665,18 +686,18 @@ function StatsBar() {
 				return (
 					<div
 						key={stat.label}
-						className="glass rounded-xl p-3 sm:p-4 text-center"
+						className="hud-frame rounded-lg p-3 sm:p-4 text-center"
 					>
 						<Icon
 							size={16}
 							className={`${stat.color} mx-auto mb-1.5 opacity-70`}
 						/>
-						<div className={`text-lg sm:text-xl font-black ${stat.color}`}>
+						<div
+							className={`font-mono text-lg sm:text-xl font-black ${stat.color}`}
+						>
 							{stat.value}
 						</div>
-						<div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
-							{stat.label}
-						</div>
+						<div className="hud-label mt-1">{stat.label}</div>
 					</div>
 				);
 			})}
@@ -757,17 +778,18 @@ export default function SyndicatesPage() {
 							Home
 						</Link>
 						<ChevronRight size={12} />
-						<span className="text-emerald-light font-medium">Syndicates</span>
+						<span className="text-cyan-300 font-medium">Syndicates</span>
 					</nav>
 
 					<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
 						<div>
+							<p className="hud-label mb-2">{"// ON-CHAIN SYNDICATE POOLS"}</p>
 							<div className="flex items-center gap-3 mb-2">
-								<div className="p-2 rounded-xl bg-linear-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20">
-									<Users size={24} className="text-emerald-light" />
+								<div className="p-2 rounded-xl bg-linear-to-br from-cyan-500/20 to-cyan-600/10 border border-cyan-500/30">
+									<Users size={24} className="text-cyan-300" />
 								</div>
 								<div>
-									<h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+									<h1 className="font-display text-2xl sm:text-3xl font-black tracking-wide uppercase text-foreground">
 										Syndicates
 									</h1>
 									<p className="text-sm text-muted-foreground mt-0.5">
@@ -786,7 +808,9 @@ export default function SyndicatesPage() {
 									setShowCreateModal(true);
 								}
 							}}
-							className="w-full sm:w-auto h-11 px-6 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+							variant="emerald"
+							size="lg"
+							className="w-full sm:w-auto"
 						>
 							{isConnected ? <Plus size={16} /> : <Wallet size={16} />}
 							{isConnected ? "Create Syndicate" : "Connect to Create"}
@@ -800,6 +824,9 @@ export default function SyndicatesPage() {
 			{/* ================================================================ */}
 			<section className="relative px-4 sm:px-6 lg:px-8 pb-16">
 				<div className="max-w-7xl mx-auto space-y-6">
+					{/* Demo data notice */}
+					<DemoDataBanner />
+
 					{/* Stats */}
 					<StatsBar />
 
@@ -807,7 +834,7 @@ export default function SyndicatesPage() {
 					<SyndicateWarsBanner />
 
 					{/* Filters & Search */}
-					<div className="glass rounded-2xl p-4 sm:p-5">
+					<div className="hud-frame rounded-lg p-4 sm:p-5">
 						<div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
 							{/* Search */}
 							<div className="relative flex-1 w-full">
@@ -820,7 +847,7 @@ export default function SyndicatesPage() {
 									value={searchQuery}
 									onChange={(e) => setSearchQuery(e.target.value)}
 									placeholder="Search syndicates by name, address, or tag..."
-									className="w-full h-9 pl-9 pr-3 rounded-xl bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-colors"
+									className="w-full h-9 pl-9 pr-3 rounded-xl bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
 								/>
 							</div>
 
@@ -835,7 +862,7 @@ export default function SyndicatesPage() {
 											onClick={() => setFilterVisibility(vis)}
 											className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
 												filterVisibility === vis
-													? "bg-emerald/15 text-emerald-light border border-emerald/20"
+													? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/40"
 													: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
 											}`}
 										>
@@ -866,7 +893,7 @@ export default function SyndicatesPage() {
 										onClick={() => handleSort(field)}
 										className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
 											sortField === field
-												? "bg-emerald/15 text-emerald-light border border-emerald/20"
+												? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/40"
 												: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
 										}`}
 									>
@@ -886,7 +913,7 @@ export default function SyndicatesPage() {
 					<div className="flex items-center justify-between">
 						<p className="text-xs text-muted-foreground">
 							Showing{" "}
-							<span className="font-bold text-foreground">
+							<span className="font-mono font-bold text-cyan-300">
 								{filteredSyndicates.length}
 							</span>{" "}
 							syndicate{filteredSyndicates.length !== 1 ? "s" : ""}
@@ -894,7 +921,7 @@ export default function SyndicatesPage() {
 								<span>
 									{" "}
 									matching &ldquo;
-									<span className="text-emerald-light">{searchQuery}</span>
+									<span className="text-emerald-400">{searchQuery}</span>
 									&rdquo;
 								</span>
 							)}
@@ -903,9 +930,9 @@ export default function SyndicatesPage() {
 
 					{/* Syndicate Grid */}
 					{filteredSyndicates.length === 0 ? (
-						<div className="glass rounded-2xl p-12 text-center">
-							<div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground/3 border border-foreground/6 mb-4">
-								<Search size={24} className="text-muted-foreground/60" />
+						<div className="hud-frame rounded-lg p-12 text-center">
+							<div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 mb-4">
+								<Search size={24} className="text-cyan-300/60" />
 							</div>
 							<p className="text-sm text-muted-foreground mb-1">
 								No syndicates found
@@ -920,7 +947,7 @@ export default function SyndicatesPage() {
 								}}
 								variant="outline"
 								size="sm"
-								className="w-full sm:w-auto text-xs border-emerald/20 text-emerald-light hover:bg-emerald/5"
+								className="w-full sm:w-auto text-xs"
 							>
 								Clear Filters
 							</Button>
@@ -934,9 +961,9 @@ export default function SyndicatesPage() {
 					)}
 
 					{/* How Syndicates Work */}
-					<div className="glass rounded-2xl p-6 sm:p-8 mt-8">
-						<h2 className="text-base sm:text-lg font-bold text-foreground mb-6 flex items-center gap-2">
-							<Sparkles size={18} className="text-gold" />
+					<div className="hud-frame rounded-lg p-6 sm:p-8 mt-8">
+						<h2 className="font-display text-base sm:text-lg font-bold text-foreground uppercase tracking-wide mb-6 flex items-center gap-2">
+							<Sparkles size={18} className="text-gold-300" />
 							How Syndicates Work
 						</h2>
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -974,10 +1001,10 @@ export default function SyndicatesPage() {
 								return (
 									<div key={item.step} className="relative">
 										<div className="flex items-center gap-2.5 mb-2">
-											<div className="w-7 h-7 rounded-lg bg-emerald/15 border border-emerald/20 flex items-center justify-center text-xs font-black text-emerald-light">
+											<div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-xs font-black text-emerald-400">
 												{item.step}
 											</div>
-											<Icon size={14} className="text-emerald/60" />
+											<Icon size={14} className="text-emerald-400/70" />
 										</div>
 										<h3 className="text-sm font-bold text-foreground mb-1">
 											{item.title}
@@ -992,19 +1019,19 @@ export default function SyndicatesPage() {
 
 						<div className="mt-6 pt-4 border-t border-foreground/5 flex flex-wrap items-center gap-4 text-[10px] text-muted-foreground">
 							<div className="flex items-center gap-1.5">
-								<Shield size={10} className="text-emerald/60" />
+								<Shield size={10} className="text-emerald-400/70" />
 								<span>Fully on-chain &bull; Non-custodial</span>
 							</div>
 							<div className="flex items-center gap-1.5">
-								<Check size={10} className="text-emerald/60" />
+								<Check size={10} className="text-emerald-400/70" />
 								<span>Automatic prize distribution</span>
 							</div>
 							<div className="flex items-center gap-1.5">
-								<Settings size={10} className="text-emerald/60" />
+								<Settings size={10} className="text-emerald-400/70" />
 								<span>Configurable manager fees (0-10%)</span>
 							</div>
 							<div className="flex items-center gap-1.5">
-								<BarChart3 size={10} className="text-emerald/60" />
+								<BarChart3 size={10} className="text-emerald-400/70" />
 								<span>Transparent on-chain accounting</span>
 							</div>
 						</div>
@@ -1012,14 +1039,14 @@ export default function SyndicatesPage() {
 
 					{/* Wallet Connection CTA (when not connected) */}
 					{!isConnected && (
-						<div className="glass-strong rounded-2xl p-6 sm:p-8 border border-emerald/20 overflow-hidden relative">
-							<div className="absolute inset-0 bg-linear-to-br from-emerald/4 via-transparent to-gold/2" />
+						<div className="hud-frame rounded-lg p-6 sm:p-8 overflow-hidden relative">
+							<div className="absolute inset-0 bg-linear-to-br from-cyan-500/5 via-transparent to-gold-500/3" />
 							<div className="relative z-10 flex flex-col sm:flex-row items-center gap-6">
-								<div className="p-3 rounded-2xl bg-linear-to-br from-emerald/20 to-emerald-dark/10 border border-emerald/20 shrink-0">
-									<Wallet size={28} className="text-emerald-light" />
+								<div className="p-3 rounded-2xl bg-linear-to-br from-cyan-500/20 to-cyan-600/10 border border-cyan-500/30 shrink-0">
+									<Wallet size={28} className="text-cyan-300" />
 								</div>
 								<div className="text-center sm:text-left flex-1">
-									<h3 className="text-base font-black text-foreground mb-1">
+									<h3 className="font-display text-base font-black text-foreground uppercase tracking-wide mb-1">
 										Connect Your Wallet to Get Started
 									</h3>
 									<p className="text-xs text-muted-foreground max-w-md">
@@ -1032,7 +1059,9 @@ export default function SyndicatesPage() {
 									onClick={() =>
 										openWallet({ view: "Connect", namespace: "solana" })
 									}
-									className="h-12 px-8 bg-linear-to-r from-emerald to-emerald-dark hover:from-emerald-light hover:to-emerald text-white font-bold rounded-xl shadow-lg shadow-emerald/25 hover:shadow-emerald/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+									variant="emerald"
+									size="lg"
+									className="shrink-0"
 								>
 									<Wallet size={18} />
 									Connect Wallet
@@ -1040,15 +1069,15 @@ export default function SyndicatesPage() {
 							</div>
 							<div className="relative z-10 mt-4 pt-3 border-t border-foreground/5 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-[10px] text-muted-foreground">
 								<div className="flex items-center gap-1.5">
-									<Shield size={10} className="text-emerald/60" />
+									<Shield size={10} className="text-emerald-400/70" />
 									<span>Non-custodial</span>
 								</div>
 								<div className="flex items-center gap-1.5">
-									<Eye size={10} className="text-emerald/60" />
+									<Eye size={10} className="text-emerald-400/70" />
 									<span>Read-only access</span>
 								</div>
 								<div className="flex items-center gap-1.5">
-									<Shield size={10} className="text-emerald/60" />
+									<Shield size={10} className="text-emerald-400/70" />
 									<span>Sign to transact</span>
 								</div>
 							</div>

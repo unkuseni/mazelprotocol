@@ -10,14 +10,14 @@
 //     from context — they never import `@reown/appkit/react` directly.
 
 import React, {
-  Component,
-  createContext,
-  type ReactNode,
-  Suspense,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
+	Component,
+	createContext,
+	type ReactNode,
+	Suspense,
+	useContext,
+	useEffect,
+	useMemo,
+	useState,
 } from "react";
 
 /* -------------------------------------------------------------------------- */
@@ -25,19 +25,19 @@ import React, {
 /* -------------------------------------------------------------------------- */
 
 export interface AppKitHook {
-  open: (options?: Record<string, unknown>) => void;
-  close: () => void;
+	open: (options?: Record<string, unknown>) => void;
+	close: () => void;
 }
 
 export interface AppKitAccountHook {
-  address?: string;
-  isConnected: boolean;
-  caipAddress?: string;
-  status?: string;
+	address?: string;
+	isConnected: boolean;
+	caipAddress?: string;
+	status?: string;
 }
 
 export interface DisconnectHook {
-  disconnect: () => Promise<void>;
+	disconnect: () => Promise<void>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -45,17 +45,17 @@ export interface DisconnectHook {
 /* -------------------------------------------------------------------------- */
 
 export interface AppKitContextValue {
-  ready: boolean;
-  // AppKit modal
-  open: (options?: Record<string, unknown>) => void;
-  close: () => void;
-  // Account
-  address?: string;
-  isConnected: boolean;
-  caipAddress?: string;
-  status?: string;
-  // Disconnect
-  disconnect: () => Promise<void>;
+	ready: boolean;
+	// AppKit modal
+	open: (options?: Record<string, unknown>) => void;
+	close: () => void;
+	// Account
+	address?: string;
+	isConnected: boolean;
+	caipAddress?: string;
+	status?: string;
+	// Disconnect
+	disconnect: () => Promise<void>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -66,11 +66,11 @@ const NOOP = () => {};
 const NOOP_ASYNC = async () => {};
 
 const STUB_VALUE: AppKitContextValue = {
-  ready: false,
-  open: NOOP,
-  close: NOOP,
-  isConnected: false,
-  disconnect: NOOP_ASYNC,
+	ready: false,
+	open: NOOP,
+	close: NOOP,
+	isConnected: false,
+	disconnect: NOOP_ASYNC,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -90,37 +90,37 @@ const LazyClientBridge = React.lazy(() => import("./appkit-client-provider"));
 /* -------------------------------------------------------------------------- */
 
 interface ErrorBoundaryProps {
-  children: ReactNode;
-  fallback: ReactNode;
+	children: ReactNode;
+	fallback: ReactNode;
 }
 
 interface ErrorBoundaryState {
-  hasError: boolean;
+	hasError: boolean;
 }
 
 class AppKitErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
+	ErrorBoundaryProps,
+	ErrorBoundaryState
 > {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
+	constructor(props: ErrorBoundaryProps) {
+		super(props);
+		this.state = { hasError: false };
+	}
 
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true };
-  }
+	static getDerivedStateFromError(): ErrorBoundaryState {
+		return { hasError: true };
+	}
 
-  componentDidCatch(error: unknown) {
-    console.warn("[AppKit] Client provider failed to load:", error);
-  }
+	componentDidCatch(error: unknown) {
+		console.warn("[AppKit] Client provider failed to load:", error);
+	}
 
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
+	render() {
+		if (this.state.hasError) {
+			return this.props.fallback;
+		}
+		return this.props.children;
+	}
 }
 
 /* -------------------------------------------------------------------------- */
@@ -128,7 +128,7 @@ class AppKitErrorBoundary extends Component<
 /* -------------------------------------------------------------------------- */
 
 const isBrowser =
-  typeof window !== "undefined" && typeof document !== "undefined";
+	typeof window !== "undefined" && typeof document !== "undefined";
 
 /**
  * Wrap your component tree with `<AppKitProvider>` (typically in `__root.tsx`).
@@ -140,34 +140,34 @@ const isBrowser =
  *   so the rest of the app remains functional.
  */
 export function AppKitProvider({ children }: { children: ReactNode }) {
-  const [isClient, setIsClient] = useState(false);
+	const [isClient, setIsClient] = useState(false);
 
-  useEffect(() => {
-    if (isBrowser) {
-      setIsClient(true);
-    }
-  }, []);
+	useEffect(() => {
+		if (isBrowser) {
+			setIsClient(true);
+		}
+	}, []);
 
-  const stubTree = (
-    <AppKitContext.Provider value={STUB_VALUE}>
-      {children}
-    </AppKitContext.Provider>
-  );
+	const stubTree = (
+		<AppKitContext.Provider value={STUB_VALUE}>
+			{children}
+		</AppKitContext.Provider>
+	);
 
-  // Server or initial client render — provide stubs
-  if (!isClient) {
-    return stubTree;
-  }
+	// Server or initial client render — provide stubs
+	if (!isClient) {
+		return stubTree;
+	}
 
-  // Client — lazy-load the real bridge inside Suspense + ErrorBoundary.
-  // While the chunk loads (or if it fails), the app still renders with stubs.
-  return (
-    <AppKitErrorBoundary fallback={stubTree}>
-      <Suspense fallback={stubTree}>
-        <LazyClientBridge>{children}</LazyClientBridge>
-      </Suspense>
-    </AppKitErrorBoundary>
-  );
+	// Client — lazy-load the real bridge inside Suspense + ErrorBoundary.
+	// While the chunk loads (or if it fails), the app still renders with stubs.
+	return (
+		<AppKitErrorBoundary fallback={stubTree}>
+			<Suspense fallback={stubTree}>
+				<LazyClientBridge>{children}</LazyClientBridge>
+			</Suspense>
+		</AppKitErrorBoundary>
+	);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -178,26 +178,26 @@ export function AppKitProvider({ children }: { children: ReactNode }) {
  * Client-safe replacement for `useAppKit` from `@reown/appkit/react`.
  */
 export function useAppKit(): AppKitHook {
-  const { open, close } = useContext(AppKitContext);
-  return useMemo(() => ({ open, close }), [open, close]);
+	const { open, close } = useContext(AppKitContext);
+	return useMemo(() => ({ open, close }), [open, close]);
 }
 
 /**
  * Client-safe replacement for `useAppKitAccount`.
  */
 export function useAppKitAccount(): AppKitAccountHook {
-  const { address, isConnected, caipAddress, status } =
-    useContext(AppKitContext);
-  return useMemo(
-    () => ({ address, isConnected, caipAddress, status }),
-    [address, isConnected, caipAddress, status],
-  );
+	const { address, isConnected, caipAddress, status } =
+		useContext(AppKitContext);
+	return useMemo(
+		() => ({ address, isConnected, caipAddress, status }),
+		[address, isConnected, caipAddress, status],
+	);
 }
 
 /**
  * Client-safe replacement for `useDisconnect`.
  */
 export function useDisconnect(): DisconnectHook {
-  const { disconnect } = useContext(AppKitContext);
-  return useMemo(() => ({ disconnect }), [disconnect]);
+	const { disconnect } = useContext(AppKitContext);
+	return useMemo(() => ({ disconnect }), [disconnect]);
 }

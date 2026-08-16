@@ -4,6 +4,7 @@
 //! organized into logical submodules for maintainability.
 
 // Submodule declarations
+pub mod challenge;
 pub mod draw_result;
 pub mod enums_types;
 pub mod lottery_state;
@@ -14,6 +15,7 @@ pub mod syndicate_wars;
 pub mod tickets;
 
 // Re-export everything for backward compatibility
+pub use challenge::*;
 pub use draw_result::*;
 pub use enums_types::*;
 pub use lottery_state::*;

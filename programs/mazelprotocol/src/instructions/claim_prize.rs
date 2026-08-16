@@ -78,7 +78,8 @@ pub struct ClaimPrize<'info> {
     #[account(
         seeds = [DRAW_SEED, &ticket.draw_id.to_le_bytes()],
         bump = draw_result.bump,
-        constraint = draw_result.draw_id == ticket.draw_id @ LottoError::DrawIdMismatch
+        constraint = draw_result.draw_id == ticket.draw_id @ LottoError::DrawIdMismatch,
+        constraint = !draw_result.challenged @ LottoError::DrawChallenged
     )]
     pub draw_result: Account<'info, DrawResult>,
 

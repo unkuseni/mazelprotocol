@@ -5,6 +5,7 @@ import {
 	lotteryKeys,
 	useMainLotteryState,
 	useMultipleMainDrawResults,
+	useMultipleQuickPickDrawResults,
 } from "@/lib/anchor/hooks";
 import {
 	fetchUserMainTicketsForDraw,
@@ -291,7 +292,7 @@ export function useTickets(): UseTicketsReturn {
 	// ---- draw results (winning numbers) --------------------------------------
 	const drawResultQueries = useMultipleMainDrawResults(drawIds);
 
-	// Build a map: drawId → winning numbers
+	// Build a map: drawId → main lottery winning numbers
 	const winningNumbersMap = useMemo(() => {
 		const map = new Map<number, number[]>();
 		drawResultQueries.forEach((query, i) => {
@@ -308,6 +309,29 @@ export function useTickets(): UseTicketsReturn {
 		});
 		return map;
 	}, [drawResultQueries, drawIds]);
+
+	// Quick Pick draw results — separate query set because Quick Pick is a
+	// 5/35 game with its own draw results (5 winning numbers). Keyed by the
+	// same draw IDs since both games share the draw counter sequence.
+	const quickPickDrawResultQueries = useMultipleQuickPickDrawResults(drawIds);
+
+	// Build a map: drawId → Quick Pick winning numbers
+	const quickPickWinningNumbersMap = useMemo(() => {
+		const map = new Map<number, number[]>();
+		quickPickDrawResultQueries.forEach((query, i) => {
+			const drawId = drawIds[i];
+			if (!query.data) return;
+			const raw = query.data as Record<string, unknown>;
+			const nums = extractNumbers(
+				raw.winning_numbers ?? raw.winningNumbers ?? [],
+				5,
+			);
+			if (nums.length > 0) {
+				map.set(drawId, nums);
+			}
+		});
+		return map;
+	}, [quickPickDrawResultQueries, drawIds]);
 
 	// ---- user tickets (main lottery) -----------------------------------------
 	const mainTicketQueries = useQueries({
@@ -372,7 +396,7 @@ export function useTickets(): UseTicketsReturn {
 		// Process quick pick tickets
 		quickPickTicketQueries.forEach((query, i) => {
 			const drawId = drawIds[i];
-			const winningNumbers = winningNumbersMap.get(drawId) ?? [];
+			const winningNumbers = quickPickWinningNumbersMap.get(drawId) ?? [];
 			if (query.data && Array.isArray(query.data)) {
 				query.data.forEach((raw, j) => {
 					result.push(
@@ -398,6 +422,7 @@ export function useTickets(): UseTicketsReturn {
 		mainTicketQueries,
 		quickPickTicketQueries,
 		winningNumbersMap,
+		quickPickWinningNumbersMap,
 	]);
 
 	// ---- derived aggregates --------------------------------------------------

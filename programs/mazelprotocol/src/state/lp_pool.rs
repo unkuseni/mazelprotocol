@@ -40,7 +40,7 @@ pub struct LpPool {
     pub reward_per_share: u128,
 
     /// Portion of house fee allocated to LP rewards, in basis points.
-    /// e.g., 6000 = 60% of house fees go to LPs.
+    /// e.g., 6700 = 67% of house fees go to LPs.
     pub lp_reward_bps: u16,
 
     /// Whether LP deposits are currently accepted.

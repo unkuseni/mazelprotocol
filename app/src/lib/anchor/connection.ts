@@ -1,11 +1,11 @@
 import {
-  ComputeBudgetProgram,
-  Connection,
-  type PublicKey,
-  type Signer,
-  Transaction,
-  type TransactionInstruction,
-  type Commitment,
+	type Commitment,
+	ComputeBudgetProgram,
+	Connection,
+	type PublicKey,
+	type Signer,
+	Transaction,
+	type TransactionInstruction,
 } from "@solana/web3.js";
 import { env } from "@/env";
 
@@ -46,32 +46,32 @@ let wsConnectionSingleton: Connection | null = null;
  * Lazily initializes the connection if it doesn't exist.
  */
 export function getConnection(): Connection {
-  if (!connectionSingleton) {
-    const rpcUrl = env.VITE_SOLANA_RPC_URL;
+	if (!connectionSingleton) {
+		const rpcUrl = env.VITE_SOLANA_RPC_URL;
 
-    if (!rpcUrl) {
-      throw new Error("VITE_SOLANA_RPC_URL environment variable is not set");
-    }
+		if (!rpcUrl) {
+			throw new Error("VITE_SOLANA_RPC_URL environment variable is not set");
+		}
 
-    // WebSocket URL for subscriptions (optional)
-    const wsUrl = env.VITE_SOLANA_WS_URL;
+		// WebSocket URL for subscriptions (optional)
+		const wsUrl = env.VITE_SOLANA_WS_URL;
 
-    connectionSingleton = new Connection(rpcUrl, {
-      commitment: DEFAULT_COMMITMENT,
-      wsEndpoint: wsUrl,
-      disableRetryOnRateLimit: false,
-      confirmTransactionInitialTimeout: 60_000, // 60 seconds
-    });
+		connectionSingleton = new Connection(rpcUrl, {
+			commitment: DEFAULT_COMMITMENT,
+			wsEndpoint: wsUrl,
+			disableRetryOnRateLimit: false,
+			confirmTransactionInitialTimeout: 60_000, // 60 seconds
+		});
 
-    console.log(`[Solana] Connection initialized to ${rpcUrl}`);
+		console.log(`[Solana] Connection initialized to ${rpcUrl}`);
 
-    // Test the connection
-    testConnection(connectionSingleton).catch((error) => {
-      console.warn(`[Solana] Connection test failed: ${error.message}`);
-    });
-  }
+		// Test the connection
+		testConnection(connectionSingleton).catch((error) => {
+			console.warn(`[Solana] Connection test failed: ${error.message}`);
+		});
+	}
 
-  return connectionSingleton;
+	return connectionSingleton;
 }
 
 /**
@@ -79,36 +79,36 @@ export function getConnection(): Connection {
  * This uses a separate connection instance to avoid mixing RPC and WS operations.
  */
 export function getWsConnection(): Connection {
-  if (!wsConnectionSingleton) {
-    const wsUrl =
-      env.VITE_SOLANA_WS_URL ||
-      env.VITE_SOLANA_RPC_URL.replace("https://", "wss://").replace(
-        "http://",
-        "ws://",
-      );
+	if (!wsConnectionSingleton) {
+		const wsUrl =
+			env.VITE_SOLANA_WS_URL ||
+			env.VITE_SOLANA_RPC_URL.replace("https://", "wss://").replace(
+				"http://",
+				"ws://",
+			);
 
-    wsConnectionSingleton = new Connection(wsUrl, {
-      commitment: DEFAULT_COMMITMENT,
-      wsEndpoint: wsUrl,
-    });
+		wsConnectionSingleton = new Connection(wsUrl, {
+			commitment: DEFAULT_COMMITMENT,
+			wsEndpoint: wsUrl,
+		});
 
-    console.log(`[Solana] WebSocket connection initialized to ${wsUrl}`);
-  }
+		console.log(`[Solana] WebSocket connection initialized to ${wsUrl}`);
+	}
 
-  return wsConnectionSingleton;
+	return wsConnectionSingleton;
 }
 
 /**
  * Test the connection by fetching the latest slot.
  */
 async function testConnection(conn: Connection): Promise<void> {
-  try {
-    const slot = await conn.getSlot();
-    console.log(`[Solana] Connection test successful. Latest slot: ${slot}`);
-  } catch (error) {
-    console.error(`[Solana] Connection test failed:`, error);
-    throw error;
-  }
+	try {
+		const slot = await conn.getSlot();
+		console.log(`[Solana] Connection test successful. Latest slot: ${slot}`);
+	} catch (error) {
+		console.error(`[Solana] Connection test failed:`, error);
+		throw error;
+	}
 }
 
 /**
@@ -116,20 +116,20 @@ async function testConnection(conn: Connection): Promise<void> {
  * Useful for specific operations that need different settings.
  */
 export function createCustomConnection(
-  commitment: Commitment = DEFAULT_COMMITMENT,
-  wsEndpoint?: string,
+	commitment: Commitment = DEFAULT_COMMITMENT,
+	wsEndpoint?: string,
 ): Connection {
-  const rpcUrl = env.VITE_SOLANA_RPC_URL;
+	const rpcUrl = env.VITE_SOLANA_RPC_URL;
 
-  if (!rpcUrl) {
-    throw new Error("VITE_SOLANA_RPC_URL environment variable is not set");
-  }
+	if (!rpcUrl) {
+		throw new Error("VITE_SOLANA_RPC_URL environment variable is not set");
+	}
 
-  return new Connection(rpcUrl, {
-    commitment,
-    wsEndpoint: wsEndpoint || env.VITE_SOLANA_WS_URL,
-    disableRetryOnRateLimit: false,
-  });
+	return new Connection(rpcUrl, {
+		commitment,
+		wsEndpoint: wsEndpoint || env.VITE_SOLANA_WS_URL,
+		disableRetryOnRateLimit: false,
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -137,99 +137,162 @@ export function createCustomConnection(
 // ---------------------------------------------------------------------------
 
 export interface SendAndConfirmTransactionOptions {
-  /** Maximum number of retries (default: MAX_TRANSACTION_RETRIES) */
-  maxRetries?: number;
-  /** Delay between retries in milliseconds (default: RETRY_DELAY_MS) */
-  retryDelayMs?: number;
-  /** Skip preflight checks (default: false) */
-  skipPreflight?: boolean;
-  /** Commitment level for confirmation (default: CONFIRM_COMMITMENT) */
-  confirmationCommitment?: Commitment;
+	/** Maximum number of retries (default: MAX_TRANSACTION_RETRIES) */
+	maxRetries?: number;
+	/** Delay between retries in milliseconds (default: RETRY_DELAY_MS) */
+	retryDelayMs?: number;
+	/** Skip preflight checks (default: false) */
+	skipPreflight?: boolean;
+	/** Commitment level for confirmation (default: CONFIRM_COMMITMENT) */
+	confirmationCommitment?: Commitment;
+}
+
+/**
+ * Minimal wallet-adapter interface. Transactions are signed asynchronously by
+ * the wallet (e.g. Reown AppKit) instead of with an in-memory keypair.
+ */
+export interface WalletSignerLike {
+	publicKey: PublicKey;
+	signTransaction: (transaction: Transaction) => Promise<Transaction>;
+	signAllTransactions?: (transactions: Transaction[]) => Promise<Transaction[]>;
+}
+
+function isWalletSignerLike(
+	signer: Signer | WalletSignerLike,
+): signer is WalletSignerLike {
+	return typeof (signer as WalletSignerLike).signTransaction === "function";
 }
 
 /**
  * Send and confirm a transaction with retry logic.
  *
- * @param transaction - The transaction to send
- * @param signers - Array of signers (includes fee payer)
+ * SECURITY/RELIABILITY (review C1): previously this function never set
+ * `recentBlockhash` (web3.js threw "Transaction recentBlockhash required"
+ * before anything was sent) and it signed with `transaction.sign(...)`,
+ * which requires keypair `secretKey`s — the wallet-adapter objects passed by
+ * callers have neither, so every purchase/claim failed. It also re-sent the
+ * same serialized bytes on retry (blockhash expiry) and confirmed with a
+ * DIFFERENT blockhash than the one the transaction was built with.
+ *
+ * Now: a fresh blockhash is fetched per attempt, the wallet's async
+ * `signTransaction` is used when the fee payer is a wallet adapter, the
+ * transaction is sent raw, and confirmation uses the SAME blockhash the
+ * transaction was built with.
+ *
+ * @param transaction - The unsigned transaction to send (feePayer should be set)
+ * @param signers - The fee payer plus any additional signers. Exactly one
+ *   wallet-adapter signer is allowed (used as the async signer); keypair
+ *   signers are signed with `transaction.sign()`.
  * @param connection - Optional connection (uses singleton if not provided)
  * @param options - Additional options for sending and confirmation
  * @returns Transaction signature
  */
 export async function sendAndConfirmTransaction(
-  transaction: Transaction,
-  signers: Signer[],
-  connection?: Connection,
-  options: SendAndConfirmTransactionOptions = {},
+	transaction: Transaction,
+	signers: Array<Signer | WalletSignerLike>,
+	connection?: Connection,
+	options: SendAndConfirmTransactionOptions = {},
 ): Promise<string> {
-  const conn = connection || getConnection();
-  const {
-    maxRetries = MAX_TRANSACTION_RETRIES,
-    retryDelayMs = RETRY_DELAY_MS,
-    skipPreflight = false,
-    confirmationCommitment = CONFIRM_COMMITMENT,
-    ...sendOptions
-  } = options;
+	const conn = connection || getConnection();
+	const {
+		maxRetries = MAX_TRANSACTION_RETRIES,
+		retryDelayMs = RETRY_DELAY_MS,
+		skipPreflight = false,
+		confirmationCommitment = CONFIRM_COMMITMENT,
+		...sendOptions
+	} = options;
 
-  // Sign the transaction
-  if (signers.length > 0) {
-    transaction.sign(...signers);
-  }
+	if (signers.length === 0) {
+		throw new Error("At least one signer (the fee payer) is required");
+	}
 
-  const rawTransaction = transaction.serialize();
-  let lastError: Error | null = null;
+	const walletSigner = signers.find(isWalletSignerLike);
+	const keypairSigners = signers.filter(
+		(s): s is Signer => !isWalletSignerLike(s),
+	);
+	if (walletSigner && keypairSigners.length > 0) {
+		throw new Error(
+			"Mixing a wallet-adapter signer with keypair signers is not supported",
+		);
+	}
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const signature = await conn.sendRawTransaction(rawTransaction, {
-        skipPreflight,
-        preflightCommitment: SEND_COMMITMENT,
-        ...sendOptions,
-      });
+	// Ensure the fee payer is set before signing.
+	if (transaction.feePayer === null) {
+		transaction.feePayer = signers[0].publicKey;
+	}
 
-      console.log(
-        `[Solana] Transaction sent (attempt ${attempt + 1}/${maxRetries}): ${signature}`,
-      );
+	const baseInstructions = transaction.instructions;
+	let lastError: Error | null = null;
 
-      // Wait for confirmation
-      // Fetch latest blockhash for confirmation strategy
-      const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash(
-        confirmationCommitment,
-      );
+	for (let attempt = 0; attempt < maxRetries; attempt++) {
+		try {
+			// Fetch a fresh blockhash for THIS attempt — blockhashes expire, so a
+			// retry that reuses an old blockhash would be rejected by the network.
+			const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash(
+				confirmationCommitment,
+			);
 
-      const confirmation = await conn.confirmTransaction(
-        {
-          signature,
-          blockhash,
-          lastValidBlockHeight,
-        },
-        confirmationCommitment,
-      );
+			// Build a fresh, unsigned transaction from the original instructions.
+			const tx = new Transaction();
+			tx.feePayer = transaction.feePayer;
+			tx.recentBlockhash = blockhash;
+			for (const ix of baseInstructions) {
+				tx.add(ix);
+			}
 
-      if (confirmation.value.err) {
-        throw new Error(
-          `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
-        );
-      }
+			let signedTx: Transaction;
+			if (walletSigner) {
+				// Wallet adapters sign asynchronously and expect an unsigned tx.
+				signedTx = await walletSigner.signTransaction(tx);
+			} else {
+				tx.sign(...keypairSigners);
+				signedTx = tx;
+			}
 
-      console.log(`[Solana] Transaction confirmed: ${signature}`);
-      return signature;
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(
-        `[Solana] Transaction attempt ${attempt + 1} failed:`,
-        error,
-      );
+			const signature = await conn.sendRawTransaction(signedTx.serialize(), {
+				skipPreflight,
+				preflightCommitment: SEND_COMMITMENT,
+				...sendOptions,
+			});
 
-      if (attempt < maxRetries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-      }
-    }
-  }
+			console.log(
+				`[Solana] Transaction sent (attempt ${attempt + 1}/${maxRetries}): ${signature}`,
+			);
 
-  throw new Error(
-    `Failed to send transaction after ${maxRetries} attempts. Last error: ${lastError?.message}`,
-  );
+			// Confirm using the SAME blockhash the transaction was built with.
+			const confirmation = await conn.confirmTransaction(
+				{
+					signature,
+					blockhash,
+					lastValidBlockHeight,
+				},
+				confirmationCommitment,
+			);
+
+			if (confirmation.value.err) {
+				throw new Error(
+					`Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
+				);
+			}
+
+			console.log(`[Solana] Transaction confirmed: ${signature}`);
+			return signature;
+		} catch (error) {
+			lastError = error as Error;
+			console.warn(
+				`[Solana] Transaction attempt ${attempt + 1} failed:`,
+				error,
+			);
+
+			if (attempt < maxRetries - 1) {
+				await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+			}
+		}
+	}
+
+	throw new Error(
+		`Failed to send transaction after ${maxRetries} attempts. Last error: ${lastError?.message}`,
+	);
 }
 
 /**
@@ -242,14 +305,14 @@ export async function sendAndConfirmTransaction(
  * added FIRST in the transaction (before any program instructions).
  */
 function buildComputeBudgetInstructions(): TransactionInstruction[] {
-  return [
-    ComputeBudgetProgram.setComputeUnitLimit({
-      units: COMPUTE_UNIT_LIMIT,
-    }),
-    ComputeBudgetProgram.setComputeUnitPrice({
-      microLamports: PRIORITY_FEE_MICRO_LAMPORTS,
-    }),
-  ];
+	return [
+		ComputeBudgetProgram.setComputeUnitLimit({
+			units: COMPUTE_UNIT_LIMIT,
+		}),
+		ComputeBudgetProgram.setComputeUnitPrice({
+			microLamports: PRIORITY_FEE_MICRO_LAMPORTS,
+		}),
+	];
 }
 
 /**
@@ -262,26 +325,26 @@ function buildComputeBudgetInstructions(): TransactionInstruction[] {
  * @returns Transaction signature
  */
 export async function sendInstruction(
-  instruction: TransactionInstruction,
-  payer: Signer,
-  signers: Signer[] = [],
-  connection?: Connection,
-  options: SendAndConfirmTransactionOptions = {},
+	instruction: TransactionInstruction,
+	payer: Signer | WalletSignerLike,
+	signers: Array<Signer | WalletSignerLike> = [],
+	connection?: Connection,
+	options: SendAndConfirmTransactionOptions = {},
 ): Promise<string> {
-  const transaction = new Transaction();
-  for (const i of buildComputeBudgetInstructions()) {
-    transaction.add(i);
-  }
-  transaction.add(instruction);
-  transaction.feePayer = payer.publicKey;
+	const transaction = new Transaction();
+	for (const i of buildComputeBudgetInstructions()) {
+		transaction.add(i);
+	}
+	transaction.add(instruction);
+	transaction.feePayer = payer.publicKey;
 
-  const allSigners = [payer, ...signers];
-  return sendAndConfirmTransaction(
-    transaction,
-    allSigners,
-    connection,
-    options,
-  );
+	const allSigners = [payer, ...signers];
+	return sendAndConfirmTransaction(
+		transaction,
+		allSigners,
+		connection,
+		options,
+	);
 }
 
 /**
@@ -294,28 +357,28 @@ export async function sendInstruction(
  * @returns Transaction signature
  */
 export async function sendInstructions(
-  instructions: TransactionInstruction[],
-  payer: Signer,
-  signers: Signer[] = [],
-  connection?: Connection,
-  options: SendAndConfirmTransactionOptions = {},
+	instructions: TransactionInstruction[],
+	payer: Signer | WalletSignerLike,
+	signers: Array<Signer | WalletSignerLike> = [],
+	connection?: Connection,
+	options: SendAndConfirmTransactionOptions = {},
 ): Promise<string> {
-  const transaction = new Transaction();
-  for (const i of buildComputeBudgetInstructions()) {
-    transaction.add(i);
-  }
-  for (const instruction of instructions) {
-    transaction.add(instruction);
-  }
-  transaction.feePayer = payer.publicKey;
+	const transaction = new Transaction();
+	for (const i of buildComputeBudgetInstructions()) {
+		transaction.add(i);
+	}
+	for (const instruction of instructions) {
+		transaction.add(instruction);
+	}
+	transaction.feePayer = payer.publicKey;
 
-  const allSigners = [payer, ...signers];
-  return sendAndConfirmTransaction(
-    transaction,
-    allSigners,
-    connection,
-    options,
-  );
+	const allSigners = [payer, ...signers];
+	return sendAndConfirmTransaction(
+		transaction,
+		allSigners,
+		connection,
+		options,
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -331,38 +394,38 @@ export async function sendInstructions(
  * @returns Account info or null if account doesn't exist
  */
 export async function getAccountInfo<T>(
-  publicKey: PublicKey,
-  commitment: Commitment = DEFAULT_COMMITMENT,
-  connection?: Connection,
+	publicKey: PublicKey,
+	commitment: Commitment = DEFAULT_COMMITMENT,
+	connection?: Connection,
 ): Promise<{
-  pubkey: PublicKey;
-  account: { data: T; owner: PublicKey; lamports: number; executable: boolean };
+	pubkey: PublicKey;
+	account: { data: T; owner: PublicKey; lamports: number; executable: boolean };
 } | null> {
-  const conn = connection || getConnection();
+	const conn = connection || getConnection();
 
-  try {
-    const accountInfo = await conn.getAccountInfo(publicKey, commitment);
+	try {
+		const accountInfo = await conn.getAccountInfo(publicKey, commitment);
 
-    if (!accountInfo) {
-      return null;
-    }
+		if (!accountInfo) {
+			return null;
+		}
 
-    return {
-      pubkey: publicKey,
-      account: {
-        data: accountInfo.data as T,
-        owner: accountInfo.owner,
-        lamports: accountInfo.lamports,
-        executable: accountInfo.executable,
-      },
-    };
-  } catch (error) {
-    console.error(
-      `[Solana] Failed to get account info for ${publicKey.toBase58()}:`,
-      error,
-    );
-    throw error;
-  }
+		return {
+			pubkey: publicKey,
+			account: {
+				data: accountInfo.data as T,
+				owner: accountInfo.owner,
+				lamports: accountInfo.lamports,
+				executable: accountInfo.executable,
+			},
+		};
+	} catch (error) {
+		console.error(
+			`[Solana] Failed to get account info for ${publicKey.toBase58()}:`,
+			error,
+		);
+		throw error;
+	}
 }
 
 /**
@@ -374,36 +437,36 @@ export async function getAccountInfo<T>(
  * @returns Array of account infos (null for non-existent accounts)
  */
 export async function getMultipleAccountsInfo(
-  publicKeys: PublicKey[],
-  commitment: Commitment = DEFAULT_COMMITMENT,
-  connection?: Connection,
+	publicKeys: PublicKey[],
+	commitment: Commitment = DEFAULT_COMMITMENT,
+	connection?: Connection,
 ): Promise<
-  (ReturnType<typeof getAccountInfo> extends Promise<infer T> ? T : never)[]
+	(ReturnType<typeof getAccountInfo> extends Promise<infer T> ? T : never)[]
 > {
-  const conn = connection || getConnection();
+	const conn = connection || getConnection();
 
-  try {
-    const accounts = await conn.getMultipleAccountsInfo(publicKeys, commitment);
+	try {
+		const accounts = await conn.getMultipleAccountsInfo(publicKeys, commitment);
 
-    return accounts.map((account, index) => {
-      if (!account) {
-        return null;
-      }
+		return accounts.map((account, index) => {
+			if (!account) {
+				return null;
+			}
 
-      return {
-        pubkey: publicKeys[index],
-        account: {
-          data: account.data,
-          owner: account.owner,
-          lamports: account.lamports,
-          executable: account.executable,
-        },
-      };
-    });
-  } catch (error) {
-    console.error(`[Solana] Failed to get multiple account infos:`, error);
-    throw error;
-  }
+			return {
+				pubkey: publicKeys[index],
+				account: {
+					data: account.data,
+					owner: account.owner,
+					lamports: account.lamports,
+					executable: account.executable,
+				},
+			};
+		});
+	} catch (error) {
+		console.error(`[Solana] Failed to get multiple account infos:`, error);
+		throw error;
+	}
 }
 
 /**
@@ -416,45 +479,45 @@ export async function getMultipleAccountsInfo(
  * @returns Array of program accounts
  */
 export async function getProgramAccounts(
-  programId: PublicKey,
-  filters?: any[],
-  commitment: Commitment = DEFAULT_COMMITMENT,
-  connection?: Connection,
+	programId: PublicKey,
+	filters?: any[],
+	commitment: Commitment = DEFAULT_COMMITMENT,
+	connection?: Connection,
 ): Promise<
-  Array<{
-    pubkey: PublicKey;
-    account: {
-      data: Buffer;
-      owner: PublicKey;
-      lamports: number;
-      executable: boolean;
-    };
-  }>
+	Array<{
+		pubkey: PublicKey;
+		account: {
+			data: Buffer;
+			owner: PublicKey;
+			lamports: number;
+			executable: boolean;
+		};
+	}>
 > {
-  const conn = connection || getConnection();
+	const conn = connection || getConnection();
 
-  try {
-    const accounts = await conn.getProgramAccounts(programId, {
-      filters,
-      commitment,
-    });
+	try {
+		const accounts = await conn.getProgramAccounts(programId, {
+			filters,
+			commitment,
+		});
 
-    return accounts.map(({ pubkey, account }) => ({
-      pubkey,
-      account: {
-        data: account.data,
-        owner: account.owner,
-        lamports: account.lamports,
-        executable: account.executable,
-      },
-    }));
-  } catch (error) {
-    console.error(
-      `[Solana] Failed to get program accounts for ${programId.toBase58()}:`,
-      error,
-    );
-    throw error;
-  }
+		return accounts.map(({ pubkey, account }) => ({
+			pubkey,
+			account: {
+				data: account.data,
+				owner: account.owner,
+				lamports: account.lamports,
+				executable: account.executable,
+			},
+		}));
+	} catch (error) {
+		console.error(
+			`[Solana] Failed to get program accounts for ${programId.toBase58()}:`,
+			error,
+		);
+		throw error;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -471,27 +534,27 @@ export async function getProgramAccounts(
  * @returns Subscription ID that can be used to unsubscribe
  */
 export function subscribeToAccountChanges(
-  publicKey: PublicKey,
-  callback: (
-    accountInfo: {
-      data: Buffer;
-      owner: PublicKey;
-      lamports: number;
-      executable: boolean;
-    } | null,
-  ) => void,
-  commitment: Commitment = DEFAULT_COMMITMENT,
-  connection?: Connection,
+	publicKey: PublicKey,
+	callback: (
+		accountInfo: {
+			data: Buffer;
+			owner: PublicKey;
+			lamports: number;
+			executable: boolean;
+		} | null,
+	) => void,
+	commitment: Commitment = DEFAULT_COMMITMENT,
+	connection?: Connection,
 ): number {
-  const conn = connection || getWsConnection();
+	const conn = connection || getWsConnection();
 
-  return conn.onAccountChange(
-    publicKey,
-    (accountInfo) => {
-      callback(accountInfo);
-    },
-    commitment,
-  );
+	return conn.onAccountChange(
+		publicKey,
+		(accountInfo) => {
+			callback(accountInfo);
+		},
+		commitment,
+	);
 }
 
 /**
@@ -501,11 +564,11 @@ export function subscribeToAccountChanges(
  * @param connection - Optional connection (uses WS singleton by default)
  */
 export function unsubscribeFromAccountChanges(
-  subscriptionId: number,
-  connection?: Connection,
+	subscriptionId: number,
+	connection?: Connection,
 ): Promise<void> {
-  const conn = connection || getWsConnection();
-  return conn.removeAccountChangeListener(subscriptionId);
+	const conn = connection || getWsConnection();
+	return conn.removeAccountChangeListener(subscriptionId);
 }
 
 /**
@@ -516,14 +579,14 @@ export function unsubscribeFromAccountChanges(
  * @returns Subscription ID that can be used to unsubscribe
  */
 export function subscribeToSlotChanges(
-  callback: (slotInfo: { slot: number; parent: number; root: number }) => void,
-  connection?: Connection,
+	callback: (slotInfo: { slot: number; parent: number; root: number }) => void,
+	connection?: Connection,
 ): number {
-  const conn = connection || getWsConnection();
+	const conn = connection || getWsConnection();
 
-  return conn.onSlotChange((slotInfo) => {
-    callback(slotInfo);
-  });
+	return conn.onSlotChange((slotInfo) => {
+		callback(slotInfo);
+	});
 }
 
 /**
@@ -533,11 +596,11 @@ export function subscribeToSlotChanges(
  * @param connection - Optional connection (uses WS singleton by default)
  */
 export function unsubscribeFromSlotChanges(
-  subscriptionId: number,
-  connection?: Connection,
+	subscriptionId: number,
+	connection?: Connection,
 ): Promise<void> {
-  const conn = connection || getWsConnection();
-  return conn.removeSlotChangeListener(subscriptionId);
+	const conn = connection || getWsConnection();
+	return conn.removeSlotChangeListener(subscriptionId);
 }
 
 // ---------------------------------------------------------------------------
@@ -553,21 +616,21 @@ export function unsubscribeFromSlotChanges(
  * @returns Balance in lamports
  */
 export async function getBalance(
-  publicKey: PublicKey,
-  commitment: Commitment = DEFAULT_COMMITMENT,
-  connection?: Connection,
+	publicKey: PublicKey,
+	commitment: Commitment = DEFAULT_COMMITMENT,
+	connection?: Connection,
 ): Promise<number> {
-  const conn = connection || getConnection();
+	const conn = connection || getConnection();
 
-  try {
-    return await conn.getBalance(publicKey, commitment);
-  } catch (error) {
-    console.error(
-      `[Solana] Failed to get balance for ${publicKey.toBase58()}:`,
-      error,
-    );
-    throw error;
-  }
+	try {
+		return await conn.getBalance(publicKey, commitment);
+	} catch (error) {
+		console.error(
+			`[Solana] Failed to get balance for ${publicKey.toBase58()}:`,
+			error,
+		);
+		throw error;
+	}
 }
 
 /**
@@ -579,30 +642,30 @@ export async function getBalance(
  * @returns Token account balance information
  */
 export async function getTokenAccountBalance(
-  tokenAccount: PublicKey,
-  commitment: Commitment = DEFAULT_COMMITMENT,
-  connection?: Connection,
+	tokenAccount: PublicKey,
+	commitment: Commitment = DEFAULT_COMMITMENT,
+	connection?: Connection,
 ): Promise<{
-  amount: string;
-  decimals: number;
-  uiAmount: number | null;
-  uiAmountString?: string;
+	amount: string;
+	decimals: number;
+	uiAmount: number | null;
+	uiAmountString?: string;
 }> {
-  const conn = connection || getConnection();
+	const conn = connection || getConnection();
 
-  try {
-    const response = await conn.getTokenAccountBalance(
-      tokenAccount,
-      commitment,
-    );
-    return response.value;
-  } catch (error) {
-    console.error(
-      `[Solana] Failed to get token account balance for ${tokenAccount.toBase58()}:`,
-      error,
-    );
-    throw error;
-  }
+	try {
+		const response = await conn.getTokenAccountBalance(
+			tokenAccount,
+			commitment,
+		);
+		return response.value;
+	} catch (error) {
+		console.error(
+			`[Solana] Failed to get token account balance for ${tokenAccount.toBase58()}:`,
+			error,
+		);
+		throw error;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -616,8 +679,8 @@ export async function getTokenAccountBalance(
  * @returns Current slot number
  */
 export async function getCurrentSlot(connection?: Connection): Promise<number> {
-  const conn = connection || getConnection();
-  return conn.getSlot();
+	const conn = connection || getConnection();
+	return conn.getSlot();
 }
 
 /**
@@ -628,18 +691,18 @@ export async function getCurrentSlot(connection?: Connection): Promise<number> {
  * @returns Array of performance samples
  */
 export async function getRecentPerformanceSamples(
-  limit: number = 5,
-  connection?: Connection,
+	limit: number = 5,
+	connection?: Connection,
 ): Promise<
-  Array<{
-    slot: number;
-    numTransactions: number;
-    numSlots: number;
-    samplePeriodSecs: number;
-  }>
+	Array<{
+		slot: number;
+		numTransactions: number;
+		numSlots: number;
+		samplePeriodSecs: number;
+	}>
 > {
-  const conn = connection || getConnection();
-  return conn.getRecentPerformanceSamples(limit);
+	const conn = connection || getConnection();
+	return conn.getRecentPerformanceSamples(limit);
 }
 
 /**
@@ -649,8 +712,8 @@ export async function getRecentPerformanceSamples(
  * @returns Node version information
  */
 export async function getVersion(
-  connection?: Connection,
+	connection?: Connection,
 ): Promise<{ "solana-core": string; "feature-set"?: number }> {
-  const conn = connection || getConnection();
-  return conn.getVersion();
+	const conn = connection || getConnection();
+	return conn.getVersion();
 }

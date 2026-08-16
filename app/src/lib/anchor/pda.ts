@@ -11,12 +11,12 @@ import { env } from "@/env";
  * correctly in Cloudflare Workers SSR where Buffer is not available.
  */
 function writeU64LE(value: number | bigint): Uint8Array {
-  const buf = new Uint8Array(8);
-  const v = BigInt(value);
-  for (let i = 0; i < 8; i++) {
-    buf[i] = Number((v >> BigInt(i * 8)) & 0xffn);
-  }
-  return buf;
+	const buf = new Uint8Array(8);
+	const v = BigInt(value);
+	for (let i = 0; i < 8; i++) {
+		buf[i] = Number((v >> BigInt(i * 8)) & 0xffn);
+	}
+	return buf;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,12 +63,12 @@ export const QP_MAX_NUMBER = 35;
 
 /** Main lottery program ID */
 export const MAIN_LOTTERY_PROGRAM_ID = new PublicKey(
-  env.VITE_MAIN_LOTTERY_PROGRAM_ID,
+	env.VITE_MAIN_LOTTERY_PROGRAM_ID,
 );
 
 /** Quick Pick Express program ID */
 export const QUICK_PICK_PROGRAM_ID = new PublicKey(
-  env.VITE_QUICKPICK_PROGRAM_ID,
+	env.VITE_QUICKPICK_PROGRAM_ID,
 );
 
 /** USDC mint address */
@@ -79,19 +79,19 @@ export const USDC_MINT = new PublicKey(env.VITE_USDC_MINT);
 // ---------------------------------------------------------------------------
 
 export interface MainPDAs {
-  lotteryState: PublicKey;
-  lotteryBump: number;
-  prizePoolUsdc: PublicKey;
-  houseFeeUsdc: PublicKey;
-  insurancePoolUsdc: PublicKey;
+	lotteryState: PublicKey;
+	lotteryBump: number;
+	prizePoolUsdc: PublicKey;
+	houseFeeUsdc: PublicKey;
+	insurancePoolUsdc: PublicKey;
 }
 
 export interface QuickPickPDAs {
-  quickPickState: PublicKey;
-  qpBump: number;
-  prizePoolUsdc: PublicKey;
-  houseFeeUsdc: PublicKey;
-  insurancePoolUsdc: PublicKey;
+	quickPickState: PublicKey;
+	qpBump: number;
+	prizePoolUsdc: PublicKey;
+	houseFeeUsdc: PublicKey;
+	insurancePoolUsdc: PublicKey;
 }
 
 // ---------------------------------------------------------------------------
@@ -102,106 +102,112 @@ export interface QuickPickPDAs {
  * Derive the main lottery state PDA
  */
 export function deriveLotteryState(
-  programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync([LOTTERY_SEED], programId);
+	return PublicKey.findProgramAddressSync([LOTTERY_SEED], programId);
 }
 
 /**
  * Derive the draw result PDA for a given draw ID (main lottery)
  */
 export function deriveDrawResultPDA(
-  drawId: number | bigint,
-  programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+	drawId: number | bigint,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync([DRAW_SEED, writeU64LE(drawId)], programId);
+	return PublicKey.findProgramAddressSync(
+		[DRAW_SEED, writeU64LE(drawId)],
+		programId,
+	);
 }
 
 /**
  * Derive a single-ticket PDA for the main lottery
  */
 export function deriveTicketPDA(
-  drawId: number | bigint,
-  ticketIndex: number | bigint,
-  programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+	drawId: number | bigint,
+	ticketIndex: number | bigint,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [TICKET_SEED, writeU64LE(drawId), writeU64LE(ticketIndex)],
-    programId,
-  );
+	return PublicKey.findProgramAddressSync(
+		[TICKET_SEED, writeU64LE(drawId), writeU64LE(ticketIndex)],
+		programId,
+	);
 }
 
 /**
  * Derive a user's unified ticket PDA (across all draws)
  */
 export function deriveUnifiedTicketPDA(
-  user: PublicKey,
-  programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+	user: PublicKey,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [UNIFIED_TICKET_SEED, user.toBytes()],
-    programId,
-  );
+	return PublicKey.findProgramAddressSync(
+		[UNIFIED_TICKET_SEED, user.toBytes()],
+		programId,
+	);
 }
 
 /**
  * Derive a user account PDA
  */
 export function deriveUserPDA(
-  user: PublicKey,
-  programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+	user: PublicKey,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [USER_SEED, user.toBytes()],
-    programId,
-  );
+	return PublicKey.findProgramAddressSync(
+		[USER_SEED, user.toBytes()],
+		programId,
+	);
 }
 
 /**
  * Derive the prize pool USDC token account PDA
  */
 export function derivePrizePoolUsdcPDA(
-  programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync([PRIZE_POOL_USDC_SEED], programId);
+	return PublicKey.findProgramAddressSync([PRIZE_POOL_USDC_SEED], programId);
 }
 
 /**
  * Derive the house fee USDC token account PDA
  */
 export function deriveHouseFeeUsdcPDA(
-  programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync([HOUSE_FEE_USDC_SEED], programId);
+	return PublicKey.findProgramAddressSync([HOUSE_FEE_USDC_SEED], programId);
 }
 
 /**
  * Derive the insurance pool USDC token account PDA
  */
 export function deriveInsurancePoolUsdcPDA(
-  programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync([INSURANCE_POOL_USDC_SEED], programId);
+	return PublicKey.findProgramAddressSync(
+		[INSURANCE_POOL_USDC_SEED],
+		programId,
+	);
 }
 
 /**
  * Derive all main lottery PDAs at once
  */
 export function deriveMainPDAs(
-  programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): MainPDAs {
-  const [lotteryState, lotteryBump] = deriveLotteryState(programId);
-  const [prizePoolUsdc] = derivePrizePoolUsdcPDA(programId);
-  const [houseFeeUsdc] = deriveHouseFeeUsdcPDA(programId);
-  const [insurancePoolUsdc] = deriveInsurancePoolUsdcPDA(programId);
+	const [lotteryState, lotteryBump] = deriveLotteryState(programId);
+	const [prizePoolUsdc] = derivePrizePoolUsdcPDA(programId);
+	const [houseFeeUsdc] = deriveHouseFeeUsdcPDA(programId);
+	const [insurancePoolUsdc] = deriveInsurancePoolUsdcPDA(programId);
 
-  return {
-    lotteryState,
-    lotteryBump,
-    prizePoolUsdc,
-    houseFeeUsdc,
-    insurancePoolUsdc,
-  };
+	return {
+		lotteryState,
+		lotteryBump,
+		prizePoolUsdc,
+		houseFeeUsdc,
+		insurancePoolUsdc,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -212,99 +218,99 @@ export function deriveMainPDAs(
  * Derive the Quick Pick state PDA
  */
 export function deriveQuickPickState(
-  programId: PublicKey = QUICK_PICK_PROGRAM_ID,
+	programId: PublicKey = QUICK_PICK_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync([QUICK_PICK_SEED], programId);
+	return PublicKey.findProgramAddressSync([QUICK_PICK_SEED], programId);
 }
 
 /**
  * Derive the Quick Pick draw result PDA for a given draw ID
  */
 export function deriveQuickPickDrawResultPDA(
-  drawId: number | bigint,
-  programId: PublicKey = QUICK_PICK_PROGRAM_ID,
+	drawId: number | bigint,
+	programId: PublicKey = QUICK_PICK_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [QUICK_PICK_DRAW_SEED, writeU64LE(drawId)],
-    programId,
-  );
+	return PublicKey.findProgramAddressSync(
+		[QUICK_PICK_DRAW_SEED, writeU64LE(drawId)],
+		programId,
+	);
 }
 
 /**
  * Derive a single-ticket PDA for Quick Pick
  */
 export function deriveQuickPickTicketPDA(
-  drawId: number | bigint,
-  ticketIndex: number | bigint,
-  programId: PublicKey = QUICK_PICK_PROGRAM_ID,
+	drawId: number | bigint,
+	ticketIndex: number | bigint,
+	programId: PublicKey = QUICK_PICK_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [QUICK_PICK_TICKET_SEED, writeU64LE(drawId), writeU64LE(ticketIndex)],
-    programId,
-  );
+	return PublicKey.findProgramAddressSync(
+		[QUICK_PICK_TICKET_SEED, writeU64LE(drawId), writeU64LE(ticketIndex)],
+		programId,
+	);
 }
 
 /**
  * Derive the Quick Pick prize pool USDC token account PDA
  */
 export function deriveQuickPickPrizePoolUsdcPDA(
-  programId: PublicKey = QUICK_PICK_PROGRAM_ID,
+	programId: PublicKey = QUICK_PICK_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync([QP_PRIZE_POOL_USDC_SEED], programId);
+	return PublicKey.findProgramAddressSync([QP_PRIZE_POOL_USDC_SEED], programId);
 }
 
 /**
  * Derive the Quick Pick house fee USDC token account PDA
  */
 export function deriveQuickPickHouseFeeUsdcPDA(
-  programId: PublicKey = QUICK_PICK_PROGRAM_ID,
+	programId: PublicKey = QUICK_PICK_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync([QP_HOUSE_FEE_USDC_SEED], programId);
+	return PublicKey.findProgramAddressSync([QP_HOUSE_FEE_USDC_SEED], programId);
 }
 
 /**
  * Derive the Quick Pick insurance pool USDC token account PDA
  */
 export function deriveQuickPickInsurancePoolUsdcPDA(
-  programId: PublicKey = QUICK_PICK_PROGRAM_ID,
+	programId: PublicKey = QUICK_PICK_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [QP_INSURANCE_POOL_USDC_SEED],
-    programId,
-  );
+	return PublicKey.findProgramAddressSync(
+		[QP_INSURANCE_POOL_USDC_SEED],
+		programId,
+	);
 }
 
 /**
  * Derive the per-wallet Quick Pick stats PDA (M2: per-draw ticket cap)
  */
 export function deriveQuickPickUserStatsPDA(
-  user: PublicKey,
-  programId: PublicKey = QUICK_PICK_PROGRAM_ID,
+	user: PublicKey,
+	programId: PublicKey = QUICK_PICK_PROGRAM_ID,
 ): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [QUICK_PICK_USER_SEED, user.toBytes()],
-    programId,
-  );
+	return PublicKey.findProgramAddressSync(
+		[QUICK_PICK_USER_SEED, user.toBytes()],
+		programId,
+	);
 }
 
 /**
  * Derive all Quick Pick PDAs at once
  */
 export function deriveQuickPickPDAs(
-  programId: PublicKey = QUICK_PICK_PROGRAM_ID,
+	programId: PublicKey = QUICK_PICK_PROGRAM_ID,
 ): QuickPickPDAs {
-  const [quickPickState, qpBump] = deriveQuickPickState(programId);
-  const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA(programId);
-  const [houseFeeUsdc] = deriveQuickPickHouseFeeUsdcPDA(programId);
-  const [insurancePoolUsdc] = deriveQuickPickInsurancePoolUsdcPDA(programId);
+	const [quickPickState, qpBump] = deriveQuickPickState(programId);
+	const [prizePoolUsdc] = deriveQuickPickPrizePoolUsdcPDA(programId);
+	const [houseFeeUsdc] = deriveQuickPickHouseFeeUsdcPDA(programId);
+	const [insurancePoolUsdc] = deriveQuickPickInsurancePoolUsdcPDA(programId);
 
-  return {
-    quickPickState,
-    qpBump,
-    prizePoolUsdc,
-    houseFeeUsdc,
-    insurancePoolUsdc,
-  };
+	return {
+		quickPickState,
+		qpBump,
+		prizePoolUsdc,
+		houseFeeUsdc,
+		insurancePoolUsdc,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -315,39 +321,39 @@ export function deriveQuickPickPDAs(
  * Convert a number to an 8-byte little-endian Uint8Array.
  */
 export function numberToU64Buffer(value: number | bigint): Uint8Array {
-  return writeU64LE(value);
+	return writeU64LE(value);
 }
 
 /**
  * Generate random lottery numbers within valid range
  */
 export function generateRandomNumbers(
-  count: number,
-  max: number,
-  min: number = 1,
+	count: number,
+	max: number,
+	min: number = 1,
 ): number[] {
-  const numbers: number[] = [];
-  while (numbers.length < count) {
-    const num = Math.floor(Math.random() * (max - min + 1)) + min;
-    if (!numbers.includes(num)) {
-      numbers.push(num);
-    }
-  }
-  return numbers.sort((a, b) => a - b);
+	const numbers: number[] = [];
+	while (numbers.length < count) {
+		const num = Math.floor(Math.random() * (max - min + 1)) + min;
+		if (!numbers.includes(num)) {
+			numbers.push(num);
+		}
+	}
+	return numbers.sort((a, b) => a - b);
 }
 
 /**
  * Generate random main lottery numbers (6 numbers from 1-46)
  */
 export function generateMainLotteryNumbers(): number[] {
-  return generateRandomNumbers(NUMBERS_PER_TICKET, MAX_NUMBER);
+	return generateRandomNumbers(NUMBERS_PER_TICKET, MAX_NUMBER);
 }
 
 /**
  * Generate random Quick Pick numbers (5 numbers from 1-35)
  */
 export function generateQuickPickNumbers(): number[] {
-  return generateRandomNumbers(QP_NUMBERS_PER_TICKET, QP_MAX_NUMBER);
+	return generateRandomNumbers(QP_NUMBERS_PER_TICKET, QP_MAX_NUMBER);
 }
 
 // ---------------------------------------------------------------------------

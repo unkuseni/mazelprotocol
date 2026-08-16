@@ -77,6 +77,14 @@
 
 12. **Claim Expiry**: Tickets claimed after `TICKET_CLAIM_EXPIRATION` seconds from `draw.timestamp` are rejected.
 
+13. **Challenge Freeze (bonded disputes)**: while `draw_result.challenged == true`,
+    prize claims and `reclaim_expired_prizes` for that draw are rejected
+    (`DrawChallenged`). The flag is only set by `challenge_draw` (which escrows
+    `CHALLENGE_BOND` into the insurance pool, tracked in `insurance_balance`)
+    and is only cleared by `resolve_challenge`/`release_challenge`, which
+    settle the bond accounting symmetrically (refund, refund + reward, or
+    slash). No other instruction may modify the flag.
+
 ## Parameter Invariants
 
 13. Valid ranges: `ticket_price > 0`, `house_fee_bps ≤ 5000` (max 50%), `draw_interval ≥ 3600` and `≤ 604800`.
