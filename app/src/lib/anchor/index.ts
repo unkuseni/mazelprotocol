@@ -168,6 +168,26 @@ export {
 	// Utilities
 	validateQuickPickNumbers,
 } from "./transactions";
+
+// LP pool, syndicate, and permissionless safety builders
+export {
+	type BuyBulkMainTicketParams,
+	type ChallengeDrawParams,
+	type CreateSyndicateParams,
+	advanceDraw,
+	buyBulkMainTickets,
+	buySyndicateTickets,
+	checkSolvency,
+	challengeDraw,
+	claimLpRewards,
+	claimSyndicateMemberPrize,
+	createSyndicate,
+	createSyndicateTickets,
+	depositLp,
+	joinSyndicate,
+	leaveSyndicate,
+	withdrawLp,
+} from "./transactions-lp-syndicate";
 // Wallet
 export {
 	useConnectedWallet,

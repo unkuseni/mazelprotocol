@@ -23,10 +23,17 @@ import {
 	Wallet,
 	X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { FloatingBalls } from "@/components/LotteryBalls";
 import { Button } from "@/components/ui/button";
+import { deriveSyndicatePDA } from "@/lib/anchor/pda";
+import { useAnchorProvider } from "@/lib/anchor/provider";
+import {
+	fetchAllSyndicates,
+	type OnChainSyndicate,
+} from "@/lib/anchor/syndicate";
+import { createSyndicate } from "@/lib/anchor/transactions-lp-syndicate";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 /* -------------------------------------------------------------------------- */
@@ -433,6 +440,45 @@ function CreateSyndicateModal({
 	const [managerFee, setManagerFee] = useState("2");
 	const { open: openWallet } = useAppKit();
 	const { isConnected } = useAppKitAccount();
+	const { connectedProvider } = useAnchorProvider();
+	const [creating, setCreating] = useState(false);
+	const [createError, setCreateError] = useState<string | null>(null);
+	const navigate = useNavigate();
+
+	const handleCreate = async () => {
+		if (!connectedProvider) {
+			setCreateError("Wallet must be connected to create a syndicate");
+			return;
+		}
+		setCreating(true);
+		setCreateError(null);
+		try {
+			// Fee in % → bps; on-chain max is 5% (500 bps).
+			const feeBps = Math.min(Math.round(parseFloat(managerFee) * 100), 500);
+			// Generate a unique syndicate ID from the name + timestamp.
+			const syndicateId = Math.floor(Date.now() / 1000) % 2_000_000_000;
+			await createSyndicate(connectedProvider, {
+				syndicateId,
+				name: name.trim(),
+				isPublic,
+				managerFeeBps: feeBps,
+			});
+			// Derive the new syndicate PDA and open its on-chain detail page.
+			const [syndicatePubkey] = deriveSyndicatePDA(
+				connectedProvider.wallet.publicKey,
+				syndicateId,
+			);
+			onClose();
+			setName("");
+			navigate(`/syndicates/${syndicatePubkey.toBase58()}`);
+		} catch (err) {
+			setCreateError(
+				err instanceof Error ? err.message : "Failed to create syndicate",
+			);
+		} finally {
+			setCreating(false);
+		}
+	};
 
 	if (!open) return null;
 
@@ -585,6 +631,12 @@ function CreateSyndicateModal({
 							account.
 						</p>
 					</div>
+
+					{createError && (
+						<div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-xs text-red-400">
+							{createError}
+						</div>
+					)}
 				</div>
 
 				{/* Actions */}
@@ -598,18 +650,22 @@ function CreateSyndicateModal({
 					</Button>
 					{isConnected ? (
 						<Button
-							disabled={!name.trim()}
-							onClick={() => {
-								alert(
-									`Creating syndicate "${name.trim()}" with max ${maxMembers} members, ${isPublic ? "public" : "private"}, ${managerFee}% fee. Sign the transaction to create on-chain.`,
-								);
-								onClose();
-							}}
+							disabled={!name.trim() || creating}
+							onClick={handleCreate}
 							variant="emerald"
 							className="flex-1 h-10 text-sm"
 						>
-							<Plus size={14} />
-							Create Syndicate
+							{creating ? (
+								<span className="flex items-center gap-2">
+									<span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+									Creating…
+								</span>
+							) : (
+								<>
+									<Plus size={14} />
+									Create Syndicate
+								</>
+							)}
 						</Button>
 					) : (
 						<Button
@@ -709,6 +765,61 @@ function StatsBar() {
 /*  Main Component                                                            */
 /* -------------------------------------------------------------------------- */
 
+/** A live on-chain syndicate card (real data). Links to the detail page. */
+function LiveSyndicateCard({ syndicate: s }: { syndicate: OnChainSyndicate }) {
+	const contribution = s.totalContribution / 1_000_000;
+	return (
+		<div className="hud-frame rounded-lg p-4 flex flex-col h-full gap-2">
+			<div className="flex items-center justify-between">
+				<div className="flex items-center gap-2">
+					<span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+					<h3 className="font-display text-sm font-bold text-foreground tracking-wide truncate">
+						{s.name || "Untitled Syndicate"}
+					</h3>
+				</div>
+				{s.isPublic ? (
+					<Unlock size={12} className="text-emerald-400/70 shrink-0" />
+				) : (
+					<Lock size={12} className="text-gold-300/70 shrink-0" />
+				)}
+			</div>
+
+			<div className="flex items-center gap-1.5 text-[9px] font-mono text-muted-foreground">
+				<Crown size={10} className="text-gold-300" />
+				<span>
+					Manager: {`${s.creator.slice(0, 4)}…${s.creator.slice(-4)}`}
+				</span>
+			</div>
+
+			<div className="grid grid-cols-3 gap-2 mt-1">
+				<div className="text-center">
+					<div className="font-mono text-sm font-bold text-cyan-300">
+						{s.memberCount}
+					</div>
+					<div className="hud-label">Members</div>
+				</div>
+				<div className="text-center">
+					<div className="font-mono text-sm font-bold text-gold-300">
+						{contribution.toLocaleString()}
+					</div>
+					<div className="hud-label">Pool USDC</div>
+				</div>
+				<div className="text-center">
+					<div className="font-mono text-sm font-bold text-emerald-400">
+						{s.managerFeeBps === 0 ? "None" : `${s.managerFeeBps / 100}%`}
+					</div>
+					<div className="hud-label">Fee</div>
+				</div>
+			</div>
+
+			<div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-semibold mt-auto pt-2 border-t border-foreground/5">
+				<Target size={10} />
+				<span>View &amp; Join</span>
+			</div>
+		</div>
+	);
+}
+
 export default function SyndicatesPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [sortField, setSortField] = useState<SortField>("totalWinnings");
@@ -716,6 +827,28 @@ export default function SyndicatesPage() {
 	const [filterVisibility, setFilterVisibility] =
 		useState<FilterVisibility>("all");
 	const [showCreateModal, setShowCreateModal] = useState(false);
+	const [liveSyndicates, setLiveSyndicates] = useState<OnChainSyndicate[]>([]);
+	const [liveLoading, setLiveLoading] = useState(false);
+
+	useEffect(() => {
+		let cancelled = false;
+		async function loadLive() {
+			setLiveLoading(true);
+			try {
+				const live = await fetchAllSyndicates();
+				if (!cancelled) setLiveSyndicates(live);
+			} catch {
+				if (!cancelled) setLiveSyndicates([]);
+			} finally {
+				if (!cancelled) setLiveLoading(false);
+			}
+		}
+		loadLive();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
 	const { open: openWallet } = useAppKit();
 	const { isConnected } = useAppKitAccount();
 
@@ -953,11 +1086,47 @@ export default function SyndicatesPage() {
 							</Button>
 						</div>
 					) : (
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-							{filteredSyndicates.map((syndicate) => (
-								<SyndicateCard key={syndicate.id} syndicate={syndicate} />
-							))}
-						</div>
+						<>
+							<div className="space-y-4 mb-6">
+								{liveSyndicates.length > 0 && (
+									<>
+										<div className="flex items-center gap-2">
+											<span className="relative flex h-2 w-2">
+												<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+												<span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+											</span>
+											<h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider">
+												{"// LIVE ON-CHAIN SYNDICATES"}
+											</h3>
+										</div>
+										<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+											{liveSyndicates.map((s) => (
+												<Link
+													key={s.pubkey}
+													to={`/syndicates/${s.pubkey}`}
+													className="block h-full"
+												>
+													<LiveSyndicateCard syndicate={s} />
+												</Link>
+											))}
+										</div>
+									</>
+								)}
+								{liveLoading && (
+									<div className="flex items-center gap-2 text-xs text-muted-foreground">
+										<div className="w-4 h-4 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+										Loading live syndicates...
+									</div>
+								)}
+							</div>
+							{liveSyndicates.length === 0 && (
+								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+									{filteredSyndicates.map((syndicate) => (
+										<SyndicateCard key={syndicate.id} syndicate={syndicate} />
+									))}
+								</div>
+							)}
+						</>
 					)}
 
 					{/* How Syndicates Work */}

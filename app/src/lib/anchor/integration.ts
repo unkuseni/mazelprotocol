@@ -57,6 +57,24 @@ import {
 	claimQuickPickPrize,
 	ensureUserStatsInitialized,
 } from "./transactions";
+import {
+	advanceDraw,
+	type BuyBulkMainTicketParams,
+	buyBulkMainTickets,
+	buySyndicateTickets,
+	type ChallengeDrawParams,
+	type CreateSyndicateParams,
+	challengeDraw,
+	checkSolvency,
+	claimLpRewards,
+	claimSyndicateMemberPrize,
+	createSyndicate,
+	createSyndicateTickets,
+	depositLp,
+	joinSyndicate,
+	leaveSyndicate,
+	withdrawLp,
+} from "./transactions-lp-syndicate";
 // Wallet
 import { useConnectedWallet, useWallet } from "./wallet";
 
@@ -115,6 +133,54 @@ export interface MazelProtocolActions {
 	claimMainPrize: (drawId: number, ticketIndex: number) => Promise<string>;
 	/** Claim a Quick Pick prize */
 	claimQuickPickPrize: (drawId: number, ticketIndex: number) => Promise<string>;
+
+	// Bulk buy (main lottery)
+	/** Buy up to 50 main lottery tickets in one transaction */
+	buyBulkMainTickets: (params: BuyBulkMainTicketParams) => Promise<string>;
+
+	// Permissionless safety
+	/** Permissionless draw advancement (30-min timeout fallback) */
+	advanceDraw: () => Promise<string>;
+	/** Permissionless solvency check (auto-pauses on mismatch) */
+	checkSolvency: () => Promise<string>;
+	/** Permissionless bonded challenge of a finalized draw's winner counts */
+	challengeDraw: (params: ChallengeDrawParams) => Promise<string>;
+
+	// LP pool
+	/** Deposit USDC into the LP pool */
+	depositLp: (amount: number) => Promise<string>;
+	/** Withdraw USDC from the LP pool by burning shares */
+	withdrawLp: (shares: number) => Promise<string>;
+	/** Claim accumulated LP rewards */
+	claimLpRewards: () => Promise<string>;
+
+	// Syndicates
+	/** Create a new syndicate */
+	createSyndicate: (params: CreateSyndicateParams) => Promise<string>;
+	/** Join an existing syndicate with a contribution */
+	joinSyndicate: (
+		syndicatePubkey: PublicKey,
+		originalCreator: PublicKey,
+		syndicateId: number,
+		contribution: number,
+	) => Promise<string>;
+	/** Leave a syndicate (refund contribution + unclaimed prize) */
+	leaveSyndicate: (syndicatePubkey: PublicKey) => Promise<string>;
+	/** Buy lottery tickets for a syndicate (creator-only) */
+	buySyndicateTickets: (
+		syndicatePubkey: PublicKey,
+		tickets: number[][],
+	) => Promise<string>;
+	/** Create individual ticket accounts after buy_syndicate_tickets */
+	createSyndicateTickets: (
+		syndicatePubkey: PublicKey,
+		allNumbers: number[][],
+	) => Promise<string[]>;
+	/** Claim a member's share of syndicate prize */
+	claimSyndicateMemberPrize: (
+		syndicatePubkey: PublicKey,
+		amount: number,
+	) => Promise<string>;
 
 	// Query invalidation
 	/** Refresh all lottery states */
@@ -315,6 +381,107 @@ export function useMazelProtocol(): MazelProtocol {
 				const provider = getProvider();
 				const playerUsdc = getUserUsdcAccount();
 				return claimQuickPickPrize(provider, drawId, ticketIndex, playerUsdc);
+			},
+
+			// Bulk buy
+			buyBulkMainTickets: async (params: BuyBulkMainTicketParams) => {
+				const provider = getProvider();
+				const playerUsdc = getUserUsdcAccount();
+				return buyBulkMainTickets(provider, params, playerUsdc);
+			},
+
+			// Permissionless safety
+			advanceDraw: async () => {
+				const provider = getProvider();
+				return advanceDraw(provider);
+			},
+			checkSolvency: async () => {
+				const provider = getProvider();
+				return checkSolvency(provider);
+			},
+			challengeDraw: async (params: ChallengeDrawParams) => {
+				const provider = getProvider();
+				const challengerUsdc = getUserUsdcAccount();
+				return challengeDraw(provider, params, challengerUsdc);
+			},
+
+			// LP pool
+			depositLp: async (amount: number) => {
+				const provider = getProvider();
+				const depositorUsdc = getUserUsdcAccount();
+				return depositLp(provider, amount, depositorUsdc);
+			},
+			withdrawLp: async (shares: number) => {
+				const provider = getProvider();
+				const destinationUsdc = getUserUsdcAccount();
+				return withdrawLp(provider, shares, destinationUsdc);
+			},
+			claimLpRewards: async () => {
+				const provider = getProvider();
+				const destinationUsdc = getUserUsdcAccount();
+				return claimLpRewards(provider, destinationUsdc);
+			},
+
+			// Syndicates
+			createSyndicate: async (params: CreateSyndicateParams) => {
+				const provider = getProvider();
+				return createSyndicate(provider, params);
+			},
+			joinSyndicate: async (
+				syndicatePubkey: PublicKey,
+				originalCreator: PublicKey,
+				syndicateId: number,
+				contribution: number,
+			) => {
+				const provider = getProvider();
+				const memberUsdc = getUserUsdcAccount();
+				return joinSyndicate(
+					provider,
+					syndicatePubkey,
+					originalCreator,
+					syndicateId,
+					contribution,
+					memberUsdc,
+				);
+			},
+			leaveSyndicate: async (syndicatePubkey: PublicKey) => {
+				const provider = getProvider();
+				const memberUsdc = getUserUsdcAccount();
+				return leaveSyndicate(provider, syndicatePubkey, memberUsdc);
+			},
+			buySyndicateTickets: async (
+				syndicatePubkey: PublicKey,
+				tickets: number[][],
+			) => {
+				const provider = getProvider();
+				const { deriveSyndicateUsdcPDA } = await import("./pda");
+				const [syndicateUsdc] = deriveSyndicateUsdcPDA(syndicatePubkey);
+				return buySyndicateTickets(
+					provider,
+					syndicatePubkey,
+					tickets,
+					syndicateUsdc,
+				);
+			},
+			createSyndicateTickets: async (
+				syndicatePubkey: PublicKey,
+				allNumbers: number[][],
+			) => {
+				const provider = getProvider();
+				return createSyndicateTickets(provider, syndicatePubkey, allNumbers);
+			},
+			claimSyndicateMemberPrize: async (
+				syndicatePubkey: PublicKey,
+				amount: number,
+			) => {
+				const provider = getProvider();
+				const memberUsdc = getUserUsdcAccount();
+				return claimSyndicateMemberPrize(
+					provider,
+					syndicatePubkey,
+					amount,
+					memberUsdc,
+				);
 			},
 
 			// Query management

@@ -1,6 +1,6 @@
+import { PublicKey } from "@solana/web3.js";
 import {
 	AlertTriangle,
-	BarChart3,
 	Bell,
 	BellOff,
 	Check,
@@ -22,13 +22,143 @@ import {
 	Users,
 	Wallet,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Footer from "@/components/Footer";
 import { FloatingBalls } from "@/components/LotteryBalls";
 import SyndicateChat, { type ChatMember } from "@/components/SyndicateChat";
 import { Button } from "@/components/ui/button";
-import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
+import { getConnection } from "@/lib/anchor/connection";
+import { useLotteryQueryClient } from "@/lib/anchor/hooks";
+import { deriveSyndicateUsdcPDA, USDC_MINT } from "@/lib/anchor/pda";
+import { useAnchorProvider } from "@/lib/anchor/provider";
+import {
+	buySyndicateTickets,
+	claimSyndicateMemberPrize,
+	createSyndicateTickets,
+	joinSyndicate,
+	leaveSyndicate,
+} from "@/lib/anchor/transactions-lp-syndicate";
+import { useAppKitAccount } from "@/lib/appkit-provider";
+
+/* -------------------------------------------------------------------------- */
+/*  On-chain Syndicate parsing (borsh, mirrors programs/.../state/syndicate.rs) */
+/* -------------------------------------------------------------------------- */
+
+interface OnChainMember {
+	wallet: string;
+	contribution: number;
+	shareBps: number;
+	unclaimedPrize: number;
+}
+
+interface OnChainSyndicate {
+	pubkey: string;
+	creator: string;
+	originalCreator: string;
+	syndicateId: number;
+	name: string;
+	isPublic: boolean;
+	memberCount: number;
+	totalContribution: number;
+	managerFeeBps: number;
+	usdcAccount: string;
+	members: OnChainMember[];
+	pendingTickets: number;
+	bump: number;
+}
+
+function readPubkey(data: Uint8Array, off: number): string {
+	const slice = data.slice(off, off + 32);
+	return new PublicKey(slice).toBase58();
+}
+
+function readU64(data: Uint8Array, off: number): number {
+	const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
+	return Number(dv.getBigUint64(off, true));
+}
+
+function readU32(data: Uint8Array, off: number): number {
+	const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
+	return dv.getUint32(off, true);
+}
+
+function readU16(data: Uint8Array, off: number): number {
+	const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
+	return dv.getUint16(off, true);
+}
+
+function readU8(data: Uint8Array, off: number): number {
+	return data[off];
+}
+
+function parseSyndicateAccount(data: Uint8Array): OnChainSyndicate {
+	let off = 8; // skip account discriminator
+
+	const creator = readPubkey(data, off);
+	off += 32;
+	const originalCreator = readPubkey(data, off);
+	off += 32;
+	const syndicateId = readU64(data, off);
+	off += 8;
+
+	// name: [u8; 32]
+	const nameBytes = data.slice(off, off + 32);
+	off += 32;
+	const name = new TextDecoder().decode(nameBytes).replace(/\0+$/, "").trim();
+
+	const isPublic = readU8(data, off) === 1;
+	off += 1;
+	const memberCount = readU32(data, off);
+	off += 4;
+	const totalContribution = readU64(data, off);
+	off += 8;
+	const managerFeeBps = readU16(data, off);
+	off += 2;
+	const usdcAccount = readPubkey(data, off);
+	off += 32;
+
+	// vec<SyndicateMember>: u32 len + entries
+	const memberLen = readU32(data, off);
+	off += 4;
+	const members: OnChainMember[] = [];
+	for (let i = 0; i < memberLen; i++) {
+		const wallet = readPubkey(data, off);
+		off += 32;
+		const contribution = readU64(data, off);
+		off += 8;
+		const shareBps = readU16(data, off);
+		off += 2;
+		const unclaimedPrize = readU64(data, off);
+		off += 8;
+		members.push({ wallet, contribution, shareBps, unclaimedPrize });
+	}
+
+	const pendingTickets = readU64(data, off);
+	off += 8;
+	const pendingTicketsDraw = readU64(data, off);
+	off += 8;
+	const bump = readU8(data, off);
+
+	// Discriminator is 8 bytes; the account key isn't embedded, so caller
+	// attaches `pubkey` separately.
+	void pendingTicketsDraw;
+	return {
+		pubkey: "",
+		creator,
+		originalCreator,
+		syndicateId,
+		name,
+		isPublic,
+		memberCount,
+		totalContribution,
+		managerFeeBps,
+		usdcAccount,
+		members,
+		pendingTickets,
+		bump,
+	};
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -54,6 +184,28 @@ interface SyndicateDetail {
 	nextDrawIn: string;
 	currentEV: string;
 	poolBalance: number;
+}
+
+const TOKEN_PROGRAM_ID = new PublicKey(
+	"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+);
+const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
+	"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+);
+
+/** Derive the user's USDC associated token account (required as the
+ *  member_usdc / destination account in syndicate instructions). */
+function userUsdcAta(wallet: PublicKey): PublicKey {
+	const [ata] = PublicKey.findProgramAddressSync(
+		[
+			wallet.toBuffer(),
+			TOKEN_PROGRAM_ID.toBuffer(),
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			USDC_MINT.toBuffer(),
+		],
+		ASSOCIATED_TOKEN_PROGRAM_ID,
+	);
+	return ata;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -635,8 +787,6 @@ function SyndicateInfoPanel({
 }
 
 function NotConnectedView() {
-	const { open } = useAppKit();
-
 	return (
 		<div className="min-h-screen bg-background">
 			<section className="relative pt-24 pb-8 sm:pt-28 sm:pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
@@ -712,54 +862,224 @@ function SyndicateNotFound() {
 
 export default function SyndicateDetailPage() {
 	const { syndicateId } = useParams();
-	const { isConnected } = useAppKitAccount();
-	const { open } = useAppKit();
+	const { isConnected, address } = useAppKitAccount();
+	const { connectedProvider } = useAnchorProvider();
+	const { invalidateAll } = useLotteryQueryClient();
 
-	// Simulated member state (in real app, check on-chain)
-	const [isMember, setIsMember] = useState(true);
+	const [onChain, setOnChain] = useState<OnChainSyndicate | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [actionLoading, setActionLoading] = useState(false);
+	const [contribution, setContribution] = useState("25");
+	const [showJoin, setShowJoin] = useState(false);
+	const [showBuy, setShowBuy] = useState(false);
+
+	// The route param is the syndicate public key (base58). Fetch + parse it.
+	useEffect(() => {
+		let cancelled = false;
+		async function load() {
+			setLoading(true);
+			setError(null);
+			if (!syndicateId) {
+				setLoading(false);
+				return;
+			}
+			try {
+				const pubkey = new PublicKey(syndicateId);
+				const info = await getConnection().getAccountInfo(pubkey);
+				if (info && info.data?.length > 0) {
+					const parsed = parseSyndicateAccount(info.data);
+					parsed.pubkey = pubkey.toBase58();
+					if (!cancelled) setOnChain(parsed);
+				} else {
+					if (!cancelled) setOnChain(null);
+				}
+			} catch {
+				// Invalid pubkey — fall back to nothing (not-found handles it).
+				const mock =
+					MOCK_SYNDICATES[syndicateId as keyof typeof MOCK_SYNDICATES];
+				if (!cancelled && mock) {
+					// Preserve legacy mock URLs as a preview when the key isn't a real pubkey.
+					setOnChain(null);
+				}
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
+		}
+		load();
+		return () => {
+			cancelled = true;
+		};
+	}, [syndicateId]);
 
 	if (!syndicateId) {
 		return <SyndicateNotFound />;
 	}
 
-	const syndicate =
-		MOCK_SYNDICATES[syndicateId as keyof typeof MOCK_SYNDICATES];
-
-	if (!syndicate) {
-		return <SyndicateNotFound />;
-	}
+	// Legacy mock fallback for non-pubkey slugs (kept so old links don't 404).
+	const mock = MOCK_SYNDICATES[syndicateId as keyof typeof MOCK_SYNDICATES];
 
 	if (!isConnected) {
 		return <NotConnectedView />;
 	}
 
-	const members = generateMockMembers(syndicate);
+	if (loading) {
+		return (
+			<div className="flex min-h-screen items-center justify-center bg-background">
+				<div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+			</div>
+		);
+	}
 
-	const handleJoin = () => {
-		if (!isConnected) {
-			open();
-			return;
+	// On-chain data model
+	const isReal = !!onChain;
+	const view = onChain
+		? {
+				id: onChain.pubkey,
+				name: onChain.name || "Untitled Syndicate",
+				creator: onChain.creator,
+				creatorShort: `${onChain.creator.slice(0, 4)}…${onChain.creator.slice(-4)}`,
+				description:
+					"On-chain group-buying syndicate. Members pool USDC; the manager buys lottery tickets and prizes are split by contribution.",
+				members: onChain.memberCount,
+				maxMembers: 100,
+				totalTickets: 0,
+				totalWinnings: 0,
+				isPublic: onChain.isPublic,
+				managerFeeBps: onChain.managerFeeBps,
+				activeSince: "",
+				ticketsThisDraw: 0,
+				drawsParticipated: 0,
+				winRate: 0,
+				tags: ["On-chain"],
+				nextDrawIn: "—",
+				currentEV: "—",
+				poolBalance: onChain.totalContribution / 1_000_000,
+			}
+		: mock;
+
+	if (!view) {
+		return <SyndicateNotFound />;
+	}
+
+	const userPubkey = address ? new PublicKey(address) : null;
+	const userMember = userPubkey
+		? (onChain?.members.find((m) => m.wallet === userPubkey.toBase58()) ?? null)
+		: null;
+	const isMember = isReal ? !!userMember : true; // mock pages default to member view
+	const isCreator =
+		isReal && userPubkey ? onChain?.creator === userPubkey.toBase58() : false;
+	const userUnclaimed = userMember?.unclaimedPrize ?? 0;
+
+	const members: ChatMember[] = isReal
+		? onChain.members.slice(0, 10).map((m) => ({
+				address: m.wallet,
+				addressShort: `${m.wallet.slice(0, 4)}…${m.wallet.slice(-4)}`,
+				role:
+					m.wallet === onChain.creator
+						? ("manager" as const)
+						: ("member" as const),
+				isOnline: false,
+				joinedAt: "",
+				ticketsContributed: m.contribution / 1_000_000,
+			}))
+		: generateMockMembers(view);
+
+	const handleJoin = async () => {
+		if (!connectedProvider || !onChain || !userPubkey) return;
+		const amount = Math.max(1, parseFloat(contribution) || 1);
+		setActionLoading(true);
+		setError(null);
+		try {
+			await joinSyndicate(
+				connectedProvider,
+				new PublicKey(view.id),
+				new PublicKey(onChain.originalCreator),
+				onChain.syndicateId,
+				Math.floor(amount * 1_000_000),
+				userUsdcAta(userPubkey),
+			);
+			setShowJoin(false);
+			invalidateAll();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Join failed");
+		} finally {
+			setActionLoading(false);
 		}
-		setIsMember(true);
 	};
 
-	const handleLeave = () => {
-		if (confirm("Are you sure you want to leave this syndicate?")) {
-			setIsMember(false);
+	const handleLeave = async () => {
+		if (!connectedProvider || !isMember || !userPubkey) return;
+		if (!confirm("Are you sure you want to leave this syndicate?")) return;
+		setActionLoading(true);
+		setError(null);
+		try {
+			await leaveSyndicate(
+				connectedProvider,
+				new PublicKey(view.id),
+				userUsdcAta(userPubkey),
+			);
+			invalidateAll();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Leave failed");
+		} finally {
+			setActionLoading(false);
+		}
+	};
+
+	const handleBuyTicket = async () => {
+		if (!connectedProvider || !isCreator || !onChain || !userPubkey) return;
+		setActionLoading(true);
+		setError(null);
+		try {
+			const numbers = generateMainNumbers();
+			const [usdcAccount] = deriveSyndicateUsdcPDA(new PublicKey(view.id));
+			await buySyndicateTickets(
+				connectedProvider,
+				new PublicKey(view.id),
+				[numbers],
+				usdcAccount,
+			);
+			await createSyndicateTickets(connectedProvider, new PublicKey(view.id), [
+				numbers,
+			]);
+			setShowBuy(false);
+			invalidateAll();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Purchase failed");
+		} finally {
+			setActionLoading(false);
+		}
+	};
+
+	const handleClaim = async () => {
+		if (!connectedProvider || userUnclaimed <= 0 || !onChain || !userPubkey)
+			return;
+		setActionLoading(true);
+		setError(null);
+		try {
+			await claimSyndicateMemberPrize(
+				connectedProvider,
+				new PublicKey(view.id),
+				userUnclaimed,
+				userUsdcAta(userPubkey),
+			);
+			invalidateAll();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Claim failed");
+		} finally {
+			setActionLoading(false);
 		}
 	};
 
 	return (
 		<div className="min-h-screen bg-background flex flex-col">
-			{/* ================================================================ */}
-			{/*  Top Navigation                                                   */}
-			{/* ================================================================ */}
+			{/* Top Navigation */}
 			<section className="relative pt-20 sm:pt-24 pb-4 sm:pb-6 px-4 sm:px-6 lg:px-8">
 				<div className="absolute inset-0 hero-grid opacity-20" />
 				<div className="absolute inset-0 bg-glow-emerald opacity-10" />
 
 				<div className="relative z-10 max-w-7xl mx-auto">
-					{/* Breadcrumb */}
 					<nav className="flex items-center gap-2 text-xs text-muted-foreground mb-3 sm:mb-4 overflow-x-auto whitespace-nowrap pb-1">
 						<Link to="/" className="hover:text-foreground transition-colors">
 							Home
@@ -773,89 +1093,131 @@ export default function SyndicateDetailPage() {
 						</Link>
 						<ChevronRight size={12} />
 						<span className="text-cyan-300 font-medium truncate max-w-50">
-							{syndicate.name}
+							{view.name}
 						</span>
 					</nav>
 				</div>
 			</section>
 
-			{/* ================================================================ */}
-			{/*  Main Content                                                     */}
-			{/* ================================================================ */}
+			{/* Main Content */}
 			<section className="relative flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 				<div className="relative z-10 max-w-7xl mx-auto">
-					{/* Demo data notice — this page renders mock syndicate data */}
-					<div className="mb-4">
-						<DemoDataBanner />
-					</div>
+					{!isReal && (
+						<div className="mb-4">
+							<DemoDataBanner />
+						</div>
+					)}
+					{isReal && (
+						<div className="mb-4 hud-frame rounded-lg px-3 py-2 bg-emerald-500/5 border-emerald-500/20">
+							<span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+								{"// LIVE ON-CHAIN SYNDICATE"}
+							</span>
+						</div>
+					)}
+
 					<div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-						{/* ========================================================== */}
-						{/*  Left Column: Info + Stats                                  */}
-						{/* ========================================================== */}
+						{/* Left column: info + stats */}
 						<div className="w-full lg:w-80 xl:w-96 shrink-0 space-y-4">
-							{/* Syndicate Info */}
 							<SyndicateInfoPanel
-								syndicate={syndicate}
+								syndicate={view}
 								isMember={isMember}
-								onJoin={handleJoin}
+								onJoin={() => setShowJoin(true)}
 								onLeave={handleLeave}
 							/>
 
-							{/* Stats Grid */}
 							<div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2 sm:gap-3">
 								<StatCard
-									label="Total Winnings"
-									value={`$${syndicate.totalWinnings.toLocaleString()}`}
+									label="Total Contribution"
+									value={`$${(view.poolBalance).toLocaleString()}`}
 									icon={Trophy}
 									color="text-gold-300"
 								/>
 								<StatCard
-									label="Win Rate"
-									value={`${syndicate.winRate}%`}
-									icon={TrendingUp}
+									label="Members"
+									value={`${view.members}`}
+									icon={Users}
+									color="text-cyan-300"
+								/>
+								<StatCard
+									label="Fee"
+									value={
+										view.managerFeeBps === 0
+											? "None"
+											: `${view.managerFeeBps / 100}%`
+									}
+									icon={Settings}
 									color="text-emerald-400"
 								/>
 								<StatCard
-									label="This Draw"
-									value={`${syndicate.ticketsThisDraw}`}
-									icon={Target}
-									color="text-cyan-300"
-									subtext="tickets"
-								/>
-								<StatCard
-									label="Total Tickets"
-									value={syndicate.totalTickets.toLocaleString()}
-									icon={BarChart3}
+									label="Status"
+									value={view.isPublic ? "Public" : "Private"}
+									icon={view.isPublic ? Unlock : Lock}
 									color="text-muted-foreground"
 								/>
 							</div>
 
-							{/* On-chain badges */}
-							<div className="hud-frame rounded-lg p-3">
-								<div className="flex flex-wrap items-center gap-3 text-[9px] text-muted-foreground">
-									<div className="flex items-center gap-1.5">
-										<Shield size={9} className="text-emerald-400/70" />
-										<span>Non-custodial</span>
-									</div>
-									<div className="flex items-center gap-1.5">
-										<Check size={9} className="text-emerald-400/70" />
-										<span>Auto-distribution</span>
-									</div>
-									<div className="flex items-center gap-1.5">
-										<Settings size={9} className="text-emerald-400/70" />
-										<span>On-chain accounting</span>
-									</div>
-									<div className="flex items-center gap-1.5">
-										<BarChart3 size={9} className="text-emerald-400/70" />
-										<span>{syndicate.drawsParticipated} draws played</span>
-									</div>
+							{isReal && (
+								<div className="hud-frame rounded-lg p-3 space-y-2">
+									<label
+										htmlFor="contribution"
+										className="block text-[10px] text-muted-foreground uppercase tracking-wider"
+									>
+										Contribution to Join (USDC)
+									</label>
+									<input
+										id="contribution"
+										type="number"
+										value={contribution}
+										onChange={(e) => setContribution(e.target.value)}
+										disabled={isMember}
+										placeholder="25"
+										className="w-full h-9 px-3 rounded-lg bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground focus:outline-none focus:border-cyan-400/60"
+									/>
+									{!isMember && (
+										<Button
+											onClick={handleJoin}
+											disabled={actionLoading}
+											variant="emerald"
+											className="w-full h-9 text-xs"
+										>
+											{actionLoading ? "Joining…" : "Join with Contribution"}
+										</Button>
+									)}
+									{isCreator && (
+										<Button
+											onClick={() => setShowBuy(true)}
+											variant="outline"
+											className="w-full h-9 text-xs border-cyan-500/30 text-cyan-300"
+										>
+											<Target size={12} />
+											Buy Ticket (manager)
+										</Button>
+									)}
+									{isMember && userUnclaimed > 0 && (
+										<Button
+											onClick={handleClaim}
+											variant="outline"
+											className="w-full h-9 text-xs border-gold-500/30 text-gold-300"
+										>
+											<Trophy size={12} />
+											Claim ${(userUnclaimed / 1_000_000).toFixed(2)}
+										</Button>
+									)}
+									{isMember && (
+										<Button
+											onClick={handleLeave}
+											variant="ghost"
+											className="w-full h-9 text-xs text-red-400"
+										>
+											<LogOut size={12} />
+											Leave Syndicate
+										</Button>
+									)}
 								</div>
-							</div>
+							)}
 						</div>
 
-						{/* ========================================================== */}
-						{/*  Right Column: Chat                                         */}
-						{/* ========================================================== */}
+						{/* Right column: chat */}
 						<div className="flex-1 min-w-0 w-full">
 							<div className="terminal-window flex flex-col h-[calc(100vh-10rem)] min-h-80 sm:min-h-125">
 								<div className="terminal-titlebar shrink-0">
@@ -864,14 +1226,14 @@ export default function SyndicateDetailPage() {
 									<span className="size-2.5 rounded-full bg-emerald-400/80" />
 									<span className="ml-2">
 										{"// syndicate channel — "}
-										{syndicate.name}
+										{view.name}
 									</span>
 								</div>
 								<div className="flex-1 min-h-0 overflow-hidden">
 									{isMember ? (
 										<SyndicateChat
-											syndicateId={syndicate.id}
-											syndicateName={syndicate.name}
+											syndicateId={view.id}
+											syndicateName={view.name}
 											members={members}
 										/>
 									) : (
@@ -887,18 +1249,16 @@ export default function SyndicateDetailPage() {
 												ticket purchases, and discuss rolldown strategies with
 												other members.
 											</p>
-											{syndicate.isPublic &&
-												!isMember &&
-												syndicate.members < syndicate.maxMembers && (
-													<Button
-														onClick={handleJoin}
-														variant="emerald"
-														size="lg"
-													>
-														<Users size={14} />
-														Join to Chat
-													</Button>
-												)}
+											{view.isPublic && !isMember && (
+												<Button
+													onClick={() => setShowJoin(true)}
+													variant="emerald"
+													size="lg"
+												>
+													<Users size={14} />
+													Join to Chat
+												</Button>
+											)}
 										</div>
 									)}
 								</div>
@@ -907,6 +1267,102 @@ export default function SyndicateDetailPage() {
 					</div>
 				</div>
 			</section>
+
+			{/* Join confirmation modal */}
+			{showJoin && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<button
+						type="button"
+						className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+						onClick={() => setShowJoin(false)}
+						aria-label="Close"
+					/>
+					<div className="relative glass-strong rounded-2xl p-6 max-w-md w-full border border-cyan-500/30">
+						<h2 className="font-display text-lg font-bold text-foreground uppercase tracking-wide mb-3">
+							Join Syndicate
+						</h2>
+						<p className="text-xs text-muted-foreground mb-4">
+							Contribute {contribution || "25"} USDC to join{" "}
+							<span className="text-cyan-300">{view.name}</span>. You&apos;ll
+							receive a proportional share of pool prizes.
+						</p>
+						{error && (
+							<div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-xs text-red-400">
+								{error}
+							</div>
+						)}
+						<div className="flex gap-3">
+							<Button
+								variant="ghost"
+								onClick={() => setShowJoin(false)}
+								className="flex-1 h-10 text-sm"
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleJoin}
+								disabled={actionLoading}
+								variant="emerald"
+								className="flex-1 h-10 text-sm"
+							>
+								{actionLoading ? "Joining…" : "Join"}
+							</Button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Buy confirmation modal */}
+			{showBuy && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<button
+						type="button"
+						className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+						onClick={() => setShowBuy(false)}
+						aria-label="Close"
+					/>
+					<div className="relative glass-strong rounded-2xl p-6 max-w-md w-full border border-cyan-500/30">
+						<h2 className="font-display text-lg font-bold text-foreground uppercase tracking-wide mb-3">
+							Buy a Syndicate Ticket
+						</h2>
+						<p className="text-xs text-muted-foreground mb-4">
+							As manager, buy 1 ticket (random numbers) from the syndicate pool,
+							then create the on-chain ticket account.
+						</p>
+						{error && (
+							<div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-xs text-red-400">
+								{error}
+							</div>
+						)}
+						<div className="flex gap-3">
+							<Button
+								variant="ghost"
+								onClick={() => setShowBuy(false)}
+								className="flex-1 h-10 text-sm"
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleBuyTicket}
+								disabled={actionLoading}
+								variant="emerald"
+								className="flex-1 h-10 text-sm"
+							>
+								{actionLoading ? "Buying…" : "Buy & Create Ticket"}
+							</Button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
+}
+
+/** Generate 6 unique random numbers 1-46 (crypto.Random-ish, good enough for a single buy). */
+function generateMainNumbers(): number[] {
+	const set = new Set<number>();
+	while (set.size < 6) {
+		set.add(Math.floor(Math.random() * 46) + 1);
+	}
+	return Array.from(set).sort((a, b) => a - b);
 }

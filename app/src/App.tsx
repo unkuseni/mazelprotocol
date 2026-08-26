@@ -7,6 +7,7 @@ import { getGeoblockMessage, isRegionPending } from "@/lib/geoblock";
 import Dashboard from "@/routes/Dashboard";
 // Route components
 import Home from "@/routes/Home";
+import LpPool from "@/routes/Lp";
 import Play from "@/routes/Play";
 import QuickPick from "@/routes/QuickPick";
 import Results from "@/routes/Results";
@@ -115,6 +116,7 @@ export default function App() {
 					<Route path="/dashboard" element={<Dashboard />} />
 					<Route path="/play" element={<Play />} />
 					<Route path="/play/quick-pick" element={<QuickPick />} />
+					<Route path="/lp" element={<LpPool />} />
 					<Route path="/results" element={<Results />} />
 					<Route path="/tickets" element={<Tickets />} />
 					<Route path="/syndicates" element={<Syndicates />} />

@@ -6,7 +6,9 @@
 		"spec": "0.1.0",
 		"description": "Created with Anchor"
 	},
-	"docs": ["MazelProtocol Program"],
+	"docs": [
+		"MazelProtocol Program"
+	],
 	"instructions": [
 		{
 			"name": "accept_authority",
@@ -19,23 +21,44 @@
 				"# Arguments",
 				"* `ctx` - AcceptAuthority accounts context"
 			],
-			"discriminator": [107, 86, 198, 91, 33, 12, 107, 160],
+			"discriminator": [
+				107,
+				86,
+				198,
+				91,
+				33,
+				12,
+				107,
+				160
+			],
 			"accounts": [
 				{
 					"name": "new_authority",
-					"docs": ["The new authority accepting the transfer"],
+					"docs": [
+						"The new authority accepting the transfer"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -55,43 +78,81 @@
 				"* `ctx` - AddReserveFunds accounts context",
 				"* `amount` - Amount of USDC lamports to add"
 			],
-			"discriminator": [170, 205, 197, 89, 220, 116, 101, 223],
+			"discriminator": [
+				170,
+				205,
+				197,
+				89,
+				220,
+				116,
+				101,
+				223
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The authority adding funds"],
+					"docs": [
+						"The authority adding funds"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
-					"writable": true,
-					"pda": {
-						"seeds": [
-							{
-								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
-							}
-						]
-					}
-				},
-				{
-					"name": "authority_usdc",
-					"docs": ["Authority's USDC token account (source of funds)"],
-					"writable": true
-				},
-				{
-					"name": "prize_pool_usdc",
-					"docs": ["Prize pool USDC token account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
+							}
+						]
+					}
+				},
+				{
+					"name": "authority_usdc",
+					"docs": [
+						"Authority's USDC token account (source of funds)"
+					],
+					"writable": true
+				},
+				{
+					"name": "prize_pool_usdc",
+					"docs": [
+						"Prize pool USDC token account"
+					],
+					"writable": true,
+					"pda": {
+						"seeds": [
+							{
+								"kind": "const",
+								"value": [
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -99,11 +160,15 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint"]
+					"docs": [
+						"USDC mint"
+					]
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -127,11 +192,22 @@
 				"# Arguments",
 				"* `ctx` - AdvanceDraw accounts context"
 			],
-			"discriminator": [81, 91, 246, 172, 52, 85, 32, 201],
+			"discriminator": [
+				81,
+				91,
+				246,
+				172,
+				52,
+				85,
+				32,
+				201
+			],
 			"accounts": [
 				{
 					"name": "caller",
-					"docs": ["Anyone can call this (permissionless)"],
+					"docs": [
+						"Anyone can call this (permissionless)"
+					],
 					"writable": true,
 					"signer": true
 				},
@@ -142,7 +218,15 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -166,11 +250,22 @@
 				"* `ctx` - BuyBulk accounts context",
 				"* `params` - Array of ticket number sets (max 50 tickets)"
 			],
-			"discriminator": [44, 76, 186, 123, 191, 211, 0, 83],
+			"discriminator": [
+				44,
+				76,
+				186,
+				123,
+				191,
+				211,
+				0,
+				83
+			],
 			"accounts": [
 				{
 					"name": "player",
-					"docs": ["The player purchasing the tickets"],
+					"docs": [
+						"The player purchasing the tickets"
+					],
 					"writable": true,
 					"signer": true
 				},
@@ -187,7 +282,15 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -203,7 +306,19 @@
 							{
 								"kind": "const",
 								"value": [
-									117, 110, 105, 102, 105, 101, 100, 95, 116, 105, 99, 107, 101,
+									117,
+									110,
+									105,
+									102,
+									105,
+									101,
+									100,
+									95,
+									116,
+									105,
+									99,
+									107,
+									101,
 									116
 								]
 							},
@@ -226,20 +341,37 @@
 				},
 				{
 					"name": "player_usdc",
-					"docs": ["Player's USDC token account"],
+					"docs": [
+						"Player's USDC token account"
+					],
 					"writable": true
 				},
 				{
 					"name": "prize_pool_usdc",
-					"docs": ["Prize pool USDC token account"],
+					"docs": [
+						"Prize pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -247,14 +379,28 @@
 				},
 				{
 					"name": "house_fee_usdc",
-					"docs": ["House fee USDC token account"],
+					"docs": [
+						"House fee USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									104, 111, 117, 115, 101, 95, 102, 101, 101, 95, 117, 115, 100,
+									104,
+									111,
+									117,
+									115,
+									101,
+									95,
+									102,
+									101,
+									101,
+									95,
+									117,
+									115,
+									100,
 									99
 								]
 							}
@@ -263,15 +409,34 @@
 				},
 				{
 					"name": "insurance_pool_usdc",
-					"docs": ["Insurance pool USDC token account"],
+					"docs": [
+						"Insurance pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									105, 110, 115, 117, 114, 97, 110, 99, 101, 95, 112, 111, 111,
-									108, 95, 117, 115, 100, 99
+									105,
+									110,
+									115,
+									117,
+									114,
+									97,
+									110,
+									99,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -288,7 +453,15 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 112, 95, 112, 111, 111, 108]
+								"value": [
+									108,
+									112,
+									95,
+									112,
+									111,
+									111,
+									108
+								]
 							}
 						]
 					}
@@ -304,14 +477,29 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 112, 95, 112, 111, 111, 108, 95, 117, 115, 100, 99]
+								"value": [
+									108,
+									112,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint (must be 6 decimals)"]
+					"docs": [
+						"USDC mint (must be 6 decimals)"
+					]
 				},
 				{
 					"name": "user_stats",
@@ -323,7 +511,12 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [117, 115, 101, 114]
+								"value": [
+									117,
+									115,
+									101,
+									114
+								]
 							},
 							{
 								"kind": "account",
@@ -334,12 +527,16 @@
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -370,7 +567,16 @@
 				"* `ctx` - BuySyndicateTickets accounts context",
 				"* `params` - Ticket numbers to purchase (max 10 per call)"
 			],
-			"discriminator": [31, 66, 4, 115, 58, 192, 93, 132],
+			"discriminator": [
+				31,
+				66,
+				4,
+				115,
+				58,
+				192,
+				93,
+				132
+			],
 			"accounts": [
 				{
 					"name": "creator",
@@ -392,7 +598,17 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "account",
@@ -409,30 +625,57 @@
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "syndicate_usdc",
-					"docs": ["Syndicate's USDC token account (source of funds)"],
+					"docs": [
+						"Syndicate's USDC token account (source of funds)"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "const",
-								"value": [117, 115, 100, 99]
+								"value": [
+									117,
+									115,
+									100,
+									99
+								]
 							},
 							{
 								"kind": "account",
@@ -443,15 +686,30 @@
 				},
 				{
 					"name": "prize_pool_usdc",
-					"docs": ["Prize pool USDC token account"],
+					"docs": [
+						"Prize pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -459,14 +717,28 @@
 				},
 				{
 					"name": "house_fee_usdc",
-					"docs": ["House fee USDC token account"],
+					"docs": [
+						"House fee USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									104, 111, 117, 115, 101, 95, 102, 101, 101, 95, 117, 115, 100,
+									104,
+									111,
+									117,
+									115,
+									101,
+									95,
+									102,
+									101,
+									101,
+									95,
+									117,
+									115,
+									100,
 									99
 								]
 							}
@@ -475,15 +747,34 @@
 				},
 				{
 					"name": "insurance_pool_usdc",
-					"docs": ["Insurance pool USDC token account"],
+					"docs": [
+						"Insurance pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									105, 110, 115, 117, 114, 97, 110, 99, 101, 95, 112, 111, 111,
-									108, 95, 117, 115, 100, 99
+									105,
+									110,
+									115,
+									117,
+									114,
+									97,
+									110,
+									99,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -491,16 +782,22 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint"]
+					"docs": [
+						"USDC mint"
+					]
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -530,11 +827,22 @@
 				"* `ctx` - BuyTicket accounts context",
 				"* `params` - Selected numbers"
 			],
-			"discriminator": [11, 24, 17, 193, 168, 116, 164, 169],
+			"discriminator": [
+				11,
+				24,
+				17,
+				193,
+				168,
+				116,
+				164,
+				169
+			],
 			"accounts": [
 				{
 					"name": "player",
-					"docs": ["The player purchasing the ticket"],
+					"docs": [
+						"The player purchasing the ticket"
+					],
 					"writable": true,
 					"signer": true
 				},
@@ -551,20 +859,37 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "ticket",
-					"docs": ["The ticket account to be created"],
+					"docs": [
+						"The ticket account to be created"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [116, 105, 99, 107, 101, 116]
+								"value": [
+									116,
+									105,
+									99,
+									107,
+									101,
+									116
+								]
 							},
 							{
 								"kind": "account",
@@ -581,20 +906,37 @@
 				},
 				{
 					"name": "player_usdc",
-					"docs": ["Player's USDC token account"],
+					"docs": [
+						"Player's USDC token account"
+					],
 					"writable": true
 				},
 				{
 					"name": "prize_pool_usdc",
-					"docs": ["Prize pool USDC token account"],
+					"docs": [
+						"Prize pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -602,14 +944,28 @@
 				},
 				{
 					"name": "house_fee_usdc",
-					"docs": ["House fee USDC token account"],
+					"docs": [
+						"House fee USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									104, 111, 117, 115, 101, 95, 102, 101, 101, 95, 117, 115, 100,
+									104,
+									111,
+									117,
+									115,
+									101,
+									95,
+									102,
+									101,
+									101,
+									95,
+									117,
+									115,
+									100,
 									99
 								]
 							}
@@ -618,15 +974,34 @@
 				},
 				{
 					"name": "insurance_pool_usdc",
-					"docs": ["Insurance pool USDC token account"],
+					"docs": [
+						"Insurance pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									105, 110, 115, 117, 114, 97, 110, 99, 101, 95, 112, 111, 111,
-									108, 95, 117, 115, 100, 99
+									105,
+									110,
+									115,
+									117,
+									114,
+									97,
+									110,
+									99,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -643,7 +1018,15 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 112, 95, 112, 111, 111, 108]
+								"value": [
+									108,
+									112,
+									95,
+									112,
+									111,
+									111,
+									108
+								]
 							}
 						]
 					}
@@ -659,14 +1042,29 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 112, 95, 112, 111, 111, 108, 95, 117, 115, 100, 99]
+								"value": [
+									108,
+									112,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint (must be 6 decimals)"]
+					"docs": [
+						"USDC mint (must be 6 decimals)"
+					]
 				},
 				{
 					"name": "user_stats",
@@ -678,7 +1076,12 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [117, 115, 101, 114]
+								"value": [
+									117,
+									115,
+									101,
+									114
+								]
 							},
 							{
 								"kind": "account",
@@ -689,12 +1092,16 @@
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -720,23 +1127,44 @@
 				"# Arguments",
 				"* `ctx` - CancelAuthorityTransfer accounts context"
 			],
-			"discriminator": [94, 131, 125, 184, 183, 24, 125, 229],
+			"discriminator": [
+				94,
+				131,
+				125,
+				184,
+				183,
+				24,
+				125,
+				229
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The current authority"],
+					"docs": [
+						"The current authority"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -754,23 +1182,44 @@
 				"# Arguments",
 				"* `ctx` - UpdateConfig accounts context"
 			],
-			"discriminator": [33, 21, 178, 69, 114, 73, 168, 250],
+			"discriminator": [
+				33,
+				21,
+				178,
+				69,
+				114,
+				73,
+				168,
+				250
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The authority updating the configuration"],
+					"docs": [
+						"The authority updating the configuration"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -791,23 +1240,44 @@
 				"# Arguments",
 				"* `ctx` - CancelDraw accounts context"
 			],
-			"discriminator": [105, 47, 245, 199, 42, 255, 88, 48],
+			"discriminator": [
+				105,
+				47,
+				245,
+				199,
+				42,
+				255,
+				88,
+				48
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The authority canceling the draw"],
+					"docs": [
+						"The authority canceling the draw"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -831,36 +1301,64 @@
 				"* `alternative_winner_counts` - Corrected winner counts",
 				"* `evidence_hash` - SHA256 hash of supporting off-chain evidence"
 			],
-			"discriminator": [196, 106, 16, 253, 227, 79, 168, 44],
+			"discriminator": [
+				196,
+				106,
+				16,
+				253,
+				227,
+				79,
+				168,
+				44
+			],
 			"accounts": [
 				{
 					"name": "challenger",
-					"docs": ["Anyone can challenge (permissionless)"],
+					"docs": [
+						"Anyone can challenge (permissionless)"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "draw_result",
-					"docs": ["The draw result being challenged"],
+					"docs": [
+						"The draw result being challenged"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [100, 114, 97, 119]
+								"value": [
+									100,
+									114,
+									97,
+									119
+								]
 							},
 							{
 								"kind": "account",
@@ -873,6 +1371,10 @@
 			],
 			"args": [
 				{
+					"name": "draw_id",
+					"type": "u64"
+				},
+				{
 					"name": "alternative_winner_counts",
 					"type": {
 						"defined": {
@@ -883,7 +1385,10 @@
 				{
 					"name": "evidence_hash",
 					"type": {
-						"array": ["u8", 32]
+						"array": [
+							"u8",
+							32
+						]
 					}
 				}
 			]
@@ -900,7 +1405,16 @@
 				"# Arguments",
 				"* `ctx` - CheckSolvency accounts context"
 			],
-			"discriminator": [143, 80, 66, 232, 187, 126, 101, 195],
+			"discriminator": [
+				143,
+				80,
+				66,
+				232,
+				187,
+				126,
+				101,
+				195
+			],
 			"accounts": [
 				{
 					"name": "caller",
@@ -911,13 +1425,23 @@
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -932,8 +1456,21 @@
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -941,14 +1478,33 @@
 				},
 				{
 					"name": "insurance_pool_usdc",
-					"docs": ["Insurance pool USDC token account"],
+					"docs": [
+						"Insurance pool USDC token account"
+					],
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									105, 110, 115, 117, 114, 97, 110, 99, 101, 95, 112, 111, 111,
-									108, 95, 117, 115, 100, 99
+									105,
+									110,
+									115,
+									117,
+									114,
+									97,
+									110,
+									99,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -969,7 +1525,16 @@
 				"# Arguments",
 				"* `ctx` - ClaimAllBulkPrizes accounts context"
 			],
-			"discriminator": [161, 167, 89, 112, 90, 19, 131, 24],
+			"discriminator": [
+				161,
+				167,
+				89,
+				112,
+				90,
+				19,
+				131,
+				24
+			],
 			"accounts": [
 				{
 					"name": "player",
@@ -981,30 +1546,49 @@
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "unified_ticket",
-					"docs": ["The unified ticket containing the tickets"],
+					"docs": [
+						"The unified ticket containing the tickets"
+					],
 					"writable": true
 				},
 				{
 					"name": "draw_result",
-					"docs": ["The draw result for the ticket's draw"],
+					"docs": [
+						"The draw result for the ticket's draw"
+					],
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [100, 114, 97, 119]
+								"value": [
+									100,
+									114,
+									97,
+									119
+								]
 							},
 							{
 								"kind": "account",
@@ -1016,20 +1600,37 @@
 				},
 				{
 					"name": "player_usdc",
-					"docs": ["Player's USDC token account (to receive prize)"],
+					"docs": [
+						"Player's USDC token account (to receive prize)"
+					],
 					"writable": true
 				},
 				{
 					"name": "prize_pool_usdc",
-					"docs": ["Prize pool USDC token account"],
+					"docs": [
+						"Prize pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -1037,17 +1638,26 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint (must be 6 decimals)"]
+					"docs": [
+						"USDC mint (must be 6 decimals)"
+					]
 				},
 				{
 					"name": "user_stats",
-					"docs": ["User statistics account"],
+					"docs": [
+						"User statistics account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [117, 115, 101, 114]
+								"value": [
+									117,
+									115,
+									101,
+									114
+								]
 							},
 							{
 								"kind": "account",
@@ -1058,7 +1668,9 @@
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -1076,7 +1688,16 @@
 				"* `ctx` - ClaimBulkPrize accounts context",
 				"* `params` - Parameters including ticket index within the unified ticket"
 			],
-			"discriminator": [226, 2, 169, 203, 80, 245, 151, 244],
+			"discriminator": [
+				226,
+				2,
+				169,
+				203,
+				80,
+				245,
+				151,
+				244
+			],
 			"accounts": [
 				{
 					"name": "player",
@@ -1088,30 +1709,49 @@
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "unified_ticket",
-					"docs": ["The unified ticket containing the tickets"],
+					"docs": [
+						"The unified ticket containing the tickets"
+					],
 					"writable": true
 				},
 				{
 					"name": "draw_result",
-					"docs": ["The draw result for the ticket's draw"],
+					"docs": [
+						"The draw result for the ticket's draw"
+					],
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [100, 114, 97, 119]
+								"value": [
+									100,
+									114,
+									97,
+									119
+								]
 							},
 							{
 								"kind": "account",
@@ -1123,20 +1763,37 @@
 				},
 				{
 					"name": "player_usdc",
-					"docs": ["Player's USDC token account (to receive prize)"],
+					"docs": [
+						"Player's USDC token account (to receive prize)"
+					],
 					"writable": true
 				},
 				{
 					"name": "prize_pool_usdc",
-					"docs": ["Prize pool USDC token account"],
+					"docs": [
+						"Prize pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -1144,17 +1801,26 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint (must be 6 decimals)"]
+					"docs": [
+						"USDC mint (must be 6 decimals)"
+					]
 				},
 				{
 					"name": "user_stats",
-					"docs": ["User statistics account"],
+					"docs": [
+						"User statistics account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [117, 115, 101, 114]
+								"value": [
+									117,
+									115,
+									101,
+									114
+								]
 							},
 							{
 								"kind": "account",
@@ -1165,7 +1831,9 @@
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -1205,40 +1873,70 @@
 				"# Arguments",
 				"* `ctx` - ClaimPrize accounts context"
 			],
-			"discriminator": [157, 233, 139, 121, 246, 62, 234, 235],
+			"discriminator": [
+				157,
+				233,
+				139,
+				121,
+				246,
+				62,
+				234,
+				235
+			],
 			"accounts": [
 				{
 					"name": "player",
-					"docs": ["The player claiming the prize (must be ticket owner)"],
+					"docs": [
+						"The player claiming the prize (must be ticket owner)"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "ticket",
-					"docs": ["The ticket being claimed"],
+					"docs": [
+						"The ticket being claimed"
+					],
 					"writable": true
 				},
 				{
 					"name": "draw_result",
-					"docs": ["The draw result for the ticket's draw"],
+					"docs": [
+						"The draw result for the ticket's draw"
+					],
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [100, 114, 97, 119]
+								"value": [
+									100,
+									114,
+									97,
+									119
+								]
 							},
 							{
 								"kind": "account",
@@ -1250,20 +1948,37 @@
 				},
 				{
 					"name": "player_usdc",
-					"docs": ["Player's USDC token account (to receive prize)"],
+					"docs": [
+						"Player's USDC token account (to receive prize)"
+					],
 					"writable": true
 				},
 				{
 					"name": "prize_pool_usdc",
-					"docs": ["Prize pool USDC token account"],
+					"docs": [
+						"Prize pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -1271,17 +1986,26 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint (must be 6 decimals)"]
+					"docs": [
+						"USDC mint (must be 6 decimals)"
+					]
 				},
 				{
 					"name": "user_stats",
-					"docs": ["User statistics account"],
+					"docs": [
+						"User statistics account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [117, 115, 101, 114]
+								"value": [
+									117,
+									115,
+									101,
+									114
+								]
 							},
 							{
 								"kind": "account",
@@ -1292,7 +2016,9 @@
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -1310,11 +2036,22 @@
 				"* `ctx` - ClaimSyndicateMemberPrize accounts context",
 				"* `params` - Claim parameters"
 			],
-			"discriminator": [117, 82, 0, 96, 175, 103, 47, 27],
+			"discriminator": [
+				117,
+				82,
+				0,
+				96,
+				175,
+				103,
+				47,
+				27
+			],
 			"accounts": [
 				{
 					"name": "member",
-					"docs": ["The member claiming their prize"],
+					"docs": [
+						"The member claiming their prize"
+					],
 					"writable": true,
 					"signer": true
 				},
@@ -1329,7 +2066,17 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "account",
@@ -1346,7 +2093,9 @@
 				},
 				{
 					"name": "member_usdc",
-					"docs": ["Member's USDC token account (receives the prize)"],
+					"docs": [
+						"Member's USDC token account (receives the prize)"
+					],
 					"writable": true
 				},
 				{
@@ -1362,11 +2111,26 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "const",
-								"value": [117, 115, 100, 99]
+								"value": [
+									117,
+									115,
+									100,
+									99
+								]
 							},
 							{
 								"kind": "account",
@@ -1377,11 +2141,15 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint"]
+					"docs": [
+						"USDC mint"
+					]
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -1409,11 +2177,22 @@
 				"* `ctx` - ClaimSyndicateWarsPrize accounts context",
 				"* `params` - Claim parameters with rank"
 			],
-			"discriminator": [17, 147, 31, 85, 100, 59, 116, 247],
+			"discriminator": [
+				17,
+				147,
+				31,
+				85,
+				100,
+				59,
+				116,
+				247
+			],
 			"accounts": [
 				{
 					"name": "manager",
-					"docs": ["Syndicate creator/manager"],
+					"docs": [
+						"Syndicate creator/manager"
+					],
 					"writable": true,
 					"signer": true
 				},
@@ -1429,7 +2208,17 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "account",
@@ -1446,14 +2235,28 @@
 				},
 				{
 					"name": "syndicate_wars_state",
-					"docs": ["Syndicate Wars state"],
+					"docs": [
+						"Syndicate Wars state"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
@@ -1467,20 +2270,40 @@
 				},
 				{
 					"name": "wars_entry",
-					"docs": ["Syndicate Wars entry"],
+					"docs": [
+						"Syndicate Wars entry"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
 							{
 								"kind": "const",
-								"value": [101, 110, 116, 114, 121]
+								"value": [
+									101,
+									110,
+									116,
+									114,
+									121
+								]
 							},
 							{
 								"kind": "account",
@@ -1496,25 +2319,52 @@
 				},
 				{
 					"name": "syndicate_usdc",
-					"docs": ["Syndicate's USDC token account (receives prize)"],
+					"docs": [
+						"Syndicate's USDC token account (receives prize)"
+					],
 					"writable": true
 				},
 				{
 					"name": "wars_prize_pool_usdc",
-					"docs": ["Syndicate Wars prize pool USDC token account"],
+					"docs": [
+						"Syndicate Wars prize pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
 							{
 								"kind": "const",
-								"value": [112, 114, 105, 122, 101, 95, 112, 111, 111, 108]
+								"value": [
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108
+								]
 							},
 							{
 								"kind": "account",
@@ -1526,11 +2376,15 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint"]
+					"docs": [
+						"USDC mint"
+					]
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -1557,37 +2411,69 @@
 				"# Arguments",
 				"* `ctx` - CloseSyndicate accounts context"
 			],
-			"discriminator": [163, 205, 94, 145, 60, 99, 70, 118],
+			"discriminator": [
+				163,
+				205,
+				94,
+				145,
+				60,
+				99,
+				70,
+				118
+			],
 			"accounts": [
 				{
 					"name": "creator",
-					"docs": ["The creator closing the syndicate"],
+					"docs": [
+						"The creator closing the syndicate"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "syndicate",
-					"docs": ["The syndicate to close"],
+					"docs": [
+						"The syndicate to close"
+					],
 					"writable": true
 				},
 				{
 					"name": "creator_usdc",
-					"docs": ["Creator's USDC token account (to receive remaining funds)"],
+					"docs": [
+						"Creator's USDC token account (to receive remaining funds)"
+					],
 					"writable": true
 				},
 				{
 					"name": "syndicate_usdc",
-					"docs": ["Syndicate's USDC token account (will be closed)"],
+					"docs": [
+						"Syndicate's USDC token account (will be closed)"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "const",
-								"value": [117, 115, 100, 99]
+								"value": [
+									117,
+									115,
+									100,
+									99
+								]
 							},
 							{
 								"kind": "account",
@@ -1598,7 +2484,9 @@
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -1625,7 +2513,16 @@
 				"# Arguments",
 				"* `ctx` - CommitRandomness accounts context"
 			],
-			"discriminator": [146, 52, 195, 220, 79, 30, 53, 26],
+			"discriminator": [
+				146,
+				52,
+				195,
+				220,
+				79,
+				30,
+				53,
+				26
+			],
 			"accounts": [
 				{
 					"name": "authority",
@@ -1637,28 +2534,44 @@
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "randomness_account_data",
-					"docs": ["The Switchboard randomness account"]
+					"docs": [
+						"The Switchboard randomness account"
+					]
 				},
 				{
 					"name": "switchboard_queue",
-					"docs": ["The Switchboard queue account"]
+					"docs": [
+						"The Switchboard queue account"
+					]
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -1678,23 +2591,46 @@
 				"* `ctx` - CreateSyndicate accounts context",
 				"* `params` - Syndicate configuration"
 			],
-			"discriminator": [137, 79, 44, 227, 183, 126, 153, 208],
+			"discriminator": [
+				137,
+				79,
+				44,
+				227,
+				183,
+				126,
+				153,
+				208
+			],
 			"accounts": [
 				{
 					"name": "creator",
-					"docs": ["The creator of the syndicate (becomes manager)"],
+					"docs": [
+						"The creator of the syndicate (becomes manager)"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "syndicate",
-					"docs": ["The syndicate account to be created"],
+					"docs": [
+						"The syndicate account to be created"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "account",
@@ -1718,11 +2654,26 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "const",
-								"value": [117, 115, 100, 99]
+								"value": [
+									117,
+									115,
+									100,
+									99
+								]
 							},
 							{
 								"kind": "account",
@@ -1733,16 +2684,22 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint"]
+					"docs": [
+						"USDC mint"
+					]
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -1769,7 +2726,16 @@
 				"* `ctx` - CreateSyndicateTicket accounts context",
 				"* `numbers` - The 6 numbers for this ticket"
 			],
-			"discriminator": [180, 93, 83, 6, 10, 171, 153, 252],
+			"discriminator": [
+				180,
+				93,
+				83,
+				6,
+				10,
+				171,
+				153,
+				252
+			],
 			"accounts": [
 				{
 					"name": "payer",
@@ -1781,30 +2747,51 @@
 				},
 				{
 					"name": "syndicate",
-					"docs": ["The syndicate that owns the ticket"]
+					"docs": [
+						"The syndicate that owns the ticket"
+					]
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The lottery state account"],
+					"docs": [
+						"The lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "ticket",
-					"docs": ["The ticket account to be created"],
+					"docs": [
+						"The ticket account to be created"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [116, 105, 99, 107, 101, 116]
+								"value": [
+									116,
+									105,
+									99,
+									107,
+									101,
+									116
+								]
 							},
 							{
 								"kind": "account",
@@ -1821,7 +2808,9 @@
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -1829,7 +2818,10 @@
 				{
 					"name": "numbers",
 					"type": {
-						"array": ["u8", 6]
+						"array": [
+							"u8",
+							6
+						]
 					}
 				}
 			]
@@ -1846,7 +2838,16 @@
 				"* `ctx` - DistributeSyndicatePrize accounts context",
 				"* `params` - Prize distribution parameters"
 			],
-			"discriminator": [36, 122, 110, 197, 20, 30, 97, 46],
+			"discriminator": [
+				36,
+				122,
+				110,
+				197,
+				20,
+				30,
+				97,
+				46
+			],
 			"accounts": [
 				{
 					"name": "manager",
@@ -1858,13 +2859,23 @@
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["Lottery state (authority for prize pool)"],
+					"docs": [
+						"Lottery state (authority for prize pool)"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -1879,7 +2890,12 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [100, 114, 97, 119]
+								"value": [
+									100,
+									114,
+									97,
+									119
+								]
 							},
 							{
 								"kind": "arg",
@@ -1890,13 +2906,25 @@
 				},
 				{
 					"name": "syndicate",
-					"docs": ["The syndicate account"],
+					"docs": [
+						"The syndicate account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "account",
@@ -1913,17 +2941,34 @@
 				},
 				{
 					"name": "syndicate_usdc",
-					"docs": ["Syndicate's USDC token account (receives the prize)"],
+					"docs": [
+						"Syndicate's USDC token account (receives the prize)"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "const",
-								"value": [117, 115, 100, 99]
+								"value": [
+									117,
+									115,
+									100,
+									99
+								]
 							},
 							{
 								"kind": "account",
@@ -1934,15 +2979,30 @@
 				},
 				{
 					"name": "prize_pool_usdc",
-					"docs": ["Prize pool USDC token account (source of prize)"],
+					"docs": [
+						"Prize pool USDC token account (source of prize)"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -1950,11 +3010,15 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint"]
+					"docs": [
+						"USDC mint"
+					]
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -1982,37 +3046,72 @@
 				"* `ctx` - DistributeSyndicateWarsPrizes accounts context",
 				"* `params` - Distribution parameters with ranked syndicates"
 			],
-			"discriminator": [141, 163, 184, 34, 186, 49, 111, 245],
+			"discriminator": [
+				141,
+				163,
+				184,
+				34,
+				186,
+				49,
+				111,
+				245
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["Lottery authority"],
+					"docs": [
+						"Lottery authority"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["Lottery state"],
-					"writable": true,
-					"pda": {
-						"seeds": [
-							{
-								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
-							}
-						]
-					}
-				},
-				{
-					"name": "syndicate_wars_state",
-					"docs": ["Syndicate Wars state"],
+					"docs": [
+						"Lottery state"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
+							}
+						]
+					}
+				},
+				{
+					"name": "syndicate_wars_state",
+					"docs": [
+						"Syndicate Wars state"
+					],
+					"writable": true,
+					"pda": {
+						"seeds": [
+							{
+								"kind": "const",
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
@@ -2026,20 +3125,45 @@
 				},
 				{
 					"name": "wars_prize_pool_usdc",
-					"docs": ["Syndicate Wars prize pool USDC token account"],
+					"docs": [
+						"Syndicate Wars prize pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
 							{
 								"kind": "const",
-								"value": [112, 114, 105, 122, 101, 95, 112, 111, 111, 108]
+								"value": [
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108
+								]
 							},
 							{
 								"kind": "account",
@@ -2051,11 +3175,15 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint"]
+					"docs": [
+						"USDC mint"
+					]
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -2093,23 +3221,44 @@
 				"* `amount` - Amount to transfer in USDC lamports",
 				"* `reason` - Reason for emergency transfer (logged)"
 			],
-			"discriminator": [211, 94, 223, 195, 43, 8, 247, 115],
+			"discriminator": [
+				211,
+				94,
+				223,
+				195,
+				43,
+				8,
+				247,
+				115
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The authority initiating the transfer"],
+					"docs": [
+						"The authority initiating the transfer"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -2125,8 +3274,25 @@
 							{
 								"kind": "const",
 								"value": [
-									105, 110, 115, 117, 114, 97, 110, 99, 101, 95, 112, 111, 111,
-									108, 95, 117, 115, 100, 99
+									105,
+									110,
+									115,
+									117,
+									114,
+									97,
+									110,
+									99,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -2143,8 +3309,21 @@
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -2159,7 +3338,9 @@
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -2194,23 +3375,44 @@
 				"* `ctx` - UpdateConfig accounts context",
 				"* `params` - Configuration parameters (must match proposal hash)"
 			],
-			"discriminator": [189, 36, 99, 231, 117, 10, 8, 134],
+			"discriminator": [
+				189,
+				36,
+				99,
+				231,
+				117,
+				10,
+				8,
+				134
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The authority updating the configuration"],
+					"docs": [
+						"The authority updating the configuration"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -2244,7 +3446,16 @@
 				"# Arguments",
 				"* `ctx` - ExecuteDraw accounts context"
 			],
-			"discriminator": [88, 43, 150, 204, 248, 133, 199, 32],
+			"discriminator": [
+				88,
+				43,
+				150,
+				204,
+				248,
+				133,
+				199,
+				32
+			],
 			"accounts": [
 				{
 					"name": "authority",
@@ -2257,26 +3468,43 @@
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "draw_result",
-					"docs": ["The draw result account to be created"],
+					"docs": [
+						"The draw result account to be created"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [100, 114, 97, 119]
+								"value": [
+									100,
+									114,
+									97,
+									119
+								]
 							},
 							{
 								"kind": "account",
@@ -2294,13 +3522,17 @@
 				},
 				{
 					"name": "payer",
-					"docs": ["The payer for the draw result account creation"],
+					"docs": [
+						"The payer for the draw result account creation"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -2322,7 +3554,16 @@
 				"* `ctx` - FinalizeDraw accounts context",
 				"* `params` - Winner counts by tier"
 			],
-			"discriminator": [112, 9, 234, 94, 99, 176, 12, 181],
+			"discriminator": [
+				112,
+				9,
+				234,
+				94,
+				99,
+				176,
+				12,
+				181
+			],
 			"accounts": [
 				{
 					"name": "finalizer",
@@ -2334,26 +3575,43 @@
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "draw_result",
-					"docs": ["The draw result account to be finalized"],
+					"docs": [
+						"The draw result account to be finalized"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [100, 114, 97, 119]
+								"value": [
+									100,
+									114,
+									97,
+									119
+								]
 							},
 							{
 								"kind": "account",
@@ -2387,37 +3645,72 @@
 				"# Arguments",
 				"* `ctx` - FinalizeSyndicateWars accounts context"
 			],
-			"discriminator": [250, 10, 78, 185, 112, 146, 235, 248],
+			"discriminator": [
+				250,
+				10,
+				78,
+				185,
+				112,
+				146,
+				235,
+				248
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["Lottery authority"],
+					"docs": [
+						"Lottery authority"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["Lottery state"],
-					"writable": true,
-					"pda": {
-						"seeds": [
-							{
-								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
-							}
-						]
-					}
-				},
-				{
-					"name": "syndicate_wars_state",
-					"docs": ["Syndicate Wars state"],
+					"docs": [
+						"Lottery state"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
+							}
+						]
+					}
+				},
+				{
+					"name": "syndicate_wars_state",
+					"docs": [
+						"Syndicate Wars state"
+					],
+					"writable": true,
+					"pda": {
+						"seeds": [
+							{
+								"kind": "const",
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
@@ -2448,23 +3741,44 @@
 				"* `ctx` - ForceFinalizeDraw accounts context",
 				"* `reason` - Reason for the force finalization (logged)"
 			],
-			"discriminator": [89, 52, 27, 118, 119, 77, 54, 135],
+			"discriminator": [
+				89,
+				52,
+				27,
+				118,
+				119,
+				77,
+				54,
+				135
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The authority force finalizing"],
+					"docs": [
+						"The authority force finalizing"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -2485,7 +3799,12 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [100, 114, 97, 119]
+								"value": [
+									100,
+									114,
+									97,
+									119
+								]
 							},
 							{
 								"kind": "account",
@@ -2516,7 +3835,16 @@
 				"# Arguments",
 				"* `ctx` - FundSeed accounts context"
 			],
-			"discriminator": [247, 115, 151, 8, 228, 30, 235, 125],
+			"discriminator": [
+				247,
+				115,
+				151,
+				8,
+				228,
+				30,
+				235,
+				125
+			],
 			"accounts": [
 				{
 					"name": "authority",
@@ -2528,33 +3856,60 @@
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
-					"writable": true,
-					"pda": {
-						"seeds": [
-							{
-								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
-							}
-						]
-					}
-				},
-				{
-					"name": "authority_usdc",
-					"docs": ["Authority's USDC token account (source of seed funds)"],
-					"writable": true
-				},
-				{
-					"name": "prize_pool_usdc",
-					"docs": ["Prize pool USDC token account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
+							}
+						]
+					}
+				},
+				{
+					"name": "authority_usdc",
+					"docs": [
+						"Authority's USDC token account (source of seed funds)"
+					],
+					"writable": true
+				},
+				{
+					"name": "prize_pool_usdc",
+					"docs": [
+						"Prize pool USDC token account"
+					],
+					"writable": true,
+					"pda": {
+						"seeds": [
+							{
+								"kind": "const",
+								"value": [
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -2562,11 +3917,15 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint"]
+					"docs": [
+						"USDC mint"
+					]
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -2584,7 +3943,16 @@
 				"# Arguments",
 				"* `ctx` - InitUserStats accounts context"
 			],
-			"discriminator": [177, 113, 20, 232, 181, 87, 120, 62],
+			"discriminator": [
+				177,
+				113,
+				20,
+				232,
+				181,
+				87,
+				120,
+				62
+			],
 			"accounts": [
 				{
 					"name": "user",
@@ -2596,13 +3964,20 @@
 				},
 				{
 					"name": "user_stats",
-					"docs": ["User statistics account to initialize"],
+					"docs": [
+						"User statistics account to initialize"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [117, 115, 101, 114]
+								"value": [
+									117,
+									115,
+									101,
+									114
+								]
 							},
 							{
 								"kind": "account",
@@ -2613,7 +3988,9 @@
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -2634,7 +4011,16 @@
 				"* `ctx` - Initialize accounts context",
 				"* `params` - Initial configuration parameters"
 			],
-			"discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
+			"discriminator": [
+				175,
+				175,
+				109,
+				31,
+				13,
+				152,
+				155,
+				237
+			],
 			"accounts": [
 				{
 					"name": "authority",
@@ -2646,32 +4032,59 @@
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account (PDA)"],
-					"writable": true,
-					"pda": {
-						"seeds": [
-							{
-								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
-							}
-						]
-					}
-				},
-				{
-					"name": "usdc_mint",
-					"docs": ["USDC mint account"]
-				},
-				{
-					"name": "prize_pool_usdc",
-					"docs": ["Prize pool USDC token account (PDA-controlled)"],
+					"docs": [
+						"The main lottery state account (PDA)"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
+							}
+						]
+					}
+				},
+				{
+					"name": "usdc_mint",
+					"docs": [
+						"USDC mint account"
+					]
+				},
+				{
+					"name": "prize_pool_usdc",
+					"docs": [
+						"Prize pool USDC token account (PDA-controlled)"
+					],
+					"writable": true,
+					"pda": {
+						"seeds": [
+							{
+								"kind": "const",
+								"value": [
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -2679,14 +4092,28 @@
 				},
 				{
 					"name": "house_fee_usdc",
-					"docs": ["House fee USDC token account (PDA-controlled)"],
+					"docs": [
+						"House fee USDC token account (PDA-controlled)"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									104, 111, 117, 115, 101, 95, 102, 101, 101, 95, 117, 115, 100,
+									104,
+									111,
+									117,
+									115,
+									101,
+									95,
+									102,
+									101,
+									101,
+									95,
+									117,
+									115,
+									100,
 									99
 								]
 							}
@@ -2695,15 +4122,34 @@
 				},
 				{
 					"name": "insurance_pool_usdc",
-					"docs": ["Insurance pool USDC token account (PDA-controlled)"],
+					"docs": [
+						"Insurance pool USDC token account (PDA-controlled)"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									105, 110, 115, 117, 114, 97, 110, 99, 101, 95, 112, 111, 111,
-									108, 95, 117, 115, 100, 99
+									105,
+									110,
+									115,
+									117,
+									114,
+									97,
+									110,
+									99,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -2711,17 +4157,23 @@
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				},
 				{
 					"name": "rent",
-					"docs": ["Rent sysvar"],
+					"docs": [
+						"Rent sysvar"
+					],
 					"address": "SysvarRent111111111111111111111111111111111"
 				}
 			],
@@ -2748,37 +4200,72 @@
 				"* `ctx` - InitializeSyndicateWars accounts context",
 				"* `params` - Competition initialization parameters"
 			],
-			"discriminator": [86, 183, 97, 70, 125, 107, 33, 51],
+			"discriminator": [
+				86,
+				183,
+				97,
+				70,
+				125,
+				107,
+				33,
+				51
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["Lottery authority (admin)"],
+					"docs": [
+						"Lottery authority (admin)"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["Lottery state"],
-					"writable": true,
-					"pda": {
-						"seeds": [
-							{
-								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
-							}
-						]
-					}
-				},
-				{
-					"name": "syndicate_wars_state",
-					"docs": ["Syndicate Wars state account"],
+					"docs": [
+						"Lottery state"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
+							}
+						]
+					}
+				},
+				{
+					"name": "syndicate_wars_state",
+					"docs": [
+						"Syndicate Wars state account"
+					],
+					"writable": true,
+					"pda": {
+						"seeds": [
+							{
+								"kind": "const",
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
@@ -2791,15 +4278,30 @@
 				},
 				{
 					"name": "prize_pool_usdc",
-					"docs": ["Prize pool USDC token account"],
+					"docs": [
+						"Prize pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									112, 114, 105, 122, 101, 95, 112, 111, 111, 108, 95, 117, 115,
-									100, 99
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108,
+									95,
+									117,
+									115,
+									100,
+									99
 								]
 							}
 						]
@@ -2807,20 +4309,45 @@
 				},
 				{
 					"name": "wars_prize_pool_usdc",
-					"docs": ["Syndicate Wars prize pool USDC token account"],
+					"docs": [
+						"Syndicate Wars prize pool USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
 							{
 								"kind": "const",
-								"value": [112, 114, 105, 122, 101, 95, 112, 111, 111, 108]
+								"value": [
+									112,
+									114,
+									105,
+									122,
+									101,
+									95,
+									112,
+									111,
+									111,
+									108
+								]
 							},
 							{
 								"kind": "arg",
@@ -2831,16 +4358,22 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint"]
+					"docs": [
+						"USDC mint"
+					]
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -2867,11 +4400,22 @@
 				"* `ctx` - JoinSyndicate accounts context",
 				"* `params` - Contribution amount"
 			],
-			"discriminator": [248, 190, 175, 47, 68, 21, 133, 218],
+			"discriminator": [
+				248,
+				190,
+				175,
+				47,
+				68,
+				21,
+				133,
+				218
+			],
 			"accounts": [
 				{
 					"name": "member",
-					"docs": ["The member joining the syndicate"],
+					"docs": [
+						"The member joining the syndicate"
+					],
 					"writable": true,
 					"signer": true
 				},
@@ -2886,7 +4430,9 @@
 				},
 				{
 					"name": "member_usdc",
-					"docs": ["Member's USDC token account (source of contribution)"],
+					"docs": [
+						"Member's USDC token account (source of contribution)"
+					],
 					"writable": true
 				},
 				{
@@ -2899,11 +4445,26 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "const",
-								"value": [117, 115, 100, 99]
+								"value": [
+									117,
+									115,
+									100,
+									99
+								]
 							},
 							{
 								"kind": "account",
@@ -2914,13 +4475,20 @@
 				},
 				{
 					"name": "user_stats",
-					"docs": ["User stats account (for eligibility checks)"],
+					"docs": [
+						"User stats account (for eligibility checks)"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [117, 115, 101, 114]
+								"value": [
+									117,
+									115,
+									101,
+									114
+								]
 							},
 							{
 								"kind": "account",
@@ -2931,12 +4499,16 @@
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -2962,11 +4534,22 @@
 				"# Arguments",
 				"* `ctx` - LeaveSyndicate accounts context"
 			],
-			"discriminator": [64, 254, 136, 148, 80, 179, 177, 244],
+			"discriminator": [
+				64,
+				254,
+				136,
+				148,
+				80,
+				179,
+				177,
+				244
+			],
 			"accounts": [
 				{
 					"name": "member",
-					"docs": ["The member leaving the syndicate"],
+					"docs": [
+						"The member leaving the syndicate"
+					],
 					"writable": true,
 					"signer": true
 				},
@@ -2981,22 +4564,41 @@
 				},
 				{
 					"name": "member_usdc",
-					"docs": ["Member's USDC token account (to receive refund)"],
+					"docs": [
+						"Member's USDC token account (to receive refund)"
+					],
 					"writable": true
 				},
 				{
 					"name": "syndicate_usdc",
-					"docs": ["Syndicate's USDC token account (source of refund)"],
+					"docs": [
+						"Syndicate's USDC token account (source of refund)"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "const",
-								"value": [117, 115, 100, 99]
+								"value": [
+									117,
+									115,
+									100,
+									99
+								]
 							},
 							{
 								"kind": "account",
@@ -3007,12 +4609,16 @@
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -3030,23 +4636,44 @@
 				"* `ctx` - Pause accounts context",
 				"* `reason` - Reason for pausing (logged)"
 			],
-			"discriminator": [211, 22, 221, 251, 74, 121, 193, 47],
+			"discriminator": [
+				211,
+				22,
+				221,
+				251,
+				74,
+				121,
+				193,
+				47
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The authority pausing the lottery"],
+					"docs": [
+						"The authority pausing the lottery"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -3072,23 +4699,44 @@
 				"* `ctx` - ProposeAuthority accounts context",
 				"* `new_authority` - The proposed new authority address"
 			],
-			"discriminator": [20, 148, 236, 198, 76, 119, 99, 142],
+			"discriminator": [
+				20,
+				148,
+				236,
+				198,
+				76,
+				119,
+				99,
+				142
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The current authority"],
+					"docs": [
+						"The current authority"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -3114,23 +4762,44 @@
 				"* `ctx` - UpdateConfig accounts context",
 				"* `params` - Proposed configuration parameters"
 			],
-			"discriminator": [163, 247, 238, 160, 236, 129, 153, 160],
+			"discriminator": [
+				163,
+				247,
+				238,
+				160,
+				236,
+				129,
+				153,
+				160
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The authority updating the configuration"],
+					"docs": [
+						"The authority updating the configuration"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -3164,23 +4833,44 @@
 				"* `ctx` - ReclaimExpiredPrizes accounts context",
 				"* `params` - Draw ID and amount to reclaim"
 			],
-			"discriminator": [157, 254, 213, 248, 211, 126, 74, 166],
+			"discriminator": [
+				157,
+				254,
+				213,
+				248,
+				211,
+				126,
+				74,
+				166
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["Lottery authority"],
+					"docs": [
+						"Lottery authority"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["Lottery state"],
+					"docs": [
+						"Lottery state"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -3199,7 +4889,12 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [100, 114, 97, 119]
+								"value": [
+									100,
+									114,
+									97,
+									119
+								]
 							},
 							{
 								"kind": "arg",
@@ -3231,11 +4926,22 @@
 				"# Arguments",
 				"* `ctx` - RegisterForSyndicateWars accounts context"
 			],
-			"discriminator": [245, 34, 159, 215, 102, 238, 176, 175],
+			"discriminator": [
+				245,
+				34,
+				159,
+				215,
+				102,
+				238,
+				176,
+				175
+			],
 			"accounts": [
 				{
 					"name": "manager",
-					"docs": ["Syndicate creator/manager"],
+					"docs": [
+						"Syndicate creator/manager"
+					],
 					"writable": true,
 					"signer": true
 				},
@@ -3251,7 +4957,17 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "account",
@@ -3268,14 +4984,28 @@
 				},
 				{
 					"name": "syndicate_wars_state",
-					"docs": ["Syndicate Wars state"],
+					"docs": [
+						"Syndicate Wars state"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
@@ -3289,20 +5019,40 @@
 				},
 				{
 					"name": "wars_entry",
-					"docs": ["Syndicate Wars entry for this syndicate"],
+					"docs": [
+						"Syndicate Wars entry for this syndicate"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
 							{
 								"kind": "const",
-								"value": [101, 110, 116, 114, 121]
+								"value": [
+									101,
+									110,
+									116,
+									114,
+									121
+								]
 							},
 							{
 								"kind": "account",
@@ -3318,7 +5068,9 @@
 				},
 				{
 					"name": "system_program",
-					"docs": ["System program"],
+					"docs": [
+						"System program"
+					],
 					"address": "11111111111111111111111111111111"
 				}
 			],
@@ -3336,11 +5088,22 @@
 				"* `ctx` - RemoveSyndicateMember accounts context",
 				"* `params` - Member removal parameters"
 			],
-			"discriminator": [14, 139, 141, 68, 67, 76, 244, 167],
+			"discriminator": [
+				14,
+				139,
+				141,
+				68,
+				67,
+				76,
+				244,
+				167
+			],
 			"accounts": [
 				{
 					"name": "manager",
-					"docs": ["The syndicate creator/manager"],
+					"docs": [
+						"The syndicate creator/manager"
+					],
 					"writable": true,
 					"signer": true
 				},
@@ -3358,7 +5121,17 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "account",
@@ -3375,7 +5148,9 @@
 				},
 				{
 					"name": "member_usdc",
-					"docs": ["Member's USDC token account (receives refund)"],
+					"docs": [
+						"Member's USDC token account (receives refund)"
+					],
 					"writable": true
 				},
 				{
@@ -3391,11 +5166,26 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "const",
-								"value": [117, 115, 100, 99]
+								"value": [
+									117,
+									115,
+									100,
+									99
+								]
 							},
 							{
 								"kind": "account",
@@ -3406,11 +5196,15 @@
 				},
 				{
 					"name": "usdc_mint",
-					"docs": ["USDC mint"]
+					"docs": [
+						"USDC mint"
+					]
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -3438,11 +5232,22 @@
 				"* `ctx` - TransferSyndicateCreator accounts context",
 				"* `params` - Transfer parameters including new creator's wallet"
 			],
-			"discriminator": [76, 8, 187, 178, 118, 147, 141, 60],
+			"discriminator": [
+				76,
+				8,
+				187,
+				178,
+				118,
+				147,
+				141,
+				60
+			],
 			"accounts": [
 				{
 					"name": "creator",
-					"docs": ["The current creator transferring the role"],
+					"docs": [
+						"The current creator transferring the role"
+					],
 					"writable": true,
 					"signer": true
 				},
@@ -3457,7 +5262,17 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "account",
@@ -3496,23 +5311,44 @@
 				"# Arguments",
 				"* `ctx` - Unpause accounts context"
 			],
-			"discriminator": [169, 144, 4, 38, 10, 141, 188, 255],
+			"discriminator": [
+				169,
+				144,
+				4,
+				38,
+				10,
+				141,
+				188,
+				255
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The authority unpausing the lottery"],
+					"docs": [
+						"The authority unpausing the lottery"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -3526,30 +5362,51 @@
 				"Update lottery configuration (legacy immediate mode)",
 				"",
 				"Updates various configuration parameters immediately.",
-				"For production use, prefer propose_config → execute_config flow.",
+				"For production use, prefer propose_config \u2192 execute_config flow.",
 				"Will refuse to run if a timelock proposal is active.",
 				"",
 				"# Arguments",
 				"* `ctx` - UpdateConfig accounts context",
 				"* `params` - New configuration parameters"
 			],
-			"discriminator": [29, 158, 252, 191, 10, 83, 219, 99],
+			"discriminator": [
+				29,
+				158,
+				252,
+				191,
+				10,
+				83,
+				219,
+				99
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The authority updating the configuration"],
+					"docs": [
+						"The authority updating the configuration"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
@@ -3580,11 +5437,22 @@
 				"* `ctx` - UpdateSyndicateConfig accounts context",
 				"* `params` - Configuration update parameters"
 			],
-			"discriminator": [36, 238, 14, 6, 229, 43, 49, 142],
+			"discriminator": [
+				36,
+				238,
+				14,
+				6,
+				229,
+				43,
+				49,
+				142
+			],
 			"accounts": [
 				{
 					"name": "manager",
-					"docs": ["The syndicate creator/manager"],
+					"docs": [
+						"The syndicate creator/manager"
+					],
 					"writable": true,
 					"signer": true
 				},
@@ -3600,7 +5468,17 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "account",
@@ -3640,35 +5518,70 @@
 				"* `ctx` - UpdateSyndicateWarsStats accounts context",
 				"* `params` - Statistics update parameters"
 			],
-			"discriminator": [222, 68, 65, 145, 157, 70, 100, 244],
+			"discriminator": [
+				222,
+				68,
+				65,
+				145,
+				157,
+				70,
+				100,
+				244
+			],
 			"accounts": [
 				{
 					"name": "updater",
-					"docs": ["Lottery authority (or automated oracle)"],
+					"docs": [
+						"Lottery authority (or automated oracle)"
+					],
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["Lottery state"],
+					"docs": [
+						"Lottery state"
+					],
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
+								"value": [
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
 							}
 						]
 					}
 				},
 				{
 					"name": "syndicate_wars_state",
-					"docs": ["Syndicate Wars state"],
+					"docs": [
+						"Syndicate Wars state"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
@@ -3682,20 +5595,40 @@
 				},
 				{
 					"name": "wars_entry",
-					"docs": ["Syndicate Wars entry"],
+					"docs": [
+						"Syndicate Wars entry"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									115, 121, 110, 100, 105, 99, 97, 116, 101, 95, 119, 97, 114,
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101,
+									95,
+									119,
+									97,
+									114,
 									115
 								]
 							},
 							{
 								"kind": "const",
-								"value": [101, 110, 116, 114, 121]
+								"value": [
+									101,
+									110,
+									116,
+									114,
+									121
+								]
 							},
 							{
 								"kind": "account",
@@ -3719,7 +5652,17 @@
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "account",
@@ -3759,37 +5702,69 @@
 				"* `ctx` - WithdrawCreatorContribution accounts context",
 				"* `amount` - Amount to withdraw (must be <= creator's contribution)"
 			],
-			"discriminator": [227, 156, 163, 13, 40, 219, 141, 37],
+			"discriminator": [
+				227,
+				156,
+				163,
+				13,
+				40,
+				219,
+				141,
+				37
+			],
 			"accounts": [
 				{
 					"name": "creator",
-					"docs": ["The creator withdrawing their contribution"],
+					"docs": [
+						"The creator withdrawing their contribution"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "syndicate",
-					"docs": ["The syndicate"],
+					"docs": [
+						"The syndicate"
+					],
 					"writable": true
 				},
 				{
 					"name": "creator_usdc",
-					"docs": ["Creator's USDC token account (to receive withdrawal)"],
+					"docs": [
+						"Creator's USDC token account (to receive withdrawal)"
+					],
 					"writable": true
 				},
 				{
 					"name": "syndicate_usdc",
-					"docs": ["Syndicate's USDC token account"],
+					"docs": [
+						"Syndicate's USDC token account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
-								"value": [115, 121, 110, 100, 105, 99, 97, 116, 101]
+								"value": [
+									115,
+									121,
+									110,
+									100,
+									105,
+									99,
+									97,
+									116,
+									101
+								]
 							},
 							{
 								"kind": "const",
-								"value": [117, 115, 100, 99]
+								"value": [
+									117,
+									115,
+									100,
+									99
+								]
 							},
 							{
 								"kind": "account",
@@ -3800,7 +5775,9 @@
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -3823,37 +5800,72 @@
 				"* `ctx` - WithdrawHouseFees accounts context",
 				"* `amount` - Amount to withdraw in USDC lamports"
 			],
-			"discriminator": [100, 154, 60, 5, 149, 63, 203, 28],
+			"discriminator": [
+				100,
+				154,
+				60,
+				5,
+				149,
+				63,
+				203,
+				28
+			],
 			"accounts": [
 				{
 					"name": "authority",
-					"docs": ["The authority withdrawing fees"],
+					"docs": [
+						"The authority withdrawing fees"
+					],
 					"writable": true,
 					"signer": true
 				},
 				{
 					"name": "lottery_state",
-					"docs": ["The main lottery state account"],
-					"writable": true,
-					"pda": {
-						"seeds": [
-							{
-								"kind": "const",
-								"value": [108, 111, 116, 116, 101, 114, 121]
-							}
-						]
-					}
-				},
-				{
-					"name": "house_fee_usdc",
-					"docs": ["House fee USDC token account"],
+					"docs": [
+						"The main lottery state account"
+					],
 					"writable": true,
 					"pda": {
 						"seeds": [
 							{
 								"kind": "const",
 								"value": [
-									104, 111, 117, 115, 101, 95, 102, 101, 101, 95, 117, 115, 100,
+									108,
+									111,
+									116,
+									116,
+									101,
+									114,
+									121
+								]
+							}
+						]
+					}
+				},
+				{
+					"name": "house_fee_usdc",
+					"docs": [
+						"House fee USDC token account"
+					],
+					"writable": true,
+					"pda": {
+						"seeds": [
+							{
+								"kind": "const",
+								"value": [
+									104,
+									111,
+									117,
+									115,
+									101,
+									95,
+									102,
+									101,
+									101,
+									95,
+									117,
+									115,
+									100,
 									99
 								]
 							}
@@ -3871,7 +5883,9 @@
 				},
 				{
 					"name": "token_program",
-					"docs": ["Token program"],
+					"docs": [
+						"Token program"
+					],
 					"address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 				}
 			],
@@ -3886,185 +5900,590 @@
 	"accounts": [
 		{
 			"name": "DrawResult",
-			"discriminator": [57, 182, 189, 16, 99, 232, 59, 243]
+			"discriminator": [
+				57,
+				182,
+				189,
+				16,
+				99,
+				232,
+				59,
+				243
+			]
 		},
 		{
 			"name": "LotteryState",
-			"discriminator": [196, 210, 202, 219, 204, 63, 133, 85]
+			"discriminator": [
+				196,
+				210,
+				202,
+				219,
+				204,
+				63,
+				133,
+				85
+			]
 		},
 		{
 			"name": "Syndicate",
-			"discriminator": [176, 41, 35, 51, 97, 147, 73, 182]
+			"discriminator": [
+				176,
+				41,
+				35,
+				51,
+				97,
+				147,
+				73,
+				182
+			]
 		},
 		{
 			"name": "SyndicateWarsEntry",
-			"discriminator": [140, 161, 69, 234, 16, 222, 145, 248]
+			"discriminator": [
+				140,
+				161,
+				69,
+				234,
+				16,
+				222,
+				145,
+				248
+			]
 		},
 		{
 			"name": "SyndicateWarsState",
-			"discriminator": [67, 174, 91, 203, 14, 7, 81, 164]
+			"discriminator": [
+				67,
+				174,
+				91,
+				203,
+				14,
+				7,
+				81,
+				164
+			]
 		},
 		{
 			"name": "TicketData",
-			"discriminator": [5, 228, 237, 233, 107, 225, 210, 119]
+			"discriminator": [
+				5,
+				228,
+				237,
+				233,
+				107,
+				225,
+				210,
+				119
+			]
 		},
 		{
 			"name": "UnifiedTicket",
-			"discriminator": [88, 51, 35, 181, 162, 75, 128, 41]
+			"discriminator": [
+				88,
+				51,
+				35,
+				181,
+				162,
+				75,
+				128,
+				41
+			]
 		},
 		{
 			"name": "UserStats",
-			"discriminator": [176, 223, 136, 27, 122, 79, 32, 227]
+			"discriminator": [
+				176,
+				223,
+				136,
+				27,
+				122,
+				79,
+				32,
+				227
+			]
 		}
 	],
 	"events": [
 		{
 			"name": "BulkTicketsPurchased",
-			"discriminator": [83, 240, 25, 133, 60, 120, 175, 210]
+			"discriminator": [
+				83,
+				240,
+				25,
+				133,
+				60,
+				120,
+				175,
+				210
+			]
 		},
 		{
 			"name": "ConfigUpdated",
-			"discriminator": [40, 241, 230, 122, 11, 19, 198, 194]
+			"discriminator": [
+				40,
+				241,
+				230,
+				122,
+				11,
+				19,
+				198,
+				194
+			]
 		},
 		{
 			"name": "DrawCancelled",
-			"discriminator": [102, 73, 15, 251, 79, 207, 0, 104]
+			"discriminator": [
+				102,
+				73,
+				15,
+				251,
+				79,
+				207,
+				0,
+				104
+			]
 		},
 		{
 			"name": "DrawExecuted",
-			"discriminator": [96, 224, 0, 159, 147, 51, 194, 100]
+			"discriminator": [
+				96,
+				224,
+				0,
+				159,
+				147,
+				51,
+				194,
+				100
+			]
 		},
 		{
 			"name": "DrawFinalized",
-			"discriminator": [138, 216, 3, 43, 232, 34, 183, 103]
+			"discriminator": [
+				138,
+				216,
+				3,
+				43,
+				232,
+				34,
+				183,
+				103
+			]
 		},
 		{
 			"name": "DrawForceFinalized",
-			"discriminator": [158, 222, 250, 207, 114, 119, 77, 173]
+			"discriminator": [
+				158,
+				222,
+				250,
+				207,
+				114,
+				119,
+				77,
+				173
+			]
 		},
 		{
 			"name": "DrawInitialized",
-			"discriminator": [241, 53, 0, 158, 41, 242, 91, 31]
+			"discriminator": [
+				241,
+				53,
+				0,
+				158,
+				41,
+				242,
+				91,
+				31
+			]
 		},
 		{
 			"name": "DynamicFeeTierChanged",
-			"discriminator": [55, 165, 148, 44, 34, 91, 118, 122]
+			"discriminator": [
+				55,
+				165,
+				148,
+				44,
+				34,
+				91,
+				118,
+				122
+			]
 		},
 		{
 			"name": "EmergencyFundTransferred",
-			"discriminator": [41, 192, 116, 227, 24, 166, 68, 170]
+			"discriminator": [
+				41,
+				192,
+				116,
+				227,
+				24,
+				166,
+				68,
+				170
+			]
 		},
 		{
 			"name": "EmergencyPause",
-			"discriminator": [105, 91, 187, 159, 198, 176, 189, 87]
+			"discriminator": [
+				105,
+				91,
+				187,
+				159,
+				198,
+				176,
+				189,
+				87
+			]
 		},
 		{
 			"name": "EmergencyUnpause",
-			"discriminator": [7, 102, 82, 245, 98, 75, 161, 141]
+			"discriminator": [
+				7,
+				102,
+				82,
+				245,
+				98,
+				75,
+				161,
+				141
+			]
 		},
 		{
 			"name": "ExpiredPrizesReclaimed",
-			"discriminator": [199, 182, 18, 166, 146, 132, 168, 230]
+			"discriminator": [
+				199,
+				182,
+				18,
+				166,
+				146,
+				132,
+				168,
+				230
+			]
 		},
 		{
 			"name": "HardCapReached",
-			"discriminator": [130, 230, 83, 152, 186, 0, 27, 229]
+			"discriminator": [
+				130,
+				230,
+				83,
+				152,
+				186,
+				0,
+				27,
+				229
+			]
 		},
 		{
 			"name": "HouseFeesWithdrawn",
-			"discriminator": [139, 38, 207, 90, 42, 92, 154, 40]
+			"discriminator": [
+				139,
+				38,
+				207,
+				90,
+				42,
+				92,
+				154,
+				40
+			]
 		},
 		{
 			"name": "InsurancePoolFunded",
-			"discriminator": [176, 142, 98, 134, 64, 156, 125, 30]
+			"discriminator": [
+				176,
+				142,
+				98,
+				134,
+				64,
+				156,
+				125,
+				30
+			]
 		},
 		{
 			"name": "InsurancePoolUsed",
-			"discriminator": [42, 55, 87, 126, 243, 17, 215, 29]
+			"discriminator": [
+				42,
+				55,
+				87,
+				126,
+				243,
+				17,
+				215,
+				29
+			]
 		},
 		{
 			"name": "JackpotSeeded",
-			"discriminator": [54, 141, 206, 22, 50, 19, 239, 46]
+			"discriminator": [
+				54,
+				141,
+				206,
+				22,
+				50,
+				19,
+				239,
+				46
+			]
 		},
 		{
 			"name": "JackpotWon",
-			"discriminator": [37, 157, 14, 36, 53, 182, 158, 175]
+			"discriminator": [
+				37,
+				157,
+				14,
+				36,
+				53,
+				182,
+				158,
+				175
+			]
 		},
 		{
 			"name": "LotteryInitialized",
-			"discriminator": [198, 188, 153, 94, 232, 47, 124, 219]
+			"discriminator": [
+				198,
+				188,
+				153,
+				94,
+				232,
+				47,
+				124,
+				219
+			]
 		},
 		{
 			"name": "NewStreakRecord",
-			"discriminator": [158, 132, 198, 212, 78, 201, 98, 27]
+			"discriminator": [
+				158,
+				132,
+				198,
+				212,
+				78,
+				201,
+				98,
+				27
+			]
 		},
 		{
 			"name": "PrizeClaimed",
-			"discriminator": [213, 150, 192, 76, 199, 33, 212, 38]
+			"discriminator": [
+				213,
+				150,
+				192,
+				76,
+				199,
+				33,
+				212,
+				38
+			]
 		},
 		{
 			"name": "QuickPickDrawExecuted",
-			"discriminator": [161, 3, 115, 177, 3, 247, 209, 48]
+			"discriminator": [
+				161,
+				3,
+				115,
+				177,
+				3,
+				247,
+				209,
+				48
+			]
 		},
 		{
 			"name": "QuickPickPrizeClaimed",
-			"discriminator": [82, 101, 116, 145, 124, 31, 4, 138]
+			"discriminator": [
+				82,
+				101,
+				116,
+				145,
+				124,
+				31,
+				4,
+				138
+			]
 		},
 		{
 			"name": "QuickPickTicketPurchased",
-			"discriminator": [106, 192, 125, 195, 212, 239, 229, 126]
+			"discriminator": [
+				106,
+				192,
+				125,
+				195,
+				212,
+				239,
+				229,
+				126
+			]
 		},
 		{
 			"name": "RandomnessCommitted",
-			"discriminator": [125, 150, 46, 71, 102, 251, 253, 108]
+			"discriminator": [
+				125,
+				150,
+				46,
+				71,
+				102,
+				251,
+				253,
+				108
+			]
 		},
 		{
 			"name": "RolldownExecuted",
-			"discriminator": [198, 59, 51, 230, 229, 210, 15, 225]
+			"discriminator": [
+				198,
+				59,
+				51,
+				230,
+				229,
+				210,
+				15,
+				225
+			]
 		},
 		{
 			"name": "SoftCapReached",
-			"discriminator": [99, 250, 49, 166, 3, 251, 213, 19]
+			"discriminator": [
+				99,
+				250,
+				49,
+				166,
+				3,
+				251,
+				213,
+				19
+			]
 		},
 		{
 			"name": "SoloAuthorityWarning",
-			"discriminator": [189, 25, 10, 249, 61, 75, 228, 61]
+			"discriminator": [
+				189,
+				25,
+				10,
+				249,
+				61,
+				75,
+				228,
+				61
+			]
 		},
 		{
 			"name": "SolvencyCheckPerformed",
-			"discriminator": [109, 67, 160, 100, 19, 19, 121, 133]
+			"discriminator": [
+				109,
+				67,
+				160,
+				100,
+				19,
+				19,
+				121,
+				133
+			]
 		},
 		{
 			"name": "SyndicateCreated",
-			"discriminator": [221, 135, 74, 181, 16, 84, 157, 40]
+			"discriminator": [
+				221,
+				135,
+				74,
+				181,
+				16,
+				84,
+				157,
+				40
+			]
 		},
 		{
 			"name": "SyndicateMemberJoined",
-			"discriminator": [113, 163, 135, 3, 140, 6, 249, 24]
+			"discriminator": [
+				113,
+				163,
+				135,
+				3,
+				140,
+				6,
+				249,
+				24
+			]
 		},
 		{
 			"name": "SyndicatePrizeDistributed",
-			"discriminator": [17, 204, 41, 58, 90, 254, 183, 158]
+			"discriminator": [
+				17,
+				204,
+				41,
+				58,
+				90,
+				254,
+				183,
+				158
+			]
 		},
 		{
 			"name": "SyndicateWarsConcluded",
-			"discriminator": [166, 59, 16, 213, 96, 170, 178, 230]
+			"discriminator": [
+				166,
+				59,
+				16,
+				213,
+				96,
+				170,
+				178,
+				230
+			]
 		},
 		{
 			"name": "SyndicateWarsFinalized",
-			"discriminator": [27, 152, 4, 224, 198, 241, 204, 245]
+			"discriminator": [
+				27,
+				152,
+				4,
+				224,
+				198,
+				241,
+				204,
+				245
+			]
 		},
 		{
 			"name": "SyndicateWarsStarted",
-			"discriminator": [211, 94, 176, 24, 143, 102, 23, 4]
+			"discriminator": [
+				211,
+				94,
+				176,
+				24,
+				143,
+				102,
+				23,
+				4
+			]
 		},
 		{
 			"name": "TicketPurchased",
-			"discriminator": [108, 59, 246, 95, 84, 145, 13, 71]
+			"discriminator": [
+				108,
+				59,
+				246,
+				95,
+				84,
+				145,
+				13,
+				71
+			]
 		},
 		{
 			"name": "UserStatsUpdated",
-			"discriminator": [196, 36, 42, 2, 173, 74, 110, 5]
+			"discriminator": [
+				196,
+				36,
+				42,
+				2,
+				173,
+				74,
+				110,
+				5
+			]
 		}
 	],
 	"errors": [
@@ -4807,40 +7226,54 @@
 	"types": [
 		{
 			"name": "BulkTicketsPurchased",
-			"docs": ["Emitted when multiple tickets are purchased in bulk"],
+			"docs": [
+				"Emitted when multiple tickets are purchased in bulk"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "player",
-						"docs": ["Player wallet address"],
+						"docs": [
+							"Player wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID the tickets are for"],
+						"docs": [
+							"Draw ID the tickets are for"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "ticket_count",
-						"docs": ["Number of tickets purchased"],
+						"docs": [
+							"Number of tickets purchased"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "total_price",
-						"docs": ["Total price paid"],
+						"docs": [
+							"Total price paid"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "syndicate",
-						"docs": ["Syndicate (if purchased through one)"],
+						"docs": [
+							"Syndicate (if purchased through one)"
+						],
 						"type": {
 							"option": "pubkey"
 						}
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Purchase timestamp"],
+						"docs": [
+							"Purchase timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -4848,7 +7281,9 @@
 		},
 		{
 			"name": "BuyBulkParams",
-			"docs": ["Parameters for buying multiple tickets"],
+			"docs": [
+				"Parameters for buying multiple tickets"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
@@ -4859,7 +7294,10 @@
 						],
 						"type": {
 							"vec": {
-								"array": ["u8", 6]
+								"array": [
+									"u8",
+									6
+								]
 							}
 						}
 					},
@@ -4877,16 +7315,23 @@
 		},
 		{
 			"name": "BuySyndicateTicketsParams",
-			"docs": ["Parameters for buying syndicate tickets"],
+			"docs": [
+				"Parameters for buying syndicate tickets"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "tickets",
-						"docs": ["Array of ticket numbers (each ticket has 6 numbers)"],
+						"docs": [
+							"Array of ticket numbers (each ticket has 6 numbers)"
+						],
 						"type": {
 							"vec": {
-								"array": ["u8", 6]
+								"array": [
+									"u8",
+									6
+								]
 							}
 						}
 					}
@@ -4895,20 +7340,29 @@
 		},
 		{
 			"name": "BuyTicketParams",
-			"docs": ["Parameters for buying a ticket"],
+			"docs": [
+				"Parameters for buying a ticket"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "numbers",
-						"docs": ["6 numbers, each between 1 and 46"],
+						"docs": [
+							"6 numbers, each between 1 and 46"
+						],
 						"type": {
-							"array": ["u8", 6]
+							"array": [
+								"u8",
+								6
+							]
 						}
 					},
 					{
 						"name": "use_free_ticket",
-						"docs": ["Whether to use a free ticket credit (if available)"],
+						"docs": [
+							"Whether to use a free ticket credit (if available)"
+						],
 						"type": "bool"
 					}
 				]
@@ -4916,7 +7370,9 @@
 		},
 		{
 			"name": "ClaimBulkPrizeParams",
-			"docs": ["Parameters for claiming a prize from a unified ticket"],
+			"docs": [
+				"Parameters for claiming a prize from a unified ticket"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
@@ -4932,13 +7388,17 @@
 		},
 		{
 			"name": "ClaimSyndicateMemberPrizeParams",
-			"docs": ["Parameters for claiming a member's share of syndicate prize"],
+			"docs": [
+				"Parameters for claiming a member's share of syndicate prize"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "amount",
-						"docs": ["Amount to claim (must be <= member's share)"],
+						"docs": [
+							"Amount to claim (must be <= member's share)"
+						],
 						"type": "u64"
 					}
 				]
@@ -4946,13 +7406,17 @@
 		},
 		{
 			"name": "ClaimSyndicateWarsPrizeParams",
-			"docs": ["Parameters for claiming syndicate wars prize"],
+			"docs": [
+				"Parameters for claiming syndicate wars prize"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "rank",
-						"docs": ["Rank of the syndicate (1-10)"],
+						"docs": [
+							"Rank of the syndicate (1-10)"
+						],
 						"type": "u32"
 					}
 				]
@@ -4960,33 +7424,45 @@
 		},
 		{
 			"name": "ConfigUpdated",
-			"docs": ["Emitted when configuration is updated"],
+			"docs": [
+				"Emitted when configuration is updated"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "parameter",
-						"docs": ["Parameter name that was updated"],
+						"docs": [
+							"Parameter name that was updated"
+						],
 						"type": "string"
 					},
 					{
 						"name": "old_value",
-						"docs": ["Old value"],
+						"docs": [
+							"Old value"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "new_value",
-						"docs": ["New value"],
+						"docs": [
+							"New value"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "authority",
-						"docs": ["Authority who made the change"],
+						"docs": [
+							"Authority who made the change"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -4994,30 +7470,43 @@
 		},
 		{
 			"name": "CreateSyndicateParams",
-			"docs": ["Parameters for creating a syndicate"],
+			"docs": [
+				"Parameters for creating a syndicate"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "syndicate_id",
-						"docs": ["Unique syndicate identifier (for PDA derivation)"],
+						"docs": [
+							"Unique syndicate identifier (for PDA derivation)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "name",
-						"docs": ["Syndicate name (max 32 bytes UTF-8)"],
+						"docs": [
+							"Syndicate name (max 32 bytes UTF-8)"
+						],
 						"type": {
-							"array": ["u8", 32]
+							"array": [
+								"u8",
+								32
+							]
 						}
 					},
 					{
 						"name": "is_public",
-						"docs": ["Whether anyone can join"],
+						"docs": [
+							"Whether anyone can join"
+						],
 						"type": "bool"
 					},
 					{
 						"name": "manager_fee_bps",
-						"docs": ["Manager fee in basis points (max 500 = 5%)"],
+						"docs": [
+							"Manager fee in basis points (max 500 = 5%)"
+						],
 						"type": "u16"
 					}
 				]
@@ -5025,13 +7514,17 @@
 		},
 		{
 			"name": "DistributeSyndicatePrizeParams",
-			"docs": ["Parameters for distributing a prize to syndicate members"],
+			"docs": [
+				"Parameters for distributing a prize to syndicate members"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID for which the prize is being distributed"],
+						"docs": [
+							"Draw ID for which the prize is being distributed"
+						],
 						"type": "u64"
 					}
 				]
@@ -5039,7 +7532,9 @@
 		},
 		{
 			"name": "DistributeSyndicateWarsPrizesParams",
-			"docs": ["Parameters for distributing Syndicate Wars prizes"],
+			"docs": [
+				"Parameters for distributing Syndicate Wars prizes"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
@@ -5049,7 +7544,10 @@
 							"Array of syndicate public keys in rank order (1st to 10th)"
 						],
 						"type": {
-							"array": ["pubkey", 10]
+							"array": [
+								"pubkey",
+								10
+							]
 						}
 					}
 				]
@@ -5057,13 +7555,17 @@
 		},
 		{
 			"name": "DrawCancelled",
-			"docs": ["Emitted when a draw is cancelled due to timeout"],
+			"docs": [
+				"Emitted when a draw is cancelled due to timeout"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID that was cancelled"],
+						"docs": [
+							"Draw ID that was cancelled"
+						],
 						"type": "u64"
 					},
 					{
@@ -5075,12 +7577,16 @@
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp when cancelled"],
+						"docs": [
+							"Timestamp when cancelled"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "reason",
-						"docs": ["Reason for cancellation"],
+						"docs": [
+							"Reason for cancellation"
+						],
 						"type": "string"
 					}
 				]
@@ -5088,35 +7594,50 @@
 		},
 		{
 			"name": "DrawExecuted",
-			"docs": ["Emitted when a draw is executed (winning numbers revealed)"],
+			"docs": [
+				"Emitted when a draw is executed (winning numbers revealed)"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "winning_numbers",
-						"docs": ["Winning numbers (sorted)"],
+						"docs": [
+							"Winning numbers (sorted)"
+						],
 						"type": {
-							"array": ["u8", 6]
+							"array": [
+								"u8",
+								6
+							]
 						}
 					},
 					{
 						"name": "was_rolldown",
-						"docs": ["Whether this was a rolldown draw"],
+						"docs": [
+							"Whether this was a rolldown draw"
+						],
 						"type": "bool"
 					},
 					{
 						"name": "total_tickets",
-						"docs": ["Total tickets in this draw"],
+						"docs": [
+							"Total tickets in this draw"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Execution timestamp"],
+						"docs": [
+							"Execution timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5124,48 +7645,66 @@
 		},
 		{
 			"name": "DrawFinalized",
-			"docs": ["Emitted when a draw is finalized with winner counts"],
+			"docs": [
+				"Emitted when a draw is finalized with winner counts"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "match_6_winners",
-						"docs": ["Match 6 winners count"],
+						"docs": [
+							"Match 6 winners count"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "match_5_winners",
-						"docs": ["Match 5 winners count"],
+						"docs": [
+							"Match 5 winners count"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "match_4_winners",
-						"docs": ["Match 4 winners count"],
+						"docs": [
+							"Match 4 winners count"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "match_3_winners",
-						"docs": ["Match 3 winners count"],
+						"docs": [
+							"Match 3 winners count"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "match_2_winners",
-						"docs": ["Match 2 winners count"],
+						"docs": [
+							"Match 2 winners count"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "total_distributed",
-						"docs": ["Total USDC distributed"],
+						"docs": [
+							"Total USDC distributed"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5173,33 +7712,45 @@
 		},
 		{
 			"name": "DrawForceFinalized",
-			"docs": ["Emitted when a draw is force finalized (emergency)"],
+			"docs": [
+				"Emitted when a draw is force finalized (emergency)"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID that was force finalized"],
+						"docs": [
+							"Draw ID that was force finalized"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "tickets_affected",
-						"docs": ["Number of tickets affected (will NOT receive prizes)"],
+						"docs": [
+							"Number of tickets affected (will NOT receive prizes)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "authority",
-						"docs": ["Authority who force finalized"],
+						"docs": [
+							"Authority who force finalized"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "reason",
-						"docs": ["Reason for force finalization"],
+						"docs": [
+							"Reason for force finalization"
+						],
 						"type": "string"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp when force finalized"],
+						"docs": [
+							"Timestamp when force finalized"
+						],
 						"type": "i64"
 					}
 				]
@@ -5207,28 +7758,38 @@
 		},
 		{
 			"name": "DrawInitialized",
-			"docs": ["Emitted when a new draw is initialized"],
+			"docs": [
+				"Emitted when a new draw is initialized"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "scheduled_time",
-						"docs": ["Scheduled draw time"],
+						"docs": [
+							"Scheduled draw time"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "jackpot_balance",
-						"docs": ["Current jackpot balance"],
+						"docs": [
+							"Current jackpot balance"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "is_rolldown_pending",
-						"docs": ["Whether rolldown is pending"],
+						"docs": [
+							"Whether rolldown is pending"
+						],
 						"type": "bool"
 					}
 				]
@@ -5236,47 +7797,69 @@
 		},
 		{
 			"name": "DrawResult",
-			"docs": ["Draw result account - stores results of a completed draw"],
+			"docs": [
+				"Draw result account - stores results of a completed draw"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw identifier"],
+						"docs": [
+							"Draw identifier"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "winning_numbers",
-						"docs": ["Winning numbers (sorted ascending)"],
+						"docs": [
+							"Winning numbers (sorted ascending)"
+						],
 						"type": {
-							"array": ["u8", 6]
+							"array": [
+								"u8",
+								6
+							]
 						}
 					},
 					{
 						"name": "randomness_proof",
-						"docs": ["Switchboard randomness proof for verification"],
+						"docs": [
+							"Switchboard randomness proof for verification"
+						],
 						"type": {
-							"array": ["u8", 32]
+							"array": [
+								"u8",
+								32
+							]
 						}
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Draw execution timestamp"],
+						"docs": [
+							"Draw execution timestamp"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "total_tickets",
-						"docs": ["Total tickets sold for this draw"],
+						"docs": [
+							"Total tickets sold for this draw"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "was_rolldown",
-						"docs": ["Whether this was a rolldown draw"],
+						"docs": [
+							"Whether this was a rolldown draw"
+						],
 						"type": "bool"
 					},
 					{
 						"name": "match_6_winners",
-						"docs": ["Winner counts by tier"],
+						"docs": [
+							"Winner counts by tier"
+						],
 						"type": "u32"
 					},
 					{
@@ -5345,7 +7928,9 @@
 					},
 					{
 						"name": "bump",
-						"docs": ["PDA bump seed"],
+						"docs": [
+							"PDA bump seed"
+						],
 						"type": "u8"
 					}
 				]
@@ -5353,38 +7938,52 @@
 		},
 		{
 			"name": "DynamicFeeTierChanged",
-			"docs": ["Emitted when dynamic house fee tier changes"],
+			"docs": [
+				"Emitted when dynamic house fee tier changes"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID when change occurred"],
+						"docs": [
+							"Draw ID when change occurred"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "old_fee_bps",
-						"docs": ["Previous fee in basis points"],
+						"docs": [
+							"Previous fee in basis points"
+						],
 						"type": "u16"
 					},
 					{
 						"name": "new_fee_bps",
-						"docs": ["New fee in basis points"],
+						"docs": [
+							"New fee in basis points"
+						],
 						"type": "u16"
 					},
 					{
 						"name": "jackpot_balance",
-						"docs": ["Current jackpot balance that triggered the change"],
+						"docs": [
+							"Current jackpot balance that triggered the change"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "tier_description",
-						"docs": ["Fee tier description"],
+						"docs": [
+							"Fee tier description"
+						],
 						"type": "string"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5392,43 +7991,59 @@
 		},
 		{
 			"name": "EmergencyFundTransferred",
-			"docs": ["Emitted when emergency fund transfer occurs"],
+			"docs": [
+				"Emitted when emergency fund transfer occurs"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID (if applicable)"],
+						"docs": [
+							"Draw ID (if applicable)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "source",
-						"docs": ["Source of funds (reserve or insurance)"],
+						"docs": [
+							"Source of funds (reserve or insurance)"
+						],
 						"type": "string"
 					},
 					{
 						"name": "amount",
-						"docs": ["Amount transferred"],
+						"docs": [
+							"Amount transferred"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "destination",
-						"docs": ["Destination (usually prize pool)"],
+						"docs": [
+							"Destination (usually prize pool)"
+						],
 						"type": "string"
 					},
 					{
 						"name": "reason",
-						"docs": ["Reason for transfer"],
+						"docs": [
+							"Reason for transfer"
+						],
 						"type": "string"
 					},
 					{
 						"name": "authority",
-						"docs": ["Authority who initiated"],
+						"docs": [
+							"Authority who initiated"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5436,23 +8051,31 @@
 		},
 		{
 			"name": "EmergencyPause",
-			"docs": ["Emitted when the lottery is paused"],
+			"docs": [
+				"Emitted when the lottery is paused"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "authority",
-						"docs": ["Authority who paused"],
+						"docs": [
+							"Authority who paused"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "reason",
-						"docs": ["Reason for pause (optional message)"],
+						"docs": [
+							"Reason for pause (optional message)"
+						],
 						"type": "string"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5460,18 +8083,24 @@
 		},
 		{
 			"name": "EmergencyUnpause",
-			"docs": ["Emitted when the lottery is unpaused"],
+			"docs": [
+				"Emitted when the lottery is unpaused"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "authority",
-						"docs": ["Authority who unpaused"],
+						"docs": [
+							"Authority who unpaused"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5491,32 +8120,44 @@
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID whose unclaimed prizes were reclaimed"],
+						"docs": [
+							"Draw ID whose unclaimed prizes were reclaimed"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "amount_reclaimed",
-						"docs": ["Amount reclaimed back to reserve"],
+						"docs": [
+							"Amount reclaimed back to reserve"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "new_reserve_balance",
-						"docs": ["New reserve balance after reclamation"],
+						"docs": [
+							"New reserve balance after reclamation"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "new_total_prizes_committed",
-						"docs": ["Updated total_prizes_committed after decrement"],
+						"docs": [
+							"Updated total_prizes_committed after decrement"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "authority",
-						"docs": ["Authority who initiated the reclamation"],
+						"docs": [
+							"Authority who initiated the reclamation"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp of reclamation"],
+						"docs": [
+							"Timestamp of reclamation"
+						],
 						"type": "i64"
 					}
 				]
@@ -5524,13 +8165,17 @@
 		},
 		{
 			"name": "FinalizeDrawParams",
-			"docs": ["Parameters for finalizing the draw"],
+			"docs": [
+				"Parameters for finalizing the draw"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "winner_counts",
-						"docs": ["Winner counts by tier (submitted by indexer)"],
+						"docs": [
+							"Winner counts by tier (submitted by indexer)"
+						],
 						"type": {
 							"defined": {
 								"name": "WinnerCounts"
@@ -5545,7 +8190,10 @@
 							"Off-chain indexers must publish the preimage so anyone can verify the hash on-chain."
 						],
 						"type": {
-							"array": ["u8", 32]
+							"array": [
+								"u8",
+								32
+							]
 						}
 					},
 					{
@@ -5560,7 +8208,9 @@
 		},
 		{
 			"name": "FundSource",
-			"docs": ["Source of funds for emergency transfer"],
+			"docs": [
+				"Source of funds for emergency transfer"
+			],
 			"type": {
 				"kind": "enum",
 				"variants": [
@@ -5578,28 +8228,38 @@
 		},
 		{
 			"name": "HardCapReached",
-			"docs": ["Emitted when hard cap is reached and rolldown is forced"],
+			"docs": [
+				"Emitted when hard cap is reached and rolldown is forced"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "jackpot_balance",
-						"docs": ["Current jackpot balance"],
+						"docs": [
+							"Current jackpot balance"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "hard_cap",
-						"docs": ["Hard cap threshold"],
+						"docs": [
+							"Hard cap threshold"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5607,28 +8267,38 @@
 		},
 		{
 			"name": "HouseFeesWithdrawn",
-			"docs": ["Emitted when house fees are withdrawn"],
+			"docs": [
+				"Emitted when house fees are withdrawn"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "amount",
-						"docs": ["Amount withdrawn"],
+						"docs": [
+							"Amount withdrawn"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "destination",
-						"docs": ["Destination wallet"],
+						"docs": [
+							"Destination wallet"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "authority",
-						"docs": ["Authority who withdrew"],
+						"docs": [
+							"Authority who withdrew"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5636,48 +8306,66 @@
 		},
 		{
 			"name": "InitializeParams",
-			"docs": ["Parameters for initializing the lottery"],
+			"docs": [
+				"Parameters for initializing the lottery"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "ticket_price",
-						"docs": ["Ticket price in USDC lamports"],
+						"docs": [
+							"Ticket price in USDC lamports"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "house_fee_bps",
-						"docs": ["Initial house fee in basis points"],
+						"docs": [
+							"Initial house fee in basis points"
+						],
 						"type": "u16"
 					},
 					{
 						"name": "jackpot_cap",
-						"docs": ["Jackpot cap (soft cap for rolldown trigger)"],
+						"docs": [
+							"Jackpot cap (soft cap for rolldown trigger)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "seed_amount",
-						"docs": ["Seed amount for new jackpot cycles"],
+						"docs": [
+							"Seed amount for new jackpot cycles"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "soft_cap",
-						"docs": ["Soft cap for probabilistic rolldown"],
+						"docs": [
+							"Soft cap for probabilistic rolldown"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "hard_cap",
-						"docs": ["Hard cap for forced rolldown"],
+						"docs": [
+							"Hard cap for forced rolldown"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "draw_interval",
-						"docs": ["Draw interval in seconds"],
+						"docs": [
+							"Draw interval in seconds"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "switchboard_queue",
-						"docs": ["Switchboard queue for randomness"],
+						"docs": [
+							"Switchboard queue for randomness"
+						],
 						"type": "pubkey"
 					}
 				]
@@ -5685,28 +8373,38 @@
 		},
 		{
 			"name": "InitializeSyndicateWarsParams",
-			"docs": ["Parameters for initializing Syndicate Wars competition"],
+			"docs": [
+				"Parameters for initializing Syndicate Wars competition"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "month",
-						"docs": ["Competition month (e.g., 202501 for January 2025)"],
+						"docs": [
+							"Competition month (e.g., 202501 for January 2025)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "start_timestamp",
-						"docs": ["Start timestamp (unix)"],
+						"docs": [
+							"Start timestamp (unix)"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "end_timestamp",
-						"docs": ["End timestamp (unix)"],
+						"docs": [
+							"End timestamp (unix)"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "min_tickets",
-						"docs": ["Minimum tickets to qualify"],
+						"docs": [
+							"Minimum tickets to qualify"
+						],
 						"type": "u64"
 					}
 				]
@@ -5714,28 +8412,38 @@
 		},
 		{
 			"name": "InsurancePoolFunded",
-			"docs": ["Emitted when insurance pool is funded"],
+			"docs": [
+				"Emitted when insurance pool is funded"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "amount",
-						"docs": ["Amount added"],
+						"docs": [
+							"Amount added"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "new_balance",
-						"docs": ["New total balance"],
+						"docs": [
+							"New total balance"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "source",
-						"docs": ["Source"],
+						"docs": [
+							"Source"
+						],
 						"type": "string"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5743,38 +8451,52 @@
 		},
 		{
 			"name": "InsurancePoolUsed",
-			"docs": ["Emitted when insurance pool is used for prize pool shortfall"],
+			"docs": [
+				"Emitted when insurance pool is used for prize pool shortfall"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "amount_used",
-						"docs": ["Amount transferred from insurance to prize pool"],
+						"docs": [
+							"Amount transferred from insurance to prize pool"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "balance_before",
-						"docs": ["Insurance pool balance before transfer"],
+						"docs": [
+							"Insurance pool balance before transfer"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "balance_after",
-						"docs": ["Insurance pool balance after transfer"],
+						"docs": [
+							"Insurance pool balance after transfer"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "reason",
-						"docs": ["Reason for using insurance"],
+						"docs": [
+							"Reason for using insurance"
+						],
 						"type": "string"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5782,28 +8504,38 @@
 		},
 		{
 			"name": "JackpotSeeded",
-			"docs": ["Emitted when the jackpot is seeded"],
+			"docs": [
+				"Emitted when the jackpot is seeded"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "seed_amount",
-						"docs": ["Seed amount"],
+						"docs": [
+							"Seed amount"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "source",
-						"docs": ["Source (reserve, insurance, or external)"],
+						"docs": [
+							"Source (reserve, insurance, or external)"
+						],
 						"type": "string"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5811,40 +8543,57 @@
 		},
 		{
 			"name": "JackpotWon",
-			"docs": ["Emitted when the jackpot is won"],
+			"docs": [
+				"Emitted when the jackpot is won"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "ticket",
-						"docs": ["Ticket account public key"],
+						"docs": [
+							"Ticket account public key"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "winner",
-						"docs": ["Winner wallet address"],
+						"docs": [
+							"Winner wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "winning_numbers",
-						"docs": ["Winning numbers"],
+						"docs": [
+							"Winning numbers"
+						],
 						"type": {
-							"array": ["u8", 6]
+							"array": [
+								"u8",
+								6
+							]
 						}
 					},
 					{
 						"name": "jackpot_amount",
-						"docs": ["Jackpot amount won"],
+						"docs": [
+							"Jackpot amount won"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5852,13 +8601,17 @@
 		},
 		{
 			"name": "JoinSyndicateParams",
-			"docs": ["Parameters for joining a syndicate"],
+			"docs": [
+				"Parameters for joining a syndicate"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "contribution",
-						"docs": ["USDC contribution amount"],
+						"docs": [
+							"USDC contribution amount"
+						],
 						"type": "u64"
 					}
 				]
@@ -5866,43 +8619,59 @@
 		},
 		{
 			"name": "LotteryInitialized",
-			"docs": ["Emitted when the lottery is initialized"],
+			"docs": [
+				"Emitted when the lottery is initialized"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "authority",
-						"docs": ["Authority wallet address"],
+						"docs": [
+							"Authority wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "ticket_price",
-						"docs": ["Ticket price"],
+						"docs": [
+							"Ticket price"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "seed_amount",
-						"docs": ["Initial jackpot seed amount"],
+						"docs": [
+							"Initial jackpot seed amount"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "jackpot_cap",
-						"docs": ["Jackpot cap"],
+						"docs": [
+							"Jackpot cap"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "soft_cap",
-						"docs": ["Soft cap"],
+						"docs": [
+							"Soft cap"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "hard_cap",
-						"docs": ["Hard cap"],
+						"docs": [
+							"Hard cap"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -5918,7 +8687,9 @@
 				"fields": [
 					{
 						"name": "authority",
-						"docs": ["Admin authority (multi-sig wallet recommended)"],
+						"docs": [
+							"Admin authority (multi-sig wallet recommended)"
+						],
 						"type": "pubkey"
 					},
 					{
@@ -5932,32 +8703,44 @@
 					},
 					{
 						"name": "switchboard_queue",
-						"docs": ["Switchboard queue for randomness requests"],
+						"docs": [
+							"Switchboard queue for randomness requests"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "current_randomness_account",
-						"docs": ["Current active randomness account"],
+						"docs": [
+							"Current active randomness account"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "current_draw_id",
-						"docs": ["Current draw identifier (increments each draw)"],
+						"docs": [
+							"Current draw identifier (increments each draw)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "jackpot_balance",
-						"docs": ["Current jackpot balance in USDC lamports"],
+						"docs": [
+							"Current jackpot balance in USDC lamports"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "reserve_balance",
-						"docs": ["Reserve fund balance for future draws"],
+						"docs": [
+							"Reserve fund balance for future draws"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "insurance_balance",
-						"docs": ["Insurance fund balance for guaranteed payouts"],
+						"docs": [
+							"Insurance fund balance for guaranteed payouts"
+						],
 						"type": "u64"
 					},
 					{
@@ -5972,12 +8755,16 @@
 					},
 					{
 						"name": "ticket_price",
-						"docs": ["Ticket price in USDC lamports"],
+						"docs": [
+							"Ticket price in USDC lamports"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "house_fee_bps",
-						"docs": ["Current house fee in basis points (10000 = 100%)"],
+						"docs": [
+							"Current house fee in basis points (10000 = 100%)"
+						],
 						"type": "u16"
 					},
 					{
@@ -5991,32 +8778,44 @@
 					},
 					{
 						"name": "seed_amount",
-						"docs": ["Initial seed amount for new jackpot cycles"],
+						"docs": [
+							"Initial seed amount for new jackpot cycles"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "soft_cap",
-						"docs": ["Soft cap threshold for probabilistic rolldown"],
+						"docs": [
+							"Soft cap threshold for probabilistic rolldown"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "hard_cap",
-						"docs": ["Hard cap threshold for forced rolldown"],
+						"docs": [
+							"Hard cap threshold for forced rolldown"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "next_draw_timestamp",
-						"docs": ["Unix timestamp of next scheduled draw"],
+						"docs": [
+							"Unix timestamp of next scheduled draw"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "draw_interval",
-						"docs": ["Draw interval in seconds"],
+						"docs": [
+							"Draw interval in seconds"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "commit_slot",
-						"docs": ["Slot when current randomness was committed"],
+						"docs": [
+							"Slot when current randomness was committed"
+						],
 						"type": "u64"
 					},
 					{
@@ -6028,12 +8827,16 @@
 					},
 					{
 						"name": "current_draw_tickets",
-						"docs": ["Current draw ticket count"],
+						"docs": [
+							"Current draw ticket count"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "total_tickets_sold",
-						"docs": ["Total tickets sold (lifetime)"],
+						"docs": [
+							"Total tickets sold (lifetime)"
+						],
 						"type": "u64"
 					},
 					{
@@ -6072,12 +8875,16 @@
 					},
 					{
 						"name": "is_rolldown_active",
-						"docs": ["Whether rolldown is active for the next draw"],
+						"docs": [
+							"Whether rolldown is active for the next draw"
+						],
 						"type": "bool"
 					},
 					{
 						"name": "is_paused",
-						"docs": ["Whether the lottery is paused"],
+						"docs": [
+							"Whether the lottery is paused"
+						],
 						"type": "bool"
 					},
 					{
@@ -6099,7 +8906,9 @@
 					},
 					{
 						"name": "bump",
-						"docs": ["PDA bump seed"],
+						"docs": [
+							"PDA bump seed"
+						],
 						"type": "u8"
 					},
 					{
@@ -6119,7 +8928,10 @@
 							"Zero hash means no pending config change."
 						],
 						"type": {
-							"array": ["u8", 32]
+							"array": [
+								"u8",
+								32
+							]
 						}
 					},
 					{
@@ -6153,28 +8965,38 @@
 		},
 		{
 			"name": "NewStreakRecord",
-			"docs": ["Emitted when a user achieves a new streak record"],
+			"docs": [
+				"Emitted when a user achieves a new streak record"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "wallet",
-						"docs": ["User wallet address"],
+						"docs": [
+							"User wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "new_streak",
-						"docs": ["New best streak"],
+						"docs": [
+							"New best streak"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "previous_streak",
-						"docs": ["Previous best streak"],
+						"docs": [
+							"Previous best streak"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6182,38 +9004,52 @@
 		},
 		{
 			"name": "PrizeClaimed",
-			"docs": ["Emitted when a prize is claimed"],
+			"docs": [
+				"Emitted when a prize is claimed"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "ticket",
-						"docs": ["Ticket account public key"],
+						"docs": [
+							"Ticket account public key"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "player",
-						"docs": ["Player wallet address"],
+						"docs": [
+							"Player wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "match_count",
-						"docs": ["Number of matches"],
+						"docs": [
+							"Number of matches"
+						],
 						"type": "u8"
 					},
 					{
 						"name": "prize_amount",
-						"docs": ["Prize amount in USDC lamports"],
+						"docs": [
+							"Prize amount in USDC lamports"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "free_ticket_issued",
-						"docs": ["Whether a free ticket was issued (Match 2)"],
+						"docs": [
+							"Whether a free ticket was issued (Match 2)"
+						],
 						"type": "bool"
 					},
 					{
@@ -6225,7 +9061,9 @@
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6233,40 +9071,57 @@
 		},
 		{
 			"name": "QuickPickDrawExecuted",
-			"docs": ["Emitted when a Quick Pick draw is executed"],
+			"docs": [
+				"Emitted when a Quick Pick draw is executed"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "winning_numbers",
-						"docs": ["Winning numbers"],
+						"docs": [
+							"Winning numbers"
+						],
 						"type": {
-							"array": ["u8", 5]
+							"array": [
+								"u8",
+								5
+							]
 						}
 					},
 					{
 						"name": "was_rolldown",
-						"docs": ["Whether this was a rolldown"],
+						"docs": [
+							"Whether this was a rolldown"
+						],
 						"type": "bool"
 					},
 					{
 						"name": "total_tickets",
-						"docs": ["Total tickets"],
+						"docs": [
+							"Total tickets"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "jackpot_distributed",
-						"docs": ["Jackpot distributed (if rolldown)"],
+						"docs": [
+							"Jackpot distributed (if rolldown)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6274,38 +9129,52 @@
 		},
 		{
 			"name": "QuickPickPrizeClaimed",
-			"docs": ["Emitted when Quick Pick prize is claimed"],
+			"docs": [
+				"Emitted when Quick Pick prize is claimed"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "ticket",
-						"docs": ["Ticket account public key"],
+						"docs": [
+							"Ticket account public key"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "player",
-						"docs": ["Player wallet address"],
+						"docs": [
+							"Player wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "match_count",
-						"docs": ["Match count"],
+						"docs": [
+							"Match count"
+						],
 						"type": "u8"
 					},
 					{
 						"name": "prize_amount",
-						"docs": ["Prize amount"],
+						"docs": [
+							"Prize amount"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6313,40 +9182,57 @@
 		},
 		{
 			"name": "QuickPickTicketPurchased",
-			"docs": ["Emitted when a Quick Pick ticket is purchased"],
+			"docs": [
+				"Emitted when a Quick Pick ticket is purchased"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "ticket",
-						"docs": ["Ticket account public key"],
+						"docs": [
+							"Ticket account public key"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "player",
-						"docs": ["Player wallet address"],
+						"docs": [
+							"Player wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "numbers",
-						"docs": ["Selected numbers (5/35)"],
+						"docs": [
+							"Selected numbers (5/35)"
+						],
 						"type": {
-							"array": ["u8", 5]
+							"array": [
+								"u8",
+								5
+							]
 						}
 					},
 					{
 						"name": "price",
-						"docs": ["Price paid"],
+						"docs": [
+							"Price paid"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6354,28 +9240,38 @@
 		},
 		{
 			"name": "RandomnessCommitted",
-			"docs": ["Emitted when randomness is committed for a draw"],
+			"docs": [
+				"Emitted when randomness is committed for a draw"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "commit_slot",
-						"docs": ["Slot when committed"],
+						"docs": [
+							"Slot when committed"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "randomness_account",
-						"docs": ["Randomness account public key"],
+						"docs": [
+							"Randomness account public key"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6383,13 +9279,17 @@
 		},
 		{
 			"name": "ReclaimExpiredPrizesParams",
-			"docs": ["Parameters for reclaiming expired prizes"],
+			"docs": [
+				"Parameters for reclaiming expired prizes"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["The draw ID whose expired prizes should be reclaimed"],
+						"docs": [
+							"The draw ID whose expired prizes should be reclaimed"
+						],
 						"type": "u64"
 					},
 					{
@@ -6406,13 +9306,17 @@
 		},
 		{
 			"name": "RemoveSyndicateMemberParams",
-			"docs": ["Parameters for removing a syndicate member"],
+			"docs": [
+				"Parameters for removing a syndicate member"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "member_wallet",
-						"docs": ["Member wallet address to remove"],
+						"docs": [
+							"Member wallet address to remove"
+						],
 						"type": "pubkey"
 					}
 				]
@@ -6420,38 +9324,52 @@
 		},
 		{
 			"name": "RolldownExecuted",
-			"docs": ["Emitted when a rolldown is executed"],
+			"docs": [
+				"Emitted when a rolldown is executed"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "jackpot_distributed",
-						"docs": ["Total jackpot distributed"],
+						"docs": [
+							"Total jackpot distributed"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "match_5_prize",
-						"docs": ["Match 5 prize per winner"],
+						"docs": [
+							"Match 5 prize per winner"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "match_4_prize",
-						"docs": ["Match 4 prize per winner"],
+						"docs": [
+							"Match 4 prize per winner"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "match_3_prize",
-						"docs": ["Match 3 prize per winner"],
+						"docs": [
+							"Match 3 prize per winner"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6467,27 +9385,37 @@
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "jackpot_balance",
-						"docs": ["Current jackpot balance"],
+						"docs": [
+							"Current jackpot balance"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "soft_cap",
-						"docs": ["Soft cap threshold"],
+						"docs": [
+							"Soft cap threshold"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "rolldown_probability_bps",
-						"docs": ["Rolldown probability in basis points (0-10000)"],
+						"docs": [
+							"Rolldown probability in basis points (0-10000)"
+						],
 						"type": "u16"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6516,53 +9444,73 @@
 		},
 		{
 			"name": "SolvencyCheckPerformed",
-			"docs": ["Emitted when prize pool solvency check is performed"],
+			"docs": [
+				"Emitted when prize pool solvency check is performed"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "prizes_required",
-						"docs": ["Total prizes required"],
+						"docs": [
+							"Total prizes required"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "prize_pool_balance",
-						"docs": ["Prize pool balance"],
+						"docs": [
+							"Prize pool balance"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "reserve_balance",
-						"docs": ["Reserve balance available"],
+						"docs": [
+							"Reserve balance available"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "insurance_balance",
-						"docs": ["Insurance balance available"],
+						"docs": [
+							"Insurance balance available"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "is_solvent",
-						"docs": ["Whether solvency check passed"],
+						"docs": [
+							"Whether solvency check passed"
+						],
 						"type": "bool"
 					},
 					{
 						"name": "prizes_scaled",
-						"docs": ["Whether prizes were scaled down"],
+						"docs": [
+							"Whether prizes were scaled down"
+						],
 						"type": "bool"
 					},
 					{
 						"name": "scale_factor_bps",
-						"docs": ["Scale factor if scaled (10000 = 100%)"],
+						"docs": [
+							"Scale factor if scaled (10000 = 100%)"
+						],
 						"type": "u16"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6570,21 +9518,23 @@
 		},
 		{
 			"name": "Syndicate",
-			"docs": ["Syndicate account - represents a group buying pool"],
+			"docs": [
+				"Syndicate account - represents a group buying pool"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "creator",
 						"docs": [
-							"Current syndicate creator/manager (mutable — can be transferred)"
+							"Current syndicate creator/manager (mutable \u2014 can be transferred)"
 						],
 						"type": "pubkey"
 					},
 					{
 						"name": "original_creator",
 						"docs": [
-							"Original creator at PDA creation time (immutable — used for PDA seed derivation).",
+							"Original creator at PDA creation time (immutable \u2014 used for PDA seed derivation).",
 							"This MUST NEVER be changed after initialization. All PDA seeds and CPI signer",
 							"seeds must use this field instead of `creator` to prevent fund-lock after",
 							"creator transfers. See Issue #1 in security audit."
@@ -6593,44 +9543,63 @@
 					},
 					{
 						"name": "syndicate_id",
-						"docs": ["Unique identifier"],
+						"docs": [
+							"Unique identifier"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "name",
-						"docs": ["Name (UTF-8, max 32 bytes)"],
+						"docs": [
+							"Name (UTF-8, max 32 bytes)"
+						],
 						"type": {
-							"array": ["u8", 32]
+							"array": [
+								"u8",
+								32
+							]
 						}
 					},
 					{
 						"name": "is_public",
-						"docs": ["Whether anyone can join"],
+						"docs": [
+							"Whether anyone can join"
+						],
 						"type": "bool"
 					},
 					{
 						"name": "member_count",
-						"docs": ["Current member count"],
+						"docs": [
+							"Current member count"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "total_contribution",
-						"docs": ["Total USDC contributed"],
+						"docs": [
+							"Total USDC contributed"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "manager_fee_bps",
-						"docs": ["Manager fee (basis points, max 500 = 5%)"],
+						"docs": [
+							"Manager fee (basis points, max 500 = 5%)"
+						],
 						"type": "u16"
 					},
 					{
 						"name": "usdc_account",
-						"docs": ["Syndicate's USDC token account (PDA-controlled)"],
+						"docs": [
+							"Syndicate's USDC token account (PDA-controlled)"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "members",
-						"docs": ["List of members"],
+						"docs": [
+							"List of members"
+						],
 						"type": {
 							"vec": {
 								"defined": {
@@ -6641,7 +9610,9 @@
 					},
 					{
 						"name": "bump",
-						"docs": ["PDA bump seed"],
+						"docs": [
+							"PDA bump seed"
+						],
 						"type": "u8"
 					}
 				]
@@ -6649,40 +9620,57 @@
 		},
 		{
 			"name": "SyndicateCreated",
-			"docs": ["Emitted when a new syndicate is created"],
+			"docs": [
+				"Emitted when a new syndicate is created"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "syndicate",
-						"docs": ["Syndicate account public key"],
+						"docs": [
+							"Syndicate account public key"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "creator",
-						"docs": ["Creator wallet address"],
+						"docs": [
+							"Creator wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "name",
-						"docs": ["Syndicate name (UTF-8)"],
+						"docs": [
+							"Syndicate name (UTF-8)"
+						],
 						"type": {
-							"array": ["u8", 32]
+							"array": [
+								"u8",
+								32
+							]
 						}
 					},
 					{
 						"name": "is_public",
-						"docs": ["Whether the syndicate is public"],
+						"docs": [
+							"Whether the syndicate is public"
+						],
 						"type": "bool"
 					},
 					{
 						"name": "manager_fee_bps",
-						"docs": ["Manager fee in basis points"],
+						"docs": [
+							"Manager fee in basis points"
+						],
 						"type": "u16"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6690,23 +9678,31 @@
 		},
 		{
 			"name": "SyndicateMember",
-			"docs": ["Syndicate member information"],
+			"docs": [
+				"Syndicate member information"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "wallet",
-						"docs": ["Member wallet"],
+						"docs": [
+							"Member wallet"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "contribution",
-						"docs": ["Amount contributed in USDC lamports"],
+						"docs": [
+							"Amount contributed in USDC lamports"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "share_percentage_bps",
-						"docs": ["Share percentage in basis points (10000 = 100%)"],
+						"docs": [
+							"Share percentage in basis points (10000 = 100%)"
+						],
 						"type": "u16"
 					},
 					{
@@ -6725,38 +9721,52 @@
 		},
 		{
 			"name": "SyndicateMemberJoined",
-			"docs": ["Emitted when a member joins a syndicate"],
+			"docs": [
+				"Emitted when a member joins a syndicate"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "syndicate",
-						"docs": ["Syndicate account public key"],
+						"docs": [
+							"Syndicate account public key"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "member",
-						"docs": ["Member wallet address"],
+						"docs": [
+							"Member wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "contribution",
-						"docs": ["USDC contribution amount"],
+						"docs": [
+							"USDC contribution amount"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "share_bps",
-						"docs": ["Share of the syndicate in basis points"],
+						"docs": [
+							"Share of the syndicate in basis points"
+						],
 						"type": "u16"
 					},
 					{
 						"name": "member_count",
-						"docs": ["Current member count after joining"],
+						"docs": [
+							"Current member count after joining"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6764,38 +9774,52 @@
 		},
 		{
 			"name": "SyndicatePrizeDistributed",
-			"docs": ["Emitted when a syndicate prize is distributed"],
+			"docs": [
+				"Emitted when a syndicate prize is distributed"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "syndicate",
-						"docs": ["Syndicate account public key"],
+						"docs": [
+							"Syndicate account public key"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID"],
+						"docs": [
+							"Draw ID"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "total_prize",
-						"docs": ["Total prize amount"],
+						"docs": [
+							"Total prize amount"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "manager_fee",
-						"docs": ["Manager fee taken"],
+						"docs": [
+							"Manager fee taken"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "members_paid",
-						"docs": ["Number of members receiving shares"],
+						"docs": [
+							"Number of members receiving shares"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6811,27 +9835,37 @@
 				"fields": [
 					{
 						"name": "month",
-						"docs": ["Competition month"],
+						"docs": [
+							"Competition month"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "total_distributed",
-						"docs": ["Total prize distributed"],
+						"docs": [
+							"Total prize distributed"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "winner",
-						"docs": ["Winner syndicate (1st place)"],
+						"docs": [
+							"Winner syndicate (1st place)"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "winner_win_rate",
-						"docs": ["Winner's win rate (fixed-point × 1,000,000)"],
+						"docs": [
+							"Winner's win rate (fixed-point \u00d7 1,000,000)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6839,55 +9873,75 @@
 		},
 		{
 			"name": "SyndicateWarsEntry",
-			"docs": ["Syndicate Wars entry for a syndicate"],
+			"docs": [
+				"Syndicate Wars entry for a syndicate"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "syndicate",
-						"docs": ["Syndicate reference"],
+						"docs": [
+							"Syndicate reference"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "month",
-						"docs": ["Competition month"],
+						"docs": [
+							"Competition month"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "tickets_purchased",
-						"docs": ["Total tickets purchased"],
+						"docs": [
+							"Total tickets purchased"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "prizes_won",
-						"docs": ["Total prizes won (in USDC lamports)"],
+						"docs": [
+							"Total prizes won (in USDC lamports)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "win_count",
-						"docs": ["Win count (Match 3+)"],
+						"docs": [
+							"Win count (Match 3+)"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "win_rate",
-						"docs": ["Win rate (fixed-point × 1,000,000)"],
+						"docs": [
+							"Win rate (fixed-point \u00d7 1,000,000)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "final_rank",
-						"docs": ["Final rank"],
+						"docs": [
+							"Final rank"
+						],
 						"type": {
 							"option": "u32"
 						}
 					},
 					{
 						"name": "prize_claimed",
-						"docs": ["Prize claimed"],
+						"docs": [
+							"Prize claimed"
+						],
 						"type": "bool"
 					},
 					{
 						"name": "bump",
-						"docs": ["PDA bump"],
+						"docs": [
+							"PDA bump"
+						],
 						"type": "u8"
 					}
 				]
@@ -6895,33 +9949,45 @@
 		},
 		{
 			"name": "SyndicateWarsFinalized",
-			"docs": ["Emitted when Syndicate Wars results are finalized"],
+			"docs": [
+				"Emitted when Syndicate Wars results are finalized"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "month",
-						"docs": ["Competition month"],
+						"docs": [
+							"Competition month"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "winner",
-						"docs": ["Winner syndicate (1st place)"],
+						"docs": [
+							"Winner syndicate (1st place)"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "total_prize",
-						"docs": ["Total prize distributed"],
+						"docs": [
+							"Total prize distributed"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "participants",
-						"docs": ["Number of participating syndicates"],
+						"docs": [
+							"Number of participating syndicates"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -6929,28 +9995,38 @@
 		},
 		{
 			"name": "SyndicateWarsStarted",
-			"docs": ["Emitted when a Syndicate Wars competition starts"],
+			"docs": [
+				"Emitted when a Syndicate Wars competition starts"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "month",
-						"docs": ["Competition month"],
+						"docs": [
+							"Competition month"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "start_timestamp",
-						"docs": ["Start timestamp"],
+						"docs": [
+							"Start timestamp"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "end_timestamp",
-						"docs": ["End timestamp"],
+						"docs": [
+							"End timestamp"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "prize_pool",
-						"docs": ["Prize pool"],
+						"docs": [
+							"Prize pool"
+						],
 						"type": "u64"
 					}
 				]
@@ -6958,43 +10034,59 @@
 		},
 		{
 			"name": "SyndicateWarsState",
-			"docs": ["Syndicate Wars competition state"],
+			"docs": [
+				"Syndicate Wars competition state"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "month",
-						"docs": ["Current competition month"],
+						"docs": [
+							"Current competition month"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "start_timestamp",
-						"docs": ["Competition start timestamp"],
+						"docs": [
+							"Competition start timestamp"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "end_timestamp",
-						"docs": ["Competition end timestamp"],
+						"docs": [
+							"Competition end timestamp"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "prize_pool",
-						"docs": ["Prize pool amount"],
+						"docs": [
+							"Prize pool amount"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "registered_count",
-						"docs": ["Registered syndicates count"],
+						"docs": [
+							"Registered syndicates count"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "min_tickets",
-						"docs": ["Minimum tickets to qualify"],
+						"docs": [
+							"Minimum tickets to qualify"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "is_active",
-						"docs": ["Is competition active"],
+						"docs": [
+							"Is competition active"
+						],
 						"type": "bool"
 					},
 					{
@@ -7009,7 +10101,9 @@
 					},
 					{
 						"name": "bump",
-						"docs": ["PDA bump"],
+						"docs": [
+							"PDA bump"
+						],
 						"type": "u8"
 					}
 				]
@@ -7017,57 +10111,80 @@
 		},
 		{
 			"name": "TicketData",
-			"docs": ["Ticket account - represents a single lottery ticket"],
+			"docs": [
+				"Ticket account - represents a single lottery ticket"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "owner",
-						"docs": ["Ticket owner"],
+						"docs": [
+							"Ticket owner"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "draw_id",
-						"docs": ["Draw this ticket is for"],
+						"docs": [
+							"Draw this ticket is for"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "numbers",
-						"docs": ["Selected numbers (sorted ascending)"],
+						"docs": [
+							"Selected numbers (sorted ascending)"
+						],
 						"type": {
-							"array": ["u8", 6]
+							"array": [
+								"u8",
+								6
+							]
 						}
 					},
 					{
 						"name": "purchase_timestamp",
-						"docs": ["Purchase timestamp"],
+						"docs": [
+							"Purchase timestamp"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "is_claimed",
-						"docs": ["Whether prize has been claimed"],
+						"docs": [
+							"Whether prize has been claimed"
+						],
 						"type": "bool"
 					},
 					{
 						"name": "match_count",
-						"docs": ["Number of matches (set after draw)"],
+						"docs": [
+							"Number of matches (set after draw)"
+						],
 						"type": "u8"
 					},
 					{
 						"name": "prize_amount",
-						"docs": ["Prize amount (set after draw)"],
+						"docs": [
+							"Prize amount (set after draw)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "syndicate",
-						"docs": ["Syndicate (if purchased through one)"],
+						"docs": [
+							"Syndicate (if purchased through one)"
+						],
 						"type": {
 							"option": "pubkey"
 						}
 					},
 					{
 						"name": "bump",
-						"docs": ["PDA bump seed"],
+						"docs": [
+							"PDA bump seed"
+						],
 						"type": "u8"
 					}
 				]
@@ -7075,47 +10192,66 @@
 		},
 		{
 			"name": "TicketPurchased",
-			"docs": ["Emitted when a ticket is purchased"],
+			"docs": [
+				"Emitted when a ticket is purchased"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "ticket",
-						"docs": ["Ticket account public key"],
+						"docs": [
+							"Ticket account public key"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "player",
-						"docs": ["Player wallet address"],
+						"docs": [
+							"Player wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID the ticket is for"],
+						"docs": [
+							"Draw ID the ticket is for"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "numbers",
-						"docs": ["Selected numbers (sorted)"],
+						"docs": [
+							"Selected numbers (sorted)"
+						],
 						"type": {
-							"array": ["u8", 6]
+							"array": [
+								"u8",
+								6
+							]
 						}
 					},
 					{
 						"name": "price",
-						"docs": ["Price paid (including any discounts)"],
+						"docs": [
+							"Price paid (including any discounts)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "syndicate",
-						"docs": ["Syndicate (if purchased through one)"],
+						"docs": [
+							"Syndicate (if purchased through one)"
+						],
 						"type": {
 							"option": "pubkey"
 						}
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Purchase timestamp"],
+						"docs": [
+							"Purchase timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -7123,13 +10259,17 @@
 		},
 		{
 			"name": "TransferSyndicateCreatorParams",
-			"docs": ["Parameters for transferring creator role"],
+			"docs": [
+				"Parameters for transferring creator role"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "new_creator",
-						"docs": ["New creator's wallet address (must be existing member)"],
+						"docs": [
+							"New creator's wallet address (must be existing member)"
+						],
 						"type": "pubkey"
 					}
 				]
@@ -7137,28 +10277,38 @@
 		},
 		{
 			"name": "UnifiedTicket",
-			"docs": ["Unified ticket account for bulk purchases"],
+			"docs": [
+				"Unified ticket account for bulk purchases"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "owner",
-						"docs": ["Wallet that owns all tickets in this account"],
+						"docs": [
+							"Wallet that owns all tickets in this account"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "draw_id",
-						"docs": ["Draw ID that all tickets are for"],
+						"docs": [
+							"Draw ID that all tickets are for"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "start_ticket_id",
-						"docs": ["Starting ticket ID for this batch"],
+						"docs": [
+							"Starting ticket ID for this batch"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "ticket_count",
-						"docs": ["Number of tickets in this account"],
+						"docs": [
+							"Number of tickets in this account"
+						],
 						"type": "u32"
 					},
 					{
@@ -7168,30 +10318,41 @@
 						],
 						"type": {
 							"vec": {
-								"array": ["u8", 6]
+								"array": [
+									"u8",
+									6
+								]
 							}
 						}
 					},
 					{
 						"name": "purchase_timestamp",
-						"docs": ["Unix timestamp when tickets were purchased"],
+						"docs": [
+							"Unix timestamp when tickets were purchased"
+						],
 						"type": "i64"
 					},
 					{
 						"name": "syndicate",
-						"docs": ["Optional syndicate wallet"],
+						"docs": [
+							"Optional syndicate wallet"
+						],
 						"type": {
 							"option": "pubkey"
 						}
 					},
 					{
 						"name": "claimed_bitmap",
-						"docs": ["Claimed status for each ticket (bitmap for efficiency)"],
+						"docs": [
+							"Claimed status for each ticket (bitmap for efficiency)"
+						],
 						"type": "bytes"
 					},
 					{
 						"name": "bump",
-						"docs": ["PDA bump"],
+						"docs": [
+							"PDA bump"
+						],
 						"type": "u8"
 					}
 				]
@@ -7199,62 +10360,80 @@
 		},
 		{
 			"name": "UpdateConfigParams",
-			"docs": ["Parameters for updating configuration"],
+			"docs": [
+				"Parameters for updating configuration"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "ticket_price",
-						"docs": ["New ticket price (None to keep current)"],
+						"docs": [
+							"New ticket price (None to keep current)"
+						],
 						"type": {
 							"option": "u64"
 						}
 					},
 					{
 						"name": "house_fee_bps",
-						"docs": ["New house fee in basis points (None to keep current)"],
+						"docs": [
+							"New house fee in basis points (None to keep current)"
+						],
 						"type": {
 							"option": "u16"
 						}
 					},
 					{
 						"name": "jackpot_cap",
-						"docs": ["New jackpot cap (None to keep current)"],
+						"docs": [
+							"New jackpot cap (None to keep current)"
+						],
 						"type": {
 							"option": "u64"
 						}
 					},
 					{
 						"name": "seed_amount",
-						"docs": ["New seed amount (None to keep current)"],
+						"docs": [
+							"New seed amount (None to keep current)"
+						],
 						"type": {
 							"option": "u64"
 						}
 					},
 					{
 						"name": "soft_cap",
-						"docs": ["New soft cap (None to keep current)"],
+						"docs": [
+							"New soft cap (None to keep current)"
+						],
 						"type": {
 							"option": "u64"
 						}
 					},
 					{
 						"name": "hard_cap",
-						"docs": ["New hard cap (None to keep current)"],
+						"docs": [
+							"New hard cap (None to keep current)"
+						],
 						"type": {
 							"option": "u64"
 						}
 					},
 					{
 						"name": "switchboard_queue",
-						"docs": ["New Switchboard queue (None to keep current)"],
+						"docs": [
+							"New Switchboard queue (None to keep current)"
+						],
 						"type": {
 							"option": "pubkey"
 						}
 					},
 					{
 						"name": "draw_interval",
-						"docs": ["New draw interval (None to keep current)"],
+						"docs": [
+							"New draw interval (None to keep current)"
+						],
 						"type": {
 							"option": "i64"
 						}
@@ -7264,7 +10443,9 @@
 		},
 		{
 			"name": "UpdateSyndicateConfigParams",
-			"docs": ["Parameters for updating syndicate configuration"],
+			"docs": [
+				"Parameters for updating syndicate configuration"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
@@ -7275,20 +10456,27 @@
 						],
 						"type": {
 							"option": {
-								"array": ["u8", 32]
+								"array": [
+									"u8",
+									32
+								]
 							}
 						}
 					},
 					{
 						"name": "is_public",
-						"docs": ["New public/private status"],
+						"docs": [
+							"New public/private status"
+						],
 						"type": {
 							"option": "bool"
 						}
 					},
 					{
 						"name": "manager_fee_bps",
-						"docs": ["New manager fee in basis points (max 500 = 5%)"],
+						"docs": [
+							"New manager fee in basis points (max 500 = 5%)"
+						],
 						"type": {
 							"option": "u16"
 						}
@@ -7298,23 +10486,31 @@
 		},
 		{
 			"name": "UpdateSyndicateWarsStatsParams",
-			"docs": ["Parameters for updating syndicate wars stats"],
+			"docs": [
+				"Parameters for updating syndicate wars stats"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "tickets_purchased",
-						"docs": ["Additional tickets purchased"],
+						"docs": [
+							"Additional tickets purchased"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "prizes_won",
-						"docs": ["Additional prizes won (USDC lamports)"],
+						"docs": [
+							"Additional prizes won (USDC lamports)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "win_count",
-						"docs": ["Additional win count (Match 3+)"],
+						"docs": [
+							"Additional win count (Match 3+)"
+						],
 						"type": "u32"
 					}
 				]
@@ -7330,42 +10526,58 @@
 				"fields": [
 					{
 						"name": "wallet",
-						"docs": ["User's wallet address"],
+						"docs": [
+							"User's wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "total_tickets",
-						"docs": ["Total tickets purchased (lifetime)"],
+						"docs": [
+							"Total tickets purchased (lifetime)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "total_spent",
-						"docs": ["Total USDC spent (lifetime)"],
+						"docs": [
+							"Total USDC spent (lifetime)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "total_won",
-						"docs": ["Total USDC won (lifetime)"],
+						"docs": [
+							"Total USDC won (lifetime)"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "current_streak",
-						"docs": ["Current consecutive draw participation streak"],
+						"docs": [
+							"Current consecutive draw participation streak"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "best_streak",
-						"docs": ["Best streak achieved"],
+						"docs": [
+							"Best streak achieved"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "jackpot_wins",
-						"docs": ["Number of jackpot wins"],
+						"docs": [
+							"Number of jackpot wins"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "last_draw_participated",
-						"docs": ["Last draw ID where user participated"],
+						"docs": [
+							"Last draw ID where user participated"
+						],
 						"type": "u64"
 					},
 					{
@@ -7377,12 +10589,16 @@
 					},
 					{
 						"name": "free_tickets_available",
-						"docs": ["Number of free tickets available (from Match 2 wins)"],
+						"docs": [
+							"Number of free tickets available (from Match 2 wins)"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "bump",
-						"docs": ["PDA bump seed"],
+						"docs": [
+							"PDA bump seed"
+						],
 						"type": "u8"
 					}
 				]
@@ -7390,38 +10606,52 @@
 		},
 		{
 			"name": "UserStatsUpdated",
-			"docs": ["Emitted when user stats are updated"],
+			"docs": [
+				"Emitted when user stats are updated"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [
 					{
 						"name": "wallet",
-						"docs": ["User wallet address"],
+						"docs": [
+							"User wallet address"
+						],
 						"type": "pubkey"
 					},
 					{
 						"name": "total_tickets",
-						"docs": ["New total tickets count"],
+						"docs": [
+							"New total tickets count"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "total_spent",
-						"docs": ["New total spent"],
+						"docs": [
+							"New total spent"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "total_won",
-						"docs": ["New total won"],
+						"docs": [
+							"New total won"
+						],
 						"type": "u64"
 					},
 					{
 						"name": "current_streak",
-						"docs": ["Current streak"],
+						"docs": [
+							"Current streak"
+						],
 						"type": "u32"
 					},
 					{
 						"name": "timestamp",
-						"docs": ["Timestamp"],
+						"docs": [
+							"Timestamp"
+						],
 						"type": "i64"
 					}
 				]
@@ -7429,7 +10659,9 @@
 		},
 		{
 			"name": "WinnerCounts",
-			"docs": ["Winner counts structure for draw results"],
+			"docs": [
+				"Winner counts structure for draw results"
+			],
 			"type": {
 				"kind": "struct",
 				"fields": [

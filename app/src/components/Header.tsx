@@ -3,6 +3,7 @@ import {
 	BookOpen,
 	Check,
 	ChevronDown,
+	Coins,
 	Copy,
 	ExternalLink,
 	Gem,
@@ -52,6 +53,12 @@ const navLinks = [
 				label: "Dashboard",
 				description: "View your account details",
 				icon: Trophy,
+			},
+			{
+				to: "/lp",
+				label: "LP Pool",
+				description: "Deposit USDC, earn house fee rewards",
+				icon: Coins,
 			},
 			// {
 			//   to: "/dashboard/transactions",

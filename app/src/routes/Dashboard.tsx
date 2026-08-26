@@ -1,18 +1,23 @@
+import { PublicKey } from "@solana/web3.js";
 import {
 	Activity,
+	AlertTriangle,
 	ArrowDownRight,
 	ArrowRight,
 	ArrowUpRight,
 	BarChart3,
 	Clock,
+	Gavel,
 	type LucideIcon,
 	Shield,
+	ShieldCheck,
 	Star,
 	Ticket,
 	TrendingUp,
 	Trophy,
 	Users,
 	Wallet,
+	X,
 	Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -23,11 +28,18 @@ import Footer from "@/components/Footer";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { LotteryBallRow, WinningNumbers } from "@/components/LotteryBalls";
 import { RolldownGauge } from "@/components/RolldownGauge";
+import { Button } from "@/components/ui/button";
 import { useDraws } from "@/hooks/use-draws";
 import { useLotteryState } from "@/hooks/use-lottery-state";
 import { useTickets } from "@/hooks/use-tickets";
+import { USDC_MINT } from "@/lib/anchor/pda";
 import { useAnchorProvider } from "@/lib/anchor/provider";
 import { fetchUserStats } from "@/lib/anchor/transactions";
+import {
+	advanceDraw,
+	challengeDraw,
+	checkSolvency,
+} from "@/lib/anchor/transactions-lp-syndicate";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 import { cn } from "@/lib/utils";
 
@@ -376,6 +388,18 @@ export default function DashboardPage() {
 	// On-chain lifetime spend (main lottery UserStats.total_spent in USDC
 	// lamports, divided by 1e6). Fall back to an estimate when unavailable.
 	const { connectedProvider } = useAnchorProvider();
+	const [showChallenge, setShowChallenge] = useState(false);
+	const [challengeDrawId, setChallengeDrawId] = useState("");
+	const [challengeCounts, setChallengeCounts] = useState({
+		match6: "0",
+		match5: "0",
+		match4: "0",
+		match3: "0",
+		match2: "0",
+	});
+	const [challengeEvidence, setChallengeEvidence] = useState("");
+	const [challengeLoading, setChallengeLoading] = useState(false);
+	const [challengeError, setChallengeError] = useState<string | null>(null);
 	const walletPubkey = connectedProvider?.wallet.publicKey ?? null;
 	const [onChainTotalSpent, setOnChainTotalSpent] = useState<number | null>(
 		null,
@@ -703,6 +727,217 @@ export default function DashboardPage() {
 					</div>
 				</div>
 			</div>
+
+			{/* Protocol Safety — permissionless watchdog instructions */}
+			<div className="mx-auto max-w-4xl mt-8">
+				<h3 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+					<ShieldCheck size={16} className="text-cyan-400" />
+					Protocol Safety
+				</h3>
+				<div className="grid sm:grid-cols-2 gap-4">
+					<div className="glass rounded-2xl p-4 border border-cyan-500/10">
+						<div className="flex items-center gap-2 mb-2">
+							<Shield size={14} className="text-cyan-400" />
+							<span className="text-xs font-semibold text-foreground">
+								Verify Solvency
+							</span>
+						</div>
+						<p className="text-[10px] text-muted-foreground mb-3">
+							Permissionless: if token balances don't match accounting, the
+							lottery auto-pauses.
+						</p>
+						<Button
+							onClick={async () => {
+								const provider = connectedProvider;
+								if (!provider) return;
+								try {
+									await checkSolvency(provider);
+								} catch (err) {
+									console.error(err);
+								}
+							}}
+							className="w-full bg-linear-to-r from-cyan-500/80 to-cyan-600/80 text-primary-foreground text-xs font-bold rounded-xl"
+						>
+							<ShieldCheck size={14} className="mr-1" />
+							Check Now
+						</Button>
+					</div>
+					<div className="glass rounded-2xl p-4 border border-magenta-500/10">
+						<div className="flex items-center gap-2 mb-2">
+							<AlertTriangle size={14} className="text-magenta-400" />
+							<span className="text-xs font-semibold text-foreground">
+								Advance Stuck Draw
+							</span>
+						</div>
+						<p className="text-[10px] text-muted-foreground mb-3">
+							Permissionless fallback: skip a draw the bot hasn't finalized in
+							30+ minutes.
+						</p>
+						<Button
+							onClick={async () => {
+								const provider = connectedProvider;
+								if (!provider) return;
+								try {
+									await advanceDraw(provider);
+								} catch (err) {
+									console.error(err);
+								}
+							}}
+							className="w-full bg-linear-to-r from-magenta-500/80 to-magenta-600/80 text-primary-foreground text-xs font-bold rounded-xl"
+						>
+							<Gavel size={14} className="mr-1" />
+							Advance Draw
+						</Button>
+					</div>
+				</div>
+
+				{/* Challenge a finalized draw (bonded dispute, permissionless) */}
+				<Button
+					onClick={() => setShowChallenge(true)}
+					className="mt-3 w-full bg-linear-to-r from-gold-500/80 to-gold-600/80 text-primary-foreground text-xs font-bold rounded-xl"
+				>
+					<AlertTriangle size={14} className="mr-2" />
+					Challenge Draw Results (bonded)
+				</Button>
+			</div>
+
+			{/* Challenge modal */}
+			{showChallenge && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<button
+						type="button"
+						className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+						onClick={() => setShowChallenge(false)}
+						aria-label="Close"
+					/>
+					<div className="relative glass-strong rounded-2xl p-6 max-w-md w-full border border-gold-500/30 max-h-[90vh] overflow-y-auto">
+						<div className="flex items-center justify-between mb-4">
+							<h2 className="font-display text-lg font-bold text-foreground uppercase tracking-wide">
+								Challenge Draw
+							</h2>
+							<button
+								type="button"
+								onClick={() => setShowChallenge(false)}
+								className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+							>
+								<X size={18} />
+							</button>
+						</div>
+						<p className="text-xs text-muted-foreground mb-4">
+							Post a $500 USDC bond to dispute a finalized draw&apos;s winner
+							counts. If upheld, the bond is refunded + $500 reward. Frivolous
+							challenges are slashed.
+						</p>
+						{challengeError && (
+							<div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-xs text-red-400">
+								{challengeError}
+							</div>
+						)}
+						<div className="space-y-3">
+							<input
+								type="number"
+								value={challengeDrawId}
+								onChange={(e) => setChallengeDrawId(e.target.value)}
+								placeholder="Draw ID"
+								className="w-full h-10 px-3 rounded-xl bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/60"
+							/>
+							<div className="grid grid-cols-5 gap-2">
+								{(
+									["match6", "match5", "match4", "match3", "match2"] as const
+								).map((k) => (
+									<div key={k}>
+										<label
+											htmlFor={`challenge-${k}`}
+											className="block text-[9px] text-muted-foreground mb-1 uppercase"
+										>
+											{k.replace("match", "M")}
+										</label>
+										<input
+											id={`challenge-${k}`}
+											type="number"
+											value={challengeCounts[k]}
+											onChange={(e) =>
+												setChallengeCounts({
+													...challengeCounts,
+													[k]: e.target.value,
+												})
+											}
+											className="w-full h-9 px-2 rounded-lg bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground text-center focus:outline-none focus:border-cyan-400/60"
+										/>
+									</div>
+								))}
+							</div>
+							<textarea
+								value={challengeEvidence}
+								onChange={(e) => setChallengeEvidence(e.target.value)}
+								placeholder="Evidence note (hashed on-chain as proof)"
+								className="w-full h-20 px-3 py-2 rounded-xl bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/60"
+							/>
+							<Button
+								onClick={async () => {
+									if (!connectedProvider) return;
+									setChallengeLoading(true);
+									setChallengeError(null);
+									try {
+										const uid = new TextEncoder();
+										const witness = `mazel:draw:${challengeDrawId}:${JSON.stringify(challengeCounts)}:${challengeEvidence}`;
+										const digest = await crypto.subtle.digest(
+											"SHA-256",
+											uid.encode(witness),
+										);
+										const evidenceHash = new Uint8Array(digest);
+										const tokenProgram = new PublicKey(
+											"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+										);
+										const ataProg = new PublicKey(
+											"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+										);
+										const [ata] = PublicKey.findProgramAddressSync(
+											[
+												connectedProvider.wallet.publicKey.toBuffer(),
+												tokenProgram.toBuffer(),
+												USDC_MINT.toBuffer(),
+											],
+											ataProg,
+										);
+										await challengeDraw(
+											connectedProvider,
+											{
+												drawId: Number(challengeDrawId),
+												alternativeWinnerCounts: {
+													match6: Number(challengeCounts.match6) || 0,
+													match5: Number(challengeCounts.match5) || 0,
+													match4: Number(challengeCounts.match4) || 0,
+													match3: Number(challengeCounts.match3) || 0,
+													match2: Number(challengeCounts.match2) || 0,
+												},
+												evidenceHash,
+											},
+											ata,
+										);
+										setShowChallenge(false);
+										setChallengeDrawId("");
+										setChallengeEvidence("");
+									} catch (err) {
+										setChallengeError(
+											err instanceof Error ? err.message : "Challenge failed",
+										);
+									} finally {
+										setChallengeLoading(false);
+									}
+								}}
+								disabled={challengeLoading || !challengeDrawId}
+								variant="emerald"
+								className="w-full h-10 text-sm"
+							>
+								{challengeLoading
+									? "Submitting…"
+									: "Post Challenge ($500 bond)"}
+							</Button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

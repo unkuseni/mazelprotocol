@@ -36,6 +36,10 @@ export const HOUSE_FEE_USDC_SEED = enc.encode("house_fee_usdc");
 export const INSURANCE_POOL_USDC_SEED = enc.encode("insurance_pool_usdc");
 export const LP_POOL_SEED = enc.encode("lp_pool");
 export const LP_POOL_USDC_SEED = enc.encode("lp_pool_usdc");
+export const LP_POSITION_SEED = enc.encode("lp_position");
+export const SYNDICATE_SEED = enc.encode("syndicate");
+export const SYNDICATE_WARS_SEED = enc.encode("syndicate_wars");
+export const CHALLENGE_SEED = enc.encode("challenge");
 
 // Quick Pick seeds
 export const QUICK_PICK_SEED = enc.encode("quick_pick");
@@ -137,14 +141,22 @@ export function deriveTicketPDA(
 }
 
 /**
- * Derive a user's unified ticket PDA (across all draws)
+ * Derive a user's unified ticket PDA for a specific draw + ticket index.
+ * On-chain seeds: [UNIFIED_TICKET_SEED, player, draw_id_le, current_draw_tickets_le]
  */
 export function deriveUnifiedTicketPDA(
 	user: PublicKey,
+	drawId: number | bigint,
+	ticketIndex: number | bigint,
 	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
 	return PublicKey.findProgramAddressSync(
-		[UNIFIED_TICKET_SEED, user.toBytes()],
+		[
+			UNIFIED_TICKET_SEED,
+			user.toBytes(),
+			writeU64LE(drawId),
+			writeU64LE(ticketIndex),
+		],
 		programId,
 	);
 }
@@ -208,6 +220,62 @@ export function deriveLpPoolUsdcPDA(
 	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
 ): [PublicKey, number] {
 	return PublicKey.findProgramAddressSync([LP_POOL_USDC_SEED], programId);
+}
+
+/**
+ * Derive a user's LP position PDA — seeds [LP_POSITION_SEED, owner]
+ */
+export function deriveLpPositionPDA(
+	owner: PublicKey,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+): [PublicKey, number] {
+	return PublicKey.findProgramAddressSync(
+		[LP_POSITION_SEED, owner.toBytes()],
+		programId,
+	);
+}
+
+/**
+ * Derive a syndicate PDA — seeds [SYNDICATE_SEED, original_creator, syndicate_id]
+ * At creation time original_creator == creator; after a creator transfer the
+ * PDA is still derived from the immutable original_creator.
+ */
+export function deriveSyndicatePDA(
+	originalCreator: PublicKey,
+	syndicateId: number | bigint,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+): [PublicKey, number] {
+	return PublicKey.findProgramAddressSync(
+		[SYNDICATE_SEED, originalCreator.toBytes(), writeU64LE(syndicateId)],
+		programId,
+	);
+}
+
+/**
+ * Derive a syndicate's USDC token account PDA — seeds [SYNDICATE_SEED, "usdc", syndicate]
+ */
+export function deriveSyndicateUsdcPDA(
+	syndicate: PublicKey,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+): [PublicKey, number] {
+	return PublicKey.findProgramAddressSync(
+		[SYNDICATE_SEED, enc.encode("usdc"), syndicate.toBytes()],
+		programId,
+	);
+}
+
+/**
+ * Derive a challenge record PDA — seeds [CHALLENGE_SEED, draw_id, challenger]
+ */
+export function deriveChallengePDA(
+	drawId: number | bigint,
+	challenger: PublicKey,
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+): [PublicKey, number] {
+	return PublicKey.findProgramAddressSync(
+		[CHALLENGE_SEED, writeU64LE(drawId), challenger.toBytes()],
+		programId,
+	);
 }
 
 /**

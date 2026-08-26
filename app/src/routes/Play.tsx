@@ -16,7 +16,7 @@ import {
 	Wallet,
 	Zap,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
@@ -29,7 +29,9 @@ import {
 	buyMainTicket,
 	ensureUsdcTokenAccount,
 	ensureUserStatsInitialized,
+	fetchUserStats,
 } from "@/lib/anchor/transactions";
+import { buyBulkMainTickets } from "@/lib/anchor/transactions-lp-syndicate";
 import { useAppKit, useAppKitAccount } from "@/lib/appkit-provider";
 
 /* -------------------------------------------------------------------------- */
@@ -209,6 +211,12 @@ interface CartSummaryProps {
 	purchaseTx?: string | null;
 	/** Number of tickets confirmed purchased so far (batch progress, review M2) */
 	purchasedCount?: number;
+	/** Whether to redeem a free ticket credit */
+	useFreeTicket?: boolean;
+	/** Toggle free-ticket redemption */
+	onUseFreeTicketChange?: (value: boolean) => void;
+	/** Number of free-ticket credits the wallet holds */
+	freeTicketsAvailable?: number;
 }
 
 function CartSummary({
@@ -220,6 +228,9 @@ function CartSummary({
 	purchaseError = null,
 	purchaseTx = null,
 	purchasedCount = 0,
+	useFreeTicket = false,
+	onUseFreeTicketChange,
+	freeTicketsAvailable = 0,
 }: CartSummaryProps) {
 	// Batch purchase progress (review M2): show how many tickets have been
 	// confirmed so the user knows the loop is still running.
@@ -289,27 +300,45 @@ function CartSummary({
 			)}
 
 			{walletConnected ? (
-				<Button
-					onClick={onCheckout}
-					disabled={ticketCount === 0 || isPurchasing}
-					className="w-full h-12 bg-linear-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-primary-foreground font-bold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none"
-				>
-					{isPurchasing ? (
-						<span className="flex items-center gap-2">
-							<span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-							Purchasing...
-						</span>
-					) : (
-						<>
-							<ShoppingCart size={18} />
-							{ticketCount > 1
-								? `Buy ${ticketCount} Tickets`
-								: ticketCount === 1
-									? "Buy Ticket"
-									: "Add Tickets First"}
-						</>
-					)}
-				</Button>
+				<>
+					{/* Free-ticket redemption toggle (on-chain Match-2 credit) —
+					    only when the wallet holds credits. */}
+					{ticketCount > 0 &&
+						onUseFreeTicketChange &&
+						freeTicketsAvailable > 0 && (
+							<label className="flex items-center gap-2 mb-2 cursor-pointer select-none text-sm text-muted-foreground hover:text-foreground transition-colors">
+								<input
+									type="checkbox"
+									checked={useFreeTicket}
+									onChange={(e) => onUseFreeTicketChange(e.target.checked)}
+									className="w-4 h-4 rounded border-border accent-emerald-500"
+								/>
+								<Sparkles size={14} className="text-emerald-400" />
+								Redeem free ticket ({freeTicketsAvailable} available)
+							</label>
+						)}
+					<Button
+						onClick={onCheckout}
+						disabled={ticketCount === 0 || isPurchasing}
+						className="w-full h-12 bg-linear-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-primary-foreground font-bold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none"
+					>
+						{isPurchasing ? (
+							<span className="flex items-center gap-2">
+								<span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+								Purchasing...
+							</span>
+						) : (
+							<>
+								<ShoppingCart size={18} />
+								{ticketCount > 1
+									? `Buy ${ticketCount} Tickets`
+									: ticketCount === 1
+										? "Buy Ticket"
+										: "Add Tickets First"}
+							</>
+						)}
+					</Button>
+				</>
 			) : (
 				<Button
 					onClick={onCheckout}
@@ -340,6 +369,11 @@ export default function PlayMainLottery() {
 	>([]);
 	const [showPrizeInfo, setShowPrizeInfo] = useState(false);
 
+	// Free-ticket redemption: players earn free tickets from Match-2 wins and
+	// can redeem them at purchase time. Previously hardcoded to false — the
+	// UI never exposed this on-chain feature.
+	const [useFreeTicket, setUseFreeTicket] = useState(false);
+
 	const [isPurchasing, setIsPurchasing] = useState(false);
 	const [purchaseError, setPurchaseError] = useState<string | null>(null);
 	const [purchaseTx, setPurchaseTx] = useState<string | null>(null);
@@ -353,6 +387,33 @@ export default function PlayMainLottery() {
 	const { isConnected: walletConnected } = useAppKitAccount();
 	const { canSign, connectedProvider } = useAnchorProvider();
 	const { invalidateMainLottery } = useLotteryQueryClient();
+
+	// Free-ticket credits earned from Match-2 wins. The redemption checkbox is
+	// only shown when the user actually has credits — the on-chain instruction
+	// rejects useFreeTicket when none are available.
+	const [freeTicketsAvailable, setFreeTicketsAvailable] = useState(0);
+
+	useEffect(() => {
+		let cancelled = false;
+		if (walletConnected && connectedProvider) {
+			fetchUserStats(connectedProvider, connectedProvider.wallet.publicKey)
+				.then((stats) => {
+					if (cancelled) return;
+					const raw = stats as Record<string, unknown> | null;
+					const val =
+						raw?.free_tickets_available ?? raw?.freeTicketsAvailable ?? 0;
+					setFreeTicketsAvailable(Number(val) || 0);
+				})
+				.catch(() => {
+					if (!cancelled) setFreeTicketsAvailable(0);
+				});
+		} else {
+			setFreeTicketsAvailable(0);
+		}
+		return () => {
+			cancelled = true;
+		};
+	}, [walletConnected, connectedProvider]);
 
 	// Live on-chain lottery state (polls every 30s)
 	const {
@@ -475,55 +536,74 @@ export default function PlayMainLottery() {
 				connectedProvider.wallet.publicKey,
 			);
 
-			const signatures: string[] = [];
-			const failedIndexes: number[] = [];
-
-			for (let i = 0; i < tickets.length; i++) {
-				const ticket = tickets[i];
-				// Mark this ticket as being purchased (progress UI).
+			// When buying multiple tickets, use the on-chain buy_bulk
+			// instruction (one tx, one unified account, lower priority fees).
+			// For a single ticket, use buy_ticket with the free-ticket option.
+			if (tickets.length === 1) {
+				const ticket = tickets[0];
 				setPurchaseStatuses((prev) => {
 					const next = new Map(prev);
-					next.set(i, "purchasing");
+					next.set(0, "purchasing");
 					return next;
 				});
 				try {
 					const sig = await buyMainTicket(
 						connectedProvider,
-						{ numbers: ticket.numbers, useFreeTicket: false },
+						{
+							numbers: ticket.numbers,
+							useFreeTicket: useFreeTicket && freeTicketsAvailable > 0,
+						},
 						playerUsdc,
 					);
-					signatures.push(sig);
+					setPurchaseTx(sig);
 					setPurchaseStatuses((prev) => {
 						const next = new Map(prev);
-						next.set(i, "purchased");
+						next.set(0, "purchased");
 						return next;
 					});
-				} catch (_ticketErr) {
-					failedIndexes.push(i);
+				} catch (ticketErr) {
 					setPurchaseStatuses((prev) => {
 						const next = new Map(prev);
-						next.set(i, "failed");
+						next.set(0, "failed");
 						return next;
 					});
-					// Keep going: other tickets may still succeed.
+					throw ticketErr;
 				}
-			}
-
-			// Only remove tickets that were successfully purchased. Failed tickets
-			// stay in the cart so the user can inspect numbers and retry without
-			// double-buying the successful ones.
-			if (signatures.length > 0) {
-				setTickets((prev) => prev.filter((_, i) => !failedIndexes.includes(i)));
-				setPurchaseStatuses(new Map());
-				setPurchaseTx(signatures[signatures.length - 1]);
-				invalidateMainLottery();
-			}
-
-			if (failedIndexes.length > 0) {
-				setPurchaseError(
-					`${failedIndexes.length} of ${tickets.length} ticket${tickets.length === 1 ? "" : "s"} failed. ` +
-						`Successfully purchased tickets were removed; failed tickets remain in your cart for retry.`,
+			} else {
+				// Bulk: all tickets in one transaction.
+				setPurchaseStatuses((prev) => {
+					const next = new Map(prev);
+					tickets.forEach((_, i) => {
+						next.set(i, "purchasing");
+					});
+					return next;
+				});
+				const sig = await buyBulkMainTickets(
+					connectedProvider,
+					{
+						tickets: tickets.map((t) => t.numbers),
+						freeTicketsToUse:
+							useFreeTicket && freeTicketsAvailable > 0
+								? Math.min(freeTicketsAvailable, tickets.length)
+								: 0,
+					},
+					playerUsdc,
 				);
+				setPurchaseTx(sig);
+				setPurchaseStatuses((prev) => {
+					const next = new Map(prev);
+					tickets.forEach((_, i) => {
+						next.set(i, "purchased");
+					});
+					return next;
+				});
+			}
+
+			// Bulk buy succeeded — clear the cart (all tickets purchased in one tx).
+			if (purchaseTx) {
+				setTickets([]);
+				setPurchaseStatuses(new Map());
+				invalidateMainLottery();
 			}
 		} catch (err) {
 			// Setup failures (UserStats init, ATA creation) abort the whole batch.
@@ -541,6 +621,8 @@ export default function PlayMainLottery() {
 		open,
 		invalidateMainLottery,
 		isSaleOpen,
+		useFreeTicket,
+		purchaseTx,
 	]);
 
 	return (
@@ -880,6 +962,9 @@ export default function PlayMainLottery() {
 											(s) => s === "purchased",
 										).length
 									}
+									useFreeTicket={useFreeTicket}
+									onUseFreeTicketChange={setUseFreeTicket}
+									freeTicketsAvailable={freeTicketsAvailable}
 								/>
 
 								{/* Use Free Ticket toggle */}

@@ -302,6 +302,36 @@ export default function PlayQuickPickExpress() {
 	const jackpotUnknown = qpState === null || jackpotDollars === 0;
 	const rolldownActive = jackpotDollars >= 30_000;
 
+	// Actual +EV figure: if a rolldown fires this draw, the ENTIRE jackpot is
+	// shared among that draw's tickets, so expected value per ticket ≈
+	// jackpot / tickets. The old hardcoded "+66.7%" only holds at the $50k hard
+	// cap with exactly 20k tickets — showing it at $30k was misleading.
+	const rolldownEdgePercent = useMemo(() => {
+		if (!rolldownActive) return null;
+		const raw =
+			(qpState as Record<string, unknown>).current_draw_tickets ??
+			(qpState as Record<string, unknown>).currentDrawTickets;
+		let tickets = 0;
+		if (typeof raw === "bigint") tickets = Number(raw);
+		else if (typeof raw === "number") tickets = raw;
+		else if (
+			typeof raw === "object" &&
+			raw !== null &&
+			"toNumber" in raw &&
+			typeof (raw as { toNumber: () => number }).toNumber === "function"
+		) {
+			tickets = (raw as { toNumber: () => number }).toNumber();
+		}
+		if (tickets <= 0) return null;
+		const evPerTicket = jackpotDollars / tickets;
+		return (evPerTicket / 1.5 - 1) * 100;
+	}, [rolldownActive, jackpotDollars, qpState]);
+
+	const rolldownEdgeLabel =
+		rolldownEdgePercent !== null
+			? `${rolldownEdgePercent >= 0 ? "+" : ""}${rolldownEdgePercent.toFixed(1)}%`
+			: "+EV window (volume-dependent)";
+
 	// On-chain next draw time (Unix seconds → ms) from QuickPickState. Prefer
 	// this over the client-clock 4-hour boundary for the countdown.
 	const nextDrawTimestampMs = useMemo(() => {
@@ -569,7 +599,7 @@ export default function PlayQuickPickExpress() {
 								{rolldownActive ? (
 									<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-magenta-500/10 border border-magenta-500/30 font-mono text-[10px] uppercase tracking-[0.2em] text-magenta-300">
 										<div className="w-1.5 h-1.5 rounded-full bg-magenta-400 animate-pulse" />
-										Rolldown Active — +66.7% EV
+										Rolldown Active — {rolldownEdgeLabel} EV
 										<TrendingUp size={11} className="text-magenta-300" />
 									</div>
 								) : (
@@ -679,7 +709,7 @@ export default function PlayQuickPickExpress() {
 													Match 4 (60%) and Match 3 (40%) winners using
 													pari-mutuel division. Expected player edge:{" "}
 													<span className="font-mono font-bold text-emerald-400">
-														+66.7%
+														{rolldownEdgeLabel}
 													</span>
 												</p>
 											</div>
@@ -1004,7 +1034,7 @@ export default function PlayQuickPickExpress() {
 												},
 												{
 													label: "Rolldown EV",
-													qp: "+66.7%",
+													qp: rolldownEdgeLabel,
 													main: "+47%",
 												},
 											].map((row) => (
@@ -1162,7 +1192,7 @@ export default function PlayQuickPickExpress() {
 														<span>
 															During rolldown, your expected value is{" "}
 															<span className="font-mono font-bold text-emerald-400">
-																+66.7%
+																{rolldownEdgeLabel}
 															</span>{" "}
 															— the math flips and you have the edge!
 														</span>
