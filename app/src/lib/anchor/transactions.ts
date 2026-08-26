@@ -11,6 +11,8 @@ import {
 	deriveHouseFeeUsdcPDA,
 	deriveInsurancePoolUsdcPDA,
 	deriveLotteryState,
+	deriveLpPoolPDA,
+	deriveLpPoolUsdcPDA,
 	derivePrizePoolUsdcPDA,
 	deriveQuickPickHouseFeeUsdcPDA,
 	deriveQuickPickInsurancePoolUsdcPDA,
@@ -593,6 +595,8 @@ export async function buildBuyMainTicketInstruction(
 	const [houseFeeUsdc] = deriveHouseFeeUsdcPDA();
 	const [insurancePoolUsdc] = deriveInsurancePoolUsdcPDA();
 	const [userStats] = deriveUserPDA(provider.wallet.publicKey);
+	const [lpPool] = deriveLpPoolPDA();
+	const [lpPoolUsdc] = deriveLpPoolUsdcPDA();
 
 	const instruction = await program.methods
 		.buyTicket({
@@ -614,6 +618,8 @@ export async function buildBuyMainTicketInstruction(
 			prizePoolUsdc,
 			houseFeeUsdc,
 			insurancePoolUsdc,
+			lpPool,
+			lpPoolUsdc,
 			usdcMint: USDC_MINT,
 			userStats,
 			tokenProgram: TOKEN_PROGRAM_ID,

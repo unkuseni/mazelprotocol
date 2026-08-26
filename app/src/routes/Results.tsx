@@ -105,12 +105,19 @@ function formatDate(date: string): string {
 
 /** Map hook DrawResultData to the UI's DrawResult interface */
 function mapHookDrawToUI(d: DrawResultData): DrawResult {
+	// The hook returns prize amounts as USDC lamports (6 decimals); convert to
+	// whole USDC dollars for display (previously the lamport values were
+	// rendered as dollars — off by 1,000,000x).
+	const USDC_DECIMALS = 1_000_000;
+	const toUsd = (lamports: number): number => lamports / USDC_DECIMALS;
+
 	const totalPrizesPaid =
-		d.matchCounts.match6 * Number(d.prizesPerWinner.match6) +
-		d.matchCounts.match5 * Number(d.prizesPerWinner.match5) +
-		d.matchCounts.match4 * Number(d.prizesPerWinner.match4) +
-		d.matchCounts.match3 * Number(d.prizesPerWinner.match3) +
-		d.matchCounts.match2 * Number(d.prizesPerWinner.match2);
+		(d.matchCounts.match6 * Number(d.prizesPerWinner.match6) +
+			d.matchCounts.match5 * Number(d.prizesPerWinner.match5) +
+			d.matchCounts.match4 * Number(d.prizesPerWinner.match4) +
+			d.matchCounts.match3 * Number(d.prizesPerWinner.match3) +
+			d.matchCounts.match2 * Number(d.prizesPerWinner.match2)) /
+		USDC_DECIMALS;
 
 	const dateObj = new Date(Number(d.timestamp) * 1000);
 
@@ -135,11 +142,11 @@ function mapHookDrawToUI(d: DrawResultData): DrawResult {
 			match2: d.matchCounts.match2,
 		},
 		prizesPerWinner: {
-			match6: Number(d.prizesPerWinner.match6),
-			match5: Number(d.prizesPerWinner.match5),
-			match4: Number(d.prizesPerWinner.match4),
-			match3: Number(d.prizesPerWinner.match3),
-			match2: Number(d.prizesPerWinner.match2),
+			match6: toUsd(Number(d.prizesPerWinner.match6)),
+			match5: toUsd(Number(d.prizesPerWinner.match5)),
+			match4: toUsd(Number(d.prizesPerWinner.match4)),
+			match3: toUsd(Number(d.prizesPerWinner.match3)),
+			match2: toUsd(Number(d.prizesPerWinner.match2)),
 		},
 		totalPrizesPaid,
 		jackpotAfterDraw: 0,

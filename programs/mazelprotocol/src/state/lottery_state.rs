@@ -209,7 +209,9 @@ impl LotteryState {
             return 0; // Invalid configuration
         }
 
-        calculate_rolldown_probability_bps(self.jackpot_balance)
+        // Pass the STATE-configurable caps (timelock-governed), not the
+        // module constants — the operator-configured values are authoritative.
+        calculate_rolldown_probability_bps(self.jackpot_balance, self.soft_cap, self.hard_cap)
     }
 
     /// Check if the draw commit has timed out with safety checks

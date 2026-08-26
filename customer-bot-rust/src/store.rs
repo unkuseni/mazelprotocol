@@ -52,11 +52,17 @@ impl Store {
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => StoreData { users: vec![] },
             Err(e) => {
+                // Any OTHER read failure (permission, EIO, transient I/O)
+                // must not silently reset to an empty store: the next save
+                // would overwrite the only copy of the registrations. Back
+                // the file up first (like the corrupt-file path) so nothing
+                // is lost.
                 tracing::error!(
                     error = %e,
                     path = %self.path.display(),
-                    "failed to read users.json; starting with an empty store"
+                    "failed to read users.json; backing it up and starting with an empty store"
                 );
+                self.backup_corrupt();
                 StoreData { users: vec![] }
             }
         }

@@ -34,6 +34,8 @@ export const UNIFIED_TICKET_SEED = enc.encode("unified_ticket");
 export const PRIZE_POOL_USDC_SEED = enc.encode("prize_pool_usdc");
 export const HOUSE_FEE_USDC_SEED = enc.encode("house_fee_usdc");
 export const INSURANCE_POOL_USDC_SEED = enc.encode("insurance_pool_usdc");
+export const LP_POOL_SEED = enc.encode("lp_pool");
+export const LP_POOL_USDC_SEED = enc.encode("lp_pool_usdc");
 
 // Quick Pick seeds
 export const QUICK_PICK_SEED = enc.encode("quick_pick");
@@ -188,6 +190,24 @@ export function deriveInsurancePoolUsdcPDA(
 		[INSURANCE_POOL_USDC_SEED],
 		programId,
 	);
+}
+
+/**
+ * Derive the LP pool state PDA
+ */
+export function deriveLpPoolPDA(
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+): [PublicKey, number] {
+	return PublicKey.findProgramAddressSync([LP_POOL_SEED], programId);
+}
+
+/**
+ * Derive the LP pool USDC token account PDA
+ */
+export function deriveLpPoolUsdcPDA(
+	programId: PublicKey = MAIN_LOTTERY_PROGRAM_ID,
+): [PublicKey, number] {
+	return PublicKey.findProgramAddressSync([LP_POOL_USDC_SEED], programId);
 }
 
 /**

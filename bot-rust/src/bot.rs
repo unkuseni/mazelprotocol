@@ -130,7 +130,10 @@ async fn poll_draws(config: &BotConfig, store: &Store, stats: &RwLock<PersistedB
 // ---------------------------------------------------------------------------
 
 async fn run_http(config: BotConfig, store: Arc<Store>, stats: Arc<RwLock<PersistedBotStats>>) {
-    let addr = format!("0.0.0.0:{}", config.port);
+    // Bind to loopback by default: the admin endpoints are protected by a
+    // bearer token, but the health endpoint is unauthenticated and the
+    // listener must not be reachable from the public internet.
+    let addr = format!("127.0.0.1:{}", config.port);
     let listener = match tokio::net::TcpListener::bind(&addr).await {
         Ok(l) => l,
         Err(e) => {
@@ -138,7 +141,7 @@ async fn run_http(config: BotConfig, store: Arc<Store>, stats: Arc<RwLock<Persis
             return;
         }
     };
-    tracing::info!(addr = %addr, "HTTP server listening");
+    tracing::info!(addr = %addr, "HTTP server listening (loopback only)");
 
     loop {
         let (socket, _) = match listener.accept().await {
@@ -150,6 +153,20 @@ async fn run_http(config: BotConfig, store: Arc<Store>, stats: Arc<RwLock<Persis
         let stats = stats.clone();
         tokio::spawn(handle_http(socket, config, store, stats));
     }
+}
+
+/// Constant-time string comparison for the admin bearer token. Avoids `==`
+/// short-circuit timing leaks; the length check reveals only the (non-secret)
+/// configured token length.
+fn constant_time_eq(a: &str, b: &str) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.bytes().zip(b.bytes()) {
+        diff |= x ^ y;
+    }
+    diff == 0
 }
 
 async fn handle_http(
@@ -167,7 +184,19 @@ async fn handle_http(
     }
 
     let parts: Vec<&str> = request_line.split_whitespace().collect();
+    let method = parts.first().copied().unwrap_or("");
     let path = parts.get(1).unwrap_or(&"/");
+
+    // Only GET requests are supported; reject everything else early.
+    if method != "GET" {
+        let body = r#"{"error":"Method not allowed"}"#;
+        let resp = format!(
+            "HTTP/1.1 405 Method Not Allowed\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        let _ = writer.write_all(resp.as_bytes()).await;
+        return;
+    }
 
     // Read headers so we can authenticate admin endpoints.
     let mut auth_header: Option<String> = None;
@@ -194,16 +223,15 @@ async fn handle_http(
         "/admin/stats" | "/admin/pause" | "/admin/resume" => {
             // SECURITY: Admin endpoints require a bearer token. If none was
             // configured at startup, admin endpoints are disabled entirely.
-            let authorized = config
-                .admin_token
-                .as_ref()
-                .map(|expected| {
-                    auth_header
-                        .as_deref()
-                        .map(|h| h == format!("Bearer {expected}") || h == format!("bearer {expected}"))
-                        .unwrap_or(false)
-                })
-                .unwrap_or(false);
+            let authorized = config.admin_token.as_ref().map(|expected| {
+                auth_header
+                    .as_deref()
+                    .map(|h| {
+                        constant_time_eq(h.strip_prefix("Bearer ").unwrap_or(h), expected)
+                            || constant_time_eq(h.strip_prefix("bearer ").unwrap_or(h), expected)
+                    })
+                    .unwrap_or(false)
+            }).unwrap_or(false);
 
             if !authorized {
                 ("401 Unauthorized", r#"{"error":"Unauthorized"}"#.into())

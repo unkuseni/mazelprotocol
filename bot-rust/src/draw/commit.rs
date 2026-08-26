@@ -213,7 +213,7 @@ pub async fn commit_main_randomness(rpc: &RpcClient, config: &BotConfig) -> Resu
         bh,
     );
 
-    let sig = rpc.send_and_confirm_transaction(&tx)?;
+    let sig = crate::draw::send_and_confirm_with_retry(rpc, config, &tx)?;
     let commit_slot = fetch_committed_seed_slot(rpc, ra).unwrap_or(0);
 
     tracing::info!(
@@ -245,7 +245,7 @@ pub async fn commit_qp_randomness(rpc: &RpcClient, config: &BotConfig) -> Result
         bh,
     );
 
-    let sig = rpc.send_and_confirm_transaction(&tx)?;
+    let sig = crate::draw::send_and_confirm_with_retry(rpc, config, &tx)?;
     let commit_slot = fetch_committed_seed_slot(rpc, ra).unwrap_or(0);
 
     tracing::info!(

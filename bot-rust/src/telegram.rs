@@ -6,14 +6,23 @@
 use reqwest::Client;
 use serde::Serialize;
 
-use crate::error::Result;
+use crate::error::{BotError, Result};
 
 const TELEGRAM_API: &str = "https://api.telegram.org";
+
+/// Build an HTTP client with a request timeout so a stalled connection
+/// cannot hang the bot.
+fn http_client() -> Client {
+    Client::builder().timeout(std::time::Duration::from_secs(20)).build().unwrap_or_else(|e| {
+        tracing::error!("failed to build HTTP client with timeout: {e}; using default client");
+        Client::new()
+    })
+}
 
 /// Send an HTML-formatted message to a Telegram chat.
 pub async fn send_message(bot_token: &str, chat_id: &str, text: &str) -> Result<bool> {
     let url = format!("{TELEGRAM_API}/bot{bot_token}/sendMessage");
-    let client = Client::new();
+    let client = http_client();
 
     #[derive(Serialize)]
     struct SendMessage {
@@ -46,7 +55,13 @@ pub async fn send_message(bot_token: &str, chat_id: &str, text: &str) -> Result<
             }
         }
         Err(e) => {
-            tracing::error!(error = %e, "Telegram sendMessage error");
+            // SECURITY: never log the full error — reqwest's Display includes
+            // the request URL, which embeds the bot token.
+            tracing::error!(
+                timeout = e.is_timeout(),
+                connect = e.is_connect(),
+                "Telegram sendMessage request failed (details redacted)"
+            );
             Ok(false)
         }
     }
@@ -98,9 +113,14 @@ pub async fn notify_draw_error(
 /// Verify the bot token is valid.
 pub async fn verify_bot_token(bot_token: &str) -> Result<()> {
     let url = format!("{TELEGRAM_API}/bot{bot_token}/getMe");
-    let client = Client::new();
+    let client = http_client();
 
-    let resp = client.get(&url).send().await?;
+    // SECURITY: reqwest's error Display embeds the request URL (and thus the
+    // bot token); map to a redacted message before it can reach the fatal
+    // error log in main.
+    let resp = client.get(&url).send().await.map_err(|_| {
+        BotError::Config("Telegram API verification request failed (details redacted)".to_string())
+    })?;
     if resp.status().is_success() {
         let body: serde_json::Value = resp.json().await?;
         if let Some(bot) = body["result"].as_object() {

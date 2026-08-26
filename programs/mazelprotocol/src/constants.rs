@@ -534,29 +534,39 @@ pub fn calculate_quick_pick_house_fee_bps(jackpot_balance: u64, is_rolldown: boo
 /// Calculate rolldown probability (basis points) based on jackpot level
 /// Returns value between 0 and 10000 (0% to 100%)
 ///
+/// Takes the caps EXPLICITLY: the state's configured `soft_cap`/`hard_cap`
+/// values (governed via the config timelock) are authoritative, NOT the
+/// module-level constants. Previously the function used the constants
+/// internally, so any operator-configured caps were ignored and the
+/// probabilistic trigger silently never fired between custom caps.
+///
 /// # Edge Cases Handled:
-/// - SOFT_CAP == HARD_CAP: Returns 100% probability
+/// - soft_cap == hard_cap: Returns 100% probability
 /// - range == 0: Returns 100% probability
-/// - jackpot_balance between SOFT_CAP and HARD_CAP: Linear interpolation
+/// - jackpot_balance between soft_cap and hard_cap: Linear interpolation
 /// - Overflow protection with u128 arithmetic
-pub fn calculate_rolldown_probability_bps(jackpot_balance: u64) -> u16 {
+pub fn calculate_rolldown_probability_bps(
+    jackpot_balance: u64,
+    soft_cap: u64,
+    hard_cap: u64,
+) -> u16 {
     // Safety check: validate caps configuration
-    if SOFT_CAP > HARD_CAP {
+    if soft_cap > hard_cap {
         // Invalid configuration: soft cap exceeds hard cap
         return 0;
     }
 
-    if jackpot_balance < SOFT_CAP {
+    if jackpot_balance < soft_cap {
         return 0;
     }
 
-    if jackpot_balance >= HARD_CAP || SOFT_CAP == HARD_CAP {
+    if jackpot_balance >= hard_cap || soft_cap == hard_cap {
         return BPS_DENOMINATOR as u16; // 100%
     }
 
     // Linear interpolation between soft cap and hard cap
-    let excess = jackpot_balance.saturating_sub(SOFT_CAP);
-    let range = HARD_CAP.saturating_sub(SOFT_CAP);
+    let excess = jackpot_balance.saturating_sub(soft_cap);
+    let range = hard_cap.saturating_sub(soft_cap);
 
     if range == 0 {
         // No range between caps, use 100% probability
@@ -729,12 +739,39 @@ mod tests {
 
     #[test]
     fn test_calculate_rolldown_probability_bps() {
-        assert_eq!(calculate_rolldown_probability_bps(0), 0);
-        assert_eq!(calculate_rolldown_probability_bps(SOFT_CAP), 0);
-        assert_eq!(calculate_rolldown_probability_bps(HARD_CAP), 10000);
+        assert_eq!(calculate_rolldown_probability_bps(0, SOFT_CAP, HARD_CAP), 0);
+        assert_eq!(calculate_rolldown_probability_bps(SOFT_CAP, SOFT_CAP, HARD_CAP), 0);
+        assert_eq!(calculate_rolldown_probability_bps(HARD_CAP, SOFT_CAP, HARD_CAP), 10000);
 
         // At midpoint between soft and hard cap, probability should be 50%
         let midpoint = SOFT_CAP + (HARD_CAP - SOFT_CAP) / 2;
-        assert_eq!(calculate_rolldown_probability_bps(midpoint), 5000);
+        assert_eq!(calculate_rolldown_probability_bps(midpoint, SOFT_CAP, HARD_CAP), 5000);
+    }
+
+    /// The configured state caps must drive the probability — not the module
+    /// constants. This test uses caps that differ from the defaults and
+    /// verifies the interpolation follows the given caps.
+    #[test]
+    fn test_calculate_rolldown_probability_bps_uses_passed_caps() {
+        let soft = 100_000_000_000u64; // $100k
+        let hard = 200_000_000_000u64; // $200k
+
+        // Below the custom soft cap: 0.
+        assert_eq!(calculate_rolldown_probability_bps(soft - 1, soft, hard), 0);
+        // At the custom soft cap: 0.
+        assert_eq!(calculate_rolldown_probability_bps(soft, soft, hard), 0);
+        // Midpoint of the CUSTOM range: 50% — even though the default
+        // module soft cap ($1.75M) would yield 0 here.
+        let mid = soft + (hard - soft) / 2;
+        assert_eq!(calculate_rolldown_probability_bps(mid, soft, hard), 5000);
+        // At/above the custom hard cap: 100%.
+        assert_eq!(calculate_rolldown_probability_bps(hard, soft, hard), 10000);
+        assert_eq!(calculate_rolldown_probability_bps(hard + 1, soft, hard), 10000);
+
+        // Invalid configuration (soft > hard) fails closed.
+        assert_eq!(calculate_rolldown_probability_bps(hard, hard, soft), 0);
+
+        // Equal caps: 100% at/above the cap.
+        assert_eq!(calculate_rolldown_probability_bps(soft, soft, soft), 10000);
     }
 }

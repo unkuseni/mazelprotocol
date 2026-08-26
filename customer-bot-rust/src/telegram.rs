@@ -11,6 +11,25 @@ use std::sync::Arc;
 
 const API: &str = "https://api.telegram.org";
 
+/// HTTP timeout for every Telegram API call.
+/// A stalled connection currently hangs the polling loop forever (polling is
+/// serial) and leaks webhook tasks while blocking the terminal 200 that tells
+/// Telegram to stop re-delivering the update.
+const HTTP_TIMEOUT_SECS: u64 = 20;
+
+/// Build an HTTP client with the Telegram API timeout applied.
+/// Falls back to the default client if the builder ever fails (it cannot for
+/// timeout-only options).
+fn http_client() -> Client {
+    Client::builder()
+        .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECS))
+        .build()
+        .unwrap_or_else(|e| {
+            tracing::error!("failed to build HTTP client with timeout: {e}; using default client");
+            Client::new()
+        })
+}
+
 /// Exponential backoff for transient network failures: starts at 2s,
 /// doubles on each consecutive failure up to a 30s cap, and resets to 2s
 /// after any success.
@@ -78,7 +97,7 @@ struct TgUser {
 
 pub async fn send_message(token: &str, chat_id: i64, text: &str) -> Result<()> {
     let url = format!("{API}/bot{token}/sendMessage");
-    let client = Client::new();
+    let client = http_client();
     #[derive(Serialize)]
     struct Body {
         chat_id: i64,
@@ -100,7 +119,7 @@ pub async fn run_polling(cfg: BotConfig) -> Result<()> {
     let solana = Arc::new(Solana::new(cfg.clone()));
     let store = Arc::new(Store::new(std::path::PathBuf::from("data_customer")));
     let token = cfg.telegram_bot_token.clone();
-    let client = Client::new();
+    let client = http_client();
     let mut offset: u64 = 0;
 
     tracing::info!("Long-polling mode started");
@@ -181,7 +200,7 @@ pub async fn run_webhook(cfg: BotConfig) -> Result<()> {
 
     // Set webhook if URL provided
     if let Some(ref wh_url) = cfg.webhook_url {
-        let client = Client::new();
+        let client = http_client();
         let wh = format!("{wh_url}/telegram");
         let url = format!("{API}/bot{token}/setWebhook");
         #[derive(Serialize)]

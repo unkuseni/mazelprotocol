@@ -82,6 +82,18 @@ export interface UseTicketsReturn {
  *   syndicate: Option<Pubkey>
  *   bump: u8
  */
+/**
+ * Count how many of `ticketNumbers` appear in `winningNumbers`.
+ * Both arrays are unique (validated on-chain), so a set intersection is exact.
+ */
+function countMatches(
+	ticketNumbers: number[],
+	winningNumbers: number[],
+): number {
+	const winning = new Set(winningNumbers);
+	return ticketNumbers.filter((n) => winning.has(n)).length;
+}
+
 function mapRawMainTicketToUserTicket(
 	raw: Record<string, unknown>,
 	index: number,
@@ -97,7 +109,15 @@ function mapRawMainTicketToUserTicket(
 		get("purchase_timestamp", "purchaseTimestamp"),
 	);
 	const isClaimed = Boolean(get("is_claimed", "isClaimed"));
-	const matchCount = Number(get("match_count", "matchCount") ?? 0);
+	// The on-chain match_count is only written when the ticket is CLAIMED
+	// (claim_prize sets it), so an unclaimed winning ticket reads 0. For a
+	// settled draw, recompute from the numbers vs the winning numbers;
+	// otherwise fall back to the on-chain value.
+	const onChainMatchCount = Number(get("match_count", "matchCount") ?? 0);
+	const matchCount =
+		winningNumbers.length > 0
+			? countMatches(numbers, winningNumbers)
+			: onChainMatchCount;
 	const prizeAmount = toBigInt(get("prize_amount", "prizeAmount") ?? 0);
 	const syndicate = get("syndicate", "syndicate");
 
@@ -145,7 +165,13 @@ function mapRawQuickPickTicketToUserTicket(
 		get("purchase_timestamp", "purchaseTimestamp"),
 	);
 	const isClaimed = Boolean(get("is_claimed", "isClaimed"));
-	const matchCount = Number(get("match_count", "matchCount") ?? 0);
+	// See mapRawMainTicketToUserTicket: the on-chain match_count is only set
+	// at claim time. Recompute for settled draws.
+	const onChainMatchCount = Number(get("match_count", "matchCount") ?? 0);
+	const matchCount =
+		winningNumbers.length > 0
+			? countMatches(numbers, winningNumbers)
+			: onChainMatchCount;
 	const prizeAmount = toBigInt(get("prize_amount", "prizeAmount") ?? 0);
 
 	return {
@@ -455,11 +481,24 @@ export function useTickets(): UseTicketsReturn {
 
 	// ---- refetch -------------------------------------------------------------
 	const refetch = useCallback(() => {
+		// Invalidate by the user-tickets PREFIX for this user, not with drawId
+		// 0: real queries are keyed with actual drawIds (>= 1), so the old
+		// `userTickets(address, 0)` key matched nothing and the ticket list
+		// never refreshed after a claim. A partial object key (`{user}`)
+		// matches all drawIds for that wallet (TanStack Query partial match).
 		queryClient.invalidateQueries({
-			queryKey: lotteryKeys.main.userTickets(address || "", 0),
+			queryKey: [
+				...lotteryKeys.main.all(),
+				"user-tickets",
+				{ user: address || "" },
+			],
 		});
 		queryClient.invalidateQueries({
-			queryKey: lotteryKeys.quickPick.userTickets(address || "", 0),
+			queryKey: [
+				...lotteryKeys.quickPick.all(),
+				"user-tickets",
+				{ user: address || "" },
+			],
 		});
 	}, [queryClient, address]);
 

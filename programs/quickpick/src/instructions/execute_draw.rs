@@ -72,11 +72,17 @@ pub struct ExecuteQuickPickDraw<'info> {
 
 impl<'info> ExecuteQuickPickDraw<'info> {
     /// Parse and validate the randomness account, returning the revealed value
-    pub fn get_revealed_randomness(&self, current_slot: u64) -> Result<[u8; 32]> {
+    pub fn get_revealed_randomness(&self, current_slot: u64, commit_slot: u64) -> Result<[u8; 32]> {
         // Parse the randomness account data
         let randomness_data =
             RandomnessAccountData::parse(self.randomness_account_data.data.borrow())
                 .map_err(|_| QuickPickError::RandomnessParseError)?;
+
+        // SECURITY: Verify the randomness is the exact account we committed to.
+        // The seed_slot of a Switchboard randomness account is immutable, so
+        // this binds the reveal to the commit (the commit side stored the same
+        // seed_slot in `commit_slot`).
+        require!(randomness_data.seed_slot == commit_slot, QuickPickError::RandomnessNotFresh);
 
         // SECURITY: Verify the seed_slot is recent
         // The reveal should happen shortly after commit
@@ -331,7 +337,9 @@ pub fn handler(ctx: Context<ExecuteQuickPickDraw>) -> Result<()> {
     msg!("  Rolldown probability: {}%", rolldown_probability_bps as f64 / 100.0);
 
     // Get the revealed randomness
-    let randomness = ctx.accounts.get_revealed_randomness(clock.slot)?;
+    let randomness = ctx
+        .accounts
+        .get_revealed_randomness(clock.slot, ctx.accounts.quick_pick_state.commit_slot)?;
 
     // Additional security check - verify randomness is not all zeros or predictable pattern
     let is_valid_randomness = randomness.iter().any(|&b| b != 0);

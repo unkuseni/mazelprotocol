@@ -74,7 +74,6 @@ struct QuickPickPrizeCalculation {
     match_4_prize: u64,
     match_3_prize: u64,
     total_distributed: u64,
-    _undistributed: u64,
     was_scaled_down: bool,
     scale_factor_bps: u16,
 }
@@ -82,45 +81,52 @@ struct QuickPickPrizeCalculation {
 /// Calculate prizes for Normal Mode (fixed prizes)
 ///
 /// In Normal Mode:
-/// - Match 5 (Jackpot): Full jackpot amount (split if multiple winners)
+/// - Match 5 (Jackpot): Full jackpot amount (split if multiple winners).
+///   The jackpot is NEVER scaled down — it is the advertised headline prize.
 /// - Match 4: $100 each
 /// - Match 3: $4 each
+///
+/// Solvency (M2 fix): fixed prizes are scaled only against the funds that
+/// actually back them. `reserve_balance` is included because reserve USDC
+/// lives in the same prize-pool token account that claims draw from; the
+/// jackpot portion is excluded from the fixed-prize budget (it is paid in
+/// full first). `insurance_balance` is deliberately NOT counted here: its
+/// USDC sits in the separate insurance token account and is only usable via
+/// the authority-run sweep instruction.
 fn calculate_quick_pick_fixed_prizes(
     winner_counts: &QuickPickWinnerCounts,
     jackpot_balance: u64,
     prize_pool_balance: u64,
+    reserve_balance: u64,
 ) -> QuickPickPrizeCalculation {
     // Calculate raw prizes
     let match_5_total = if winner_counts.match_5 > 0 { jackpot_balance } else { 0 };
     let match_4_total = (winner_counts.match_4 as u64).saturating_mul(QUICK_PICK_MATCH_4_PRIZE);
     let match_3_total = (winner_counts.match_3 as u64).saturating_mul(QUICK_PICK_MATCH_3_PRIZE);
 
-    let total_required = match_5_total.saturating_add(match_4_total).saturating_add(match_3_total);
+    let fixed_required = match_4_total.saturating_add(match_3_total);
 
-    // Check if we need to scale down prizes
-    let available_funds = jackpot_balance.saturating_add(prize_pool_balance);
+    // Funds available for the FIXED tiers only. The jackpot tier is reserved
+    // for the jackpot prize and is never used to subsidize fixed prizes.
+    let funds_for_fixed = jackpot_balance
+        .saturating_add(prize_pool_balance)
+        .saturating_add(reserve_balance)
+        .saturating_sub(match_5_total);
 
+    // Scale ONLY the fixed prizes if they cannot be fully covered.
     let (scale_factor_bps, was_scaled_down) =
-        if total_required > available_funds && total_required > 0 {
+        if fixed_required > funds_for_fixed && fixed_required > 0 {
             // Scale down proportionally
-            let factor = ((available_funds as u128 * BPS_DENOMINATOR as u128)
-                / total_required as u128) as u16;
+            let factor = ((funds_for_fixed as u128 * BPS_DENOMINATOR as u128)
+                / fixed_required as u128) as u16;
             (factor, true)
         } else {
             (BPS_DENOMINATOR as u16, false)
         };
 
     // Calculate per-winner prizes
-    let match_5_prize = if winner_counts.match_5 > 0 {
-        let scaled_jackpot = if was_scaled_down {
-            (jackpot_balance as u128 * scale_factor_bps as u128 / BPS_DENOMINATOR as u128) as u64
-        } else {
-            jackpot_balance
-        };
-        scaled_jackpot / winner_counts.match_5 as u64
-    } else {
-        0
-    };
+    let match_5_prize =
+        if winner_counts.match_5 > 0 { jackpot_balance / winner_counts.match_5 as u64 } else { 0 };
 
     let match_4_prize = if was_scaled_down {
         (QUICK_PICK_MATCH_4_PRIZE as u128 * scale_factor_bps as u128 / BPS_DENOMINATOR as u128)
@@ -144,14 +150,11 @@ fn calculate_quick_pick_fixed_prizes(
     let total_distributed =
         actual_match_5.saturating_add(actual_match_4).saturating_add(actual_match_3);
 
-    let undistributed = available_funds.saturating_sub(total_distributed);
-
     QuickPickPrizeCalculation {
         match_5_prize,
         match_4_prize,
         match_3_prize,
         total_distributed,
-        _undistributed: undistributed,
         was_scaled_down,
         scale_factor_bps,
     }
@@ -217,14 +220,12 @@ fn calculate_quick_pick_rolldown_prizes(
     let actual_match_3 = match_3_prize.saturating_mul(winner_counts.match_3 as u64);
 
     let total_distributed = actual_match_4.saturating_add(actual_match_3);
-    let undistributed = jackpot_balance.saturating_sub(total_distributed);
 
     QuickPickPrizeCalculation {
         match_5_prize,
         match_4_prize,
         match_3_prize,
         total_distributed,
-        _undistributed: undistributed,
         was_scaled_down: false,
         scale_factor_bps: BPS_DENOMINATOR as u16,
     }
@@ -270,8 +271,15 @@ pub fn handler(
     let current_draw = ctx.accounts.quick_pick_state.current_draw;
     let jackpot_balance = ctx.accounts.quick_pick_state.jackpot_balance;
     let prize_pool_balance = ctx.accounts.quick_pick_state.prize_pool_balance;
+    let reserve_balance = ctx.accounts.quick_pick_state.reserve_balance;
     let seed_amount = ctx.accounts.quick_pick_state.seed_amount;
-    let was_rolldown = ctx.accounts.draw_result.was_rolldown;
+    // CRITICAL FIX: A rolldown-triggered draw can still produce a Match 5
+    // (jackpot) winner — the trigger is decided probabilistically BEFORE the
+    // winning numbers are generated. A jackpot winner must always be paid the
+    // full jackpot instead of $0, so the rolldown distribution is overridden
+    // whenever a Match 5 winner exists. This mirrors the main lottery program
+    // (`was_rolldown && match_6 == 0` in mazelprotocol finalize_draw).
+    let was_rolldown = ctx.accounts.draw_result.was_rolldown && params.winner_counts.match_5 == 0;
     let total_tickets = ctx.accounts.draw_result.total_tickets;
 
     // ==========================================================================
@@ -321,7 +329,7 @@ pub fn handler(
     // Expected probabilities per ticket (5/35 matrix):
     //   Match 5: ~1 in 324,632
     //   Match 4: ~1 in 2,164 (150 ways)
-    //   Match 3: ~1 in 48 (3,000 ways)
+    //   Match 3: ~1 in 75 (4,350 ways)
     //
     // Upper bounds (generous: allow up to 100x expected rate + 1 for small draws):
     if total_tickets > 100 {
@@ -380,6 +388,7 @@ pub fn handler(
             &params.winner_counts,
             jackpot_balance,
             prize_pool_balance,
+            reserve_balance,
         )
     };
 
@@ -640,6 +649,7 @@ mod tests {
             &winner_counts,
             10_000_000_000, // $10,000 jackpot
             5_000_000_000,  // $5,000 prize pool
+            2_000_000_000,  // $2,000 reserve
         );
 
         // No jackpot winners
@@ -660,10 +670,48 @@ mod tests {
             &winner_counts,
             jackpot,
             5_000_000_000, // $5,000 prize pool
+            0,
         );
 
         // Jackpot split between 2 winners
         assert_eq!(result.match_5_prize, jackpot / 2);
+        assert_eq!(result.match_4_prize, QUICK_PICK_MATCH_4_PRIZE);
+        assert_eq!(result.match_3_prize, QUICK_PICK_MATCH_3_PRIZE);
+    }
+
+    /// The jackpot (Match 5) prize must NEVER be scaled down — even when the
+    /// fixed tiers cannot be fully covered, only the fixed tiers are scaled.
+    #[test]
+    fn test_calculate_quick_pick_fixed_prizes_never_scales_jackpot() {
+        let winner_counts = QuickPickWinnerCounts { match_5: 1, match_4: 10, match_3: 100 };
+
+        let jackpot = 10_000_000_000u64; // $10,000
+                                         // $500 prize pool + $0 reserve — enough for only ~$500 of the
+                                         // $5,000 fixed-tier requirement ($1,000 + $400).
+        let result = calculate_quick_pick_fixed_prizes(&winner_counts, jackpot, 500_000_000, 0);
+
+        // Jackpot paid in full; fixed tiers scaled down.
+        assert_eq!(result.match_5_prize, jackpot);
+        assert!(result.was_scaled_down);
+        assert!(result.match_4_prize < QUICK_PICK_MATCH_4_PRIZE);
+        assert!(result.match_3_prize < QUICK_PICK_MATCH_3_PRIZE);
+        // Total can never exceed what the prize-pool token account backs.
+        assert!(result.total_distributed <= jackpot + 500_000_000);
+    }
+
+    /// Reserve-backed funds must prevent unnecessary fixed-prize scaling.
+    #[test]
+    fn test_calculate_quick_pick_fixed_prizes_reserve_prevents_scaling() {
+        let winner_counts = QuickPickWinnerCounts { match_5: 0, match_4: 100, match_3: 1000 };
+
+        let jackpot = 10_000_000_000u64;
+        let prize_pool = 500_000_000u64;
+        // Required: 100 * $100 + 1000 * $4 = $14,000. Prize pool alone is
+        // insufficient ($500), but reserve ($15,000) covers the rest.
+        let result =
+            calculate_quick_pick_fixed_prizes(&winner_counts, jackpot, prize_pool, 15_000_000_000);
+
+        assert!(!result.was_scaled_down);
         assert_eq!(result.match_4_prize, QUICK_PICK_MATCH_4_PRIZE);
         assert_eq!(result.match_3_prize, QUICK_PICK_MATCH_3_PRIZE);
     }

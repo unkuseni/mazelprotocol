@@ -65,7 +65,7 @@ pub struct BuyBulk<'info> {
         ],
         bump
     )]
-    pub unified_ticket: Account<'info, UnifiedTicket>,
+    pub unified_ticket: Box<Account<'info, UnifiedTicket>>,
 
     /// Player's USDC token account
     #[account(

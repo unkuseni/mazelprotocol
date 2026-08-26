@@ -64,7 +64,7 @@ pub async fn execute_main_draw(
         bh,
     );
 
-    let sig = rpc.send_and_confirm_transaction(&tx)?;
+    let sig = crate::draw::send_and_confirm_with_retry(rpc, config, &tx)?;
 
     let account = rpc.get_account(&draw_result)?;
     let dr: DrawResult = deser_checked(&account.data)?;
@@ -116,7 +116,7 @@ pub async fn execute_qp_draw(
         bh,
     );
 
-    let sig = rpc.send_and_confirm_transaction(&tx)?;
+    let sig = crate::draw::send_and_confirm_with_retry(rpc, config, &tx)?;
 
     let account = rpc.get_account(&draw_result)?;
     let dr: QuickPickDrawResult = deser_checked(&account.data)?;

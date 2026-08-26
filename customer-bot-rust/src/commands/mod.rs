@@ -23,6 +23,17 @@ fn short_wallet(address: &str) -> String {
     format!("{}…", address.chars().take(12).collect::<String>())
 }
 
+/// Escape text for Telegram `parse_mode="HTML"` replies.
+///
+/// SECURITY (HTML injection): usernames/first-names are free-form user
+/// text. Embedded unescaped into HTML replies they can inject clickable
+/// phishing links into public group chats and break the layout (unbalanced
+/// tags make Telegram reject the message with a 400, silently dropping the
+/// reply). Escape the characters that can form HTML tags/entities.
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
 /// Validate that a string is a well-formed Solana address (base58, 32 bytes).
 /// SECURITY (review C3): rejects non-address input that previously caused
 /// panics downstream and allowed any user to claim any address.
@@ -52,7 +63,10 @@ pub async fn handle(
 ) -> String {
     if !text.starts_with('/') {
         if chat_id > 0 {
-            return format!("👋 Hi {username}! I'm the MazelProtocol bot.\n\n💳 Register and buy tickets:\n/register <address> — Link your wallet\n/help — All commands");
+            return format!(
+                "👋 Hi {}! I'm the MazelProtocol bot.\n\n💳 Register and buy tickets:\n/register <address> — Link your wallet\n/help — All commands",
+                html_escape(username)
+            );
         }
         return String::new();
     }
@@ -62,7 +76,7 @@ pub async fn handle(
     let args: Vec<&str> = parts.iter().skip(1).copied().collect();
 
     match cmd.as_str() {
-        "start" => format!("👋 Welcome to <b>MazelProtocol</b>, {username}!\n\n🎰 <b>Main Lottery</b> (6/46) — Draws every 24h\n⚡ <b>Quick Pick</b> (5/35) — Draws every 4h\n\nCommands:\n/jackpot — View jackpots\n/quickpick — Generate numbers\n/draw — Latest results\n/register — Link wallet\n/help — All commands"),
+        "start" => format!("👋 Welcome to <b>MazelProtocol</b>, {}!\n\n🎰 <b>Main Lottery</b> (6/46) — Draws every 24h\n⚡ <b>Quick Pick</b> (5/35) — Draws every 4h\n\nCommands:\n/jackpot — View jackpots\n/quickpick — Generate numbers\n/draw — Latest results\n/register — Link wallet\n/help — All commands", html_escape(username)),
         "help" => help(),
         "jackpot" | "jp" => jackpot(solana).await,
         "draw" | "results" => draw(solana, &args).await,
@@ -247,7 +261,8 @@ async fn register(store: &Store, uid: u64, username: &str, args: &[&str]) -> Str
     match store.register_user(uid, username, wallet) {
         Ok(rec) => format!(
             "✅ Registered!\n\nWallet: <code>{}</code>\nUser: {}\n\nUse /balance to check funds.",
-            rec.wallet_address, rec.username
+            rec.wallet_address,
+            html_escape(&rec.username)
         ),
         Err(e) => format!("❌ Error: {e}"),
     }
@@ -258,7 +273,7 @@ async fn balance(store: &Store, uid: u64, solana: &Solana) -> String {
         Some(u) => {
             match solana.fetch_main_state() {
                 Ok(s) => format!(
-                    "<b>💰 Your Account</b>\n\nWallet: <code>{}</code>\nCurrent Draw: #{}\nTickets this draw: {}\n\nUse /quickpick to get numbers,\nthen buy tickets on the dApp!",
+                    "<b>💰 Your Account</b>\n\nWallet: <code>{}</code>\nCurrent Draw: #{}\nTickets sold this draw (all players): {}\n\nUse /quickpick to get numbers,\nthen buy tickets on the dApp!",
                     short_wallet(&u.wallet_address), s.current_draw_id, s.current_draw_tickets
                 ),
                 Err(e) => format!("❌ Error fetching state: {e}"),
@@ -278,7 +293,10 @@ async fn stats(solana: &Solana, store: &Store, uid: u64) -> String {
                     format!(
                         "\nWallet: <code>{}</code>\nRegistered: {}",
                         short_wallet(&u.wallet_address),
-                        &u.registered_at[..10]
+                        // Char-safe truncation: a corrupt store could hold a
+                        // short or non-ASCII value, and byte slicing would
+                        // panic the polling loop.
+                        u.registered_at.get(..10).unwrap_or(&u.registered_at)
                     )
                 })
                 .unwrap_or_default();

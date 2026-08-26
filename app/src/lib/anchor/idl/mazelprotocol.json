@@ -278,6 +278,38 @@
 					}
 				},
 				{
+					"name": "lp_pool",
+					"docs": [
+						"LP pool state (optional \u2014 routing LP rewards)"
+					],
+					"writable": true,
+					"optional": true,
+					"pda": {
+						"seeds": [
+							{
+								"kind": "const",
+								"value": [108, 112, 95, 112, 111, 111, 108]
+							}
+						]
+					}
+				},
+				{
+					"name": "lp_pool_usdc",
+					"docs": [
+						"LP pool USDC token account (optional \u2014 routing LP rewards)"
+					],
+					"writable": true,
+					"optional": true,
+					"pda": {
+						"seeds": [
+							{
+								"kind": "const",
+								"value": [108, 112, 95, 112, 111, 111, 108, 95, 117, 115, 100, 99]
+							}
+						]
+					}
+				},
+				{
 					"name": "usdc_mint",
 					"docs": ["USDC mint (must be 6 decimals)"]
 				},
@@ -596,6 +628,38 @@
 									105, 110, 115, 117, 114, 97, 110, 99, 101, 95, 112, 111, 111,
 									108, 95, 117, 115, 100, 99
 								]
+							}
+						]
+					}
+				},
+				{
+					"name": "lp_pool",
+					"docs": [
+						"LP pool state (optional \u2014 routing LP rewards)"
+					],
+					"writable": true,
+					"optional": true,
+					"pda": {
+						"seeds": [
+							{
+								"kind": "const",
+								"value": [108, 112, 95, 112, 111, 111, 108]
+							}
+						]
+					}
+				},
+				{
+					"name": "lp_pool_usdc",
+					"docs": [
+						"LP pool USDC token account (optional \u2014 routing LP rewards)"
+					],
+					"writable": true,
+					"optional": true,
+					"pda": {
+						"seeds": [
+							{
+								"kind": "const",
+								"value": [108, 112, 95, 112, 111, 111, 108, 95, 117, 115, 100, 99]
 							}
 						]
 					}

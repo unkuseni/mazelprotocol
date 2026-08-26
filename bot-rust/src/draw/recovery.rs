@@ -53,7 +53,7 @@ fn send_ix(rpc: &RpcClient, config: &BotConfig, ix: Instruction) -> Result<Signa
         &[config.authority.as_ref()],
         bh,
     );
-    Ok(rpc.send_and_confirm_transaction(&tx)?)
+    crate::draw::send_and_confirm_with_retry(rpc, config, &tx)
 }
 
 /// Fetch the winning numbers (and execution timestamp) of an already-executed

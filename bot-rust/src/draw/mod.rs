@@ -26,7 +26,7 @@ use crate::config::{
     BotConfig, MAIN_FINALIZATION_DELAY, MAIN_TICKET_SALE_CUTOFF, QP_FINALIZATION_DELAY,
     QP_TICKET_SALE_CUTOFF,
 };
-use crate::error::Result;
+use crate::error::{BotError, Result};
 use crate::indexer;
 use crate::store::{DrawPhase, PersistedDrawState, Store};
 use crate::telegram;
@@ -35,6 +35,38 @@ pub struct DrawResult {
     pub phase: DrawPhase,
     pub draw_id: u64,
     pub winning_numbers: Option<Vec<u8>>,
+}
+
+/// Send and confirm a transaction with the configured retry/backoff
+/// (`max_retries` / `retry_delay_ms` from the CLI).
+///
+/// Transient RPC failures (dropped transactions, blockhash blips, slow
+/// confirmation) previously aborted the whole poll on the first attempt,
+/// and the recovery path only ever advanced the draw — orphaning every
+/// ticket already sold for the committed draw. Retrying the same signed
+/// transaction is safe: it is idempotent and the on-chain program rejects
+/// double-executes. The (bounded) sleep is synchronous by design: the draw
+/// lifecycle is already a sequential poll loop.
+pub fn send_and_confirm_with_retry(
+    rpc: &RpcClient,
+    config: &BotConfig,
+    tx: &solana_transaction::Transaction,
+) -> Result<solana_signature::Signature> {
+    let mut attempt = 0u32;
+    loop {
+        match rpc.send_and_confirm_transaction(tx) {
+            Ok(sig) => return Ok(sig),
+            Err(e) => {
+                attempt += 1;
+                if attempt > config.max_retries {
+                    return Err(BotError::Solana(Box::new(e)));
+                }
+                let delay_ms = config.retry_delay_ms.saturating_mul(attempt as u64);
+                tracing::warn!(attempt, delay_ms, "transaction send failed; retrying");
+                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            }
+        }
+    }
 }
 
 /// Sleep until `timestamp + delay`, if that time is still in the future.

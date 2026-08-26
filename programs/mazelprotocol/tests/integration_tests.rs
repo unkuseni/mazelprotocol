@@ -120,16 +120,22 @@ mod test_lottery_constants {
     #[test]
     fn test_calculate_rolldown_probability_below_soft_cap() {
         // Below soft cap => 0% probability
-        assert_eq!(calculate_rolldown_probability_bps(0), 0);
-        assert_eq!(calculate_rolldown_probability_bps(SOFT_CAP.saturating_sub(1)), 0);
+        assert_eq!(calculate_rolldown_probability_bps(0, SOFT_CAP, HARD_CAP), 0);
+        assert_eq!(
+            calculate_rolldown_probability_bps(SOFT_CAP.saturating_sub(1), SOFT_CAP, HARD_CAP),
+            0
+        );
     }
 
     #[test]
     fn test_calculate_rolldown_probability_at_hard_cap() {
         // At hard cap => 100% probability
-        assert_eq!(calculate_rolldown_probability_bps(HARD_CAP), BPS_DENOMINATOR as u16);
         assert_eq!(
-            calculate_rolldown_probability_bps(HARD_CAP + 100_000_000_000),
+            calculate_rolldown_probability_bps(HARD_CAP, SOFT_CAP, HARD_CAP),
+            BPS_DENOMINATOR as u16
+        );
+        assert_eq!(
+            calculate_rolldown_probability_bps(HARD_CAP + 100_000_000_000, SOFT_CAP, HARD_CAP),
             BPS_DENOMINATOR as u16
         );
     }
@@ -138,7 +144,7 @@ mod test_lottery_constants {
     fn test_calculate_rolldown_probability_midway() {
         // At 50% between soft and hard cap => ~50% probability
         let halfway = SOFT_CAP + (HARD_CAP - SOFT_CAP) / 2;
-        let prob = calculate_rolldown_probability_bps(halfway);
+        let prob = calculate_rolldown_probability_bps(halfway, SOFT_CAP, HARD_CAP);
         // Should be approximately 5000 (50%) with some rounding
         assert!(prob >= 4900 && prob <= 5100);
     }
@@ -146,8 +152,8 @@ mod test_lottery_constants {
     #[test]
     fn test_calculate_rolldown_probability_monotonic() {
         // Probability should increase as jackpot increases
-        let p1 = calculate_rolldown_probability_bps(SOFT_CAP + 1);
-        let p2 = calculate_rolldown_probability_bps(SOFT_CAP + 100_000_000_000);
+        let p1 = calculate_rolldown_probability_bps(SOFT_CAP + 1, SOFT_CAP, HARD_CAP);
+        let p2 = calculate_rolldown_probability_bps(SOFT_CAP + 100_000_000_000, SOFT_CAP, HARD_CAP);
         assert!(p2 >= p1);
     }
 

@@ -93,7 +93,7 @@ pub async fn finalize_main_draw(
         &[config.authority.as_ref()],
         bh,
     );
-    let sig = rpc.send_and_confirm_transaction(&tx)?;
+    let sig = crate::draw::send_and_confirm_with_retry(rpc, config, &tx)?;
     Ok(FinalizeResult { signature: sig })
 }
 
@@ -134,7 +134,7 @@ pub async fn finalize_qp_draw(
         &[config.authority.as_ref()],
         bh,
     );
-    let sig = rpc.send_and_confirm_transaction(&tx)?;
+    let sig = crate::draw::send_and_confirm_with_retry(rpc, config, &tx)?;
     Ok(FinalizeResult { signature: sig })
 }
 

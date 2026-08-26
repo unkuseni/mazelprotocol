@@ -381,8 +381,20 @@ pub fn handler_unpause(ctx: Context<PauseQuickPick>) -> Result<()> {
 
     // SECURITY (C3 fix): Verify solvency before unpausing.
     // The prize pool must have enough funds to cover the seed amount.
+    //
+    // DEADLOCK FIX: Reseeding after a jackpot win / rolldown can leave the
+    // jackpot below seed_amount while the authority tops up `reserve_balance`
+    // via add_reserve_funds (which deposits USDC into the same prize-pool
+    // token account). Requiring `jackpot_balance >= seed_amount` alone would
+    // make the protocol impossible to revive: add_reserve_funds never moves
+    // money into the jackpot bucket. Reserve USDC backs the same prize pool
+    // and is the first source used to seed the next jackpot, so count it too.
     require!(
-        ctx.accounts.quick_pick_state.jackpot_balance >= ctx.accounts.quick_pick_state.seed_amount,
+        ctx.accounts
+            .quick_pick_state
+            .jackpot_balance
+            .saturating_add(ctx.accounts.quick_pick_state.reserve_balance)
+            >= ctx.accounts.quick_pick_state.seed_amount,
         QuickPickError::InsufficientFunds
     );
 

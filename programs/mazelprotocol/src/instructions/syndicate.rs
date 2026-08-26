@@ -525,28 +525,26 @@ pub fn handler_leave_syndicate(ctx: Context<LeaveSyndicate>) -> Result<()> {
         }
     }
 
-    // M2 FIX: Capture member's share percentage BEFORE removal, then compute
-    // refund as proportional share of the CURRENT syndicate USDC balance.
-    // This ensures fairness even after ticket purchases or prize wins.
-    let share_bps = ctx
-        .accounts
-        .syndicate
-        .find_member(&member_key)
-        .map(|m| m.share_percentage_bps)
-        .ok_or(LottoError::NotSyndicateMember)?;
+    // SECURITY FIX (commingled-balance refund): refund the member's
+    // bookkeeping balance (remaining contribution + snapshot unclaimed
+    // prize), NOT a share of the live token balance. The syndicate token
+    // account commingles remaining contributions with prize funds moved in
+    // by distribute_syndicate_prize; refunding a share of the live balance
+    // let a late joiner (whose share is inflated by a large deposit) siphon
+    // other members' unclaimed prize money on exit.
+    let member =
+        ctx.accounts.syndicate.find_member(&member_key).ok_or(LottoError::NotSyndicateMember)?;
+    let refund_base = member.contribution.saturating_add(member.unclaimed_prize);
 
     // Remove the member (updates state and recalculates remaining shares)
     let _ = ctx.accounts.syndicate.remove_member(&member_key)?;
 
     let remaining_members = ctx.accounts.syndicate.member_count;
 
-    // Calculate refund based on proportional share of CURRENT syndicate balance
-    let syndicate_usdc_amount = ctx.accounts.syndicate_usdc.amount;
-    let refund = if syndicate_usdc_amount > 0 && share_bps > 0 {
-        (syndicate_usdc_amount as u128 * share_bps as u128 / BPS_DENOMINATOR as u128) as u64
-    } else {
-        0
-    };
+    // Defensive cap: never pay out more than the token account holds. By the
+    // accounting invariant the pool always backs Σ(contribution +
+    // unclaimed_prize), so the cap only matters for rounding dust.
+    let refund = refund_base.min(ctx.accounts.syndicate_usdc.amount);
 
     // Transfer the proportional refund to the member
     if refund > 0 {
@@ -797,22 +795,18 @@ pub fn handler_withdraw_creator_contribution(
     let creator_key = ctx.accounts.creator.key();
     let syndicate_key = ctx.accounts.syndicate.key();
 
-    // M2 FIX: Get creator's share percentage and calculate max withdrawable
-    // as proportional share of CURRENT syndicate USDC balance, not the
-    // original contribution (which may have been spent on tickets).
-    let share_bps = ctx
+    // SECURITY FIX (commingled-balance refund): withdrawals are limited to
+    // the creator's bookkeeping contribution, NOT a share of the live token
+    // balance. The balance commingles remaining contributions with prize
+    // funds moved in by distribute_syndicate_prize, so a share-based cap
+    // would let the creator withdraw other members' unclaimed prize money.
+    // Prizes are paid through claim_syndicate_member_prize.
+    let max_withdrawable = ctx
         .accounts
         .syndicate
         .find_member(&creator_key)
-        .map(|m| m.share_percentage_bps)
+        .map(|m| m.contribution)
         .ok_or(LottoError::NotSyndicateMember)?;
-
-    let syndicate_usdc_amount = ctx.accounts.syndicate_usdc.amount;
-    let max_withdrawable = if syndicate_usdc_amount > 0 && share_bps > 0 {
-        (syndicate_usdc_amount as u128 * share_bps as u128 / BPS_DENOMINATOR as u128) as u64
-    } else {
-        0
-    };
 
     // Validate withdrawal amount
     require!(amount > 0, LottoError::InvalidSeedAmount);
@@ -2002,14 +1996,13 @@ pub fn handler_remove_syndicate_member(
     let syndicate_id = ctx.accounts.syndicate.syndicate_id;
     let syndicate_bump = ctx.accounts.syndicate.bump;
 
-    // M2 FIX: Capture member's share percentage BEFORE removal, then compute
-    // refund as proportional share of the CURRENT syndicate USDC balance.
-    let share_bps = ctx
-        .accounts
-        .syndicate
-        .find_member(&member_wallet)
-        .map(|m| m.share_percentage_bps)
-        .ok_or(LottoError::NotSyndicateMember)?;
+    // SECURITY FIX (commingled-balance refund): refund the member's
+    // bookkeeping balance (remaining contribution + snapshot unclaimed
+    // prize), NOT a share of the live token balance (which commingles
+    // contributions with prize funds from distribute_syndicate_prize).
+    let member =
+        ctx.accounts.syndicate.find_member(&member_wallet).ok_or(LottoError::NotSyndicateMember)?;
+    let refund_base = member.contribution.saturating_add(member.unclaimed_prize);
 
     // Remove the member (updates state and recalculates remaining shares)
     let _ = ctx
@@ -2018,13 +2011,8 @@ pub fn handler_remove_syndicate_member(
         .remove_member(&member_wallet)
         .map_err(|_| LottoError::NotSyndicateMember)?;
 
-    // Calculate refund based on proportional share of CURRENT syndicate balance
-    let syndicate_usdc_amount = ctx.accounts.syndicate_usdc.amount;
-    let refund_amount = if syndicate_usdc_amount > 0 && share_bps > 0 {
-        (syndicate_usdc_amount as u128 * share_bps as u128 / BPS_DENOMINATOR as u128) as u64
-    } else {
-        0
-    };
+    // Defensive cap: never pay out more than the token account holds.
+    let refund_amount = refund_base.min(ctx.accounts.syndicate_usdc.amount);
 
     // Validate syndicate has enough funds for refund
     require!(ctx.accounts.syndicate_usdc.amount >= refund_amount, LottoError::InsufficientFunds);

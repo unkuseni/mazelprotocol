@@ -1,10 +1,4 @@
-import {
-	Calculator,
-	Info,
-	Minus,
-	Sparkles,
-	TrendingUp,
-} from "lucide-react";
+import { Calculator, Info, Minus, Sparkles, TrendingUp } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -39,8 +33,12 @@ const FIXED_PRIZES = {
 	match2: 2.5, // free ticket
 };
 
-// Jackpot allocation to prizes during rolldown
-const ROLLDOWN_JACKPOT_ALLOCATION_BPS = 7200; // 72% to prizes
+// Jackpot allocation to prizes during rolldown. On-chain the ENTIRE jackpot
+// is distributed to the lower tiers (25% / 35% / 40% = 100% of the jackpot;
+// only integer-division dust is captured to reserve), so the allocation is
+// 10000 BPS, not 7200 — the previous 72% understated rolldown EV by ~28%
+// versus the on-chain math and the README EV table.
+const ROLLDOWN_JACKPOT_ALLOCATION_BPS = 10000;
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -303,7 +301,9 @@ export function EVCalculator({
 				)}
 			>
 				<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-					{scenario.isPlusEV ? "Expected Value Per Ticket" : "Expected Prizes Per Ticket"}
+					{scenario.isPlusEV
+						? "Expected Value Per Ticket"
+						: "Expected Prizes Per Ticket"}
 				</p>
 				<p
 					className={cn(

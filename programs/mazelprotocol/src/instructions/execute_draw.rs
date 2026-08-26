@@ -142,8 +142,8 @@ fn generate_winning_numbers(randomness: &[u8; 32]) -> Result<[u8; 6]> {
     // For n=46: 46 * (2^32 / 46) = 46 * 93_368_854 = 4_294_967_284
     // So values 4_294_967_284 ..= 4_294_967_295 (12 values) are rejected.
     let reject_threshold: u32 = n.wrapping_mul(u32::MAX / n);
-    // NOTE: u32::MAX / 46 = 93_368_854 (integer division), 46 * 93_368_854 = 4_294_927_284
-    // Anything >= 4_294_927_284 maps unevenly and must be rejected.
+    // u32::MAX / 46 = 93_368_854 (integer division), 46 * 93_368_854 = 4_294_967_284.
+    // Anything >= 4_294_967_284 maps unevenly and must be rejected.
 
     let mut available = [true; MAX_NUMBER as usize]; // tracks which numbers are taken
     let mut winning_numbers = [0u8; 6];
@@ -284,8 +284,33 @@ fn should_trigger_rolldown(randomness: &[u8; 32], probability_bps: u16) -> bool 
     // astronomically unlikely.
     let reject_threshold: u32 = 10000u32.wrapping_mul(u32::MAX / 10000);
 
-    let first_roll = read_roll(0);
-    let roll = if first_roll >= reject_threshold { read_roll(4) } else { first_roll };
+    // Draw up to 8 u32 values from the hash, skipping the biased tail.
+    // Previously only a single retry was attempted — if the retry was also in
+    // the tail (~1.4e-3 of draws) the second roll was used with its bias
+    // intact. Walking the remaining hash words keeps the distribution exact.
+    let mut roll: Option<u32> = None;
+    for offset in (0..8).map(|i| i * 4) {
+        let candidate = read_roll(offset);
+        if candidate < reject_threshold {
+            roll = Some(candidate);
+            break;
+        }
+    }
+
+    // All 8 words rejected (≈2^-26 — practically impossible): chain a fresh
+    // domain-separated round and accept its value. Any residual bias is
+    // irrelevant at this probability.
+    let roll = match roll {
+        Some(v) => v,
+        None => {
+            let mut h = Sha256::new();
+            h.update(b"rolldown_decision");
+            h.update(randomness);
+            h.update(&[1u8]);
+            let bytes = h.finalize();
+            u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) % 10000
+        }
+    };
 
     // Calculate threshold (0-9999)
     let threshold = roll % 10000;

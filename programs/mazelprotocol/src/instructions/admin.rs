@@ -2121,10 +2121,17 @@ pub fn handler_resolve_challenge(
         let reward =
             CHALLENGE_REWARD.min(ctx.accounts.lottery_state.insurance_balance.saturating_sub(bond));
         let refund_total = bond.saturating_add(reward);
-        require!(
-            ctx.accounts.insurance_pool_usdc.amount >= refund_total,
-            LottoError::InsufficientInsuranceFunds
-        );
+
+        // LIVENESS FIX: cap the refund by what the insurance pool can actually
+        // cover. If a prize shortfall on another draw consumed insurance while
+        // this challenge was pending, requiring the full bond+reward would make
+        // resolution permanently impossible (and freeze this draw's claims
+        // forever). The uncovered remainder (if any) is implicitly slashed and
+        // stays in the pool; the draw is always unfrozen either way.
+        let refund_total = refund_total
+            .min(ctx.accounts.lottery_state.insurance_balance)
+            .min(ctx.accounts.insurance_pool_usdc.amount);
+        require!(refund_total > 0, LottoError::InsufficientInsuranceFunds);
 
         // Transfer bond + reward from insurance pool to challenger.
         let lottery_bump = ctx.accounts.lottery_state.bump;
@@ -2143,14 +2150,15 @@ pub fn handler_resolve_challenge(
         token::transfer(cpi_ctx, refund_total)?;
 
         // Accounting: bond + reward leave the insurance pool.
-        ctx.accounts.lottery_state.insurance_balance = ctx
-            .accounts
-            .lottery_state
-            .insurance_balance
-            .checked_sub(refund_total)
-            .ok_or(LottoError::Overflow)?;
+        ctx.accounts.lottery_state.insurance_balance =
+            ctx.accounts.lottery_state.insurance_balance.saturating_sub(refund_total);
 
-        (bond, reward)
+        // Report the actually-refunded amounts: the bond portion first,
+        // then whatever reward remainder was covered.
+        let bond_refunded = refund_total.min(bond);
+        let reward_paid = refund_total.saturating_sub(bond_refunded);
+
+        (bond_refunded, reward_paid)
     } else {
         // Dismissed: the bond stays in the insurance pool (slashed).
         (0u64, 0u64)
@@ -2263,10 +2271,15 @@ pub fn handler_release_challenge(ctx: Context<ReleaseChallenge>, draw_id: u64) -
         .ok_or(LottoError::ArithmeticError)?;
     require!(clock.unix_timestamp >= release_eligible_at, LottoError::ChallengeNotTimedOut);
 
-    require!(
-        ctx.accounts.insurance_pool_usdc.amount >= bond,
-        LottoError::InsufficientInsuranceFunds
-    );
+    // LIVENESS FIX: cap the neutral refund by what the insurance pool can
+    // actually cover, so a release is always possible even if prize
+    // shortfalls on other draws consumed insurance while the challenge was
+    // pending. The remainder (if any) stays in the pool; the draw's claims
+    // are always unfrozen, preserving the "never frozen forever" guarantee.
+    let refund = bond
+        .min(ctx.accounts.lottery_state.insurance_balance)
+        .min(ctx.accounts.insurance_pool_usdc.amount);
+    require!(refund > 0, LottoError::InsufficientInsuranceFunds);
 
     // Refund the bond (neutral release).
     let lottery_bump = ctx.accounts.lottery_state.bump;
@@ -2282,15 +2295,11 @@ pub fn handler_release_challenge(ctx: Context<ReleaseChallenge>, draw_id: u64) -
         cpi_accounts,
         signer_seeds,
     );
-    token::transfer(cpi_ctx, bond)?;
+    token::transfer(cpi_ctx, refund)?;
 
     // Accounting: the bond leaves the insurance pool.
-    ctx.accounts.lottery_state.insurance_balance = ctx
-        .accounts
-        .lottery_state
-        .insurance_balance
-        .checked_sub(bond)
-        .ok_or(LottoError::Overflow)?;
+    ctx.accounts.lottery_state.insurance_balance =
+        ctx.accounts.lottery_state.insurance_balance.saturating_sub(refund);
 
     // Close out the challenge and unfreeze the draw's claims.
     ctx.accounts.challenge_record.resolved = true;
@@ -2300,14 +2309,14 @@ pub fn handler_release_challenge(ctx: Context<ReleaseChallenge>, draw_id: u64) -
     emit!(ChallengeReleased {
         draw_id,
         challenger: ctx.accounts.challenge_record.challenger,
-        bond_refunded: bond,
+        bond_refunded: refund,
         caller: ctx.accounts.caller.key(),
         timestamp: clock.unix_timestamp,
     });
 
     msg!("CHALLENGE RELEASED (timeout)!");
     msg!("  Draw ID: {}", draw_id);
-    msg!("  Bond refunded (neutral): {} USDC lamports", bond);
+    msg!("  Bond refunded (neutral): {} USDC lamports", refund);
     msg!("  Claims for this draw UNFROZEN.");
 
     Ok(())
