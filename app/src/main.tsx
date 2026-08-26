@@ -4,7 +4,6 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "@/App";
-import { initAppKit } from "@/lib/appkit";
 import { AppKitProvider } from "@/lib/appkit-provider";
 import { ThemeProvider } from "@/lib/theme";
 
@@ -24,8 +23,8 @@ const queryClient = new QueryClient({
 	},
 });
 
-// Initialize AppKit eagerly
-initAppKit();
+// AppKit is initialized lazily by the AppKitProvider's client bridge (loaded
+// after the first render), so the wallet stack never blocks the first paint.
 
 // Mount the app
 createRoot(document.getElementById("root")!).render(

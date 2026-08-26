@@ -112,6 +112,8 @@ interface BallConfig {
 	size: number;
 	opacity: number;
 	animDelay: number;
+	/** Stable per-ball animation duration (computed once, not per render) */
+	animDuration: number;
 	isGold: boolean;
 }
 
@@ -129,6 +131,7 @@ export function FloatingBalls({
 			size: Math.random() * 24 + 28,
 			opacity: Math.random() * 0.12 + 0.04,
 			animDelay: Math.random() * 6,
+			animDuration: 6 + Math.random() * 4,
 			isGold: i % 4 === 0,
 		}));
 		setBalls(generated);
@@ -150,7 +153,7 @@ export function FloatingBalls({
 						height: ball.size,
 						opacity: ball.opacity,
 						animationDelay: `${ball.animDelay}s`,
-						animationDuration: `${6 + Math.random() * 4}s`,
+						animationDuration: `${ball.animDuration}s`,
 					}}
 				>
 					<div

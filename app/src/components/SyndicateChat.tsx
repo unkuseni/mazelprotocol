@@ -1118,6 +1118,7 @@ export default function SyndicateChat({
 											enterKeyHint="send"
 											autoComplete="off"
 											maxLength={MAX_MESSAGE_LENGTH}
+											aria-label="Chat message"
 											className="w-full h-9 sm:h-10 px-3.5 rounded-xl bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-emerald-500/30 focus:ring-1 focus:ring-emerald-500/15 transition-colors"
 										/>
 									</div>

@@ -100,6 +100,17 @@ export function JackpotDisplay({
 	const progress = softCap > 0 ? Math.min((amount / softCap) * 100, 100) : 0;
 
 	const animate = useCallback(() => {
+		// Respect reduced-motion: show the final value immediately instead of
+		// animating a count-up.
+		if (
+			window.matchMedia &&
+			window.matchMedia("(prefers-reduced-motion: reduce)").matches
+		) {
+			setDisplayValue(amount);
+			setHasAnimated(true);
+			return;
+		}
+
 		const startTime = performance.now();
 		const startValue = 0;
 

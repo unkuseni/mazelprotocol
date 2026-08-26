@@ -14,11 +14,14 @@ import React, {
 	createContext,
 	type ReactNode,
 	Suspense,
+	useCallback,
 	useContext,
 	useEffect,
 	useMemo,
 	useState,
 } from "react";
+
+import { requestWalletOpen } from "./appkit";
 
 /* -------------------------------------------------------------------------- */
 /*  Public types                                                              */
@@ -27,6 +30,10 @@ import React, {
 export interface AppKitHook {
 	open: (options?: Record<string, unknown>) => void;
 	close: () => void;
+	/** True once the AppKit bridge is mounted and live */
+	ready: boolean;
+	/** True once wallet initialization was requested (click or auto-init) */
+	requested: boolean;
 }
 
 export interface AppKitAccountHook {
@@ -46,6 +53,7 @@ export interface DisconnectHook {
 
 export interface AppKitContextValue {
 	ready: boolean;
+	requested: boolean;
 	// AppKit modal
 	open: (options?: Record<string, unknown>) => void;
 	close: () => void;
@@ -67,6 +75,7 @@ const NOOP_ASYNC = async () => {};
 
 const STUB_VALUE: AppKitContextValue = {
 	ready: false,
+	requested: false,
 	open: NOOP,
 	close: NOOP,
 	isConnected: false,
@@ -131,16 +140,27 @@ const isBrowser =
 	typeof window !== "undefined" && typeof document !== "undefined";
 
 /**
+ * Delay before AppKit initializes on its own. Keeps the wallet stack (≈450 KB
+ * gzip of AppKit/modal chunks) off the first paint, while still restoring a
+ * previously connected wallet's session shortly after load. Any "Connect"
+ * click initializes immediately, regardless.
+ */
+const WALLET_AUTO_INIT_DELAY_MS = 2_000;
+
+/**
  * Wrap your component tree with `<AppKitProvider>` (typically in `__root.tsx`).
  *
  * - Server / first client render → provides stubs so consuming hooks never throw.
- * - Client after hydration → lazy-loads the real AppKit bridge which pushes
- *   live wallet values into the same context.
+ * - The real AppKit bridge is lazy-loaded only after wallet initialization is
+ *   requested (first "Connect" click, or a short auto-init delay for session
+ *   restore). `open()` calls made before the bridge is ready are queued and
+ *   replayed when initialization completes — they are never dropped.
  * - If the lazy chunk fails to load, the error boundary falls back to stubs
  *   so the rest of the app remains functional.
  */
 export function AppKitProvider({ children }: { children: ReactNode }) {
 	const [isClient, setIsClient] = useState(false);
+	const [walletRequested, setWalletRequested] = useState(false);
 
 	useEffect(() => {
 		if (isBrowser) {
@@ -148,19 +168,60 @@ export function AppKitProvider({ children }: { children: ReactNode }) {
 		}
 	}, []);
 
+	// Auto-initialize shortly after mount: restores a connected wallet's
+	// session (header shows the address again) without competing with the
+	// initial page load.
+	useEffect(() => {
+		if (!isClient) return;
+		const timer = setTimeout(
+			() => setWalletRequested(true),
+			WALLET_AUTO_INIT_DELAY_MS,
+		);
+		return () => clearTimeout(timer);
+	}, [isClient]);
+
+	// Queue the open request; the bridge replays it once `createAppKit` is done.
+	const requestOpen = useCallback((options?: Record<string, unknown>) => {
+		setWalletRequested(true);
+		requestWalletOpen(options);
+	}, []);
+
+	// Pre-bridge context: keeps consumers functional and records the intent so
+	// a connect click is never silently dropped (even before auto-init fires).
+	const makeStub = useCallback(
+		(requested: boolean): AppKitContextValue => ({
+			ready: false,
+			requested,
+			open: requestOpen,
+			close: NOOP,
+			isConnected: false,
+			disconnect: NOOP_ASYNC,
+		}),
+		[requestOpen],
+	);
+
+	const idleStub = useMemo(() => makeStub(false), [makeStub]);
+	const requestingStub = useMemo(() => makeStub(true), [makeStub]);
+
 	const stubTree = (
-		<AppKitContext.Provider value={STUB_VALUE}>
+		<AppKitContext.Provider value={requestingStub}>
 			{children}
 		</AppKitContext.Provider>
 	);
 
-	// Server or initial client render — provide stubs
-	if (!isClient) {
-		return stubTree;
+	// Server, initial client render, or not yet requested — provide stubs.
+	// The idle stub's `open` still records the intent (requesting the bridge).
+	if (!isClient || !walletRequested) {
+		return (
+			<AppKitContext.Provider value={idleStub}>
+				{children}
+			</AppKitContext.Provider>
+		);
 	}
 
-	// Client — lazy-load the real bridge inside Suspense + ErrorBoundary.
-	// While the chunk loads (or if it fails), the app still renders with stubs.
+	// Client with wallet requested — lazy-load the real bridge inside
+	// Suspense + ErrorBoundary. While the chunk loads (or if it fails), the
+	// app still renders with stubs.
 	return (
 		<AppKitErrorBoundary fallback={stubTree}>
 			<Suspense fallback={stubTree}>
@@ -178,8 +239,11 @@ export function AppKitProvider({ children }: { children: ReactNode }) {
  * Client-safe replacement for `useAppKit` from `@reown/appkit/react`.
  */
 export function useAppKit(): AppKitHook {
-	const { open, close } = useContext(AppKitContext);
-	return useMemo(() => ({ open, close }), [open, close]);
+	const { open, close, ready, requested } = useContext(AppKitContext);
+	return useMemo(
+		() => ({ open, close, ready, requested }),
+		[open, close, ready, requested],
+	);
 }
 
 /**

@@ -707,33 +707,111 @@ function DemoDataBanner() {
 	);
 }
 
-function StatsBar({ liveCount = 0 }: { liveCount?: number }) {
-	const stats = [
-		{
-			label: "Active Syndicates",
-			value: liveCount > 0 ? liveCount.toLocaleString() : "142",
-			icon: Users,
-			color: "text-emerald-400",
-		},
-		{
-			label: "Total Members",
-			value: "3,847",
-			icon: UserPlus,
-			color: "text-cyan-300",
-		},
-		{
-			label: "Combined Winnings",
-			value: "$487K",
-			icon: Trophy,
-			color: "text-gold-300",
-		},
-		{
-			label: "Avg Win Rate",
-			value: "67.3%",
-			icon: TrendingUp,
-			color: "text-emerald-400",
-		},
-	];
+/** Aggregated stats computed from the live on-chain syndicate accounts. */
+interface LiveSyndicateStats {
+	members: number;
+	pooledUsdc: number;
+	publicCount: number;
+}
+
+function StatsBar({
+	liveCount = 0,
+	liveStats,
+	loading = false,
+}: {
+	liveCount?: number;
+	liveStats?: LiveSyndicateStats;
+	loading?: boolean;
+}) {
+	const fmtUsdc = (n: number) =>
+		n >= 1_000_000
+			? `$${(n / 1_000_000).toFixed(1)}M`
+			: `$${Math.round(n).toLocaleString("en-US")}`;
+
+	// Live on-chain data: every tile shows real (or unknown) values.
+	// While loading, show placeholders instead of fabricated "demo" numbers.
+	// Only fall back to the illustrative values in the demo feed (no live
+	// syndicates) — the banner above explains those are not real.
+	const stats = liveStats
+		? [
+				{
+					label: "Active Syndicates",
+					value: liveCount.toLocaleString(),
+					icon: Users,
+					color: "text-emerald-400",
+				},
+				{
+					label: "Total Members",
+					value: liveStats.members.toLocaleString(),
+					icon: UserPlus,
+					color: "text-cyan-300",
+				},
+				{
+					label: "Pooled USDC",
+					value: fmtUsdc(liveStats.pooledUsdc),
+					icon: Trophy,
+					color: "text-gold-300",
+				},
+				{
+					label: "Public Syndicates",
+					value: liveStats.publicCount.toLocaleString(),
+					icon: TrendingUp,
+					color: "text-emerald-400",
+				},
+			]
+		: loading
+			? [
+					{
+						label: "Active Syndicates",
+						value: "…",
+						icon: Users,
+						color: "text-emerald-400",
+					},
+					{
+						label: "Total Members",
+						value: "…",
+						icon: UserPlus,
+						color: "text-cyan-300",
+					},
+					{
+						label: "Pooled USDC",
+						value: "…",
+						icon: Trophy,
+						color: "text-gold-300",
+					},
+					{
+						label: "Public Syndicates",
+						value: "…",
+						icon: TrendingUp,
+						color: "text-emerald-400",
+					},
+				]
+			: [
+					{
+						label: "Active Syndicates",
+						value: "142",
+						icon: Users,
+						color: "text-emerald-400",
+					},
+					{
+						label: "Total Members",
+						value: "3,847",
+						icon: UserPlus,
+						color: "text-cyan-300",
+					},
+					{
+						label: "Combined Winnings",
+						value: "$487K",
+						icon: Trophy,
+						color: "text-gold-300",
+					},
+					{
+						label: "Avg Win Rate",
+						value: "67.3%",
+						icon: TrendingUp,
+						color: "text-emerald-400",
+					},
+				];
 
 	return (
 		<div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -885,6 +963,19 @@ export default function SyndicatesPage() {
 		return result;
 	}, [searchQuery, sortField, sortDir, filterVisibility]);
 
+	// Real aggregates from the live on-chain syndicate list (base-unit
+	// contributions are converted from 6-decimal USDC).
+	const liveStats = useMemo<LiveSyndicateStats | undefined>(() => {
+		if (liveSyndicates.length === 0) return undefined;
+		return {
+			members: liveSyndicates.reduce((sum, s) => sum + s.memberCount, 0),
+			pooledUsdc:
+				liveSyndicates.reduce((sum, s) => sum + s.totalContribution, 0) /
+				1_000_000,
+			publicCount: liveSyndicates.filter((s) => s.isPublic).length,
+		};
+	}, [liveSyndicates]);
+
 	const handleSort = (field: SortField) => {
 		if (sortField === field) {
 			setSortDir((d) => (d === "desc" ? "asc" : "desc"));
@@ -957,11 +1048,15 @@ export default function SyndicatesPage() {
 			{/* ================================================================ */}
 			<section className="relative px-4 sm:px-6 lg:px-8 pb-16">
 				<div className="max-w-7xl mx-auto space-y-6">
-					{/* Demo data notice */}
-					<DemoDataBanner />
+					{/* Demo data notice — only when the demo feed is actually shown */}
+					{liveSyndicates.length === 0 && !liveLoading && <DemoDataBanner />}
 
-					{/* Stats */}
-					<StatsBar liveCount={liveSyndicates.length} />
+					{/* Stats (live on-chain when available) */}
+					<StatsBar
+						liveCount={liveSyndicates.length}
+						liveStats={liveStats}
+						loading={liveLoading}
+					/>
 
 					{/* Syndicate Wars Banner */}
 					<SyndicateWarsBanner />
@@ -980,6 +1075,7 @@ export default function SyndicatesPage() {
 									value={searchQuery}
 									onChange={(e) => setSearchQuery(e.target.value)}
 									placeholder="Search syndicates by name, address, or tag..."
+									aria-label="Search syndicates"
 									className="w-full h-9 pl-9 pr-3 rounded-xl bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
 								/>
 							</div>
@@ -1119,7 +1215,7 @@ export default function SyndicatesPage() {
 									</div>
 								)}
 							</div>
-							{liveSyndicates.length === 0 && (
+							{liveSyndicates.length === 0 && !liveLoading && (
 								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 									{filteredSyndicates.map((syndicate) => (
 										<SyndicateCard key={syndicate.id} syndicate={syndicate} />

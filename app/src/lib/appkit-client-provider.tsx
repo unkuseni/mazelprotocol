@@ -18,15 +18,15 @@ import {
 	useAppKitAccount as useRealAppKitAccount,
 	useDisconnect as useRealDisconnect,
 } from "@reown/appkit/react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
-import { initAppKit } from "./appkit";
+import { consumePendingOpen, initAppKit, requestWalletOpen } from "./appkit";
 import { AppKitContext, type AppKitContextValue } from "./appkit-provider";
 
 // Kick off initialization immediately when this module is first imported.
-// Because this file is loaded via React.lazy(), it only runs in the browser.
-// This means `initAppKit()` starts as early as possible — potentially before
-// the component even mounts.
+// Because this file is loaded via React.lazy(), it only runs in the browser —
+// and (per the provider) only once wallet initialization has been requested,
+// so the wallet stack never blocks the first paint.
 const appKitReadyPromise = initAppKit();
 
 /* -------------------------------------------------------------------------- */
@@ -38,7 +38,9 @@ const NOOP_ASYNC = async () => {};
 
 const STUB_VALUE: AppKitContextValue = {
 	ready: false,
-	open: NOOP,
+	requested: true,
+	// Queue connect clicks made while initialization is in flight.
+	open: (options) => requestWalletOpen(options),
 	close: NOOP,
 	isConnected: false,
 	disconnect: NOOP_ASYNC,
@@ -99,8 +101,20 @@ export default function AppKitClientProvider({
 		};
 	}, []);
 
-	// Still initializing or failed — provide stubs so the app remains functional
-	if (!ready || failed) {
+	// Failed — provide stubs so the app remains functional. `requested` is
+	// reset to false so wallet buttons fall back to a plain "Connect Wallet"
+	// label instead of spinning on "Preparing…" forever.
+	if (failed) {
+		return (
+			<AppKitContext.Provider value={{ ...STUB_VALUE, requested: false }}>
+				{children}
+			</AppKitContext.Provider>
+		);
+	}
+
+	// Still initializing — stubs with `requested` true (click is queued and
+	// replayed once initialization completes).
+	if (!ready) {
 		return (
 			<AppKitContext.Provider value={STUB_VALUE}>
 				{children}
@@ -127,9 +141,24 @@ function AppKitClientBridge({ children }: { children: ReactNode }) {
 	const account = useRealAppKitAccount();
 	const { disconnect } = useRealDisconnect();
 
+	// Replay a connect click that arrived before initialization finished.
+	// Consumed once (StrictMode double-effects are safe: the second run finds
+	// nothing queued). `null` means nothing was queued; `undefined` means the
+	// caller asked for the default modal view.
+	const didConsumeRef = useRef(false);
+	useEffect(() => {
+		if (didConsumeRef.current) return;
+		const pending = consumePendingOpen();
+		if (pending !== null && appKit.open) {
+			didConsumeRef.current = true;
+			appKit.open(pending);
+		}
+	}, [appKit]);
+
 	const value = useMemo<AppKitContextValue>(() => {
 		return {
 			ready: true,
+			requested: true,
 			open: appKit.open ?? NOOP,
 			close: appKit.close ?? NOOP,
 			address: account.address,

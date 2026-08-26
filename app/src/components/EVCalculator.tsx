@@ -273,6 +273,7 @@ export function EVCalculator({
 						min={50_000}
 						max={1_500_000}
 						step={25_000}
+						aria-label="Estimated total tickets in draw"
 						className="w-full"
 					/>
 					<div className="flex justify-between mt-1.5">
@@ -415,11 +416,15 @@ export function EVCalculator({
 					<p className="text-[10px] text-muted-foreground leading-relaxed">
 						In normal mode, a share of every ticket is set aside to build the
 						jackpot — traditional lotteries keep that money forever. Here, once
-						it reaches{" "}
-						<span className="font-semibold text-foreground">$1.75M</span> and
-						rolldown activates, the jackpot is distributed back to players as
-						pari-mutuel prizes — up to $2.04 back per $1 wagered. That&apos;s
-						the +EV window that makes MazelProtocol unique.
+						it reaches the{" "}
+						<span className="font-semibold text-foreground">$1.75M soft cap</span>{" "}
+						and rolldown activates, the jackpot is distributed back to players
+						as pari-mutuel prizes — about{" "}
+						<span className="font-semibold text-foreground">$1.62</span> back
+						per $1 wagered at the soft cap, rising to{" "}
+						<span className="font-semibold text-foreground">$2.04</span> per $1
+						at the $2.25M hard cap. That&apos;s the +EV window that makes
+						MazelProtocol unique.
 					</p>
 				</div>
 			)}

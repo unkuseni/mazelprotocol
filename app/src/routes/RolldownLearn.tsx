@@ -907,7 +907,7 @@ export default function LearnRolldownPage() {
 								{
 									title: "Use Quick Pick Express",
 									description:
-										"With draws every 4 hours and a $30K soft cap, Quick Pick Express reaches rolldown faster. The +66.7% EV is even higher than the main lottery's +47%. At $1.50/ticket, it's low-cost, high-frequency.",
+										"With draws every 4 hours and a $30K soft cap, Quick Pick Express reaches rolldown faster. Its +66.7% EV (at the $50K hard cap) is even higher than the main lottery's +104% (at the $2.25M hard cap). At $1.50/ticket, it's low-cost, high-frequency.",
 									icon: Zap,
 									tip: "Requires $50 lifetime spend in main lottery",
 								},
@@ -1159,11 +1159,11 @@ export default function LearnRolldownPage() {
 								},
 								{
 									q: "Does the +EV guarantee I'll make money?",
-									a: "Positive EV is a statistical edge over many plays — not a guarantee on any single ticket. But consider this: traditional lotteries return only about half of ticket value as prizes, and their jackpots never come back. During rolldown, MazelProtocol has +47% EV because the accumulated jackpot is distributed back to players. Over time, that mathematical edge compounds in your favor. It's the same principle strategic investors use — maximizing opportunities when conditions favor you.",
+									a: "Positive EV is a statistical edge over many plays — not a guarantee on any single ticket. But consider this: traditional lotteries return only about half of ticket value as prizes, and their jackpots never come back. During rolldown, MazelProtocol has +62% EV at the $1.75M soft cap, rising to +104% at the $2.25M hard cap, because the accumulated jackpot is distributed back to players. Over time, that mathematical edge compounds in your favor. It's the same principle strategic investors use — maximizing opportunities when conditions favor you.",
 								},
 								{
 									q: "Why are the odds so much better than Powerball or Mega Millions?",
-									a: "MazelProtocol uses a 6/46 matrix (1 in 9.37 million for the jackpot) versus Powerball's 5/69+1/26 (1 in 292 million). That's 31× better odds. And during rolldown, even matching just 3 numbers (1 in 47 odds) pays ~$35 instead of $5. No traditional lottery offers anything close to this.",
+									a: "MazelProtocol uses a 6/46 matrix (1 in 9.37 million for the jackpot) versus Powerball's 5/69+1/26 (1 in 292 million). That's 31× better odds. And during rolldown, even matching just 3 numbers (1 in 47 odds) pays ~$69 at the soft cap instead of the fixed $5. No traditional lottery offers anything close to this.",
 								},
 								{
 									q: "How does pari-mutuel pricing benefit me?",

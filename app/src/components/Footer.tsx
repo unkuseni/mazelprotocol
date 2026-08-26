@@ -1,9 +1,7 @@
 import {
 	BookOpen,
-	Check,
 	ExternalLink,
 	Github,
-	Globe,
 	MessageCircle,
 	Trophy,
 	Twitter,
@@ -41,7 +39,7 @@ const footerSections = [
 		title: "Community",
 		links: [
 			{
-				href: "https://twitter.com/mazelprotocol",
+				href: "https://x.com/mazelprotocol",
 				label: "Twitter / X",
 				icon: Twitter,
 			},
@@ -122,7 +120,7 @@ export default function Footer() {
 						{/* Social icons */}
 						<div className="flex items-center gap-3 mt-5">
 							<a
-								href="https://twitter.com/mazelprotocol"
+								href="https://x.com/mazelprotocol"
 								target="_blank"
 								rel="noopener noreferrer"
 								className="p-2 rounded-lg text-muted-foreground hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
@@ -228,26 +226,33 @@ export default function Footer() {
 						&copy; {currentYear} MazelProtocol. All rights reserved.
 					</p>
 					<div className="flex items-center gap-4 text-xs text-muted-foreground/60">
-						<Link to="/" className="hover:text-cyan-300 transition-colors">
-							Terms of Service
-						</Link>
-						<Link to="/" className="hover:text-cyan-300 transition-colors">
-							Privacy Policy
+						<Link
+							to="/learn/whitepaper"
+							className="hover:text-cyan-300 transition-colors"
+						>
+							Whitepaper
 						</Link>
 						<Link
-							to="/"
-							className="hover:text-cyan-300 transition-colors inline-flex items-center gap-1"
+							to="/learn/rolldown"
+							className="hover:text-cyan-300 transition-colors"
 						>
-							<Check size={10} />
-							Fair Play Pledge
+							How Rolldown Works
 						</Link>
 						<Link
-							to="/"
+							to="/results"
+							className="hover:text-cyan-300 transition-colors"
+						>
+							Draw Results
+						</Link>
+						<a
+							href="https://discord.gg/mazelprotocol"
+							target="_blank"
+							rel="noopener noreferrer"
 							className="hover:text-cyan-300 transition-colors inline-flex items-center gap-1"
 						>
-							<Globe size={10} />
-							Supported Regions
-						</Link>
+							<MessageCircle size={10} />
+							Discord
+						</a>
 					</div>
 				</div>
 			</div>

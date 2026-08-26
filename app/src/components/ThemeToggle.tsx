@@ -6,13 +6,10 @@ export function ThemeToggle() {
 	const { theme, setTheme, resolvedTheme } = useTheme();
 
 	const handleThemeChange = (checked: boolean) => {
-		// If currently in system mode, toggle between light/dark
-		if (theme === "system") {
-			setTheme(checked ? "dark" : "light");
-		} else {
-			// Toggle between light and dark
-			setTheme(checked ? "dark" : "light");
-		}
+		// The switch always toggles between dark (checked) and light
+		// (unchecked), regardless of whether "system" mode is active;
+		// picking a concrete theme exits system mode.
+		setTheme(checked ? "dark" : "light");
 	};
 
 	const handleSystemTheme = () => {

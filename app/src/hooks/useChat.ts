@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAnchorProvider } from "@/lib/anchor/provider";
 
 // ---------------------------------------------------------------------------
@@ -161,7 +161,7 @@ function generateMockMembers(): ChatMember[] {
 export function useChat({
 	syndicateId,
 	sender,
-	pollInterval = 5_000,
+	pollInterval = 10_000,
 	limit = 50,
 }: UseChatOptions): UseChatReturn {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -182,9 +182,17 @@ export function useChat({
 	const isFetchingRef = useRef(false);
 	const oldestTimestampRef = useRef<number | null>(null);
 
-	const onlineCount = members.filter((m) => m.isOnline).length;
+	// Derived values — memoized so per-render `.filter` sweeps don't re-run
+	// on every keystroke/tick (perf review M1).
+	const onlineCount = useMemo(
+		() => members.filter((m) => m.isOnline).length,
+		[members],
+	);
 	const totalMembers = members.length;
-	const pinnedMessages = messages.filter((m) => m.isPinned);
+	const pinnedMessages = useMemo(
+		() => messages.filter((m) => m.isPinned),
+		[messages],
+	);
 
 	// ---- Fetch messages ----
 	const fetchMessages = useCallback(
@@ -251,13 +259,46 @@ export function useChat({
 		fetchMessages();
 	}, [fetchMessages]);
 
-	// Polling
+	// Polling — self-arming, visibility-aware timer: no request fires while the
+	// tab is hidden (perf review M1), and returning to the tab catches up
+	// immediately. A single in-flight guard prevents overlapping fetches.
 	useEffect(() => {
 		if (pollInterval <= 0) return;
-		const interval = setInterval(() => {
-			fetchMessages();
-		}, pollInterval);
-		return () => clearInterval(interval);
+		let timer: ReturnType<typeof setTimeout> | null = null;
+		let cancelled = false;
+
+		const schedule = () => {
+			if (cancelled) return;
+			if (
+				typeof document !== "undefined" &&
+				document.visibilityState !== "visible"
+			) {
+				return;
+			}
+			timer = setTimeout(async () => {
+				if (cancelled) return;
+				if (document.visibilityState === "visible") {
+					await fetchMessages();
+				}
+				schedule();
+			}, pollInterval);
+		};
+
+		const onVisibility = () => {
+			if (document.visibilityState === "visible") {
+				void fetchMessages(); // catch up immediately on return
+				schedule();
+			}
+		};
+
+		document.addEventListener("visibilitychange", onVisibility);
+		schedule();
+
+		return () => {
+			cancelled = true;
+			if (timer) clearTimeout(timer);
+			document.removeEventListener("visibilitychange", onVisibility);
+		};
 	}, [fetchMessages, pollInterval]);
 
 	// ---- Send message ----
@@ -391,14 +432,15 @@ export function useChat({
 		await fetchMessages();
 	}, [fetchMessages]);
 
+	// Members/pins are static preview data until presence + pin persistence are
+	// implemented on the API; the loading flags clear immediately (the previous
+	// fake setTimeout delays risked state updates after unmount).
 	const refetchMembers = useCallback(async () => {
-		setIsLoadingMembers(true);
-		setTimeout(() => setIsLoadingMembers(false), 300);
+		setIsLoadingMembers(false);
 	}, []);
 
 	const refetchPinned = useCallback(async () => {
-		setIsLoadingPinned(true);
-		setTimeout(() => setIsLoadingPinned(false), 200);
+		setIsLoadingPinned(false);
 	}, []);
 
 	return {

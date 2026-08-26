@@ -119,6 +119,8 @@ function mapHookDrawToUI(d: DrawResultData): DrawResult {
 			d.matchCounts.match2 * Number(d.prizesPerWinner.match2)) /
 		USDC_DECIMALS;
 
+	const jackpotAtDrawUsd = toUsd(Number(d.jackpotAtDraw));
+
 	const dateObj = new Date(Number(d.timestamp) * 1000);
 
 	return {
@@ -131,7 +133,7 @@ function mapHookDrawToUI(d: DrawResultData): DrawResult {
 		gameType: "main",
 		winningNumbers: d.winningNumbers,
 		totalTickets: d.totalTickets,
-		jackpotAtDraw: Number(d.jackpotAtDraw),
+		jackpotAtDraw: jackpotAtDrawUsd,
 		prizePoolDistributed: totalPrizesPaid,
 		wasRolldown: d.wasRolldown,
 		matchCounts: {
@@ -149,8 +151,13 @@ function mapHookDrawToUI(d: DrawResultData): DrawResult {
 			match2: toUsd(Number(d.prizesPerWinner.match2)),
 		},
 		totalPrizesPaid,
-		jackpotAfterDraw: 0,
-		houseFeeCollected: 0,
+		// Remaining jackpot after this draw's prizes were distributed
+		// (approximately — the pool is reduced by what it paid out).
+		// Previously hardcoded to 0.
+		jackpotAfterDraw: Math.max(0, jackpotAtDrawUsd - totalPrizesPaid),
+		// House fee = gross ticket revenue × default on-chain house fee
+		// (2800 bps = 28%). Previously hardcoded to 0.
+		houseFeeCollected: Math.max(0, d.totalTickets * 2.5 * 0.28),
 		randomnessProof: "",
 		verificationHash: "",
 	};
@@ -179,6 +186,12 @@ function ProtocolStats({
 
 	const fmt = (n: number) => (n > 0 ? formatCurrency(n, true) : "—");
 	const count = (n: number) => (n > 0 ? n.toString() : "—");
+	const countCompact = (n: number) =>
+		n >= 1_000_000
+			? `${(n / 1_000_000).toFixed(1)}M`
+			: n >= 1_000
+				? `${(n / 1_000).toFixed(0)}K`
+				: n.toString();
 
 	const items: {
 		label: string;
@@ -200,7 +213,7 @@ function ProtocolStats({
 		},
 		{
 			label: "Total Tickets",
-			value: loading ? "…" : fmt(totalTickets).replace("$", ""),
+			value: loading ? "…" : totalTickets > 0 ? countCompact(totalTickets) : "—",
 			icon: Ticket,
 			color: "text-foreground",
 		},
@@ -294,6 +307,8 @@ function DrawCard({
 			<button
 				type="button"
 				onClick={onToggle}
+				aria-expanded={expanded}
+				aria-controls={`draw-details-${draw.drawId}`}
 				className="w-full p-4 sm:p-5 text-left hover:bg-foreground/1 transition-colors rounded-lg"
 			>
 				<div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -582,7 +597,7 @@ function DrawCard({
 						</div>
 						<div className="p-2.5 rounded-lg bg-foreground/2">
 							<div className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
-								House Fee
+								House Fee (est.)
 							</div>
 							<div className="font-mono text-xs font-bold text-foreground mt-0.5 tabular-nums">
 								{formatCurrency(draw.houseFeeCollected, true)}
@@ -614,7 +629,7 @@ function DrawCard({
 									Randomness Source
 								</div>
 								<div className="font-mono text-[10px] text-cyan-300/80 break-all">
-									{draw.randomnessProof}
+									{draw.randomnessProof ? draw.randomnessProof : "—"}
 								</div>
 							</div>
 							<div>
@@ -622,16 +637,18 @@ function DrawCard({
 									Verification Hash
 								</div>
 								<div className="font-mono text-[10px] text-cyan-300/80 flex items-center gap-1.5">
-									<span>{draw.verificationHash}</span>
-									<a
-										href={`https://solscan.io/tx/${draw.verificationHash}`}
-										target="_blank"
-										rel="noopener noreferrer"
-										className="text-emerald-400/50 hover:text-emerald-400 transition-colors"
-										aria-label="View on Solscan"
-									>
-										<ExternalLink size={9} />
-									</a>
+									<span>{draw.verificationHash ? draw.verificationHash : "—"}</span>
+									{draw.verificationHash && (
+										<a
+											href={`https://solscan.io/tx/${draw.verificationHash}`}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="text-emerald-400/50 hover:text-emerald-400 transition-colors"
+											aria-label="View on Solscan"
+										>
+											<ExternalLink size={9} />
+										</a>
+									)}
 								</div>
 							</div>
 						</div>
@@ -779,6 +796,7 @@ function Pagination({
 				onClick={() => onPageChange(currentPage - 1)}
 				disabled={currentPage <= 1}
 				className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+				aria-label="Previous page"
 			>
 				<ArrowLeft size={14} />
 			</Button>
@@ -812,6 +830,7 @@ function Pagination({
 				onClick={() => onPageChange(currentPage + 1)}
 				disabled={currentPage >= totalPages}
 				className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+				aria-label="Next page"
 			>
 				<ArrowRight size={14} />
 			</Button>
@@ -1021,6 +1040,7 @@ export default function ResultsPage() {
 												setCurrentPage(1);
 											}}
 											placeholder="Search by draw #, date, or winning number..."
+											aria-label="Search draws"
 											className="w-full h-9 pl-9 pr-3 rounded-lg bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20 transition-colors"
 										/>
 									</div>

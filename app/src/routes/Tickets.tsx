@@ -25,7 +25,6 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CountdownTimer } from "@/components/CountdownTimer";
-import Footer from "@/components/Footer";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { FloatingBalls, WinningNumbers } from "@/components/LotteryBalls";
 import { Button } from "@/components/ui/button";
@@ -628,7 +627,6 @@ function WalletNotConnected() {
 					</div>
 				</div>
 			</section>
-			<Footer />
 		</div>
 	);
 }
@@ -1080,8 +1078,7 @@ export default function MyTicketsPage() {
 						</div>
 					</div>
 				</section>
-				<Footer />
-			</div>
+				</div>
 		);
 	}
 
@@ -1108,8 +1105,7 @@ export default function MyTicketsPage() {
 						</Button>
 					</div>
 				</section>
-				<Footer />
-			</div>
+				</div>
 		);
 	}
 
@@ -1220,6 +1216,7 @@ export default function MyTicketsPage() {
 									value={searchQuery}
 									onChange={(e) => setSearchQuery(e.target.value)}
 									placeholder="Search by draw #, ticket ID, numbers, or syndicate..."
+									aria-label="Search tickets"
 									className="w-full h-9 pl-9 pr-3 rounded-lg bg-foreground/4 border border-foreground/8 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20 transition-colors"
 								/>
 							</div>

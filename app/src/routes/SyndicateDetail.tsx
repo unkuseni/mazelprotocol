@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import Footer from "@/components/Footer";
 import { FloatingBalls } from "@/components/LotteryBalls";
 import SyndicateChat, { type ChatMember } from "@/components/SyndicateChat";
 import { Button } from "@/components/ui/button";
@@ -817,7 +816,6 @@ function NotConnectedView() {
 					</Button>
 				</div>
 			</section>
-			<Footer />
 		</div>
 	);
 }
@@ -851,7 +849,6 @@ function SyndicateNotFound() {
 					</Link>
 				</div>
 			</section>
-			<Footer />
 		</div>
 	);
 }

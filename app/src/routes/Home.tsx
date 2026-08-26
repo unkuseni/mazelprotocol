@@ -33,7 +33,7 @@ const features = [
 		icon: TrendingUp,
 		title: "Predictable +EV Windows",
 		description:
-			"Traditional lotteries keep ~50% of every dollar forever. Our probabilistic rolldown system creates mathematically provable positive expected value windows — up to $2.04 back per $1 wagered — and the edge flips in your favor.",
+			"Traditional lotteries keep ~50% of every dollar forever. Our probabilistic rolldown system creates mathematically provable positive expected value windows — up to $2.04 back per $1 wagered at the $2.25M hard cap — and the edge flips in your favor.",
 		highlight: true,
 	},
 	{
@@ -73,21 +73,21 @@ const prizeTiers = [
 		match: "Match 5",
 		prize: "$4,000",
 		odds: "1 in 39,028",
-		rolldown: "~$46,000*",
+		rolldown: "~$36,000*",
 		color: "gold" as const,
 	},
 	{
 		match: "Match 4",
 		prize: "$150",
 		odds: "1 in 800",
-		rolldown: "~$1,330*",
+		rolldown: "~$1,030*",
 		color: "emerald" as const,
 	},
 	{
 		match: "Match 3",
 		prize: "$5",
 		odds: "1 in 47",
-		rolldown: "~$90*",
+		rolldown: "~$69*",
 		color: "muted" as const,
 	},
 	{
@@ -324,23 +324,24 @@ function HeroSection({
 
 				{/* CTA */}
 				<div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-					<button
-						type="button"
-						onClick={() => (isConnected ? null : open?.())}
-						className="inline-flex items-center gap-2 px-8 py-4 rounded-lg bg-linear-to-b from-gold-300 to-gold-600 text-black font-bold text-lg tracking-wide shadow-lg shadow-gold-500/30 hover:shadow-gold-400/50 transition-all hover:-translate-y-0.5 active:translate-y-0"
-					>
-						{isConnected ? (
-							<Link to="/play" className="flex items-center gap-2">
-								Play Now <ArrowRight size={20} />
-							</Link>
-						) : (
-							<>
-								<Wallet size={20} />
-								Connect Wallet
-								<ArrowRight size={20} />
-							</>
-						)}
-					</button>
+					{isConnected ? (
+						<Link
+							to="/play"
+							className="inline-flex items-center gap-2 px-8 py-4 rounded-lg bg-linear-to-b from-gold-300 to-gold-600 text-black font-bold text-lg tracking-wide shadow-lg shadow-gold-500/30 hover:shadow-gold-400/50 transition-all hover:-translate-y-0.5 active:translate-y-0"
+						>
+							Play Now <ArrowRight size={20} />
+						</Link>
+					) : (
+						<button
+							type="button"
+							onClick={() => open?.()}
+							className="inline-flex items-center gap-2 px-8 py-4 rounded-lg bg-linear-to-b from-gold-300 to-gold-600 text-black font-bold text-lg tracking-wide shadow-lg shadow-gold-500/30 hover:shadow-gold-400/50 transition-all hover:-translate-y-0.5 active:translate-y-0"
+						>
+							<Wallet size={20} />
+							Connect Wallet
+							<ArrowRight size={20} />
+						</button>
+					)}
 
 					<Link
 						to="/learn/rolldown"
@@ -372,7 +373,7 @@ function PrizeTiersSection() {
 					<SectionHeading
 						eyebrow="Live On-Chain"
 						title="Prize Structure"
-						description="Fixed prizes during normal mode transition to pari-mutuel during rolldown events. Estimated rolldown prizes assume ~475k tickets."
+						description="Fixed prizes during normal mode transition to pari-mutuel during rolldown events. Estimated rolldown prizes shown at the $1.75M soft cap, assuming ~475k tickets."
 						icon={Trophy}
 					/>
 
@@ -426,7 +427,8 @@ function PrizeTiersSection() {
 					</div>
 
 					<p className="text-center text-[10px] sm:text-xs text-muted-foreground/50 mt-4">
-						*Rolldown prizes are pari-mutuel estimates. Actual = Pool ÷ Winners.
+						*Rolldown prizes are pari-mutuel estimates at the $1.75M soft cap
+						(~475k tickets). Actual = Pool ÷ Winners.
 					</p>
 				</div>
 			</div>
@@ -440,7 +442,7 @@ function ComparisonSection() {
 			stat: "$2.04",
 			title: "Back per $1 Wagered",
 			description:
-				"During rolldown windows, players receive up to $2.04 for every $1 wagered — a +104% edge. Traditional lotteries keep roughly half of every dollar, permanently.",
+				"At the $2.25M hard cap, players receive up to $2.04 for every $1 wagered — a +104% edge. At the $1.75M soft cap the edge is still +62%: far more than traditional lotteries, which keep roughly half of every dollar, permanently.",
 			accent: "text-gradient-gold",
 		},
 		{

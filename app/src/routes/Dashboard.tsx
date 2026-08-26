@@ -6,11 +6,15 @@ import {
 	ArrowRight,
 	ArrowUpRight,
 	BarChart3,
+	CheckCircle2,
 	Clock,
+	ExternalLink,
 	Gavel,
+	Loader2,
 	type LucideIcon,
 	Shield,
 	ShieldCheck,
+	SkipForward,
 	Star,
 	Ticket,
 	TrendingUp,
@@ -20,11 +24,10 @@ import {
 	X,
 	Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { EVBadge } from "@/components/EVCalculator";
-import Footer from "@/components/Footer";
 import { JackpotDisplay } from "@/components/JackpotDisplay";
 import { LotteryBallRow, WinningNumbers } from "@/components/LotteryBalls";
 import { RolldownGauge } from "@/components/RolldownGauge";
@@ -159,6 +162,165 @@ function StatCard({
 					>
 						{positive ? "Profitable" : (negativeLabel ?? "In Play")}
 					</span>
+				</div>
+			)}
+		</div>
+	);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Protocol Safety (permissionless watchdog)                                  */
+/* -------------------------------------------------------------------------- */
+
+type ActionPhase = "idle" | "running" | "ok" | "error";
+
+interface ActionFeedback {
+	phase: ActionPhase;
+	message?: string;
+	/** Transaction signature, shown as a Solscan link on success */
+	tx?: string;
+}
+
+const SAFETY_ACCENTS = {
+	cyan: {
+		tile: "bg-cyan-500/10 border-cyan-500/25 text-cyan-300 shadow-[0_0_14px_rgba(0,229,255,0.2)]",
+		button:
+			"bg-linear-to-r from-cyan-400 to-cyan-600 hover:from-cyan-300 hover:to-cyan-500 text-primary-foreground shadow-lg shadow-cyan-500/25 hover:shadow-cyan-400/40",
+		dot: "bg-cyan-400 shadow-[0_0_8px_rgba(0,229,255,0.9)]",
+	},
+	magenta: {
+		tile: "bg-magenta-500/10 border-magenta-500/25 text-magenta-300 shadow-[0_0_14px_rgba(255,46,196,0.2)]",
+		button:
+			"bg-linear-to-r from-magenta-400 to-magenta-600 hover:from-magenta-300 hover:to-magenta-500 text-primary-foreground shadow-lg shadow-magenta-500/25 hover:shadow-magenta-400/40",
+		dot: "bg-magenta-400 shadow-[0_0_8px_rgba(255,46,196,0.9)]",
+	},
+	gold: {
+		tile: "bg-gold-500/10 border-gold-500/25 text-gold-300 shadow-[0_0_14px_rgba(255,214,10,0.2)]",
+		button:
+			"bg-linear-to-r from-gold-400 to-gold-600 hover:from-gold-300 hover:to-gold-500 text-black shadow-lg shadow-gold-500/25 hover:shadow-gold-400/40",
+		dot: "bg-gold-400 shadow-[0_0_8px_rgba(255,214,10,0.9)]",
+	},
+} as const;
+
+/**
+ * One permissionless watchdog instruction card — neon tile, hud-label
+ * eyebrow, branded action button, and inline tx feedback.
+ */
+export function SafetyCard({
+	accent,
+	icon: Icon,
+	title,
+	eyebrow,
+	description,
+	actionLabel,
+	actionIcon: ActionIcon,
+	onAction,
+	loading = false,
+	loadingLabel = "Broadcasting…",
+	disabled = false,
+	feedback,
+}: {
+	accent: keyof typeof SAFETY_ACCENTS;
+	icon: LucideIcon;
+	title: string;
+	eyebrow: string;
+	description: string;
+	actionLabel: string;
+	actionIcon: LucideIcon;
+	onAction: () => void;
+	loading?: boolean;
+	loadingLabel?: string;
+	disabled?: boolean;
+	feedback?: ActionFeedback | null;
+}) {
+	const a = SAFETY_ACCENTS[accent];
+
+	return (
+		<div className="relative hud-frame rounded-xl p-5 flex flex-col gap-4">
+			<div className="flex items-center gap-3">
+				<div
+					className={cn(
+						"w-10 h-10 rounded-lg border flex items-center justify-center shrink-0",
+						a.tile,
+					)}
+				>
+					<Icon size={18} aria-hidden />
+				</div>
+				<div className="min-w-0">
+					<p className="hud-label flex items-center gap-1.5">
+						<span
+							className={cn("w-1.5 h-1.5 rounded-full animate-pulse", a.dot)}
+						/>
+						{eyebrow}
+					</p>
+					<h3 className="font-display text-sm font-bold text-foreground uppercase tracking-wide mt-0.5">
+						{title}
+					</h3>
+				</div>
+			</div>
+
+			<p className="text-xs text-muted-foreground leading-relaxed -mt-2">
+				{description}
+			</p>
+
+			<button
+				type="button"
+				onClick={onAction}
+				disabled={disabled || loading}
+				className={cn(
+					"mt-auto w-full h-10 inline-flex items-center justify-center gap-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:pointer-events-none disabled:hover:translate-y-0",
+					a.button,
+				)}
+			>
+				{loading ? (
+					<>
+						<Loader2 size={14} className="animate-spin" />
+						{loadingLabel}
+					</>
+				) : (
+					<>
+						<ActionIcon size={14} />
+						{actionLabel}
+					</>
+				)}
+			</button>
+
+			{feedback?.phase === "ok" && (
+				<div
+					role="status"
+					className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2.5"
+				>
+					<CheckCircle2
+						size={13}
+						className="text-emerald-400 shrink-0 mt-0.5"
+					/>
+					<div className="min-w-0 text-[11px] leading-relaxed">
+						<p className="font-semibold text-emerald-300">
+							{feedback.message ?? "Transaction confirmed."}
+						</p>
+						{feedback.tx && (
+							<a
+								href={`https://solscan.io/tx/${feedback.tx}`}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="inline-flex items-center gap-1 text-emerald-400/70 hover:text-emerald-300 font-mono break-all"
+							>
+								{feedback.tx.slice(0, 24)}…
+								<ExternalLink size={9} className="shrink-0" />
+							</a>
+						)}
+					</div>
+				</div>
+			)}
+			{feedback?.phase === "error" && (
+				<div
+					role="alert"
+					className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2.5"
+				>
+					<AlertTriangle size={13} className="text-red-400 shrink-0 mt-0.5" />
+					<p className="text-[11px] leading-relaxed text-red-300">
+						{feedback.message ?? "Transaction failed."}
+					</p>
 				</div>
 			)}
 		</div>
@@ -400,6 +562,54 @@ export default function DashboardPage() {
 	const [challengeEvidence, setChallengeEvidence] = useState("");
 	const [challengeLoading, setChallengeLoading] = useState(false);
 	const [challengeError, setChallengeError] = useState<string | null>(null);
+
+	// Permissionless watchdog actions — per-action feedback (was previously
+	// silent: errors only went to console, so a failed check looked like a
+	// success no-op).
+	const [solvencyFeedback, setSolvencyFeedback] =
+		useState<ActionFeedback | null>(null);
+	const [advanceFeedback, setAdvanceFeedback] = useState<ActionFeedback | null>(
+		null,
+	);
+
+	const runCheckSolvency = useCallback(async () => {
+		const provider = connectedProvider;
+		if (!provider) return;
+		setSolvencyFeedback({ phase: "running" });
+		try {
+			const tx = await checkSolvency(provider);
+			setSolvencyFeedback({
+				phase: "ok",
+				message: "Solvency check passed — balances match accounting.",
+				tx,
+			});
+		} catch (err) {
+			setSolvencyFeedback({
+				phase: "error",
+				message: err instanceof Error ? err.message : "Solvency check failed",
+			});
+		}
+	}, [connectedProvider]);
+
+	const runAdvanceDraw = useCallback(async () => {
+		const provider = connectedProvider;
+		if (!provider) return;
+		setAdvanceFeedback({ phase: "running" });
+		try {
+			const tx = await advanceDraw(provider);
+			setAdvanceFeedback({
+				phase: "ok",
+				message: "Draw advanced — tx confirmed.",
+				tx,
+			});
+		} catch (err) {
+			setAdvanceFeedback({
+				phase: "error",
+				message: err instanceof Error ? err.message : "Failed to advance draw",
+			});
+		}
+	}, [connectedProvider]);
+
 	const walletPubkey = connectedProvider?.wallet.publicKey ?? null;
 	const [onChainTotalSpent, setOnChainTotalSpent] = useState<number | null>(
 		null,
@@ -475,7 +685,6 @@ export default function DashboardPage() {
 		return (
 			<div className="min-h-screen">
 				<WalletNotConnected />
-				<Footer />
 			</div>
 		);
 	}
@@ -726,81 +935,81 @@ export default function DashboardPage() {
 						</div>
 					</div>
 				</div>
-			</div>
 
-			{/* Protocol Safety — permissionless watchdog instructions */}
-			<div className="mx-auto max-w-4xl mt-8">
-				<h3 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-					<ShieldCheck size={16} className="text-cyan-400" />
-					Protocol Safety
-				</h3>
-				<div className="grid sm:grid-cols-2 gap-4">
-					<div className="glass rounded-2xl p-4 border border-cyan-500/10">
-						<div className="flex items-center gap-2 mb-2">
-							<Shield size={14} className="text-cyan-400" />
-							<span className="text-xs font-semibold text-foreground">
-								Verify Solvency
-							</span>
+				{/* Protocol Safety — permissionless watchdog (full-width, horizontal on lg) */}
+				<div className="mt-8">
+						<div className="relative hud-frame rounded-2xl overflow-hidden px-5 py-6 sm:p-6">
+							{/* Cyberpunk backdrop: grid + neon divider */}
+							<div className="pointer-events-none absolute inset-0 hero-grid opacity-15" />
+							<div className="pointer-events-none absolute inset-x-0 top-0 section-divider" />
+
+							<div className="relative z-10">
+								<header className="mb-5">
+									<p className="hud-label mb-1.5">
+										{"// PERMISSIONLESS WATCHDOG"}
+									</p>
+									<h2 className="font-display text-lg sm:text-xl font-black uppercase tracking-wide text-foreground flex items-center gap-2">
+										<ShieldCheck
+											size={20}
+											className="text-cyan-300 drop-shadow-[0_0_10px_rgba(0,229,255,0.7)]"
+											aria-hidden
+										/>
+										Protocol Safety
+									</h2>
+									<p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mt-2">
+										Three watchdog instructions keep the protocol honest. Anyone
+										can run them — each transaction is signed by your wallet and
+										executed on-chain.
+									</p>
+								</header>
+
+								<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+									<SafetyCard
+										accent="cyan"
+										icon={Shield}
+										eyebrow="Verify pool funding"
+										title="Verify Solvency"
+										description="Permissionless check: if token balances don't match accounting, the lottery automatically pauses."
+										actionLabel="Check Now"
+										actionIcon={ShieldCheck}
+										onAction={runCheckSolvency}
+										loading={solvencyFeedback?.phase === "running"}
+										loadingLabel="Checking…"
+										disabled={!connectedProvider}
+										feedback={solvencyFeedback}
+									/>
+									<SafetyCard
+										accent="magenta"
+										icon={SkipForward}
+										eyebrow="Unstick a stalled draw"
+										title="Advance Stuck Draw"
+										description="Permissionless fallback: advance a draw the bot hasn't finalized within 30+ minutes."
+										actionLabel="Advance Draw"
+										actionIcon={Zap}
+										onAction={runAdvanceDraw}
+										loading={advanceFeedback?.phase === "running"}
+										loadingLabel="Advancing…"
+										disabled={!connectedProvider}
+										feedback={advanceFeedback}
+									/>
+									{/* Challenge a finalized draw (bonded dispute, permissionless) */}
+									<div className="sm:col-span-2 lg:col-span-1">
+										<SafetyCard
+											accent="gold"
+											icon={Gavel}
+											eyebrow="Bonded dispute — $500 USDC"
+											title="Challenge Draw Results"
+											description="Dispute a finalized draw's winner counts. If upheld, the bond is refunded plus a $500 reward; frivolous challenges are slashed."
+											actionLabel="Post Challenge"
+											actionIcon={AlertTriangle}
+											onAction={() => setShowChallenge(true)}
+										/>
+									</div>
+								</div>
+							</div>
 						</div>
-						<p className="text-[10px] text-muted-foreground mb-3">
-							Permissionless: if token balances don't match accounting, the
-							lottery auto-pauses.
-						</p>
-						<Button
-							onClick={async () => {
-								const provider = connectedProvider;
-								if (!provider) return;
-								try {
-									await checkSolvency(provider);
-								} catch (err) {
-									console.error(err);
-								}
-							}}
-							className="w-full bg-linear-to-r from-cyan-500/80 to-cyan-600/80 text-primary-foreground text-xs font-bold rounded-xl"
-						>
-							<ShieldCheck size={14} className="mr-1" />
-							Check Now
-						</Button>
 					</div>
-					<div className="glass rounded-2xl p-4 border border-magenta-500/10">
-						<div className="flex items-center gap-2 mb-2">
-							<AlertTriangle size={14} className="text-magenta-400" />
-							<span className="text-xs font-semibold text-foreground">
-								Advance Stuck Draw
-							</span>
-						</div>
-						<p className="text-[10px] text-muted-foreground mb-3">
-							Permissionless fallback: skip a draw the bot hasn't finalized in
-							30+ minutes.
-						</p>
-						<Button
-							onClick={async () => {
-								const provider = connectedProvider;
-								if (!provider) return;
-								try {
-									await advanceDraw(provider);
-								} catch (err) {
-									console.error(err);
-								}
-							}}
-							className="w-full bg-linear-to-r from-magenta-500/80 to-magenta-600/80 text-primary-foreground text-xs font-bold rounded-xl"
-						>
-							<Gavel size={14} className="mr-1" />
-							Advance Draw
-						</Button>
-					</div>
-				</div>
-
-				{/* Challenge a finalized draw (bonded dispute, permissionless) */}
-				<Button
-					onClick={() => setShowChallenge(true)}
-					className="mt-3 w-full bg-linear-to-r from-gold-500/80 to-gold-600/80 text-primary-foreground text-xs font-bold rounded-xl"
-				>
-					<AlertTriangle size={14} className="mr-2" />
-					Challenge Draw Results (bonded)
-				</Button>
 			</div>
-
 			{/* Challenge modal */}
 			{showChallenge && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -819,6 +1028,7 @@ export default function DashboardPage() {
 								type="button"
 								onClick={() => setShowChallenge(false)}
 								className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+								aria-label="Close challenge dialog"
 							>
 								<X size={18} />
 							</button>
@@ -829,7 +1039,10 @@ export default function DashboardPage() {
 							challenges are slashed.
 						</p>
 						{challengeError && (
-							<div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-xs text-red-400">
+							<div
+								role="alert"
+								className="mb-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-xs text-red-400"
+							>
 								{challengeError}
 							</div>
 						)}
@@ -839,6 +1052,7 @@ export default function DashboardPage() {
 								value={challengeDrawId}
 								onChange={(e) => setChallengeDrawId(e.target.value)}
 								placeholder="Draw ID"
+								aria-label="Draw ID to challenge"
 								className="w-full h-10 px-3 rounded-xl bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/60"
 							/>
 							<div className="grid grid-cols-5 gap-2">
@@ -871,6 +1085,7 @@ export default function DashboardPage() {
 								value={challengeEvidence}
 								onChange={(e) => setChallengeEvidence(e.target.value)}
 								placeholder="Evidence note (hashed on-chain as proof)"
+								aria-label="Challenge evidence note"
 								className="w-full h-20 px-3 py-2 rounded-xl bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/60"
 							/>
 							<Button

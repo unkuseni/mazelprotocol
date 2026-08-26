@@ -77,6 +77,11 @@ export const lotteryKeys = {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_STALE_TIME = 30_000; // 30 seconds
+// Draw results are immutable once a draw is finalized. A longer stale time
+// prevents the Results/Tickets pages from refetching 20-40 RPC calls on every
+// mount/visit (perf review); the lottery STATE query still polls at 30s and
+// only creates a new draw query when the draw id advances.
+const DRAW_RESULT_STALE_TIME = 2 * 60_000; // 2 minutes
 const DEFAULT_CACHE_TIME = 5 * 60_000; // 5 minutes
 const DEFAULT_RETRY = 2;
 const DEFAULT_RETRY_DELAY = 1000;
@@ -143,6 +148,7 @@ export function useMainDrawResult(
 		queryKey: lotteryKeys.main.draw(drawId),
 		queryFn: () => fetchMainDrawResult(drawId),
 		...defaultQueryOptions,
+		staleTime: DRAW_RESULT_STALE_TIME,
 		...options,
 	});
 }
@@ -198,6 +204,7 @@ export function useQuickPickDrawResult(
 		queryKey: lotteryKeys.quickPick.draw(drawId),
 		queryFn: () => fetchQuickPickDrawResult(drawId),
 		...defaultQueryOptions,
+		staleTime: DRAW_RESULT_STALE_TIME,
 		...options,
 	});
 }
@@ -254,6 +261,7 @@ export function useMultipleMainDrawResults(
 			queryKey: lotteryKeys.main.draw(drawId),
 			queryFn: () => fetchMainDrawResult(drawId),
 			...defaultQueryOptions,
+			staleTime: DRAW_RESULT_STALE_TIME,
 			...options,
 		})),
 	});
@@ -273,6 +281,7 @@ export function useMultipleQuickPickDrawResults(
 			queryKey: lotteryKeys.quickPick.draw(drawId),
 			queryFn: () => fetchQuickPickDrawResult(drawId),
 			...defaultQueryOptions,
+			staleTime: DRAW_RESULT_STALE_TIME,
 			...options,
 		})),
 	});

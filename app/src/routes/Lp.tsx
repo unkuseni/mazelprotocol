@@ -111,6 +111,7 @@ export default function LpPool() {
 							value={depositAmount}
 							onChange={(e) => setDepositAmount(e.target.value)}
 							placeholder="Amount in USDC"
+							aria-label="Deposit amount in USDC"
 							className="w-full h-10 px-3 rounded-xl bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/60 mb-3"
 						/>
 						<Button
@@ -139,6 +140,7 @@ export default function LpPool() {
 							value={withdrawShares}
 							onChange={(e) => setWithdrawShares(e.target.value)}
 							placeholder="Shares to burn"
+							aria-label="LP shares to burn"
 							className="w-full h-10 px-3 rounded-xl bg-surface-1/70 border border-cyan-500/20 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-cyan-400/60 mb-3"
 						/>
 						<Button
@@ -188,12 +190,18 @@ export default function LpPool() {
 			)}
 
 			{error && (
-				<div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-400">
+				<div
+					role="alert"
+					className="mt-4 rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-400"
+				>
 					{error}
 				</div>
 			)}
 			{success && (
-				<div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-400">
+				<div
+					role="status"
+					className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-400"
+				>
 					{success}
 				</div>
 			)}

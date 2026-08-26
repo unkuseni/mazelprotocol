@@ -1,22 +1,87 @@
 import { Gem, Globe, MessageCircle, Twitter } from "lucide-react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import { getGeoblockMessage, isRegionPending } from "@/lib/geoblock";
-import Dashboard from "@/routes/Dashboard";
-// Route components
-import Home from "@/routes/Home";
-import LpPool from "@/routes/Lp";
-import Play from "@/routes/Play";
-import QuickPick from "@/routes/QuickPick";
-import Results from "@/routes/Results";
-import RolldownLearn from "@/routes/RolldownLearn";
-import SyndicateDetail from "@/routes/SyndicateDetail";
-import Syndicates from "@/routes/Syndicates";
-import Tickets from "@/routes/Tickets";
-import Waitlist from "@/routes/Waitlist";
-import Whitepaper from "@/routes/Whitepaper";
+
+/* -------------------------------------------------------------------------- */
+/*  Route code-splitting                                                      */
+/*  Routes are lazy-loaded so the initial bundle only ships the landing page  */
+/*  and its dependencies, not every page in the app (the eager version was    */
+/*  a single ~2 MB chunk).                                                    */
+/* -------------------------------------------------------------------------- */
+
+const Dashboard = lazy(() => import("@/routes/Dashboard"));
+const Home = lazy(() => import("@/routes/Home"));
+const LpPool = lazy(() => import("@/routes/Lp"));
+const Play = lazy(() => import("@/routes/Play"));
+const QuickPick = lazy(() => import("@/routes/QuickPick"));
+const Results = lazy(() => import("@/routes/Results"));
+const RolldownLearn = lazy(() => import("@/routes/RolldownLearn"));
+const SyndicateDetail = lazy(() => import("@/routes/SyndicateDetail"));
+const Syndicates = lazy(() => import("@/routes/Syndicates"));
+const Tickets = lazy(() => import("@/routes/Tickets"));
+const Waitlist = lazy(() => import("@/routes/Waitlist"));
+const Whitepaper = lazy(() => import("@/routes/Whitepaper"));
+
+/** Branded loading state shown while a lazy route chunk is fetched. */
+function PageFallback() {
+	return (
+		<div
+			className="flex min-h-[60vh] items-center justify-center bg-background"
+			role="status"
+			aria-live="polite"
+		>
+			<div className="flex flex-col items-center gap-4">
+				<div
+					className="h-12 w-12 rounded-full border-2 border-cyan-500/20 border-t-cyan-400 animate-spin"
+					aria-hidden="true"
+				/>
+				<p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+					Loading…
+				</p>
+			</div>
+		</div>
+	);
+}
+
+/** The main app shell: fixed header, routed content, footer. */
+function AppShell() {
+	return (
+		<>
+			{/* Skip link: lets keyboard users jump straight past the nav */}
+			<a
+				href="#main"
+				className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-lg focus:bg-surface-0 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-foreground focus:border focus:border-cyan-500/40"
+			>
+				Skip to main content
+			</a>
+			<Header />
+			<main id="main">
+				<Suspense fallback={<PageFallback />}>
+					<Routes>
+						<Route path="/" element={<Home />} />
+						<Route path="/dashboard" element={<Dashboard />} />
+						<Route path="/play" element={<Play />} />
+						<Route path="/play/quick-pick" element={<QuickPick />} />
+						<Route path="/lp" element={<LpPool />} />
+						<Route path="/results" element={<Results />} />
+						<Route path="/tickets" element={<Tickets />} />
+						<Route path="/syndicates" element={<Syndicates />} />
+						<Route
+							path="/syndicates/:syndicateId"
+							element={<SyndicateDetail />}
+						/>
+						<Route path="/learn/rolldown" element={<RolldownLearn />} />
+						<Route path="/learn/whitepaper" element={<Whitepaper />} />
+					</Routes>
+				</Suspense>
+			</main>
+			<Footer />
+		</>
+	);
+}
 
 export default function App() {
 	const [regionPending, setRegionPending] = useState(false);
@@ -80,7 +145,7 @@ export default function App() {
 							Join Discord
 						</a>
 						<a
-							href="https://twitter.com/mazelprotocol"
+							href="https://x.com/mazelprotocol"
 							target="_blank"
 							rel="noopener noreferrer"
 							className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/25 bg-surface-1/50 px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-cyan-400/50 hover:bg-cyan-500/10"
@@ -103,32 +168,19 @@ export default function App() {
 		);
 	}
 
+	/*
+	 * `/waitlist` is a standalone prelaunch landing page with its own nav and
+	 * footer, so it must NOT be wrapped in the app shell (previously the app
+	 * Header/Footer were also rendered, stacking a second set of chrome below
+	 * the waitlist page and letting the fixed header float over it).
+	 * Everything else renders inside AppShell.
+	 */
 	return (
-		<>
-			{/* Standalone prelaunch landing page (own nav + footer, no app shell) */}
+		<Suspense fallback={<PageFallback />}>
 			<Routes>
 				<Route path="/waitlist" element={<Waitlist />} />
+				<Route path="*" element={<AppShell />} />
 			</Routes>
-			<Header />
-			<main>
-				<Routes>
-					<Route path="/" element={<Home />} />
-					<Route path="/dashboard" element={<Dashboard />} />
-					<Route path="/play" element={<Play />} />
-					<Route path="/play/quick-pick" element={<QuickPick />} />
-					<Route path="/lp" element={<LpPool />} />
-					<Route path="/results" element={<Results />} />
-					<Route path="/tickets" element={<Tickets />} />
-					<Route path="/syndicates" element={<Syndicates />} />
-					<Route
-						path="/syndicates/:syndicateId"
-						element={<SyndicateDetail />}
-					/>
-					<Route path="/learn/rolldown" element={<RolldownLearn />} />
-					<Route path="/learn/whitepaper" element={<Whitepaper />} />
-				</Routes>
-			</main>
-			<Footer />
-		</>
+		</Suspense>
 	);
 }

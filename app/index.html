@@ -6,6 +6,32 @@
     <meta name="description" content="MazelProtocol introduces positive expected value windows through mathematical rolldown mechanics. Play smart, win bigger on Solana." />
     <meta name="theme-color" content="#04050D" />
     <meta name="color-scheme" content="dark light" />
+    <script>
+      /* Apply the persisted theme BEFORE first paint to avoid a flash of the
+         wrong theme (FOUC). Mirrors ThemeProvider logic: default is "dark";
+         "system" follows the OS preference. */
+      (function () {
+        try {
+          var stored = localStorage.getItem("theme");
+          var theme =
+            stored === "light" || stored === "dark" || stored === "system"
+              ? stored
+              : "dark";
+          var isDark =
+            theme === "dark" ||
+            (theme === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var root = document.documentElement;
+          root.classList.add(isDark ? "dark" : "light");
+          root.classList.remove(isDark ? "light" : "dark");
+          root.style.colorScheme = isDark ? "dark" : "light";
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", isDark ? "#04050D" : "#EEF2F8");
+        } catch (e) {
+          /* no-op — fall through to the default (dark) theme */
+        }
+      })();
+    </script>
     <meta property="og:title" content="MazelProtocol | A Provably Fair Lottery" />
     <meta property="og:description" content="MazelProtocol introduces positive expected value windows through mathematical rolldown mechanics. Play smart, win bigger on Solana." />
     <meta property="og:type" content="website" />

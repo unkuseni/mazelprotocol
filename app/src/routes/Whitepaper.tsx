@@ -32,7 +32,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import Footer from "@/components/Footer";
 import { FloatingBalls } from "@/components/LotteryBalls";
 
 /* -------------------------------------------------------------------------- */
@@ -2562,7 +2561,6 @@ pub struct Ticket {
 				</div>
 			</section>
 
-			<Footer />
 		</div>
 	);
 }

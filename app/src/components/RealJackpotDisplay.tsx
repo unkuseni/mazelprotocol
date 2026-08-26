@@ -86,7 +86,10 @@ function extractJackpotAmount(lotteryState: any): number {
 				: Number(lotteryState.ticketPrice || 2_500_000); // Default 2.5 USDC in base units
 
 		const baseUnits = ticketsSold * ticketPrice;
-		const prizePoolPercentage = 0.72; // 72% to prize pool during normal operation
+		// 55.6% of gross ticket revenue builds the jackpot on-chain
+		// (JACKPOT_ALLOCATION_BPS = 5560 in programs/mazelprotocol/src/constants.rs).
+		// The previous hardcoded 0.72 would overstate the jackpot by ~29%.
+		const prizePoolPercentage = 0.556;
 
 		return (baseUnits * prizePoolPercentage) / 10 ** USDC_DECIMALS;
 	}
@@ -231,6 +234,7 @@ export function RealJackpotDisplay({
 						disabled={isRefetching}
 						className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border border-border shadow-sm"
 						title="Refresh jackpot data"
+						aria-label="Refresh jackpot data"
 					>
 						<RefreshCw
 							size={16}
@@ -268,7 +272,7 @@ export function RealJackpotDisplay({
 					<span>Live from Solana</span>
 				</div>
 				<span className="opacity-50">•</span>
-				<span>Updated just now</span>
+				<span>Auto-updating</span>
 				{isRefetching && (
 					<>
 						<span className="opacity-50">•</span>
@@ -463,6 +467,7 @@ export function RealQuickPickJackpotDisplay({
 						disabled={isRefetching}
 						className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border border-border shadow-sm"
 						title="Refresh Quick Pick jackpot"
+						aria-label="Refresh Quick Pick jackpot"
 					>
 						<RefreshCw
 							size={16}

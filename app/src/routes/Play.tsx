@@ -283,7 +283,10 @@ function CartSummary({
 			)}
 
 			{purchaseError && (
-				<div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+				<div
+					role="alert"
+					className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs"
+				>
 					{purchaseError}
 				</div>
 			)}
@@ -539,6 +542,7 @@ export default function PlayMainLottery() {
 			// When buying multiple tickets, use the on-chain buy_bulk
 			// instruction (one tx, one unified account, lower priority fees).
 			// For a single ticket, use buy_ticket with the free-ticket option.
+			let sig: string;
 			if (tickets.length === 1) {
 				const ticket = tickets[0];
 				setPurchaseStatuses((prev) => {
@@ -547,7 +551,7 @@ export default function PlayMainLottery() {
 					return next;
 				});
 				try {
-					const sig = await buyMainTicket(
+					sig = await buyMainTicket(
 						connectedProvider,
 						{
 							numbers: ticket.numbers,
@@ -555,7 +559,6 @@ export default function PlayMainLottery() {
 						},
 						playerUsdc,
 					);
-					setPurchaseTx(sig);
 					setPurchaseStatuses((prev) => {
 						const next = new Map(prev);
 						next.set(0, "purchased");
@@ -578,7 +581,7 @@ export default function PlayMainLottery() {
 					});
 					return next;
 				});
-				const sig = await buyBulkMainTickets(
+				sig = await buyBulkMainTickets(
 					connectedProvider,
 					{
 						tickets: tickets.map((t) => t.numbers),
@@ -589,7 +592,6 @@ export default function PlayMainLottery() {
 					},
 					playerUsdc,
 				);
-				setPurchaseTx(sig);
 				setPurchaseStatuses((prev) => {
 					const next = new Map(prev);
 					tickets.forEach((_, i) => {
@@ -599,12 +601,16 @@ export default function PlayMainLottery() {
 				});
 			}
 
-			// Bulk buy succeeded — clear the cart (all tickets purchased in one tx).
-			if (purchaseTx) {
-				setTickets([]);
-				setPurchaseStatuses(new Map());
-				invalidateMainLottery();
-			}
+			// Success — the tickets now live on-chain (see "My Tickets").
+			// Clear the cart so the same numbers can't be re-submitted and
+			// double-bought: previously this checked the `purchaseTx` state
+			// variable, which is still null inside this async execution, so
+			// the cart was NEVER cleared after a successful purchase.
+			setPurchaseTx(sig);
+			setTickets([]);
+			setPurchaseStatuses(new Map());
+			setUseFreeTicket(false);
+			invalidateMainLottery();
 		} catch (err) {
 			// Setup failures (UserStats init, ATA creation) abort the whole batch.
 			setPurchaseError(
@@ -622,7 +628,7 @@ export default function PlayMainLottery() {
 		invalidateMainLottery,
 		isSaleOpen,
 		useFreeTicket,
-		purchaseTx,
+		freeTicketsAvailable,
 	]);
 
 	return (
@@ -922,7 +928,7 @@ export default function PlayMainLottery() {
 									<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 										{tickets.map((ticket, i) => (
 											<TicketCard
-												key={ticket.numbers.join("-")}
+												key={`${i}-${ticket.numbers.join("-")}`}
 												numbers={ticket.numbers}
 												index={i}
 												onRemove={() => removeTicket(i)}
@@ -967,7 +973,7 @@ export default function PlayMainLottery() {
 									freeTicketsAvailable={freeTicketsAvailable}
 								/>
 
-								{/* Use Free Ticket toggle */}
+								{/* Free ticket credit balance (from on-chain UserStats) */}
 								<div className="glass rounded-xl p-4 mt-4">
 									<div className="flex items-center justify-between">
 										<div className="flex items-center gap-2">
@@ -976,10 +982,20 @@ export default function PlayMainLottery() {
 												Free Tickets Available
 											</span>
 										</div>
-										<span className="text-sm font-bold text-gold-300">0</span>
+										<span
+											className={`text-sm font-bold ${
+												freeTicketsAvailable > 0
+													? "text-gold-300"
+													: "text-muted-foreground"
+											}`}
+										>
+											{walletConnected ? freeTicketsAvailable : "—"}
+										</span>
 									</div>
 									<p className="text-[10px] text-muted-foreground mt-1.5">
-										Match 2 numbers in any draw to earn a free ticket credit
+										{walletConnected
+											? "Match 2 numbers in any draw to earn a free ticket credit"
+											: "Connect your wallet to see earned free ticket credits"}
 									</p>
 								</div>
 
@@ -988,12 +1004,14 @@ export default function PlayMainLottery() {
 									<button
 										type="button"
 										onClick={() => setShowPrizeInfo(!showPrizeInfo)}
+										aria-expanded={showPrizeInfo}
+										aria-controls="play-prize-tiers"
 										className="w-full flex items-center justify-between"
 									>
-										<h3 className="text-sm font-bold text-foreground flex items-center gap-2 shrink-0">
+										<span className="text-sm font-bold text-foreground flex items-center gap-2 shrink-0">
 											<Info size={14} className="text-emerald-300" />
 											Prize Tiers
-										</h3>
+										</span>
 										<ChevronRight
 											size={14}
 											className={`text-muted-foreground transition-transform duration-200 shrink-0 ${
@@ -1003,7 +1021,7 @@ export default function PlayMainLottery() {
 									</button>
 
 									{showPrizeInfo && (
-										<div className="mt-4 overflow-x-auto pb-1 -mx-1 px-1">
+										<div id="play-prize-tiers" className="mt-4 overflow-x-auto pb-1 -mx-1 px-1">
 											<div className="flex lg:block gap-2 min-w-max">
 												{PRIZE_TIERS.map((tier) => (
 													<div

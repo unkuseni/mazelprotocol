@@ -38,7 +38,7 @@ const LAUNCH_DATE = new Date("2026-09-05T00:00:00Z").getTime();
 const WAITLIST_API = "/api/waitlist";
 
 const SOCIALS = {
-	twitter: "https://twitter.com/mazelprotocol",
+	twitter: "https://x.com/mazelprotocol",
 	discord: "https://discord.gg/mazelprotocol",
 	github: "https://github.com/mazelprotocol",
 	website: "https://mazelprotocol.com",
@@ -49,7 +49,7 @@ const features = [
 		icon: TrendingUp,
 		title: "Mathematical +EV Windows",
 		description:
-			"Traditional lotteries keep ~50% of every dollar forever. When our jackpot hits the soft cap, the odds flip in your favor — up to $2.04 back per $1 wagered. The math works for you.",
+			"Traditional lotteries keep ~50% of every dollar forever. When our jackpot hits the soft cap, the odds flip in your favor — the player edge starts at +62% and rises to up to $2.04 back per $1 wagered at the hard cap. The math works for you.",
 		highlight: true,
 	},
 	{
@@ -112,7 +112,7 @@ const roadmap = [
 const faqs = [
 	{
 		q: "What makes MazelProtocol different from other lotteries?",
-		a: "Traditional lotteries keep roughly half of every dollar forever, and their jackpots rarely land. MazelProtocol returns its jackpot to players: when it hits the soft cap, the rolldown mechanic creates mathematically positive expected value windows — up to $2.04 back for every $1 wagered, with 31× better jackpot odds than Powerball. The math is designed to flip in the player's favor.",
+		a: "Traditional lotteries keep roughly half of every dollar forever, and their jackpots rarely land. MazelProtocol returns its jackpot to players: when it hits the soft cap, the rolldown mechanic creates mathematically positive expected value windows — $1.62 back per $1 at the soft cap, rising to $2.04 at the hard cap — with 31× better jackpot odds than Powerball. The math is designed to flip in the player's favor.",
 	},
 	{
 		q: "Is it really non-custodial?",
@@ -255,6 +255,7 @@ function WaitlistForm({ onJoined }: WaitlistFormProps) {
 							placeholder="you@example.com"
 							autoComplete="email"
 							maxLength={254}
+							aria-label="Email address"
 							className="w-full h-12 pl-10 pr-4 rounded-xl bg-surface-1/70 border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-gold-500/40 focus:ring-2 focus:ring-gold-500/15 transition-colors"
 						/>
 					</div>
@@ -292,12 +293,16 @@ function WaitlistForm({ onJoined }: WaitlistFormProps) {
 						autoComplete="off"
 						spellCheck={false}
 						maxLength={44}
+						aria-label="Solana wallet address (optional)"
 						className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-1/50 border border-cyan-500/20 text-sm text-foreground placeholder:text-muted-foreground/45 focus:outline-none focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-500/15 transition-colors"
 					/>
 				</div>
 
 				{status.type === "error" && (
-					<div className="mt-3 text-sm text-red-400/90 bg-red-500/8 border border-red-500/15 rounded-xl px-4 py-3">
+					<div
+						role="alert"
+						className="mt-3 text-sm text-red-400/90 bg-red-500/8 border border-red-500/15 rounded-xl px-4 py-3"
+					>
 						{status.message}
 						<div className="mt-2 flex items-center gap-3">
 							<a
@@ -450,6 +455,7 @@ export default function Waitlist() {
 				</nav>
 			</header>
 
+			<main>
 			{/* ================================================================ */}
 			{/*  HERO                                                            */}
 			{/* ================================================================ */}
@@ -914,6 +920,7 @@ export default function Waitlist() {
 					</footer>
 				</div>
 			</section>
+			</main>
 		</div>
 	);
 }

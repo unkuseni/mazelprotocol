@@ -121,6 +121,31 @@
   --surface-2: #111734;
 }
 
+/* ---- Light theme accent overrides ----
+ * The neon accent tokens (cyan/gold/emerald/magenta) are tuned for the dark
+ * background and fail WCAG AA contrast on the light background (≈1.2–1.5:1).
+ * Darken them for the light theme only; the dark theme keeps the neon values. */
+.light {
+  --cyan-300: #0E6E8C;
+  --cyan-400: #0B5F7A;
+  --cyan-500: #0A6A87;
+  --cyan-600: #08536A;
+  --gold-300: #7A5300;
+  --gold-400: #674400;
+  --gold-500: #6B4A00;
+  --gold-600: #573C00;
+  --emerald-400: #047857;
+  --emerald-500: #0B7A5C;
+  --emerald-600: #065F46;
+  --magenta-300: #A91470;
+  --magenta-400: #8F1160;
+  --magenta-500: #A31264;
+  --magenta-600: #84104F;
+  --violet-400: #5B3FD4;
+  --violet-500: #6D3FD1;
+  --violet-600: #5A33B0;
+}
+
 /* ---------------------------------------------------------------------------
  * 2. TAILWIND THEME BRIDGE
  * --------------------------------------------------------------------------- */
@@ -243,6 +268,35 @@
   html {
     scroll-behavior: smooth;
     color-scheme: dark;
+  }
+
+  /* ---- Keyboard focus visibility (a11y) ----
+   * Components may style their own focus, but this guarantees a visible
+   * ring for keyboard users everywhere (tab navigation, custom menus). */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* ---- Reduced motion (a11y + battery) ----
+   * Respects the OS "reduce motion" preference: all animations/transitions
+   * collapse to their end state instead of running. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      transition-delay: 0ms !important;
+    }
+    html {
+      scroll-behavior: auto;
+    }
   }
 
   /* ---- Scrollbar — neon thin ---- */
@@ -659,6 +713,19 @@
   .body-base   { font-size: var(--text-base); line-height: 1.6; }
   .body-small  { font-size: var(--text-sm); line-height: 1.55; }
   .body-xs     { font-size: var(--text-xs); line-height: 1.45; }
+
+  /* ---- Forced-colors (Windows high contrast): gradient text uses a
+   * transparent fill, which would vanish — restore a plain color. ---- */
+  @media (forced-colors: active) {
+    .text-gradient-gold,
+    .text-gradient-emerald,
+    .text-gradient-primary,
+    .text-gradient-magenta,
+    .shimmer-text {
+      -webkit-text-fill-color: CanvasText;
+      color: CanvasText;
+    }
+  }
 }
 
 /* ---------------------------------------------------------------------------

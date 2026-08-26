@@ -114,3 +114,40 @@ export function initAppKit(): Promise<boolean> {
 export function getSolanaAdapter() {
 	return solanaAdapter;
 }
+
+/* ---------------------------------------------------------------------------
+ * Pending "open wallet modal" request
+ *
+ * AppKit is initialized lazily (after the first render, or on the first
+ * "Connect" click). If the user clicks Connect before initialization has
+ * finished, the stub context queues the request here and the client bridge
+ * replays it as soon as `createAppKit` has completed — so a click is never
+ * silently dropped during the (short) initialization window.
+ * ------------------------------------------------------------------------- */
+
+interface PendingOpenRequest {
+	/** `undefined` means "open the default modal view" */
+	options: Record<string, unknown> | undefined;
+}
+
+let pendingOpenRequest: PendingOpenRequest | null = null;
+
+/** Queue a wallet-modal open request (safe to call before init completes). */
+export function requestWalletOpen(options?: Record<string, unknown>) {
+	pendingOpenRequest = { options };
+}
+
+/**
+ * Take (and clear) the queued open request, if any.
+ * Returns `null` when nothing was queued, otherwise the options
+ * (`undefined` = open the default modal view).
+ */
+export function consumePendingOpen():
+	| Record<string, unknown>
+	| undefined
+	| null {
+	if (!pendingOpenRequest) return null;
+	const { options } = pendingOpenRequest;
+	pendingOpenRequest = null;
+	return options;
+}

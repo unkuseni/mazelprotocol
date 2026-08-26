@@ -879,7 +879,7 @@ export default function PlayQuickPickExpress() {
 										<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 											{tickets.map((ticket, i) => (
 												<TicketCard
-													key={ticket.numbers.join("-")}
+													key={`${i}-${ticket.numbers.join("-")}`}
 													numbers={ticket.numbers}
 													index={i}
 													onRemove={() => removeTicket(i)}
@@ -945,7 +945,10 @@ export default function PlayQuickPickExpress() {
 											</div>
 
 											{purchaseError && (
-												<div className="mb-3 p-3 rounded-lg bg-red-500/5 border border-red-500/25">
+												<div
+													role="alert"
+													className="mb-3 p-3 rounded-lg bg-red-500/5 border border-red-500/25"
+												>
 													<p className="font-mono text-[11px] text-red-400 font-medium">
 														{purchaseError}
 													</p>
@@ -1029,13 +1032,13 @@ export default function PlayQuickPickExpress() {
 												},
 												{
 													label: "Jackpot Odds",
-													qp: "1:324K",
-													main: "1:9.3M",
+													qp: "1 in 324,632",
+													main: "1 in 9,366,819",
 												},
 												{
 													label: "Rolldown EV",
 													qp: rolldownEdgeLabel,
-													main: "+47%",
+													main: "+62%",
 												},
 											].map((row) => (
 												<div
@@ -1064,12 +1067,14 @@ export default function PlayQuickPickExpress() {
 										<button
 											type="button"
 											onClick={() => setShowPrizeInfo(!showPrizeInfo)}
+											aria-expanded={showPrizeInfo}
+											aria-controls="qp-prize-tiers"
 											className="w-full flex items-center justify-between"
 										>
-											<h3 className="hud-label flex items-center gap-2">
+											<span className="hud-label flex items-center gap-2">
 												<Info size={14} className="text-cyan-300" />
 												Normal Prize Tiers
-											</h3>
+											</span>
 											<ChevronRight
 												size={14}
 												className={`text-muted-foreground transition-transform duration-200 ${
@@ -1079,7 +1084,10 @@ export default function PlayQuickPickExpress() {
 										</button>
 
 										{showPrizeInfo && (
-											<div className="mt-4 overflow-x-auto pb-1 -mx-1 px-1">
+											<div
+												id="qp-prize-tiers"
+												className="mt-4 overflow-x-auto pb-1 -mx-1 px-1"
+											>
 												<div className="flex lg:block gap-2 min-w-max">
 													{PRIZE_TIERS.map((tier) => (
 														<div
@@ -1135,12 +1143,14 @@ export default function PlayQuickPickExpress() {
 										<button
 											type="button"
 											onClick={() => setShowRolldownInfo(!showRolldownInfo)}
+											aria-expanded={showRolldownInfo}
+											aria-controls="qp-rolldown-tiers"
 											className="w-full flex items-center justify-between"
 										>
-											<h3 className="hud-label flex items-center gap-2">
+											<span className="hud-label flex items-center gap-2">
 												<TrendingUp size={14} className="text-magenta-300" />
 												Rolldown Prizes
-											</h3>
+											</span>
 											<ChevronRight
 												size={14}
 												className={`text-muted-foreground transition-transform duration-200 ${
@@ -1150,7 +1160,7 @@ export default function PlayQuickPickExpress() {
 										</button>
 
 										{showRolldownInfo && (
-											<div className="mt-4 space-y-2">
+											<div id="qp-rolldown-tiers" className="mt-4 space-y-2">
 												{ROLLDOWN_TIERS.map((tier) => (
 													<div
 														key={tier.match}

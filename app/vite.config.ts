@@ -17,4 +17,20 @@ export default defineConfig({
     tailwindcss(),
     viteReact(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Split rarely-changing vendor code into stable, cacheable chunks and
+        // keep route chunks (React.lazy) free of duplicate copies. The AppKit
+        // graph is intentionally left alone: it is already dynamically
+        // imported only after the app mounts.
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "query-vendor": ["@tanstack/react-query"],
+          "icons-vendor": ["lucide-react"],
+          "chain-vendor": ["@solana/web3.js", "@coral-xyz/anchor"],
+        },
+      },
+    },
+  },
 });
