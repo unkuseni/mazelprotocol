@@ -707,11 +707,11 @@ function DemoDataBanner() {
 	);
 }
 
-function StatsBar() {
+function StatsBar({ liveCount = 0 }: { liveCount?: number }) {
 	const stats = [
 		{
 			label: "Active Syndicates",
-			value: "142",
+			value: liveCount > 0 ? liveCount.toLocaleString() : "142",
 			icon: Users,
 			color: "text-emerald-400",
 		},
@@ -961,7 +961,7 @@ export default function SyndicatesPage() {
 					<DemoDataBanner />
 
 					{/* Stats */}
-					<StatsBar />
+					<StatsBar liveCount={liveSyndicates.length} />
 
 					{/* Syndicate Wars Banner */}
 					<SyndicateWarsBanner />

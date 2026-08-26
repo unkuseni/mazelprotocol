@@ -1,4 +1,5 @@
 /// <reference path="../../env.d.ts" />
+import { createBackend, type SqlBackend } from "../../lib/sql-backend";
 
 /**
  * MazelProtocol Chat API — Cloudflare Pages Function
@@ -11,7 +12,12 @@
  */
 
 interface Env {
-  CHAT_DB: D1Database;
+  /** Cloudflare D1 binding (used when Turso is not configured). */
+  CHAT_DB?: D1Database;
+  /** Turso/libSQL database URL — when set, chat storage uses Turso. */
+  TURSO_DATABASE_URL?: string;
+  /** Turso auth token (required for hosted Turso databases). */
+  TURSO_AUTH_TOKEN?: string;
   /**
    * Comma-separated list of base58 Solana pubkeys allowed to send
    * "announcement" messages and toggle message pins. When unset or empty,
@@ -276,7 +282,7 @@ async function verifyEd25519Signature(
  * Also records the nonce (replay protection) on success.
  */
 async function verifyChatAuth(
-  db: D1Database,
+  db: SqlBackend,
   sender: string,
   signature: string,
   timestamp: number,
@@ -307,26 +313,24 @@ async function verifyChatAuth(
   if (!valid) return "Signature verification failed";
 
   // Replay protection: each nonce may be used exactly once.
-  await db
-    .prepare(
-      "CREATE TABLE IF NOT EXISTS chat_auth_nonces (nonce TEXT PRIMARY KEY, created_at INTEGER NOT NULL)",
-    )
-    .run();
-  const existing = await db
-    .prepare("SELECT nonce FROM chat_auth_nonces WHERE nonce = ?")
-    .bind(nonce)
-    .first();
+  await db.run(
+    "CREATE TABLE IF NOT EXISTS chat_auth_nonces (nonce TEXT PRIMARY KEY, created_at INTEGER NOT NULL)",
+    [],
+  );
+  const existing = await db.first<{ nonce: string }>(
+    "SELECT nonce FROM chat_auth_nonces WHERE nonce = ?",
+    [nonce],
+  );
   if (existing) return "Request already used — please try again";
 
   // Opportunistic pruning of nonces older than 1 hour.
-  await db
-    .prepare("DELETE FROM chat_auth_nonces WHERE created_at < ?")
-    .bind(Date.now() - 3_600_000)
-    .run();
-  await db
-    .prepare("INSERT INTO chat_auth_nonces (nonce, created_at) VALUES (?, ?)")
-    .bind(nonce, Date.now())
-    .run();
+  await db.run("DELETE FROM chat_auth_nonces WHERE created_at < ?", [
+    Date.now() - 3_600_000,
+  ]);
+  await db.run(
+    "INSERT INTO chat_auth_nonces (nonce, created_at) VALUES (?, ?)",
+    [nonce, Date.now()],
+  );
 
   return null;
 }
@@ -361,7 +365,7 @@ const MAX_REACTS_PER_WINDOW = 20;
  * `recordRateLimit` (two-step so the first call isn't blocked).
  */
 async function checkRateLimit(
-  db: D1Database,
+  db: SqlBackend,
   sender: string,
   action: "message" | "interaction",
 ): Promise<string | null> {
@@ -371,27 +375,22 @@ async function checkRateLimit(
     action === "message" ? MAX_MESSAGES_PER_WINDOW : MAX_REACTS_PER_WINDOW;
 
   // Ensure the rate table exists.
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS ${table} (
+  await db.run(
+    `CREATE TABLE IF NOT EXISTS ${table} (
         sender TEXT NOT NULL,
         created_at INTEGER NOT NULL
       )`,
-    )
-    .run();
+    [],
+  );
 
   // Count actions in the current window.
   const cutoff = Date.now() - RATE_WINDOW_MS;
-  const { results } = await db
-    .prepare(
-      `SELECT COUNT(*) AS cnt FROM ${table}
+  const rows = await db.all<{ cnt: number }>(
+    `SELECT COUNT(*) AS cnt FROM ${table}
        WHERE sender = ? AND created_at > ?`,
-    )
-    .bind(sender, cutoff)
-    .all();
-  const cnt = Number(
-    (results as Array<{ cnt: number }>)[0]?.cnt ?? 0,
+    [sender, cutoff],
   );
+  const cnt = Number(rows[0]?.cnt ?? 0);
 
   if (cnt >= max) {
     const secs = Math.ceil(
@@ -405,24 +404,21 @@ async function checkRateLimit(
 
 /** Record a rate-limited action (called after the check passes). */
 async function recordRateLimit(
-  db: D1Database,
+  db: SqlBackend,
   sender: string,
   action: "message" | "interaction",
 ): Promise<void> {
   const table =
     action === "message" ? "chat_msg_rate" : "chat_react_rate";
-  await db
-    .prepare(
-      `INSERT INTO ${table} (sender, created_at) VALUES (?, ?)`,
-    )
-    .bind(sender, Date.now())
-    .run();
+  await db.run(`INSERT INTO ${table} (sender, created_at) VALUES (?, ?)`, [
+    sender,
+    Date.now(),
+  ]);
 
   // Opportunistic pruning of old rows (keep the table small).
-  await db
-    .prepare(`DELETE FROM ${table} WHERE created_at < ?`)
-    .bind(Date.now() - RATE_WINDOW_MS)
-    .run();
+  await db.run(`DELETE FROM ${table} WHERE created_at < ?`, [
+    Date.now() - RATE_WINDOW_MS,
+  ]);
 }
 
 function rowToMessage(row: Record<string, unknown>): Record<string, unknown> {
@@ -457,7 +453,7 @@ export async function onRequest(context: {
     return json(null, 204);
   }
 
-  const db = env.CHAT_DB;
+  const db = createBackend(env);
 
   try {
     // ---- GET /api/chat/:syndicateId/messages ----
@@ -498,10 +494,7 @@ export async function onRequest(context: {
       query += " ORDER BY created_at DESC LIMIT ?";
       bindings.push(limit);
 
-      const { results: messages } = await db
-        .prepare(query)
-        .bind(...bindings)
-        .all();
+      const messages = await db.all(query, bindings);
 
       // Fetch reactions for all returned messages
       const messageIds = (messages as Array<{ id: string }>).map(
@@ -511,18 +504,16 @@ export async function onRequest(context: {
 
       if (messageIds.length > 0) {
         const placeholders = messageIds.map(() => "?").join(",");
-        const { results: allReactions } = await db
-          .prepare(
-            `SELECT message_id, emoji, sender FROM reactions WHERE message_id IN (${placeholders})`,
-          )
-          .bind(...messageIds)
-          .all();
-
-        for (const r of allReactions as Array<{
+        const allReactions = await db.all<{
           message_id: string;
           emoji: string;
           sender: string;
-        }>) {
+        }>(
+          `SELECT message_id, emoji, sender FROM reactions WHERE message_id IN (${placeholders})`,
+          messageIds,
+        );
+
+        for (const r of allReactions) {
           if (!reactionsMap[r.message_id]) reactionsMap[r.message_id] = {};
           if (!reactionsMap[r.message_id][r.emoji])
             reactionsMap[r.message_id][r.emoji] = [];
@@ -610,12 +601,10 @@ export async function onRequest(context: {
         return error("Only chat admins can send announcements", 403);
       }
 
-      await db
-        .prepare(
-          `INSERT INTO messages (id, syndicate_id, sender, sender_short, text, type, role, is_pinned, reply_to, created_at)
+      await db.run(
+        `INSERT INTO messages (id, syndicate_id, sender, sender_short, text, type, role, is_pinned, reply_to, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
-        )
-        .bind(
+        [
           id,
           syndicateId,
           body.sender,
@@ -625,8 +614,8 @@ export async function onRequest(context: {
           null,
           body.replyTo ?? null,
           now,
-        )
-        .run();
+        ],
+      );
 
       // SECURITY (review M6): record this send against the wallet's limit.
       await recordRateLimit(db, body.sender, "message");
@@ -693,34 +682,28 @@ export async function onRequest(context: {
       if (body.emoji.length > 8) return error("Invalid emoji");
 
       if (body.action === "add") {
-        await db
-          .prepare(
-            "INSERT OR IGNORE INTO reactions (message_id, emoji, sender) VALUES (?, ?, ?)",
-          )
-          .bind(messageId, body.emoji, body.sender)
-          .run();
+        await db.run(
+          "INSERT OR IGNORE INTO reactions (message_id, emoji, sender) VALUES (?, ?, ?)",
+          [messageId, body.emoji, body.sender],
+        );
       } else {
-        await db
-          .prepare(
-            "DELETE FROM reactions WHERE message_id = ? AND emoji = ? AND sender = ?",
-          )
-          .bind(messageId, body.emoji, body.sender)
-          .run();
+        await db.run(
+          "DELETE FROM reactions WHERE message_id = ? AND emoji = ? AND sender = ?",
+          [messageId, body.emoji, body.sender],
+        );
       }
 
       // SECURITY (review M6): record this interaction against the wallet's limit.
       await recordRateLimit(db, body.sender, "interaction");
 
       // Return updated reactions for this message
-      const { results } = await db
-        .prepare(
-          "SELECT emoji, sender FROM reactions WHERE message_id = ?",
-        )
-        .bind(messageId)
-        .all();
+      const results = await db.all<{ emoji: string; sender: string }>(
+        "SELECT emoji, sender FROM reactions WHERE message_id = ?",
+        [messageId],
+      );
 
       const reactions: Record<string, string[]> = {};
-      for (const r of results as Array<{ emoji: string; sender: string }>) {
+      for (const r of results) {
         if (!reactions[r.emoji]) reactions[r.emoji] = [];
         reactions[r.emoji].push(r.sender);
       }
@@ -773,10 +756,10 @@ export async function onRequest(context: {
       const rateError = await checkRateLimit(db, body.sender, "interaction");
       if (rateError) return error(rateError, 429);
 
-      await db
-        .prepare("UPDATE messages SET is_pinned = ? WHERE id = ?")
-        .bind(body.pinned ? 1 : 0, messageId)
-        .run();
+      await db.run("UPDATE messages SET is_pinned = ? WHERE id = ?", [
+        body.pinned ? 1 : 0,
+        messageId,
+      ]);
 
       // SECURITY (review M6): record this interaction against the wallet's limit.
       await recordRateLimit(db, body.sender, "interaction");

@@ -1,4 +1,4 @@
--- MazelProtocol Syndicate Chat — D1 Database Schema
+-- MazelProtocol Syndicate Chat & Waitlist — Shared SQLite Schema (D1 / Turso)
 --
 -- Create the database in Cloudflare Dashboard, then run:
 --   npx wrangler d1 execute mazel-chat --file=./db/schema.sql

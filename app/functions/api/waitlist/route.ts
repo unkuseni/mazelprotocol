@@ -1,4 +1,5 @@
 /// <reference path="../../env.d.ts" />
+import { createBackend, type SqlBackend } from "../../lib/sql-backend";
 
 /**
  * MazelProtocol Prelaunch Waitlist API — Cloudflare Pages Function
@@ -18,7 +19,12 @@
  */
 
 interface Env {
-  CHAT_DB: D1Database;
+  /** Cloudflare D1 binding (used when Turso is not configured). */
+  CHAT_DB?: D1Database;
+  /** Turso/libSQL database URL — when set, storage uses Turso. */
+  TURSO_DATABASE_URL?: string;
+  /** Turso auth token (required for hosted Turso databases). */
+  TURSO_AUTH_TOKEN?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,7 +130,7 @@ function error(message: string, status = 400): Response {
 // Handlers
 // ---------------------------------------------------------------------------
 
-async function handlePost(request: Request, db: D1Database): Promise<Response> {
+async function handlePost(request: Request, db: SqlBackend): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -146,65 +152,58 @@ async function handlePost(request: Request, db: D1Database): Promise<Response> {
   const ipHash = await sha256Hex(clientIp(request));
 
   // ---- Rate limit: per-client window ----
-  const recent = await db
-    .prepare(
-      "SELECT last_signup_at FROM waitlist_entries WHERE ip_hash = ? ORDER BY last_signup_at DESC LIMIT 1",
-    )
-    .bind(ipHash)
-    .first<{ last_signup_at: number }>();
+  const recent = await db.first<{ last_signup_at: number }>(
+    "SELECT last_signup_at FROM waitlist_entries WHERE ip_hash = ? ORDER BY last_signup_at DESC LIMIT 1",
+    [ipHash],
+  );
   if (recent && now - Number(recent.last_signup_at) < RATE_LIMIT_WINDOW_MS) {
     return error("Please wait a few minutes before signing up again", 429);
   }
 
   // ---- Existing email cooldown ----
-  const existing = await db
-    .prepare("SELECT created_at FROM waitlist_entries WHERE email = ?")
-    .bind(email)
-    .first<{ created_at: number }>();
+  const existing = await db.first<{ created_at: number }>(
+    "SELECT created_at FROM waitlist_entries WHERE email = ?",
+    [email],
+  );
 
   if (existing) {
     if (now - Number(existing.created_at) < EMAIL_COOLDOWN_MS) {
       return error("This email is already on the waitlist", 409);
     }
     // Re-signup after cooldown: refresh timestamps + optional wallet
-    await db
-      .prepare(
-        `UPDATE waitlist_entries
+    await db.run(
+      `UPDATE waitlist_entries
            SET wallet = COALESCE(?, wallet),
                source = ?,
                referrer = COALESCE(?, referrer),
                ip_hash = ?,
                last_signup_at = ?
          WHERE email = ?`,
-      )
-      .bind(wallet, source, referrer, ipHash, now, email)
-      .run();
+      [wallet, source, referrer, ipHash, now, email],
+    );
   } else {
-    await db
-      .prepare(
-        `INSERT INTO waitlist_entries (email, wallet, source, referrer, ip_hash, last_signup_at, created_at)
+    await db.run(
+      `INSERT INTO waitlist_entries (email, wallet, source, referrer, ip_hash, last_signup_at, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(email, wallet, source, referrer, ipHash, now, now)
-      .run();
+      [email, wallet, source, referrer, ipHash, now, now],
+    );
   }
 
   // Position = number of entries created before this one (+1)
-  const before = await db
-    .prepare(
-      "SELECT COUNT(*) AS count FROM waitlist_entries WHERE created_at < ?",
-    )
-    .bind(now)
-    .first<{ count: number }>();
+  const before = await db.first<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM waitlist_entries WHERE created_at < ?",
+    [now],
+  );
   const position = (Number(before?.count ?? 0) + 1);
 
   return json({ success: true, position, email }, 201);
 }
 
-async function handleStats(db: D1Database): Promise<Response> {
-  const row = await db
-    .prepare("SELECT COUNT(*) AS count FROM waitlist_entries")
-    .first<{ count: number }>();
+async function handleStats(db: SqlBackend): Promise<Response> {
+  const row = await db.first<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM waitlist_entries",
+    [],
+  );
   return json({ count: Number(row?.count ?? 0) });
 }
 
@@ -213,7 +212,7 @@ export async function onRequest(context: {
   env: Env;
 }): Promise<Response> {
   const { request, env } = context;
-  const db = env.CHAT_DB;
+  const db = createBackend(env);
 
   if (request.method === "OPTIONS") return json(null, 204);
 

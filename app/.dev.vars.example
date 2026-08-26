@@ -1,0 +1,9 @@
+# Copy to .dev.vars.local for local `wrangler dev` Pages Functions testing.
+# Leave empty to use the D1 binding (requires `CHAT_DB` in wrangler.jsonc).
+
+# Turso / libSQL (optional alternative to D1)
+# TURSO_DATABASE_URL=libsql://your-db-xyz.turso.io
+# TURSO_AUTH_TOKEN=your-turso-auth-token
+
+# Chat admin wallets (comma-separated base58 pubkeys)
+# CHAT_ADMIN_PUBKEYS=
